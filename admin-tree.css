@@ -1,0 +1,197 @@
+/*
+ * ========================================
+ * УНІВЕРСАЛЬНЕ ІЄРАРХІЧНЕ МЕНЮ АДМІН-ПАНЕЛІ
+ * ========================================
+ *
+ * Кількість рівнів не обмежена.
+ *
+ * Рівень задається через CSS-змінну:
+ *
+ * style="--level: 1"
+ * style="--level: 2"
+ * style="--level: 3"
+ * ...
+ */
+
+
+/*
+ * Основний контейнер.
+ */
+.admin-tree {
+    --tree-indent: 28px;
+    --tree-gap: 10px;
+    --tree-button-size: 42px;
+
+    width: 100%;
+    box-sizing: border-box;
+
+    background: #fff;
+}
+
+
+/*
+ * Група одного рівня.
+ *
+ * Зліва знаходиться кнопка "+",
+ * справа — сам блок.
+ */
+.admin-tree-row {
+    display: grid;
+
+    grid-template-columns:
+        var(--tree-button-size)
+        minmax(0, 1fr);
+
+    gap: 12px;
+    align-items: start;
+
+    margin-bottom:
+        var(--tree-gap);
+}
+
+/*
+ * Сам інформаційний блок.
+ *
+ * Геометрія однакова
+ * для всіх рівнів.
+ */
+.admin-tree-item {
+    box-sizing: border-box;
+
+    width: 100%;
+    min-height: 64px;
+
+    padding: 10px 12px;
+
+    border:
+        1px solid
+        var(--border-color);
+
+    border-radius: 14px;
+
+    background: #faf7ff;
+}
+
+
+/*
+ * Кругла кнопка "+".
+ */
+.admin-tree-add {
+    width:
+        var(--tree-button-size);
+
+    height:
+        var(--tree-button-size);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: 0;
+    border-radius: 50%;
+
+    background:
+        var(--primary-color);
+
+    color: #fff;
+
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+/*
+ * Скрытая кнопка "+".
+ *
+ * Нужна потому, что display: flex
+ * переопределяет стандартное
+ * поведение атрибута hidden.
+ */
+.admin-tree-add[hidden] {
+    display: none;
+}
+
+
+/*
+ * Натискання кнопки.
+ */
+.admin-tree-add:active {
+    transform: scale(0.94);
+}
+
+
+/*
+ * Вміст рядка без кнопки "+".
+ *
+ * Використовуємо для наступних
+ * елементів тієї самої групи.
+ */
+.admin-tree-row.no-add {
+    grid-template-columns:
+        var(--tree-button-size)
+        minmax(0, 1fr);
+}
+
+.admin-tree-row.no-add::before {
+    content: "";
+}
+
+
+/*
+ * Телефон.
+ */
+@media (max-width: 650px) {
+
+    .admin-tree {
+        --tree-indent: 12px;
+        --tree-gap: 8px;
+        --tree-button-size: 36px;
+    }
+
+    .admin-tree-row {
+        gap: 8px;
+    }
+
+    .admin-tree-item {
+        min-height: 58px;
+
+        padding: 9px 10px;
+
+        border-radius: 12px;
+    }
+
+    .admin-tree-add {
+    font-size: 28px;
+
+    transform:
+        translateY(18px);
+    }
+  
+    .admin-tree-add:active {
+    transform:
+        translateY(18px)
+        scale(0.94);
+    }
+}
+
+/*
+ * Кнопка "+" относится
+ * к следующей карточке.
+ */
+.admin-tree-row:not(.no-add) {
+    margin-bottom: -36px;
+
+    position: relative;
+    z-index: 1;
+
+    pointer-events: none;
+}
+
+.admin-tree-row:not(.no-add)
+.admin-tree-add {
+    pointer-events: auto;
+}

@@ -1,0 +1,252 @@
+=== НАЧАЛО ТЕСТА ACODE 1.12.8 ===
+
+001 Acode test line
+002 Acode test line
+003 Acode test line
+004 Acode test line
+005 Acode test line
+006 Acode test line
+007 Acode test line
+008 Acode test line
+009 Acode test line
+010 Acode test line
+011 Acode test line
+012 Acode test line
+013 Acode test line
+014 Acode test line
+015 Acode test line
+016 Acode test line
+017 Acode test line
+018 Acode test line
+019 Acode test line
+020 Acode test line
+021 Acode test line
+022 Acode test line
+023 Acode test line
+024 Acode test line
+025 Acode test line
+026 Acode test line
+027 Acode test line
+028 Acode test line
+029 Acode test line
+030 Acode test line
+031 Acode test line
+032 Acode test line
+033 Acode test line
+034 Acode test line
+035 Acode test line
+036 Acode test line
+037 Acode test line
+038 Acode test line
+039 Acode test line
+040 Acode test line
+041 Acode test line
+042 Acode test line
+043 Acode test line
+044 Acode test line
+045 Acode test line
+046 Acode test line
+047 Acode test line
+048 Acode test line
+049 Acode test line
+050 Acode test line
+051 Acode test line
+052 Acode test line
+053 Acode test line
+054 Acode test line
+055 Acode test line
+056 Acode test line
+057 Acode test line
+058 Acode test line
+059 Acode test line
+060 Acode test line
+061 Acode test line
+062 Acode test line
+063 Acode test line
+064 Acode test line
+065 Acode test line
+066 Acode test line
+067 Acode test line
+068 Acode test line
+069 Acode test line
+070 Acode test line
+071 Acode test line
+072 Acode test line
+073 Acode test line
+074 Acode test line
+075 Acode test line
+076 Acode test line
+077 Acode test line
+078 Acode test line
+079 Acode test line
+080 Acode test line
+081 Acode test line
+082 Acode test line
+083 Acode test line
+084 Acode test line
+085 Acode test line
+086 Acode test line
+087 Acode test line
+088 Acode test line
+089 Acode test line
+090 Acode test line
+091 Acode test line
+092 Acode test line
+093 Acode test line
+094 Acode test line
+095 Acode test line
+096 Acode test line
+097 Acode test line
+098 Acode test line
+099 Acode test line
+100 Acode test line
+101 Acode test line
+102 Acode test line
+103 Acode test line
+104 Acode test line
+105 Acode test line
+106 Acode test line
+107 Acode test line
+108 Acode test line
+109 Acode test line
+110 Acode test line
+111 Acode test line
+112 Acode test line
+113 Acode test line
+114 Acode test line
+115 Acode test line
+116 Acode test line
+117 Acode test line
+118 Acode test line
+119 Acode test line
+120 Acode test line
+121 Acode test line
+122 Acode test line
+123 Acode test line
+124 Acode test line
+125 Acode test line
+126 Acode test line
+127 Acode test line
+128 Acode test line
+129 Acode test line
+130 Acode test line
+131 Acode test line
+132 Acode test line
+133 Acode test line
+134 Acode test line
+135 Acode test line
+136 Acode test line
+137 Acode test line
+138 Acode test line
+139 Acode test line
+140 Acode test line
+141 Acode test line
+142 Acode test line
+143 Acode test line
+144 Acode test line
+145 Acode test line
+146 Acode test line
+147 Acode test line
+148 Acode test line
+149 Acode test line
+150 Acode test line
+
+=== КОНЕЦ ТЕСТА ACODE 1.12.8 ===/**
+ * Уменьшить количество товара на 1.
+ *
+ * Если осталась одна штука —
+ * полностью удаляем позицию.
+ */
+public static function decreaseItem(
+    $userId,
+    $productId,
+    $sizeId
+) {
+    $cart = self::getOrCreateByUserId($userId);
+
+    if (!$cart) {
+        return false;
+    }
+
+    $db = Database::connect();
+
+
+    // Получаем текущее количество.
+    $stmt = $db->prepare("
+        SELECT quantity
+        FROM cart_items
+
+        WHERE cart_id = :cart_id
+          AND product_id = :product_id
+          AND size_id = :size_id
+
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        'cart_id' => $cart['id'],
+        'product_id' => $productId,
+        'size_id' => $sizeId
+    ]);
+
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+    if (!$item) {
+        return false;
+    }
+
+
+    // Если осталась одна штука —
+    // удаляем позицию полностью.
+    if ((int) $item['quantity'] <= 1) {
+
+        $stmt = $db->prepare("
+            DELETE FROM cart_items
+
+            WHERE cart_id = :cart_id
+              AND product_id = :product_id
+              AND size_id = :size_id
+        ");
+
+    } else {
+
+        // Иначе уменьшаем количество на 1.
+        $stmt = $db->prepare("
+            UPDATE cart_items
+
+            SET quantity = quantity - 1
+
+            WHERE cart_id = :cart_id
+              AND product_id = :product_id
+              AND size_id = :size_id
+        ");
+    }
+
+
+    return $stmt->execute([
+        'cart_id' => $cart['id'],
+        'product_id' => $productId,
+        'size_id' => $sizeId
+    ]);
+else {
+
+        // Иначе уменьшаем количество на 1.
+        $stmt = $db->prepare("
+            UPDATE cart_items
+
+            SET quantity = quantity - 1
+
+            WHERE cart_id = :cart_id
+              AND product_id = :product_id
+              AND size_id = :size_id
+        ");
+    }
+
+
+    return $stmt->execute([
+        'cart_id' => $cart['id'],
+        'product_id' => $productId,
+        'size_id' => $sizeId
+    ]);
+}
