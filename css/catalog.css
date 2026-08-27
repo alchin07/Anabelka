@@ -1,0 +1,210 @@
+/* =========================================
+   КАТАЛОГ — АНАБЕЛЬКА
+
+   ВАЖНО:
+   Цвета вынесены в CSS-переменные.
+   Позже значения этих переменных будут
+   задаваться через админ-панель.
+   ========================================= */
+
+
+/* =========================================
+   ЦВЕТОВАЯ ТЕМА
+   ========================================= */
+
+:root {
+
+    /* Основной цвет сайта */
+    --primary-color: #8A2BE2;
+
+    /* Основной фон страницы */
+    --background-color: #FAF8FC;
+
+    /* Фон карточек и блоков */
+    --surface-color: #FFFFFF;
+
+    /* Основной цвет текста */
+    --text-color: #333333;
+
+    /* Светлая граница */
+    --border-color: #E8DFF0;
+
+    /* Светлый оттенок основного цвета */
+    --primary-light-color: #F0E8F7;
+}
+
+
+/* =========================================
+   ОБЩИЕ НАСТРОЙКИ
+   ========================================= */
+
+body {
+    margin: 0;
+
+    font-family: Arial, sans-serif;
+
+    background: var(--background-color);
+
+    color: var(--text-color);
+}
+
+
+/* =========================================
+   ШАПКА КАТАЛОГА
+   ========================================= */
+
+.catalog-header {
+    background: var(--surface-color);
+
+    padding: 20px;
+
+    text-align: center;
+
+    border-bottom:
+        1px solid var(--border-color);
+}
+
+
+/* Логотип / название магазина */
+
+.catalog-logo {
+    display: inline-block;
+
+    margin-bottom: 10px;
+
+    color: var(--primary-color);
+
+    font-size: 28px;
+
+    font-weight: bold;
+
+    text-decoration: none;
+}
+
+
+/* Заголовок "Каталог" */
+
+.catalog-header h1 {
+    margin: 5px 0 0;
+
+    font-size: 24px;
+
+    font-weight: 600;
+}
+
+
+/* =========================================
+   ОСНОВНАЯ ОБЛАСТЬ
+   ========================================= */
+
+.catalog {
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    padding: 25px 15px;
+}
+
+
+/* Заголовки разделов */
+
+.catalog h2 {
+    margin: 0 0 18px;
+
+    font-size: 20px;
+}
+
+
+/* =========================================
+   КАТЕГОРИИ
+   ========================================= */
+
+.catalog-categories {
+    margin-bottom: 35px;
+}
+
+
+/* Контейнер кнопок категорий */
+
+.category-list {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 10px
+}
+
+/* =========================================
+   ИСПРАВЛЕНИЕ КАТАЛОГА
+   ========================================= */
+
+/* Кнопки категорий */
+
+.catalog-categories .category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.catalog-categories .category-item {
+    display: inline-block;
+
+    padding: 10px 16px;
+
+    background: var(--surface-color);
+
+    color: var(--primary-color);
+
+    border: 1px solid var(--primary-color);
+
+    border-radius: 25px;
+
+    text-decoration: none;
+}
+
+.catalog-categories .category-item:hover {
+    background: var(--primary-color);
+    color: var(--surface-color);
+}
+
+
+/* Изображение товара */
+
+.catalog-products .product-image {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+
+    aspect-ratio: 1 / 1;
+
+    background: var(--primary-light-color);
+
+    color: var(--primary-color);
+
+    font-size: 14px;
+}
+
+
+/* Карточка товара */
+
+.catalog-products .product-card {
+    display: block;
+
+    padding: 0;
+
+    overflow: hidden;
+
+    background: var(--surface-color);
+
+    border-radius: 14px;
+
+    border: 1px solid var(--border-color);
+
+    color: var(--text-color);
+
+    text-decoration: none;
+}
+}

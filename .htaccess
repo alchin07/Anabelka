@@ -1,0 +1,11 @@
+# Включаем механизм перезаписи URL на сервере,
+# если mod_rewrite доступен.
+RewriteEngine On
+
+# Если файл или папка существуют физически —
+# Apache обслуживает их напрямую.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Все остальные запросы передаются главному index.php.
+RewriteRule ^ index.php [L]
