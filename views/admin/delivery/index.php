@@ -177,7 +177,7 @@
 ></script>
 
   <script
-    src="/Anabelka/js/admin-delivery/collapse.js?v=4"
+    src="/Anabelka/js/admin-delivery/collapse.js?v=5"
 ></script>
 
 </body>
