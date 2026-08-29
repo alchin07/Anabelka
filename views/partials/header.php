@@ -1,3 +1,24 @@
+<?php
+
+$isAdminPage =
+    strpos(
+        ($pageTitle ?? ''),
+        'Админ-панель'
+    ) === 0;
+
+$currentLanguage = null;
+$activeLanguages = [];
+
+if (!$isAdminPage) {
+    $currentLanguage =
+        Translator::currentLanguage();
+
+    $activeLanguages =
+        Translator::activeLanguages();
+}
+
+?>
+
 <header class="catalog-header">
 
     <a
@@ -19,7 +40,12 @@
     <a
         href="/Anabelka/cart"
         class="header-cart"
-        aria-label="Корзина"
+        aria-label="<?= htmlspecialchars(
+            Translator::t(
+                'header.cart',
+                'Кошик'
+            )
+        ) ?>"
     >
         <span class="header-cart-icon">
 
@@ -100,65 +126,135 @@ echo $cartCount;
     </a>
     
     <div
-    class="header-user"
-    style="
-        margin-top: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    "
->
+        class="header-user"
+        style="
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        "
+    >
 
-    <?php if (!empty($_SESSION['user_id'])): ?>
+        <?php if (!empty($_SESSION['user_id'])): ?>
 
-        <span>
-            <?= htmlspecialchars(
-                $_SESSION['user_name'] ?? 'Пользователь'
-            ) ?>
-        </span>
+            <span>
+                <?= htmlspecialchars(
+                    $_SESSION['user_name'] ?? 'Пользователь'
+                ) ?>
+            </span>
 
-        <a
-            href="/Anabelka/logout"
-            style="
-                color: var(--primary-color);
-                font-weight: bold;
-                text-decoration: none;
-            "
+            <a
+                href="/Anabelka/logout"
+                style="
+                    color: var(--primary-color);
+                    font-weight: bold;
+                    text-decoration: none;
+                "
+            >
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'header.logout',
+                        'Вийти'
+                    )
+                ) ?>
+            </a>
+
+        <?php else: ?>
+
+            <a
+                href="/Anabelka/login"
+                style="
+                    color: var(--primary-color);
+                    font-weight: bold;
+                    text-decoration: none;
+                "
+            >
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'header.login',
+                        'Увійти'
+                    )
+                ) ?>
+            </a>
+
+            <span>·</span>
+
+            <a
+                href="/Anabelka/register"
+                style="
+                    color: var(--primary-color);
+                    font-weight: bold;
+                    text-decoration: none;
+                "
+            >
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'header.register',
+                        'Реєстрація'
+                    )
+                ) ?>
+            </a>
+
+        <?php endif; ?>
+
+    </div>
+
+    <?php if (!$isAdminPage && !empty($activeLanguages)): ?>
+
+        <link
+            rel="stylesheet"
+            href="/Anabelka/css/language-switcher.css?v=1"
         >
-            Выйти
-        </a>
 
-    <?php else: ?>
-
-        <a
-            href="/Anabelka/login"
-            style="
-                color: var(--primary-color);
-                font-weight: bold;
-                text-decoration: none;
-            "
+        <div
+            class="language-switcher"
+            aria-label="<?= htmlspecialchars(
+                Translator::t(
+                    'language.switcher_label',
+                    'Мова сайту'
+                )
+            ) ?>"
         >
-            Войти
-        </a>
+            <?php foreach ($activeLanguages as $language): ?>
 
-        <span>·</span>
+                <?php
+                $isCurrentLanguage =
+                    ($currentLanguage['code'] ?? '')
+                    === ($language['code'] ?? '');
+                ?>
 
-        <a
-            href="/Anabelka/register"
-            style="
-                color: var(--primary-color);
-                font-weight: bold;
-                text-decoration: none;
-            "
-        >
-            Регистрация
-        </a>
+                <form
+                    class="language-switcher-form"
+                    action="/Anabelka/language/change"
+                    method="post"
+                >
+                    <input
+                        type="hidden"
+                        name="return_url"
+                        value="<?= htmlspecialchars(
+                            $_SERVER['REQUEST_URI']
+                            ?? '/Anabelka/'
+                        ) ?>"
+                    >
+
+                    <button
+                        class="language-switcher-button<?= $isCurrentLanguage ? ' is-current' : '' ?>"
+                        type="submit"
+                        name="language_code"
+                        value="<?= htmlspecialchars($language['code']) ?>"
+                        <?= $isCurrentLanguage ? 'disabled' : '' ?>
+                        title="<?= htmlspecialchars($language['name']) ?>"
+                    >
+                        <?= htmlspecialchars($language['short_name']) ?>
+                    </button>
+                </form>
+
+            <?php endforeach; ?>
+        </div>
 
     <?php endif; ?>
-
-</div>
 
 <?php if (($pageTitle ?? '') === 'Оформление заказа'): ?>
 
@@ -181,7 +277,7 @@ echo $cartCount;
 
 <?php endif; ?>
 
-<?php if (strpos(($pageTitle ?? ''), 'Админ-панель') === 0): ?>
+<?php if ($isAdminPage): ?>
 
     <script
         src="/Anabelka/js/admin-nav.js?v=2"
