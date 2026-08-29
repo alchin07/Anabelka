@@ -196,7 +196,18 @@ class OrderController extends Controller
 
                 if (!empty($optionInput['is_enabled'])) {
 
-                    if ($deliveryOptionInput === '') {
+                    /*
+                     * Новый checkout отправляет отдельное
+                     * delivery_option_input. Старый вариант
+                     * через delivery_address оставляем как
+                     * безопасный запасной путь.
+                     */
+                    $optionValue =
+                        $deliveryOptionInput !== ''
+                            ? $deliveryOptionInput
+                            : $deliveryAddress;
+
+                    if ($optionValue === '') {
                         $fieldLabel =
                             trim(
                                 $optionInput['field_label']
@@ -213,7 +224,7 @@ class OrderController extends Controller
                     }
 
                     $deliveryAddress =
-                        $deliveryOptionInput;
+                        $optionValue;
                 }
 
             } else {
