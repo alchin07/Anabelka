@@ -19,12 +19,38 @@ class Router
 
     public function dispatch($uri, $method)
     {
-        $path = parse_url($uri, PHP_URL_PATH);
+        $method = strtoupper((string) $method);
 
-        // Убираем имя папки проекта из URL
+        /*
+         * Некоторые браузеры и режимы предварительной загрузки
+         * могут проверять страницу методом HEAD.
+         * Для маршрутизации он должен вести себя как обычный GET.
+         */
+        if ($method === 'HEAD') {
+            $method = 'GET';
+        }
+
+        $path = parse_url((string) $uri, PHP_URL_PATH);
+
+        if ($path === false || $path === null) {
+            $path = '/';
+        }
+
+        /*
+         * Нормализуем URL перед поиском маршрута:
+         * - декодируем %XX;
+         * - убираем случайные двойные слеши.
+         */
+        $path = rawurldecode((string) $path);
+        $path = preg_replace('#/+#', '/', $path);
+
+        // Убираем имя папки проекта из URL.
         $projectFolder = '/' . basename(dirname(__DIR__, 2));
 
-        if (strpos($path, $projectFolder) === 0) {
+        if (
+            $path === $projectFolder
+            || strpos($path, $projectFolder . '/') === 0
+        ) {
             $path = substr($path, strlen($projectFolder));
         }
 
@@ -46,10 +72,9 @@ class Router
          * сможет принять:
          * /catalog/bras
          */
-
         foreach ($this->routes[$method] ?? [] as $route => $action) {
 
-            // Превращаем {slug} в параметр URL
+            // Превращаем {slug} в параметр URL.
             $pattern = preg_replace(
                 '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
                 '([^/]+)',
@@ -58,25 +83,21 @@ class Router
 
             $pattern = '#^' . $pattern . '$#';
 
-
-            // Проверяем URL
             if (preg_match($pattern, $path, $matches)) {
 
-    // Удаляем полное совпадение
-    array_shift($matches);
+                array_shift($matches);
 
-    return $this->callAction(
-        $action,
-        $matches
-    );
-}
+                return $this->callAction(
+                    $action,
+                    $matches
+                );
+            }
         }
 
 
-        // Если маршрут не найден
         http_response_code(404);
 
-        echo "404 — Страница не найдена";
+        echo '404 — Страница не найдена';
     }
 
 
