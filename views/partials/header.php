@@ -162,6 +162,11 @@ echo $cartCount;
 
 <?php if (($pageTitle ?? '') === 'Оформление заказа'): ?>
 
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/checkout-delivery.css?v=1"
+    >
+
     <script
         src="/Anabelka/js/checkout-delivery-input.js?v=3"
     ></script>
