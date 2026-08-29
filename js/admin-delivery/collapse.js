@@ -82,50 +82,33 @@ function setCollapsedState(
 
 
 /*
- * Кнопка "+"
- * добавления службы.
+ * Показываем строку с кнопкой "+"
+ * только у раскрытого способа доставки.
  *
- * Показываем её только
- * у раскрытого способа доставки.
- */
-/*
- * Показываем строку с кнопкой "+"
- * только у раскрытого способа доставки.
- */
-/*
- * Показываем строку с кнопкой "+"
- * только у раскрытого способа доставки.
+ * Важно: ищем кнопку только внутри контейнера
+ * дочерних служб. Так первая карточка способа
+ * доставки не может быть скрыта вместе с
+ * собственной кнопкой создания способа.
  */
 function setMethodAddButtonState(
     methodId,
     isCollapsed
 ) {
-    const collapseButton =
+    const children =
         document.querySelector(
-            '[data-collapse-method="'
+            '[data-method-children="'
             + methodId
             + '"]'
         );
 
 
-    if (!collapseButton) {
-        return;
-    }
-
-
-    const deliveryCard =
-        collapseButton.closest(
-            '.delivery-card'
-        );
-
-
-    if (!deliveryCard) {
+    if (!children) {
         return;
     }
 
 
     const addRow =
-        deliveryCard.querySelector(
+        children.querySelector(
             ':scope > .admin-tree-row:not(.no-add)'
         );
 
@@ -140,6 +123,7 @@ function setMethodAddButtonState(
             ? 'none'
             : '';
 }
+
 
 /*
  * Показываем строку с кнопкой "+"
