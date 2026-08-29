@@ -164,11 +164,11 @@ echo $cartCount;
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/checkout-delivery.css?v=1"
+        href="/Anabelka/css/checkout-delivery.css?v=2"
     >
 
     <script
-        src="/Anabelka/js/checkout-delivery-input.js?v=3"
+        src="/Anabelka/js/checkout-delivery-input.js?v=4"
     ></script>
 
 <?php endif; ?>
