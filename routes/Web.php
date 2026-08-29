@@ -11,6 +11,11 @@ $router->post('/cart/decrease', 'CartController@decrease');
 // Удалить позицию из корзины
 $router->post('/cart/remove', 'CartController@remove');
 
+$router->post(
+    '/language/change',
+    'LanguageController@change'
+);
+
 $router->get('/', 'HomeController@index');
 
 $router->get('/catalog', 'CatalogController@index');
