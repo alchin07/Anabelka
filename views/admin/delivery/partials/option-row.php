@@ -1,3 +1,12 @@
+<?php
+
+$optionInput =
+    DeliveryOptionInput::getForOption(
+        (int) $option['id']
+    );
+
+?>
+
 <div
     class="admin-tree-row<?= $isFirstOption ? '' : ' no-add' ?>"
     style="--level: 3;"
@@ -28,6 +37,22 @@
             option-row
         "
     >
+
+        <span
+            class="delivery-option-input-config"
+            data-enabled="<?= !empty($optionInput['is_enabled']) ? '1' : '0' ?>"
+            data-label="<?= htmlspecialchars(
+                $optionInput['field_label'] ?? '',
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>"
+            data-placeholder="<?= htmlspecialchars(
+                $optionInput['placeholder'] ?? '',
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>"
+            hidden
+        ></span>
 
         <div class="admin-tree-main">
 
