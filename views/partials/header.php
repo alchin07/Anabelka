@@ -173,4 +173,12 @@ echo $cartCount;
 
 <?php endif; ?>
 
+<?php if (($pageTitle ?? '') === 'Корзина'): ?>
+
+    <script
+        src="/Anabelka/js/cart-quick-order.js?v=1"
+    ></script>
+
+<?php endif; ?>
+
 </header>
