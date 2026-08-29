@@ -21,6 +21,7 @@ class App
         require_once __DIR__ . '/../Models/QuickOrder.php';
         require_once __DIR__ . '/../Models/Delivery.php';
         require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
+        require_once __DIR__ . '/../Models/Language.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
@@ -33,6 +34,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/DeliveryOptionInputController.php';
+        require_once __DIR__ . '/../Controllers/AdminLanguageController.php';
 
         $router = new Router();
 
