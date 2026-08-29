@@ -37,14 +37,24 @@ class QuickOrderController extends Controller
             $customerName === ''
             || $customerPhone === ''
         ) {
-            die('Заполните имя и номер телефона.');
+            die(
+                Translator::t(
+                    'quick.error_required',
+                    'Заповніть ім’я та номер телефону.'
+                )
+            );
         }
 
         [$items, $total] =
             $this->getCartItems();
 
         if (empty($items)) {
-            die('Корзина пуста.');
+            die(
+                Translator::t(
+                    'quick.error_empty',
+                    'Кошик порожній.'
+                )
+            );
         }
 
         $userId =
