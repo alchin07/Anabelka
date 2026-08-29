@@ -4,9 +4,8 @@
  * ========================================
  *
  * Настройка берётся из admin/delivery.
- * Используем существующее поле delivery_address,
- * поэтому введённое значение уже сохраняется
- * вместе с заказом.
+ * Если у выбранной опции включён запрос данных,
+ * поле показывается прямо под этой опцией.
  */
 
 (function () {
@@ -19,49 +18,198 @@
                 'delivery-address'
             );
 
-        const addressLabel =
+        const addressGroup =
             document.getElementById(
-                'delivery-address-label'
+                'delivery-address-group'
             );
 
-        if (!addressInput || !addressLabel) {
+        const form =
+            document.querySelector(
+                'form[action="/Anabelka/checkout"]'
+            );
+
+        if (!form) {
             return;
         }
 
-        const defaultLabel = 'Адрес';
-        const defaultPlaceholder =
-            addressInput.getAttribute('placeholder')
-            || 'Введите адрес';
+
+        /*
+         * Создаём одно общее поле.
+         * При выборе опции переносим его прямо
+         * под соответствующую строку опции.
+         */
+        const extraGroup =
+            document.createElement('div');
+
+        extraGroup.id =
+            'delivery-option-customer-input-group';
+
+        extraGroup.hidden = true;
+
+        extraGroup.style.margin =
+            '6px 0 12px 27px';
+
+        extraGroup.style.padding =
+            '12px';
+
+        extraGroup.style.border =
+            '1px solid var(--border-color)';
+
+        extraGroup.style.borderRadius =
+            '10px';
+
+        extraGroup.style.background =
+            'var(--surface-color)';
+
+
+        const extraLabel =
+            document.createElement('label');
+
+        extraLabel.setAttribute(
+            'for',
+            'delivery-option-customer-input'
+        );
+
+        extraLabel.style.display = 'block';
+        extraLabel.style.marginBottom = '6px';
+        extraLabel.style.fontWeight = '600';
+
+
+        const extraInput =
+            document.createElement('input');
+
+        extraInput.id =
+            'delivery-option-customer-input';
+
+        extraInput.type = 'text';
+        extraInput.name = 'delivery_option_input';
+        extraInput.disabled = true;
+        extraInput.autocomplete = 'off';
+
+        extraInput.style.width = '100%';
+        extraInput.style.boxSizing = 'border-box';
+        extraInput.style.padding = '12px';
+        extraInput.style.border =
+            '1px solid var(--border-color)';
+        extraInput.style.borderRadius = '10px';
+
+        extraGroup.appendChild(extraLabel);
+        extraGroup.appendChild(extraInput);
+
+        form.appendChild(extraGroup);
+
 
         let requestNumber = 0;
+        let activeOptionValue = '';
 
 
-        function renderLabel(text)
+        function renderExtraLabel(text)
         {
-            addressLabel.textContent = text;
+            extraLabel.textContent = text;
 
             const requiredMark =
                 document.createElement('span');
 
-            requiredMark.textContent = '*';
+            requiredMark.textContent = ' *';
             requiredMark.style.color =
                 'var(--primary-color)';
-            requiredMark.style.fontWeight =
-                'bold';
-            requiredMark.style.marginLeft =
-                '4px';
+            requiredMark.style.fontWeight = 'bold';
 
-            addressLabel.appendChild(
-                requiredMark
-            );
+            extraLabel.appendChild(requiredMark);
         }
 
 
-        function restoreDefault()
+        function restoreAddressField()
         {
-            renderLabel(defaultLabel);
-            addressInput.placeholder =
-                defaultPlaceholder;
+            if (!addressInput || !addressGroup) {
+                return;
+            }
+
+            addressInput.disabled = false;
+
+            const selectedMethod =
+                document.querySelector(
+                    'input[name="delivery_method"]:checked'
+                );
+
+            const method =
+                selectedMethod
+                    ? selectedMethod.value
+                    : '';
+
+            if (method === 'pickup') {
+                addressGroup.style.display = 'none';
+                addressInput.required = false;
+                return;
+            }
+
+            addressGroup.style.display = '';
+
+            if (
+                method === 'courier'
+                || method === 'post'
+            ) {
+                addressInput.required = true;
+            } else {
+                addressInput.required = false;
+            }
+        }
+
+
+        function hideExtraField(clearValue)
+        {
+            extraGroup.hidden = true;
+            extraInput.required = false;
+            extraInput.disabled = true;
+
+            if (clearValue) {
+                extraInput.value = '';
+            }
+
+            restoreAddressField();
+        }
+
+
+        function showExtraField(
+            optionRadio,
+            result
+        ) {
+            const optionRow =
+                optionRadio.closest('label');
+
+            if (!optionRow) {
+                hideExtraField(true);
+                return;
+            }
+
+            const label =
+                String(
+                    result.field_label
+                    || 'Укажите данные доставки'
+                );
+
+            renderExtraLabel(label);
+
+            extraInput.placeholder =
+                String(
+                    result.placeholder
+                    || ''
+                );
+
+            optionRow.insertAdjacentElement(
+                'afterend',
+                extraGroup
+            );
+
+            extraGroup.hidden = false;
+            extraInput.disabled = false;
+            extraInput.required = true;
+
+            if (addressInput && addressGroup) {
+                addressGroup.style.display = 'none';
+                addressInput.required = false;
+                addressInput.disabled = true;
+            }
         }
 
 
@@ -85,7 +233,15 @@
             const currentRequest =
                 ++requestNumber;
 
-            restoreDefault();
+            const optionValue =
+                option ? option.value : '';
+
+            const optionChanged =
+                optionValue !== activeOptionValue;
+
+            activeOptionValue = optionValue;
+
+            hideExtraField(optionChanged);
 
             if (!method || !service || !option) {
                 return;
@@ -130,27 +286,13 @@
                     return;
                 }
 
-                const label =
-                    String(
-                        result.field_label
-                        || 'Укажите данные доставки'
-                    );
-
-                renderLabel(label);
-
-                addressInput.placeholder =
-                    String(
-                        result.placeholder
-                        || ''
-                    );
+                showExtraField(
+                    option,
+                    result
+                );
 
             } catch (error) {
-                /*
-                 * При проблеме с запросом checkout
-                 * остаётся полностью рабочим со
-                 * стандартным полем адреса.
-                 */
-                restoreDefault();
+                hideExtraField(false);
             }
         }
 
@@ -170,12 +312,6 @@
                     || target.name === 'delivery_service'
                     || target.name === 'delivery_service_option'
                 ) {
-                    if (
-                        target.name === 'delivery_service_option'
-                    ) {
-                        addressInput.value = '';
-                    }
-
                     updateFromSelection();
                 }
             }
