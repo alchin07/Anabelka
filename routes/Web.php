@@ -9,7 +9,6 @@ $router->post('/cart/increase', 'CartController@increase');
 $router->post('/cart/decrease', 'CartController@decrease');
 
 // Удалить позицию из корзины
-
 $router->post('/cart/remove', 'CartController@remove');
 
 $router->get('/', 'HomeController@index');
@@ -19,10 +18,12 @@ $router->get('/catalog', 'CatalogController@index');
 $router->get('/catalog/{slug}', 'CatalogController@category');
 
 $router->get('/product/{slug}', 'ProductController@show');
+
 $router->get(
     '/register',
     'AuthController@registerForm'
 );
+
 $router->post(
     '/checkout',
     'OrderController@store'
@@ -51,7 +52,22 @@ $router->get(
 $router->get(
     '/checkout',
     'OrderController@checkout'
-); 
+);
+
+$router->get(
+    '/quick-order',
+    'QuickOrderController@form'
+);
+
+$router->post(
+    '/quick-order',
+    'QuickOrderController@store'
+);
+
+$router->get(
+    '/quick-order/success',
+    'QuickOrderController@success'
+);
 
 $router->get(
     '/delivery/option-input',
@@ -64,9 +80,14 @@ $router->get(
 );
 
 $router->get(
+    '/admin/orders',
+    'AdminQuickOrderController@index'
+);
+
+$router->get(
     '/admin/delivery',
     'AdminDeliveryController@index'
-); 
+);
 
 $router->post(
     '/admin/delivery/toggle-method',
