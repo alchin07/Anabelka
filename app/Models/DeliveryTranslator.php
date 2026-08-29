@@ -5,17 +5,12 @@ class DeliveryTranslator
     private static $schemaReady = false;
 
 
-    /**
-     * Создаёт отдельное хранилище переводов
-     * для способов, служб и опций доставки.
-     */
     private static function ensureTable()
     {
         if (self::$schemaReady) {
             return;
         }
 
-        // Таблица языков должна существовать раньше переводов.
         Language::all();
 
         $db = Database::connect();
@@ -56,13 +51,6 @@ class DeliveryTranslator
     }
 
 
-    /**
-     * Стартовые переводы для уже существующей
-     * базовой структуры Delivery.
-     *
-     * INSERT IGNORE важен: ручные переводы
-     * администратора не перезаписываются кодом.
-     */
     private static function seedKnownBaseTranslations(PDO $db)
     {
         $dictionary = [
@@ -130,11 +118,6 @@ class DeliveryTranslator
             ]
         ];
 
-        /*
-         * Старые записи Delivery могли быть созданы до того,
-         * как были зафиксированы системные slug courier/pickup/post.
-         * Поэтому базовые сущности дополнительно узнаём по названию.
-         */
         $nameAliases = [
             'method' => [
                 'courier' => ['Курьер', 'Кур’єр', "Кур'єр"],
@@ -188,57 +171,54 @@ class DeliveryTranslator
         foreach ($dictionary as $entityType => $tables) {
             foreach ($tables as $table => $items) {
                 foreach ($items as $slug => $translations) {
+                    $entityIds = [];
+
                     $stmt = $db->prepare(
-                        "SELECT id FROM {$table} WHERE slug = :slug LIMIT 1"
+                        "SELECT id FROM {$table} WHERE slug = :slug"
                     );
 
                     $stmt->execute([
                         'slug' => $slug
                     ]);
 
-                    $entityId = (int) $stmt->fetchColumn();
+                    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
+                        $entityIds[(int) $id] = true;
+                    }
 
-                    /*
-                     * Если системный slug не совпал со старой записью,
-                     * ищем её по одному из известных исходных названий.
-                     */
-                    if (
-                        $entityId <= 0
-                        && !empty($nameAliases[$entityType][$slug])
+                    foreach (
+                        $nameAliases[$entityType][$slug] ?? []
+                        as $alias
                     ) {
+                        $nameStmt = $db->prepare(
+                            "SELECT id FROM {$table} WHERE name = :name"
+                        );
+
+                        $nameStmt->execute([
+                            'name' => $alias
+                        ]);
+
                         foreach (
-                            $nameAliases[$entityType][$slug]
-                            as $alias
+                            $nameStmt->fetchAll(PDO::FETCH_COLUMN)
+                            as $id
                         ) {
-                            $nameStmt = $db->prepare(
-                                "SELECT id FROM {$table} WHERE name = :name LIMIT 1"
-                            );
-
-                            $nameStmt->execute([
-                                'name' => $alias
-                            ]);
-
-                            $entityId =
-                                (int) $nameStmt->fetchColumn();
-
-                            if ($entityId > 0) {
-                                break;
-                            }
+                            $entityIds[(int) $id] = true;
                         }
                     }
 
-                    if ($entityId <= 0) {
-                        continue;
-                    }
+                    foreach (array_keys($entityIds) as $entityId) {
+                        if ($entityId <= 0) {
+                            continue;
+                        }
 
-                    foreach ($translations as $languageCode => $translation) {
-                        $insert->execute([
-                            'entity_type' => $entityType,
-                            'entity_id' => $entityId,
-                            'language_code' => $languageCode,
-                            'name' => $translation[0],
-                            'description' => $translation[1]
-                        ]);
+                        foreach ($translations as $languageCode => $translation) {
+                            $insert->execute([
+                                'entity_type' => $entityType,
+                                'entity_id' => $entityId,
+                                'language_code' => $languageCode,
+                                'name' => $translation[0],
+                                'description' => $translation[1]
+                            ]);
+                        }
                     }
                 }
             }
@@ -246,10 +226,6 @@ class DeliveryTranslator
     }
 
 
-    /**
-     * Возвращает локализованные name / description.
-     * Если перевода нет — исходные данные остаются без изменений.
-     */
     public static function localize(
         $entityType,
         array $row,
@@ -300,9 +276,6 @@ class DeliveryTranslator
     }
 
 
-    /**
-     * Локализует всю вложенную структуру Delivery.
-     */
     public static function localizeTree(
         array $methods,
         $languageCode
