@@ -2,11 +2,25 @@
 
     <!--
      * Карточка способа доставки.
+     * Кнопка создания способа находится
+     * только у первой карточки списка.
      -->
     <div
-        class="admin-tree-row no-add"
+        class="admin-tree-row<?= !empty($isFirstMethod) ? '' : ' no-add' ?>"
         style="--level: 1;"
     >
+
+        <?php if (!empty($isFirstMethod)): ?>
+
+            <button
+                type="button"
+                class="admin-tree-add add-delivery"
+                aria-label="Добавить способ доставки"
+            >
+                +
+            </button>
+
+        <?php endif; ?>
 
         <div
             class="
@@ -49,41 +63,12 @@
                             viewBox="0 0 24 24"
                             aria-hidden="true"
                         >
-                            <circle
-                                cx="8"
-                                cy="6"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="16"
-                                cy="6"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="8"
-                                cy="12"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="16"
-                                cy="12"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="8"
-                                cy="18"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="16"
-                                cy="18"
-                                r="1.5"
-                            ></circle>
+                            <circle cx="8" cy="6" r="1.5"></circle>
+                            <circle cx="16" cy="6" r="1.5"></circle>
+                            <circle cx="8" cy="12" r="1.5"></circle>
+                            <circle cx="16" cy="12" r="1.5"></circle>
+                            <circle cx="8" cy="18" r="1.5"></circle>
+                            <circle cx="16" cy="18" r="1.5"></circle>
                         </svg>
                     </button>
 
@@ -92,9 +77,7 @@
 
                 <div class="admin-tree-text">
 
-                    <span
-                        class="delivery-name"
-                    >
+                    <span class="delivery-name">
                         <?= htmlspecialchars(
                             $method['name']
                         ) ?>
@@ -107,9 +90,7 @@
                         )
                     ): ?>
 
-                        <span
-                            class="delivery-description"
-                        >
+                        <span class="delivery-description">
                             <?= htmlspecialchars(
                                 $method['description']
                             ) ?>
