@@ -37,6 +37,53 @@
             'edit-description'
         );
 
+    const optionInputSection =
+        document.getElementById(
+            'edit-option-customer-input-section'
+        );
+
+    const optionInputToggle =
+        document.getElementById(
+            'edit-option-customer-input'
+        );
+
+    const optionInputSettings =
+        document.getElementById(
+            'edit-option-customer-input-settings'
+        );
+
+    const optionInputLabel =
+        document.getElementById(
+            'edit-option-customer-input-label'
+        );
+
+    const optionInputPlaceholder =
+        document.getElementById(
+            'edit-option-customer-input-placeholder'
+        );
+
+
+    function updateOptionInputVisibility()
+    {
+        if (!optionInputSettings) {
+            return;
+        }
+
+        optionInputSettings.hidden =
+            !(
+                optionInputToggle
+                && optionInputToggle.checked
+            );
+    }
+
+
+    if (optionInputToggle) {
+        optionInputToggle.addEventListener(
+            'change',
+            updateOptionInputVisibility
+        );
+    }
+
 
     document
         .querySelectorAll('.edit-button')
@@ -71,6 +118,54 @@
                         editDescription.value =
                             this.dataset.description
                             || '';
+
+
+                        const isOption =
+                            editType.value === 'option';
+
+                        if (optionInputSection) {
+                            optionInputSection.hidden =
+                                !isOption;
+                        }
+
+                        if (isOption) {
+                            const row =
+                                this.closest(
+                                    '.delivery-row'
+                                );
+
+                            const config =
+                                row
+                                    ? row.querySelector(
+                                        '.delivery-option-input-config'
+                                    )
+                                    : null;
+
+                            if (optionInputToggle) {
+                                optionInputToggle.checked =
+                                    Boolean(
+                                        config
+                                        && config.dataset.enabled === '1'
+                                    );
+                            }
+
+                            if (optionInputLabel) {
+                                optionInputLabel.value =
+                                    config
+                                        ? config.dataset.label || ''
+                                        : '';
+                            }
+
+                            if (optionInputPlaceholder) {
+                                optionInputPlaceholder.value =
+                                    config
+                                        ? config.dataset.placeholder || ''
+                                        : '';
+                            }
+
+                            updateOptionInputVisibility();
+                        }
+
 
                         editModal.hidden = false;
 
@@ -151,6 +246,7 @@
                     );
                 }
 
+
                 const selector =
                     '.edit-button'
                     + '[data-type="'
@@ -163,12 +259,61 @@
                 const editButton =
                     document.querySelector(selector);
 
-                if (editButton) {
-                    const row =
-                        editButton.closest(
+                const row =
+                    editButton
+                        ? editButton.closest(
                             '.delivery-row'
-                        );
+                        )
+                        : null;
 
+
+                if (
+                    editType.value === 'option'
+                    && typeof window.saveDeliveryOptionInput
+                        === 'function'
+                ) {
+                    await window.saveDeliveryOptionInput(
+                        editId.value,
+                        Boolean(
+                            optionInputToggle
+                            && optionInputToggle.checked
+                        ),
+                        optionInputLabel
+                            ? optionInputLabel.value
+                            : '',
+                        optionInputPlaceholder
+                            ? optionInputPlaceholder.value
+                            : ''
+                    );
+
+                    const config =
+                        row
+                            ? row.querySelector(
+                                '.delivery-option-input-config'
+                            )
+                            : null;
+
+                    if (config) {
+                        config.dataset.enabled =
+                            optionInputToggle
+                            && optionInputToggle.checked
+                                ? '1'
+                                : '0';
+
+                        config.dataset.label =
+                            optionInputLabel
+                                ? optionInputLabel.value
+                                : '';
+
+                        config.dataset.placeholder =
+                            optionInputPlaceholder
+                                ? optionInputPlaceholder.value
+                                : '';
+                    }
+                }
+
+
+                if (editButton) {
                     if (row) {
                         const nameElement =
                             row.querySelector(
