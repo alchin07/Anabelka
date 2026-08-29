@@ -51,99 +51,99 @@ class DeliveryTranslator
     }
 
 
-    private static function seedKnownBaseTranslations(PDO $db)
+    private static function dictionary()
     {
-        $dictionary = [
+        return [
             'method' => [
-                'delivery_methods' => [
-                    'courier' => [
-                        'uk' => ['Кур’єр', 'Доставка кур’єром.'],
-                        'ru' => ['Курьер', 'Доставка курьером.'],
-                        'en' => ['Courier', 'Courier delivery.']
-                    ],
-                    'pickup' => [
-                        'uk' => ['Самовивіз', 'Забрати замовлення самостійно'],
-                        'ru' => ['Самовывоз', 'Забрать заказ самостоятельно'],
-                        'en' => ['Pickup', 'Pick up the order yourself']
-                    ],
-                    'post' => [
-                        'uk' => ['Поштова доставка', 'Доставка через поштову службу'],
-                        'ru' => ['Почтовая доставка', 'Доставка через почтовую службу'],
-                        'en' => ['Postal delivery', 'Delivery via a postal service']
-                    ]
+                'courier' => [
+                    'aliases' => ['Курьер', 'Кур’єр', "Кур'єр"],
+                    'uk' => ['Кур’єр', 'Доставка кур’єром.'],
+                    'ru' => ['Курьер', 'Доставка курьером.'],
+                    'en' => ['Courier', 'Courier delivery.']
+                ],
+                'pickup' => [
+                    'aliases' => ['Самовывоз', 'Самовивіз'],
+                    'uk' => ['Самовивіз', 'Забрати замовлення самостійно'],
+                    'ru' => ['Самовывоз', 'Забрать заказ самостоятельно'],
+                    'en' => ['Pickup', 'Pick up the order yourself']
+                ],
+                'post' => [
+                    'aliases' => ['Почтовая доставка', 'Поштова доставка'],
+                    'uk' => ['Поштова доставка', 'Доставка через поштову службу'],
+                    'ru' => ['Почтовая доставка', 'Доставка через почтовую службу'],
+                    'en' => ['Postal delivery', 'Delivery via a postal service']
                 ]
             ],
             'service' => [
-                'delivery_services' => [
-                    'nova_poshta' => [
-                        'uk' => ['Нова пошта', null],
-                        'ru' => ['Нова пошта', null],
-                        'en' => ['Nova Poshta', null]
-                    ],
-                    'nova-poshta' => [
-                        'uk' => ['Нова пошта', null],
-                        'ru' => ['Нова пошта', null],
-                        'en' => ['Nova Poshta', null]
-                    ],
-                    'ukrposhta' => [
-                        'uk' => ['Укрпошта', null],
-                        'ru' => ['Укрпочта', null],
-                        'en' => ['Ukrposhta', null]
-                    ],
-                    'delivery' => [
-                        'uk' => ['Delivery', null],
-                        'ru' => ['Delivery', null],
-                        'en' => ['Delivery', null]
-                    ]
+                'nova_poshta' => [
+                    'aliases' => ['Нова пошта', 'Новая почта'],
+                    'slugs' => ['nova_poshta', 'nova-poshta'],
+                    'uk' => ['Нова пошта', null],
+                    'ru' => ['Нова пошта', null],
+                    'en' => ['Nova Poshta', null]
+                ],
+                'ukrposhta' => [
+                    'aliases' => ['Укрпошта', 'Укрпочта'],
+                    'uk' => ['Укрпошта', null],
+                    'ru' => ['Укрпочта', null],
+                    'en' => ['Ukrposhta', null]
+                ],
+                'delivery' => [
+                    'aliases' => ['Delivery'],
+                    'uk' => ['Delivery', null],
+                    'ru' => ['Delivery', null],
+                    'en' => ['Delivery', null]
                 ]
             ],
             'option' => [
-                'delivery_service_options' => [
-                    'branch' => [
-                        'uk' => ['Доставка у відділення', 'Доставка у відділення'],
-                        'ru' => ['Доставка в отделение', 'Доставка в отделение'],
-                        'en' => ['Delivery to a branch', 'Delivery to a branch']
-                    ],
-                    'parcel_locker' => [
-                        'uk' => ['Доставка у поштомат', 'Доставка у поштомат'],
-                        'ru' => ['Доставка в почтомат', 'Доставка в почтомат'],
-                        'en' => ['Delivery to a parcel locker', 'Delivery to a parcel locker']
-                    ],
-                    'address' => [
-                        'uk' => ['Адресна доставка', 'Доставка за адресою'],
-                        'ru' => ['Адресная доставка', 'Доставка по адресу'],
-                        'en' => ['Address delivery', 'Delivery to an address']
-                    ]
-                ]
-            ]
-        ];
-
-        $nameAliases = [
-            'method' => [
-                'courier' => ['Курьер', 'Кур’єр', "Кур'єр"],
-                'pickup' => ['Самовывоз', 'Самовивіз'],
-                'post' => ['Почтовая доставка', 'Поштова доставка']
-            ],
-            'service' => [
-                'nova_poshta' => ['Нова пошта', 'Новая почта'],
-                'nova-poshta' => ['Нова пошта', 'Новая почта'],
-                'ukrposhta' => ['Укрпошта', 'Укрпочта'],
-                'delivery' => ['Delivery']
-            ],
-            'option' => [
-                'branch' => ['Доставка в отделение', 'Доставка у відділення'],
+                'branch' => [
+                    'aliases' => ['Доставка в отделение', 'Доставка у відділення'],
+                    'uk' => ['Доставка у відділення', 'Доставка у відділення'],
+                    'ru' => ['Доставка в отделение', 'Доставка в отделение'],
+                    'en' => ['Delivery to a branch', 'Delivery to a branch']
+                ],
                 'parcel_locker' => [
-                    'Доставка в почтомат',
-                    'Доставка у поштомат'
+                    'aliases' => ['Доставка в почтомат', 'Доставка у поштомат'],
+                    'uk' => ['Доставка у поштомат', 'Доставка у поштомат'],
+                    'ru' => ['Доставка в почтомат', 'Доставка в почтомат'],
+                    'en' => ['Delivery to a parcel locker', 'Delivery to a parcel locker']
                 ],
                 'address' => [
-                    'Адресная доставка',
-                    'Адресна доставка',
-                    'Доставка по адресу',
-                    'Доставка за адресою'
+                    'aliases' => [
+                        'Адресная доставка',
+                        'Адресна доставка',
+                        'Доставка по адресу',
+                        'Доставка за адресою'
+                    ],
+                    'uk' => ['Адресна доставка', 'Доставка за адресою'],
+                    'ru' => ['Адресная доставка', 'Доставка по адресу'],
+                    'en' => ['Address delivery', 'Delivery to an address']
                 ]
             ]
         ];
+    }
+
+
+    private static function tableForType($entityType)
+    {
+        switch ($entityType) {
+            case 'method':
+                return 'delivery_methods';
+
+            case 'service':
+                return 'delivery_services';
+
+            case 'option':
+                return 'delivery_service_options';
+        }
+
+        return null;
+    }
+
+
+    private static function seedKnownBaseTranslations(PDO $db)
+    {
+        $dictionary = self::dictionary();
 
         $insert = $db->prepare("
             INSERT IGNORE INTO delivery_translations
@@ -168,11 +168,19 @@ class DeliveryTranslator
             )
         ");
 
-        foreach ($dictionary as $entityType => $tables) {
-            foreach ($tables as $table => $items) {
-                foreach ($items as $slug => $translations) {
-                    $entityIds = [];
+        foreach ($dictionary as $entityType => $items) {
+            $table = self::tableForType($entityType);
 
+            if (!$table) {
+                continue;
+            }
+
+            foreach ($items as $key => $data) {
+                $entityIds = [];
+
+                $slugs = $data['slugs'] ?? [$key];
+
+                foreach ($slugs as $slug) {
                     $stmt = $db->prepare(
                         "SELECT id FROM {$table} WHERE slug = :slug"
                     );
@@ -184,45 +192,88 @@ class DeliveryTranslator
                     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
                         $entityIds[(int) $id] = true;
                     }
+                }
 
-                    foreach (
-                        $nameAliases[$entityType][$slug] ?? []
-                        as $alias
-                    ) {
-                        $nameStmt = $db->prepare(
-                            "SELECT id FROM {$table} WHERE name = :name"
-                        );
+                foreach ($data['aliases'] ?? [] as $alias) {
+                    $stmt = $db->prepare(
+                        "SELECT id FROM {$table} WHERE name = :name"
+                    );
 
-                        $nameStmt->execute([
-                            'name' => $alias
-                        ]);
+                    $stmt->execute([
+                        'name' => $alias
+                    ]);
 
-                        foreach (
-                            $nameStmt->fetchAll(PDO::FETCH_COLUMN)
-                            as $id
-                        ) {
-                            $entityIds[(int) $id] = true;
-                        }
+                    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
+                        $entityIds[(int) $id] = true;
+                    }
+                }
+
+                foreach (array_keys($entityIds) as $entityId) {
+                    if ($entityId <= 0) {
+                        continue;
                     }
 
-                    foreach (array_keys($entityIds) as $entityId) {
-                        if ($entityId <= 0) {
+                    foreach (['uk', 'ru', 'en'] as $languageCode) {
+                        if (empty($data[$languageCode])) {
                             continue;
                         }
 
-                        foreach ($translations as $languageCode => $translation) {
-                            $insert->execute([
-                                'entity_type' => $entityType,
-                                'entity_id' => $entityId,
-                                'language_code' => $languageCode,
-                                'name' => $translation[0],
-                                'description' => $translation[1]
-                            ]);
-                        }
+                        $translation = $data[$languageCode];
+
+                        $insert->execute([
+                            'entity_type' => $entityType,
+                            'entity_id' => $entityId,
+                            'language_code' => $languageCode,
+                            'name' => $translation[0],
+                            'description' => $translation[1]
+                        ]);
                     }
                 }
             }
         }
+    }
+
+
+    private static function fallbackTranslation(
+        $entityType,
+        array $row,
+        $languageCode
+    ) {
+        $dictionary = self::dictionary();
+        $items = $dictionary[$entityType] ?? [];
+
+        $rowSlug = trim((string) ($row['slug'] ?? ''));
+        $rowName = trim((string) ($row['name'] ?? ''));
+
+        foreach ($items as $key => $data) {
+            $slugs = $data['slugs'] ?? [$key];
+            $aliases = $data['aliases'] ?? [];
+
+            $matchesSlug =
+                $rowSlug !== ''
+                && in_array($rowSlug, $slugs, true);
+
+            $matchesName =
+                $rowName !== ''
+                && in_array($rowName, $aliases, true);
+
+            if (!$matchesSlug && !$matchesName) {
+                continue;
+            }
+
+            $translation = $data[$languageCode] ?? null;
+
+            if (!$translation) {
+                return null;
+            }
+
+            return [
+                'name' => $translation[0],
+                'description' => $translation[1]
+            ];
+        }
+
+        return null;
     }
 
 
@@ -264,6 +315,14 @@ class DeliveryTranslator
         ]);
 
         $translation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$translation) {
+            $translation = self::fallbackTranslation(
+                $entityType,
+                $row,
+                $languageCode
+            );
+        }
 
         if (!$translation) {
             return $row;
