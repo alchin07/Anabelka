@@ -1,7 +1,25 @@
 <div
-    class="admin-tree-row no-add"
+    class="admin-tree-row<?= $isFirstOption ? '' : ' no-add' ?>"
     style="--level: 3;"
 >
+
+    <?php if ($isFirstOption): ?>
+
+        <button
+            type="button"
+            class="admin-tree-add add-delivery-option"
+            data-service-id="<?= (int) $service['id'] ?>"
+            data-service-name="<?= htmlspecialchars(
+                $service['name'],
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>"
+            aria-label="Добавить опцию"
+        >
+            +
+        </button>
+
+    <?php endif; ?>
 
     <div
         class="
@@ -20,7 +38,6 @@
                     aria-hidden="true"
                 ></span>
 
-
                 <button
                     type="button"
                     class="admin-tree-move"
@@ -32,67 +49,28 @@
                         viewBox="0 0 24 24"
                         aria-hidden="true"
                     >
-                        <circle
-                            cx="8"
-                            cy="6"
-                            r="1.5"
-                        ></circle>
-
-                        <circle
-                            cx="16"
-                            cy="6"
-                            r="1.5"
-                        ></circle>
-
-                        <circle
-                            cx="8"
-                            cy="12"
-                            r="1.5"
-                        ></circle>
-
-                        <circle
-                            cx="16"
-                            cy="12"
-                            r="1.5"
-                        ></circle>
-
-                        <circle
-                            cx="8"
-                            cy="18"
-                            r="1.5"
-                        ></circle>
-
-                        <circle
-                            cx="16"
-                            cy="18"
-                            r="1.5"
-                        ></circle>
+                        <circle cx="8" cy="6" r="1.5"></circle>
+                        <circle cx="16" cy="6" r="1.5"></circle>
+                        <circle cx="8" cy="12" r="1.5"></circle>
+                        <circle cx="16" cy="12" r="1.5"></circle>
+                        <circle cx="8" cy="18" r="1.5"></circle>
+                        <circle cx="16" cy="18" r="1.5"></circle>
                     </svg>
                 </button>
 
             </div>
 
-
             <div class="admin-tree-text">
 
-                <span
-                    class="delivery-name"
-                >
+                <span class="delivery-name">
                     <?= htmlspecialchars(
                         $option['name']
                     ) ?>
                 </span>
 
+                <?php if (!empty($option['description'])): ?>
 
-                <?php if (
-                    !empty(
-                        $option['description']
-                    )
-                ): ?>
-
-                    <span
-                        class="delivery-description"
-                    >
+                    <span class="delivery-description">
                         <?= htmlspecialchars(
                             $option['description']
                         ) ?>
@@ -104,7 +82,6 @@
 
         </div>
 
-
         <?php
 
         $isActive =
@@ -112,11 +89,6 @@
 
         require __DIR__
             . '/status-icon.php';
-
-        ?>
-
-
-        <?php
 
         $actionType =
             'option';

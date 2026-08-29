@@ -1,9 +1,27 @@
 <div class="delivery-service">
 
-    <!--
-     * Карточка службы доставки.
-     -->
-    <div class="admin-tree-row no-add" style="--level: 2;">
+    <div
+        class="admin-tree-row<?= $isFirstService ? '' : ' no-add' ?>"
+        style="--level: 2;"
+    >
+
+        <?php if ($isFirstService): ?>
+
+            <button
+                type="button"
+                class="admin-tree-add add-delivery-service"
+                data-method-id="<?= (int) $method['id'] ?>"
+                data-method-name="<?= htmlspecialchars(
+                    $method['name'],
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+                aria-label="Добавить службу"
+            >
+                +
+            </button>
+
+        <?php endif; ?>
 
         <div
             class="
@@ -34,7 +52,6 @@
                         </svg>
                     </button>
 
-
                     <button
                         type="button"
                         class="admin-tree-move"
@@ -46,67 +63,28 @@
                             viewBox="0 0 24 24"
                             aria-hidden="true"
                         >
-                            <circle
-                                cx="8"
-                                cy="6"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="16"
-                                cy="6"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="8"
-                                cy="12"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="16"
-                                cy="12"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="8"
-                                cy="18"
-                                r="1.5"
-                            ></circle>
-
-                            <circle
-                                cx="16"
-                                cy="18"
-                                r="1.5"
-                            ></circle>
+                            <circle cx="8" cy="6" r="1.5"></circle>
+                            <circle cx="16" cy="6" r="1.5"></circle>
+                            <circle cx="8" cy="12" r="1.5"></circle>
+                            <circle cx="16" cy="12" r="1.5"></circle>
+                            <circle cx="8" cy="18" r="1.5"></circle>
+                            <circle cx="16" cy="18" r="1.5"></circle>
                         </svg>
                     </button>
 
                 </div>
 
-
                 <div class="admin-tree-text">
 
-                    <span
-                        class="delivery-name"
-                    >
+                    <span class="delivery-name">
                         <?= htmlspecialchars(
                             $service['name']
                         ) ?>
                     </span>
 
+                    <?php if (!empty($service['description'])): ?>
 
-                    <?php if (
-                        !empty(
-                            $service['description']
-                        )
-                    ): ?>
-
-                        <span
-                            class="delivery-description"
-                        >
+                        <span class="delivery-description">
                             <?= htmlspecialchars(
                                 $service['description']
                             ) ?>
@@ -118,7 +96,6 @@
 
             </div>
 
-
             <?php
 
             $isActive =
@@ -126,11 +103,6 @@
 
             require __DIR__
                 . '/status-icon.php';
-
-            ?>
-
-
-            <?php
 
             $actionType =
                 'service';
@@ -161,51 +133,75 @@
 
     </div>
 
-
-    <!--
-     * Опции этой службы доставки.
-     * Кнопка доступна даже если опций пока нет.
-     -->
     <div
         class="admin-tree-children"
         data-service-children="<?= (int) $service['id'] ?>"
     >
 
-        <div
-            class="admin-tree-row admin-tree-add-row"
-            style="--level: 3;"
-        >
-            <button
-                type="button"
-                class="
-                    admin-tree-add
-                    add-delivery-option
-                "
-                data-service-id="<?= (int) $service['id'] ?>"
-                data-service-name="<?= htmlspecialchars(
-                    $service['name'],
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>"
-                aria-label="Добавить опцию"
+        <?php
+
+        $options =
+            $service['options']
+            ?? [];
+
+        ?>
+
+        <?php if (empty($options)): ?>
+
+            <div
+                class="admin-tree-row"
+                style="--level: 3;"
             >
-                +
-            </button>
+                <button
+                    type="button"
+                    class="admin-tree-add add-delivery-option"
+                    data-service-id="<?= (int) $service['id'] ?>"
+                    data-service-name="<?= htmlspecialchars(
+                        $service['name'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                    aria-label="Добавить опцию"
+                >
+                    +
+                </button>
 
-            <span class="admin-tree-add-label">
-                Создать опцию
-            </span>
-        </div>
+                <div
+                    class="
+                        admin-tree-item
+                        delivery-row
+                        option-row
+                        admin-tree-empty
+                    "
+                >
+                    <div class="admin-tree-main">
+                        <div class="admin-tree-text">
+                            <span class="delivery-name">
+                                Создать опцию
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        <?php foreach (
-            $service['options'] ?? []
-            as $option
-        ): ?>
+        <?php else: ?>
 
-            <?php require __DIR__
-                . '/option-row.php'; ?>
+            <?php
 
-        <?php endforeach; ?>
+            $isFirstOption = true;
+
+            foreach ($options as $option):
+
+                require __DIR__
+                    . '/option-row.php';
+
+                $isFirstOption = false;
+
+            endforeach;
+
+            ?>
+
+        <?php endif; ?>
 
     </div>
 

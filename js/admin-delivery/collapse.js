@@ -4,410 +4,225 @@
  * ========================================
  * СВОРАЧИВАНИЕ ДЕРЕВА DELIVERY
  * ========================================
- */
-
-const deliveryCollapseStorageKey =
-    'delivery-collapsed-items';
-
-
-function getCollapsedItems()
-{
-    try {
-
-        return JSON.parse(
-            sessionStorage.getItem(
-                deliveryCollapseStorageKey
-            )
-        ) || [];
-
-    } catch (error) {
-
-        return [];
-    }
-}
-
-
-function saveCollapsedItems(items)
-{
-    sessionStorage.setItem(
-        deliveryCollapseStorageKey,
-        JSON.stringify(
-            items
-        )
-    );
-}
-
-
-/*
- * ========================================
- * ПРОВЕРКА РЕАЛЬНЫХ ДОЧЕРНИХ КАРТОЧЕК
- * ========================================
  *
- * Для способов доставки стрелка остаётся всегда:
- * даже пустой способ можно раскрыть, чтобы
- * показать место для первой службы.
+ * Этот файл отвечает ТОЛЬКО за:
+ * - hidden у дочернего контейнера;
+ * - aria-expanded;
+ * - поворот стрелки;
+ * - сохранение состояния в sessionStorage.
  *
- * Для службы доставки стрелка скрывается,
- * если у неё нет реальных опций.
+ * Он не перемещает и не скрывает кнопки "+"
+ * отдельно от дочернего уровня.
  */
 
+(function () {
+    'use strict';
 
+    const storageKey =
+        'delivery-collapsed-items';
 
-/*
- * Устанавливаем состояние
- * раскрытия / сворачивания.
- */
-function setCollapsedState(
-    button,
-    children,
-    isCollapsed
-) {
-    children.hidden =
-        isCollapsed;
 
-
-    button.setAttribute(
-        'aria-expanded',
-        isCollapsed
-            ? 'false'
-            : 'true'
-    );
-
-
-    button.classList.toggle(
-        'is-collapsed',
-        isCollapsed
-    );
-}
-
-
-/*
- * Показываем строку с кнопкой "+"
- * только у раскрытого способа доставки.
- *
- * Важно: ищем кнопку только внутри контейнера
- * дочерних служб. Так первая карточка способа
- * доставки не может быть скрыта вместе с
- * собственной кнопкой создания способа.
- */
-function setMethodAddButtonState(
-    methodId,
-    isCollapsed
-) {
-    const children =
-        document.querySelector(
-            '[data-method-children="'
-            + methodId
-            + '"]'
-        );
-
-
-    if (!children) {
-        return;
-    }
-
-
-    const addRow =
-        children.querySelector(
-            ':scope > .admin-tree-row:not(.no-add)'
-        );
-
-
-    if (!addRow) {
-        return;
-    }
-
-
-    addRow.style.display =
-        isCollapsed
-            ? 'none'
-            : '';
-}
-
-
-/*
- * Показываем строку с кнопкой "+"
- * только у раскрытой службы доставки.
- */
-function setServiceAddButtonState(
-    serviceId,
-    isCollapsed
-) {
-    const collapseButton =
-        document.querySelector(
-            '[data-collapse-service="'
-            + serviceId
-            + '"]'
-        );
-
-
-    if (!collapseButton) {
-        return;
-    }
-
-
-    const serviceCard =
-        collapseButton.closest(
-            '.delivery-service'
-        );
-
-
-    if (!serviceCard) {
-        return;
-    }
-
-
-    const addRow =
-        serviceCard.querySelector(
-            ':scope > .admin-tree-row:not(.no-add)'
-        );
-
-
-    if (!addRow) {
-        return;
-    }
-
-
-    addRow.style.display =
-        isCollapsed
-            ? 'none'
-            : '';
-}
-
-
-/*
- * ========================================
- * ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ
- * ========================================
- */
-
-const collapsedItems =
-    getCollapsedItems();
-
-
-/*
- * Способы доставки.
- */
-document
-    .querySelectorAll(
-        '[data-collapse-method]'
-    )
-    .forEach(
-        (button) => {
-
-            const id =
-                button.dataset.collapseMethod;
-
-
-            const children =
-                document.querySelector(
-                    '[data-method-children="'
-                    + id
-                    + '"]'
-                );
-
-
-            if (!children) {
-                return;
-            }
-
-
-            const key =
-                'method:' + id;
-
-
-            const isCollapsed =
-                collapsedItems.includes(
-                    key
-                );
-
-
-            setCollapsedState(
-                button,
-                children,
-                isCollapsed
-            );
-
-
-            setMethodAddButtonState(
-                id,
-                isCollapsed
-            );
-        }
-    );
-
-
-/*
- * Службы доставки.
- */
-document
-    .querySelectorAll(
-        '[data-collapse-service]'
-    )
-    .forEach(
-        (button) => {
-
-            const id =
-                button.dataset.collapseService;
-
-
-            const children =
-                document.querySelector(
-                    '[data-service-children="'
-                    + id
-                    + '"]'
-                );
-
-
-            if (!children) {
-                return;
-            }
-
-
-            const key =
-                'service:' + id;
-
-
-            const isCollapsed =
-                collapsedItems.includes(
-                    key
-                );
-
-
-            setCollapsedState(
-                button,
-                children,
-                isCollapsed
-            );
-
-            setServiceAddButtonState(
-              id,
-              isCollapsed
-            );
-        }
-    );
-
-
-/*
- * ========================================
- * НАЖАТИЕ НА КНОПКУ
- * ========================================
- */
-
-document.addEventListener(
-    'click',
-    function (event)
+    function getCollapsedItems()
     {
-        /*
-         * ------------------------------
-         * СПОСОБ ДОСТАВКИ
-         * ------------------------------
-         */
-
-        const methodButton =
-            event.target.closest(
-                '[data-collapse-method]'
-            );
-
-
-        if (methodButton) {
-
-            const id =
-                methodButton.dataset.collapseMethod;
-
-
-            const children =
-                document.querySelector(
-                    '[data-method-children="'
-                    + id
-                    + '"]'
+        try {
+            const value =
+                JSON.parse(
+                    sessionStorage.getItem(
+                        storageKey
+                    )
                 );
 
+            return Array.isArray(value)
+                ? value
+                : [];
 
-            if (!children) {
+        } catch (error) {
+            return [];
+        }
+    }
+
+
+    function saveCollapsedItems(items)
+    {
+        try {
+            sessionStorage.setItem(
+                storageKey,
+                JSON.stringify(items)
+            );
+        } catch (error) {
+            /*
+             * Недоступное хранилище не должно
+             * ломать само раскрытие дерева.
+             */
+        }
+    }
+
+
+    function setCollapsedState(
+        button,
+        children,
+        isCollapsed
+    ) {
+        children.hidden =
+            isCollapsed;
+
+        button.setAttribute(
+            'aria-expanded',
+            isCollapsed
+                ? 'false'
+                : 'true'
+        );
+
+        button.classList.toggle(
+            'is-collapsed',
+            isCollapsed
+        );
+    }
+
+
+    function setStoredState(
+        key,
+        isCollapsed
+    ) {
+        const items =
+            getCollapsedItems();
+
+        const index =
+            items.indexOf(key);
+
+        if (isCollapsed) {
+
+            if (index === -1) {
+                items.push(key);
+            }
+
+        } else if (index !== -1) {
+
+            items.splice(
+                index,
+                1
+            );
+        }
+
+        saveCollapsedItems(items);
+    }
+
+
+    function restoreLevel(
+        buttonSelector,
+        dataName,
+        childrenAttribute,
+        keyPrefix
+    ) {
+        const collapsedItems =
+            getCollapsedItems();
+
+        document
+            .querySelectorAll(buttonSelector)
+            .forEach(
+                (button) => {
+
+                    const id =
+                        button.dataset[dataName];
+
+                    if (!id) {
+                        return;
+                    }
+
+                    const children =
+                        document.querySelector(
+                            '['
+                            + childrenAttribute
+                            + '="'
+                            + id
+                            + '"]'
+                        );
+
+                    if (!children) {
+                        return;
+                    }
+
+                    setCollapsedState(
+                        button,
+                        children,
+                        collapsedItems.includes(
+                            keyPrefix + id
+                        )
+                    );
+                }
+            );
+    }
+
+
+    restoreLevel(
+        '[data-collapse-method]',
+        'collapseMethod',
+        'data-method-children',
+        'method:'
+    );
+
+    restoreLevel(
+        '[data-collapse-service]',
+        'collapseService',
+        'data-service-children',
+        'service:'
+    );
+
+
+    document.addEventListener(
+        'click',
+        function (event)
+        {
+            const methodButton =
+                event.target.closest(
+                    '[data-collapse-method]'
+                );
+
+            if (methodButton) {
+                const id =
+                    methodButton.dataset.collapseMethod;
+
+                const children =
+                    document.querySelector(
+                        '[data-method-children="'
+                        + id
+                        + '"]'
+                    );
+
+                if (!children) {
+                    return;
+                }
+
+                const isCollapsed =
+                    !children.hidden;
+
+                setCollapsedState(
+                    methodButton,
+                    children,
+                    isCollapsed
+                );
+
+                setStoredState(
+                    'method:' + id,
+                    isCollapsed
+                );
+
                 return;
             }
 
 
-            const key =
-                'method:' + id;
+            const serviceButton =
+                event.target.closest(
+                    '[data-collapse-service]'
+                );
 
-
-            const items =
-                getCollapsedItems();
-
-
-            const isCollapsed =
-                !children.hidden;
-
-
-            if (isCollapsed) {
-
-                if (!items.includes(key)) {
-
-                    items.push(
-                        key
-                    );
-                }
-
-            } else {
-
-                const index =
-                    items.indexOf(
-                        key
-                    );
-
-
-                if (index !== -1) {
-
-                    items.splice(
-                        index,
-                        1
-                    );
-                }
+            if (!serviceButton) {
+                return;
             }
-
-
-            saveCollapsedItems(
-                items
-            );
-
-
-            setCollapsedState(
-                methodButton,
-                children,
-                isCollapsed
-            );
-
-
-            setMethodAddButtonState(
-                id,
-                isCollapsed
-            );
-
-
-            return;
-        }
-
-
-        /*
-         * ------------------------------
-         * СЛУЖБА ДОСТАВКИ
-         * ------------------------------
-         */
-
-        const serviceButton =
-            event.target.closest(
-                '[data-collapse-service]'
-            );
-
-
-        if (serviceButton) {
 
             const id =
                 serviceButton.dataset.collapseService;
 
-
             const children =
                 document.querySelector(
                     '[data-service-children="'
@@ -415,55 +230,12 @@ document.addEventListener(
                     + '"]'
                 );
 
-
             if (!children) {
                 return;
             }
 
-
-            const key =
-                'service:' + id;
-
-
-            const items =
-                getCollapsedItems();
-
-
             const isCollapsed =
                 !children.hidden;
-
-
-            if (isCollapsed) {
-
-                if (!items.includes(key)) {
-
-                    items.push(
-                        key
-                    );
-                }
-
-            } else {
-
-                const index =
-                    items.indexOf(
-                        key
-                    );
-
-
-                if (index !== -1) {
-
-                    items.splice(
-                        index,
-                        1
-                    );
-                }
-            }
-
-
-            saveCollapsedItems(
-                items
-            );
-
 
             setCollapsedState(
                 serviceButton,
@@ -471,10 +243,10 @@ document.addEventListener(
                 isCollapsed
             );
 
-            setServiceAddButtonState(
-              id,
-              isCollapsed
+            setStoredState(
+                'service:' + id,
+                isCollapsed
             );
         }
-    }
-);
+    );
+})();

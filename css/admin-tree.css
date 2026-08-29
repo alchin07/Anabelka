@@ -1,24 +1,17 @@
 /*
  * ========================================
- * УНІВЕРСАЛЬНЕ ІЄРАРХІЧНЕ МЕНЮ АДМІН-ПАНЕЛІ
+ * УНИВЕРСАЛЬНОЕ ИЕРАРХИЧЕСКОЕ МЕНЮ
  * ========================================
  *
- * Кількість рівнів не обмежена.
+ * Важное правило геометрии:
+ * кнопка "+" и первая карточка своей группы
+ * всегда находятся в ОДНОЙ строке grid.
  *
- * Рівень задається через CSS-змінну:
- *
- * style="--level: 1"
- * style="--level: 2"
- * style="--level: 3"
- * ...
+ * Здесь нет отрицательных margin,
+ * наложений строк и translateY-компенсаций.
  */
 
-
-/*
- * Основний контейнер.
- */
 .admin-tree {
-    --tree-indent: 28px;
     --tree-gap: 10px;
     --tree-button-size: 42px;
 
@@ -29,11 +22,6 @@
 }
 
 
-/*
- * Группа одного уровня.
- * Слева находится кнопка "+",
- * справа — карточка или подпись действия.
- */
 .admin-tree-row {
     display: grid;
 
@@ -49,9 +37,6 @@
 }
 
 
-/*
- * Сам информационный блок.
- */
 .admin-tree-item {
     box-sizing: border-box;
 
@@ -70,9 +55,6 @@
 }
 
 
-/*
- * Круглая кнопка "+".
- */
 .admin-tree-add {
     width:
         var(--tree-button-size);
@@ -83,6 +65,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+
+    align-self: center;
+    justify-self: center;
 
     padding: 0;
 
@@ -101,6 +86,7 @@
     cursor: pointer;
 }
 
+
 .admin-tree-add[hidden] {
     display: none;
 }
@@ -112,73 +98,43 @@
 
 
 /*
- * Подпись рядом с кнопкой создания
- * дочернего элемента.
+ * У последующих карточек той же группы
+ * первая колонка остаётся пустой.
  */
-.admin-tree-add-label {
-    min-width: 0;
-
-    color: #777;
-
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.35;
-}
-
-
-/*
- * Отдельная строка действия:
- * кнопка "+" и текстовая подпись.
- */
-.admin-tree-add-row {
-    min-height:
-        var(--tree-button-size);
-}
-
-
-/*
- * Строка без кнопки "+".
- * Пустая первая колонка сохраняет
- * одинаковое положение карточек.
- */
-.admin-tree-row.no-add {
-    grid-template-columns:
-        var(--tree-button-size)
-        minmax(0, 1fr);
-}
-
 .admin-tree-row.no-add::before {
     content: "";
+
+    width:
+        var(--tree-button-size);
+
+    height: 1px;
 }
 
 
 /*
- * Служебная строка без карточки и без подписи.
- * Она может накладывать кнопку "+" на следующую
- * карточку. Строки с подписью сюда не входят.
+ * Скрытие дочернего уровня выполняет только JS.
+ * CSS не меняет геометрию кнопок в зависимости
+ * от состояния раскрытия.
  */
-.admin-tree-row:not(.no-add):not(.admin-tree-add-row):not(:has(.admin-tree-item)) {
-    margin-bottom: -36px;
+.admin-tree-children[hidden] {
+    display: none !important;
+}
 
-    position: relative;
-    z-index: 1;
 
+/*
+ * Пустая карточка — реальное место будущего
+ * первого элемента. Поэтому кнопка "+"
+ * остаётся выровненной так же, как при наличии
+ * настоящей карточки.
+ */
+.admin-tree-empty {
     pointer-events: none;
 }
 
-.admin-tree-row:not(.no-add):not(.admin-tree-add-row):not(:has(.admin-tree-item))
-.admin-tree-add {
-    pointer-events: auto;
-}
 
-
-/*
- * Телефон.
- */
 @media (max-width: 650px) {
 
     .admin-tree {
-        --tree-indent: 12px;
         --tree-gap: 8px;
         --tree-button-size: 36px;
     }
@@ -197,13 +153,5 @@
 
     .admin-tree-add {
         font-size: 28px;
-    }
-
-    .admin-tree-add:active {
-        transform: scale(0.94);
-    }
-
-    .admin-tree-add-label {
-        font-size: 12px;
     }
 }

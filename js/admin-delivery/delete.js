@@ -1,163 +1,128 @@
 /*
  * ========================================
- * УДАЛЕНИЕ
+ * УДАЛЕНИЕ DELIVERY
  * ========================================
+ *
+ * После структурного изменения страница
+ * перезагружается. PHP заново строит дерево,
+ * поэтому не остаются старые wrapper/кнопки "+".
  */
 
-const deleteModal =
-    document.getElementById(
-        'delivery-delete-modal'
-    );
+(function () {
+    'use strict';
 
-const deleteForm =
-    document.getElementById(
-        'delivery-delete-form'
-    );
+    const deleteModal =
+        document.getElementById(
+            'delivery-delete-modal'
+        );
 
-const deleteType =
-    document.getElementById(
-        'delete-type'
-    );
+    const deleteForm =
+        document.getElementById(
+            'delivery-delete-form'
+        );
 
-const deleteId =
-    document.getElementById(
-        'delete-id'
-    );
+    const deleteType =
+        document.getElementById(
+            'delete-type'
+        );
 
-const deleteText =
-    document.getElementById(
-        'delivery-delete-text'
-    );
+    const deleteId =
+        document.getElementById(
+            'delete-id'
+        );
 
-const deleteWarning =
-    document.getElementById(
-        'delivery-delete-warning'
-    );
+    const deleteText =
+        document.getElementById(
+            'delivery-delete-text'
+        );
 
-
-/*
- * Открытие окна удаления.
- */
-document
-    .querySelectorAll(
-        '.delete-button'
-    )
-    .forEach(
-        (button) => {
-
-            button.addEventListener(
-                'click',
-                function ()
-                {
-                    if (
-                        !deleteModal
-                        ||
-                        !deleteType
-                        ||
-                        !deleteId
-                        ||
-                        !deleteText
-                        ||
-                        !deleteWarning
-                    ) {
-                        return;
-                    }
+    const deleteWarning =
+        document.getElementById(
+            'delivery-delete-warning'
+        );
 
 
-                    const type =
-                        this.dataset.type
-                        || '';
+    document
+        .querySelectorAll('.delete-button')
+        .forEach(
+            (button) => {
+                button.addEventListener(
+                    'click',
+                    function ()
+                    {
+                        if (
+                            !deleteModal
+                            || !deleteType
+                            || !deleteId
+                            || !deleteText
+                            || !deleteWarning
+                        ) {
+                            return;
+                        }
 
-                    const id =
-                        this.dataset.id
-                        || '';
+                        const type =
+                            this.dataset.type
+                            || '';
 
-                    const name =
-                        this.dataset.name
-                        || 'элемент';
+                        const id =
+                            this.dataset.id
+                            || '';
 
+                        const name =
+                            this.dataset.name
+                            || 'элемент';
 
-                    deleteType.value =
-                        type;
+                        deleteType.value = type;
+                        deleteId.value = id;
 
-                    deleteId.value =
-                        id;
-
-
-                    deleteText.textContent =
-                        'Удалить «'
-                        + name
-                        + '»?';
-
-
-                    /*
-                     * Для способа доставки
-                     * и службы показываем
-                     * предупреждение о вложениях.
-                     */
-                    if (
-                        type === 'method'
-                        ||
-                        type === 'service'
-                    ) {
+                        deleteText.textContent =
+                            'Удалить «'
+                            + name
+                            + '»?';
 
                         deleteWarning.style.display =
-                            'block';
+                            (
+                                type === 'method'
+                                || type === 'service'
+                            )
+                                ? 'block'
+                                : 'none';
 
-                    } else {
-
-                        deleteWarning.style.display =
-                            'none';
+                        deleteModal.hidden = false;
                     }
+                );
+            }
+        );
 
 
-                    deleteModal.hidden =
-                        false;
-                }
-            );
-
-        }
-    );
-
-
-/*
- * Закрытие окна удаления.
- */
-document
-    .querySelectorAll(
-        '[data-close-delete-modal]'
-    )
-    .forEach(
-        (button) => {
-
-            button.addEventListener(
-                'click',
-                function ()
-                {
-                    if (deleteModal) {
-
-                        deleteModal.hidden =
-                            true;
+    document
+        .querySelectorAll(
+            '[data-close-delete-modal]'
+        )
+        .forEach(
+            (button) => {
+                button.addEventListener(
+                    'click',
+                    function ()
+                    {
+                        if (deleteModal) {
+                            deleteModal.hidden = true;
+                        }
                     }
-                }
-            );
-
-        }
-    );
+                );
+            }
+        );
 
 
-/*
- * Подтверждение удаления.
- */
-if (
-    deleteForm
-    &&
-    deleteModal
-    &&
-    deleteType
-    &&
-    deleteId
-) {
+    if (
+        !deleteForm
+        || !deleteModal
+        || !deleteType
+        || !deleteId
+    ) {
+        return;
+    }
+
 
     deleteForm.addEventListener(
         'submit',
@@ -165,25 +130,16 @@ if (
         {
             event.preventDefault();
 
-
             const formData =
-                new FormData(
-                    deleteForm
-                );
-
+                new FormData(deleteForm);
 
             try {
-
                 const response =
                     await fetch(
                         deleteForm.action,
                         {
-                            method:
-                                'POST',
-
-                            body:
-                                formData,
-
+                            method: 'POST',
+                            body: formData,
                             headers: {
                                 'X-Requested-With':
                                     'XMLHttpRequest'
@@ -191,93 +147,32 @@ if (
                         }
                     );
 
-
                 const responseText =
                     await response.text();
 
-
                 if (!response.ok) {
-
                     throw new Error(
                         responseText
-                        ||
-                        'Не удалось удалить.'
+                        || 'Не удалось удалить.'
                     );
                 }
 
+                deleteModal.hidden = true;
 
-                const type =
-                    deleteType.value;
+                window.showMessage('Удалено');
 
-                const id =
-                    deleteId.value;
-
-
-                const selector =
-                    '.delete-button'
-                    + '[data-type="'
-                    + type
-                    + '"]'
-                    + '[data-id="'
-                    + id
-                    + '"]';
-
-
-                const deleteButton =
-                    document.querySelector(
-                        selector
-                    );
-
-
-                if (deleteButton) {
-
-                    const row =
-                        deleteButton.closest(
-                            '.delivery-row'
-                        );
-
-
-                    /*
-                     * Способ доставки удаляем
-                     * вместе со всей карточкой.
-                     */
-                    if (
-                        type === 'method'
-                    ) {
-
-                        const card =
-                            deleteButton.closest(
-                                '.delivery-card'
-                            );
-
-                        if (card) {
-                            card.remove();
-                        }
-
-                    } else if (row) {
-
-                        row.remove();
-                    }
-                }
-
-
-                deleteModal.hidden =
-                    true;
-
-
-                window.showMessage(
-                    'Удалено'
+                setTimeout(
+                    () => window.location.reload(),
+                    300
                 );
 
             } catch (error) {
-
                 window.showMessage(
                     error instanceof Error
                         ? error.message
                         : 'Не удалось удалить.'
                 );
             }
-
         }
     );
-}
+})();

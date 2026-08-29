@@ -1,16 +1,11 @@
 <div class="delivery-card">
 
-    <!--
-     * Карточка способа доставки.
-     * Кнопка создания способа находится
-     * только у первой карточки списка.
-     -->
     <div
-        class="admin-tree-row<?= !empty($isFirstMethod) ? '' : ' no-add' ?>"
+        class="admin-tree-row<?= $isFirstMethod ? '' : ' no-add' ?>"
         style="--level: 1;"
     >
 
-        <?php if (!empty($isFirstMethod)): ?>
+        <?php if ($isFirstMethod): ?>
 
             <button
                 type="button"
@@ -51,7 +46,6 @@
                         </svg>
                     </button>
 
-
                     <button
                         type="button"
                         class="admin-tree-move"
@@ -74,7 +68,6 @@
 
                 </div>
 
-
                 <div class="admin-tree-text">
 
                     <span class="delivery-name">
@@ -83,12 +76,7 @@
                         ) ?>
                     </span>
 
-
-                    <?php if (
-                        !empty(
-                            $method['description']
-                        )
-                    ): ?>
+                    <?php if (!empty($method['description'])): ?>
 
                         <span class="delivery-description">
                             <?= htmlspecialchars(
@@ -102,7 +90,6 @@
 
             </div>
 
-
             <?php
 
             $isActive =
@@ -110,11 +97,6 @@
 
             require __DIR__
                 . '/status-icon.php';
-
-            ?>
-
-
-            <?php
 
             $actionType =
                 'method';
@@ -145,48 +127,75 @@
 
     </div>
 
-
-    <!--
-     * Службы этого способа доставки.
-     * Одна кнопка «+» на всю группу служб.
-     -->
     <div
         class="admin-tree-children"
         data-method-children="<?= (int) $method['id'] ?>"
     >
 
-        <div
-            class="admin-tree-row admin-tree-add-row"
-            style="--level: 2;"
-        >
-            <button
-                type="button"
-                class="admin-tree-add add-delivery-service"
-                data-method-id="<?= (int) $method['id'] ?>"
-                data-method-name="<?= htmlspecialchars(
-                    $method['name'],
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>"
-                aria-label="Добавить службу"
+        <?php
+
+        $services =
+            $method['services']
+            ?? [];
+
+        ?>
+
+        <?php if (empty($services)): ?>
+
+            <div
+                class="admin-tree-row"
+                style="--level: 2;"
             >
-                +
-            </button>
+                <button
+                    type="button"
+                    class="admin-tree-add add-delivery-service"
+                    data-method-id="<?= (int) $method['id'] ?>"
+                    data-method-name="<?= htmlspecialchars(
+                        $method['name'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                    aria-label="Добавить службу"
+                >
+                    +
+                </button>
 
-            <span class="admin-tree-add-label">
-                Создать службу доставки
-            </span>
-        </div>
+                <div
+                    class="
+                        admin-tree-item
+                        delivery-row
+                        service-row
+                        admin-tree-empty
+                    "
+                >
+                    <div class="admin-tree-main">
+                        <div class="admin-tree-text">
+                            <span class="delivery-name">
+                                Создать службу доставки
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        <?php foreach (
-            $method['services'] ?? []
-            as $service
-        ): ?>
+        <?php else: ?>
 
-            <?php require __DIR__
-                . '/service-row.php'; ?>
+            <?php
 
-        <?php endforeach; ?>
+            $isFirstService = true;
+
+            foreach ($services as $service):
+
+                require __DIR__
+                    . '/service-row.php';
+
+                $isFirstService = false;
+
+            endforeach;
+
+            ?>
+
+        <?php endif; ?>
 
     </div>
 

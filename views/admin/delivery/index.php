@@ -2,18 +2,13 @@
 <html lang="ru">
 
 <head>
-
     <meta charset="UTF-8">
-
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-        Способы доставки — Админ-панель
-    </title>
-
+    <title>Способы доставки — Админ-панель</title>
 
     <link
         rel="stylesheet"
@@ -27,16 +22,14 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-tree.css?v=6"
+        href="/Anabelka/css/admin-tree.css?v=7"
     >
 
     <link
         rel="stylesheet"
         href="/Anabelka/css/admin-delivery.css?v=9"
     >
-
 </head>
-
 
 <body>
 
@@ -50,7 +43,6 @@
 
     ?>
 
-
     <main class="catalog">
 
         <section
@@ -62,62 +54,74 @@
         >
 
             <div class="admin-head">
-
                 <div>
-
-                    <h2>
-                        Способы доставки
-                    </h2>
+                    <h2>Способы доставки</h2>
 
                     <p class="admin-subtitle">
                         Управление способами
                         и службами доставки
                     </p>
-
                 </div>
             </div>
 
             <div class="delivery-columns">
-
-                <span>
-                    Название
-                </span>
-
-                <span>
-                    Статус
-                </span>
-
-                <span>
-                    Вкл.
-                </span>
-
-                <span>
-                    Ред.
-                </span>
-
-                <span>
-                    Удал.
-                </span>
-
+                <span>Название</span>
+                <span>Статус</span>
+                <span>Вкл.</span>
+                <span>Ред.</span>
+                <span>Удал.</span>
             </div>
 
-            <?php foreach (
-                $deliveryMethods
-                as $methodIndex => $method
-            ): ?>
+            <?php if (empty($deliveryMethods)): ?>
+
+                <div
+                    class="admin-tree-row"
+                    style="--level: 1;"
+                >
+                    <button
+                        type="button"
+                        class="admin-tree-add add-delivery"
+                        aria-label="Добавить способ доставки"
+                    >
+                        +
+                    </button>
+
+                    <div
+                        class="
+                            admin-tree-item
+                            delivery-row
+                            method-row
+                            admin-tree-empty
+                        "
+                    >
+                        <div class="admin-tree-main">
+                            <div class="admin-tree-text">
+                                <span class="delivery-name">
+                                    Создать способ доставки
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <?php else: ?>
 
                 <?php
 
-                $isFirstMethod =
-                    $methodIndex === 0;
+                $isFirstMethod = true;
 
-                require __DIR__
-                    . '/partials/method-row.php';
+                foreach ($deliveryMethods as $method):
+
+                    require __DIR__
+                        . '/partials/method-row.php';
+
+                    $isFirstMethod = false;
+
+                endforeach;
 
                 ?>
 
-            <?php endforeach; ?>
-
+            <?php endif; ?>
 
             <?php require __DIR__
                 . '/partials/legend.php'; ?>
@@ -126,60 +130,57 @@
 
     </main>
 
-
     <div
         id="site-message"
         class="site-message"
     ></div>
 
     <?php require __DIR__
-    . '/partials/edit-modal.php'; ?>
+        . '/partials/edit-modal.php'; ?>
 
     <?php require __DIR__
-    . '/partials/delete-modal.php'; ?>
+        . '/partials/delete-modal.php'; ?>
 
     <?php require __DIR__
-    . '/partials/add-modal.php'; ?>
+        . '/partials/add-modal.php'; ?>
 
     <?php require __DIR__
-    . '/partials/add-service-modal.php'; ?>
+        . '/partials/add-service-modal.php'; ?>
 
     <?php require __DIR__
-    . '/partials/add-option-modal.php'; ?>
-
+        . '/partials/add-option-modal.php'; ?>
 
     <script
-    src="/Anabelka/js/admin-delivery/common.js?v=1"
-></script>
+        src="/Anabelka/js/admin-delivery/common.js?v=1"
+    ></script>
 
-<script
-    src="/Anabelka/js/admin-delivery/toggle.js?v=1"
-></script>
+    <script
+        src="/Anabelka/js/admin-delivery/toggle.js?v=1"
+    ></script>
 
-<script
-    src="/Anabelka/js/admin-delivery/edit.js?v=1"
-></script>
+    <script
+        src="/Anabelka/js/admin-delivery/edit.js?v=2"
+    ></script>
 
-<script
-    src="/Anabelka/js/admin-delivery/delete.js?v=1"
-></script>
+    <script
+        src="/Anabelka/js/admin-delivery/delete.js?v=2"
+    ></script>
 
-<script
-    src="/Anabelka/js/admin-delivery/add.js?v=2"
-></script>
+    <script
+        src="/Anabelka/js/admin-delivery/add.js?v=3"
+    ></script>
 
-<script
-    src="/Anabelka/js/admin-delivery/add-service.js?v=1"
-></script>
+    <script
+        src="/Anabelka/js/admin-delivery/add-service.js?v=1"
+    ></script>
 
-  <script
-    src="/Anabelka/js/admin-delivery/add-option.js?v=1"
-></script>
+    <script
+        src="/Anabelka/js/admin-delivery/add-option.js?v=1"
+    ></script>
 
-  <script
-    src="/Anabelka/js/admin-delivery/collapse.js?v=5"
-></script>
+    <script
+        src="/Anabelka/js/admin-delivery/collapse.js?v=6"
+    ></script>
 
 </body>
-
 </html>
