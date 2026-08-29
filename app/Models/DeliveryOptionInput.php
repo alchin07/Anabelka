@@ -5,6 +5,17 @@ class DeliveryOptionInput
     private static $schemaReady = false;
 
 
+    private static function defaults($optionId)
+    {
+        return [
+            'option_id' => (int) $optionId,
+            'is_enabled' => 0,
+            'field_label' => '',
+            'placeholder' => ''
+        ];
+    }
+
+
     /**
      * Создаём таблицу настроек при первом обращении.
      *
@@ -42,43 +53,47 @@ class DeliveryOptionInput
 
     /**
      * Настройки дополнительного поля покупателя.
+     *
+     * Если таблица ещё не может быть создана,
+     * существующая страница Delivery продолжает
+     * работать с выключенной настройкой.
      */
     public static function getForOption($optionId)
     {
-        self::ensureTable();
+        try {
+            self::ensureTable();
 
-        $db = Database::connect();
+            $db = Database::connect();
 
-        $stmt = $db->prepare("
-            SELECT
-                option_id,
-                is_enabled,
-                field_label,
-                placeholder
-            FROM delivery_option_inputs
-            WHERE option_id = :option_id
-            LIMIT 1
-        ");
+            $stmt = $db->prepare("
+                SELECT
+                    option_id,
+                    is_enabled,
+                    field_label,
+                    placeholder
+                FROM delivery_option_inputs
+                WHERE option_id = :option_id
+                LIMIT 1
+            ");
 
-        $stmt->execute([
-            'option_id' => (int) $optionId
-        ]);
+            $stmt->execute([
+                'option_id' => (int) $optionId
+            ]);
 
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row) {
-            return [
-                'option_id' => (int) $optionId,
-                'is_enabled' => 0,
-                'field_label' => '',
-                'placeholder' => ''
-            ];
+            if (!$row) {
+                return self::defaults($optionId);
+            }
+
+            $row['is_enabled'] =
+                !empty($row['is_enabled']) ? 1 : 0;
+
+            return $row;
+
+        } catch (PDOException $e) {
+            return self::defaults($optionId);
         }
-
-        $row['is_enabled'] =
-            !empty($row['is_enabled']) ? 1 : 0;
-
-        return $row;
     }
 
 
