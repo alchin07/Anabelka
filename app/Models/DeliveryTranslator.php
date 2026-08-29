@@ -76,14 +76,14 @@ class DeliveryTranslator
             ],
             'service' => [
                 'nova_poshta' => [
-                    'aliases' => ['Нова пошта', 'Новая почта'],
+                    'aliases' => ['Нова пошта', 'Новая почта', 'Nova Poshta'],
                     'slugs' => ['nova_poshta', 'nova-poshta'],
                     'uk' => ['Нова пошта', null],
                     'ru' => ['Нова пошта', null],
                     'en' => ['Nova Poshta', null]
                 ],
                 'ukrposhta' => [
-                    'aliases' => ['Укрпошта', 'Укрпочта'],
+                    'aliases' => ['Укрпошта', 'Укрпочта', 'Ukrposhta'],
                     'uk' => ['Укрпошта', null],
                     'ru' => ['Укрпочта', null],
                     'en' => ['Ukrposhta', null]
@@ -97,13 +97,21 @@ class DeliveryTranslator
             ],
             'option' => [
                 'branch' => [
-                    'aliases' => ['Доставка в отделение', 'Доставка у відділення'],
+                    'aliases' => [
+                        'Доставка в отделение',
+                        'Доставка у відділення',
+                        'Delivery to a branch'
+                    ],
                     'uk' => ['Доставка у відділення', 'Доставка у відділення'],
                     'ru' => ['Доставка в отделение', 'Доставка в отделение'],
                     'en' => ['Delivery to a branch', 'Delivery to a branch']
                 ],
                 'parcel_locker' => [
-                    'aliases' => ['Доставка в почтомат', 'Доставка у поштомат'],
+                    'aliases' => [
+                        'Доставка в почтомат',
+                        'Доставка у поштомат',
+                        'Delivery to a parcel locker'
+                    ],
                     'uk' => ['Доставка у поштомат', 'Доставка у поштомат'],
                     'ru' => ['Доставка в почтомат', 'Доставка в почтомат'],
                     'en' => ['Delivery to a parcel locker', 'Delivery to a parcel locker']
@@ -113,7 +121,8 @@ class DeliveryTranslator
                         'Адресная доставка',
                         'Адресна доставка',
                         'Доставка по адресу',
-                        'Доставка за адресою'
+                        'Доставка за адресою',
+                        'Address delivery'
                     ],
                     'uk' => ['Адресна доставка', 'Доставка за адресою'],
                     'ru' => ['Адресная доставка', 'Доставка по адресу'],
@@ -234,6 +243,129 @@ class DeliveryTranslator
     }
 
 
+    private static function lower($value)
+    {
+        $value = trim((string) $value);
+
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($value, 'UTF-8');
+        }
+
+        return strtolower($value);
+    }
+
+
+    private static function contains($haystack, $needle)
+    {
+        if ($needle === '') {
+            return false;
+        }
+
+        return strpos($haystack, $needle) !== false;
+    }
+
+
+    /**
+     * Определяет стандартную сущность Delivery даже для старых записей,
+     * у которых slug был создан автоматически и не совпадает с текущим.
+     */
+    private static function detectDictionaryKey(
+        $entityType,
+        array $row
+    ) {
+        $slug = self::lower($row['slug'] ?? '');
+        $name = self::lower($row['name'] ?? '');
+        $text = $slug . ' ' . $name;
+
+        if ($entityType === 'service') {
+            if (
+                self::contains($text, 'нова пошта')
+                || self::contains($text, 'новая почта')
+                || self::contains($text, 'nova poshta')
+                || (
+                    self::contains($text, 'nova')
+                    && (
+                        self::contains($text, 'poshta')
+                        || self::contains($text, 'pochta')
+                    )
+                )
+            ) {
+                return 'nova_poshta';
+            }
+
+            if (
+                self::contains($text, 'укрпошта')
+                || self::contains($text, 'укрпочта')
+                || self::contains($text, 'ukrposhta')
+            ) {
+                return 'ukrposhta';
+            }
+
+            if ($name === 'delivery' || $slug === 'delivery') {
+                return 'delivery';
+            }
+        }
+
+        if ($entityType === 'option') {
+            if (
+                self::contains($text, 'отдел')
+                || self::contains($text, 'відділ')
+                || self::contains($text, 'branch')
+                || self::contains($text, 'otdelen')
+                || self::contains($text, 'viddil')
+            ) {
+                return 'branch';
+            }
+
+            if (
+                self::contains($text, 'почтомат')
+                || self::contains($text, 'поштомат')
+                || self::contains($text, 'parcel locker')
+                || self::contains($text, 'parcel_locker')
+                || self::contains($text, 'parcel-locker')
+            ) {
+                return 'parcel_locker';
+            }
+
+            if (
+                self::contains($text, 'адрес')
+                || self::contains($text, 'address')
+            ) {
+                return 'address';
+            }
+        }
+
+        if ($entityType === 'method') {
+            if (
+                self::contains($text, 'курьер')
+                || self::contains($text, 'кур’єр')
+                || self::contains($text, "кур'єр")
+                || self::contains($text, 'courier')
+            ) {
+                return 'courier';
+            }
+
+            if (
+                self::contains($text, 'самовывоз')
+                || self::contains($text, 'самовивіз')
+                || self::contains($text, 'pickup')
+            ) {
+                return 'pickup';
+            }
+
+            if (
+                self::contains($text, 'почтов')
+                || self::contains($text, 'поштов')
+                || self::contains($text, 'postal')
+            ) {
+                return 'post';
+            }
+        }
+
+        return null;
+    }
+
+
     private static function fallbackTranslation(
         $entityType,
         array $row,
@@ -273,7 +405,21 @@ class DeliveryTranslator
             ];
         }
 
-        return null;
+        $detectedKey = self::detectDictionaryKey(
+            $entityType,
+            $row
+        );
+
+        if (!$detectedKey || empty($items[$detectedKey][$languageCode])) {
+            return null;
+        }
+
+        $translation = $items[$detectedKey][$languageCode];
+
+        return [
+            'name' => $translation[0],
+            'description' => $translation[1]
+        ];
     }
 
 
