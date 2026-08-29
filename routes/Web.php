@@ -168,3 +168,13 @@ $router->post(
     '/admin/delivery/option-input',
     'AdminDeliveryOptionInputController@save'
 );
+
+$router->get(
+    '/admin/delivery/translations',
+    'AdminDeliveryTranslationController@show'
+);
+
+$router->post(
+    '/admin/delivery/translations',
+    'AdminDeliveryTranslationController@save'
+);
