@@ -214,6 +214,33 @@ class Translator
     }
 
 
+    public static function deleteForLanguage($code)
+    {
+        self::ensureTable();
+
+        $code = strtolower(trim((string) $code));
+
+        if ($code === '' || $code === Language::SOURCE_CODE) {
+            return false;
+        }
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            DELETE FROM interface_translations
+            WHERE language_code = :language_code
+        ");
+
+        $result = $stmt->execute([
+            'language_code' => $code
+        ]);
+
+        self::$cache = [];
+
+        return $result;
+    }
+
+
     private static function findValue($key, $code)
     {
         $cacheKey = $code . ':' . $key;
