@@ -7,6 +7,51 @@ class Language
     public const SOURCE_CODE = 'uk';
 
 
+    /**
+     * Локальный справочник языков.
+     *
+     * Администратор выбирает только язык,
+     * а code / locale / short_name назначаются автоматически.
+     */
+    public static function catalog()
+    {
+        return [
+            'uk' => ['name' => 'Українська', 'locale' => 'uk-UA', 'short_name' => 'UA'],
+            'ru' => ['name' => 'Русский', 'locale' => 'ru-RU', 'short_name' => 'RU'],
+            'en' => ['name' => 'English', 'locale' => 'en-US', 'short_name' => 'EN'],
+            'de' => ['name' => 'Deutsch', 'locale' => 'de-DE', 'short_name' => 'DE'],
+            'pl' => ['name' => 'Polski', 'locale' => 'pl-PL', 'short_name' => 'PL'],
+            'fr' => ['name' => 'Français', 'locale' => 'fr-FR', 'short_name' => 'FR'],
+            'es' => ['name' => 'Español', 'locale' => 'es-ES', 'short_name' => 'ES'],
+            'it' => ['name' => 'Italiano', 'locale' => 'it-IT', 'short_name' => 'IT'],
+            'pt' => ['name' => 'Português', 'locale' => 'pt-PT', 'short_name' => 'PT'],
+            'nl' => ['name' => 'Nederlands', 'locale' => 'nl-NL', 'short_name' => 'NL'],
+            'cs' => ['name' => 'Čeština', 'locale' => 'cs-CZ', 'short_name' => 'CS'],
+            'sk' => ['name' => 'Slovenčina', 'locale' => 'sk-SK', 'short_name' => 'SK'],
+            'ro' => ['name' => 'Română', 'locale' => 'ro-RO', 'short_name' => 'RO'],
+            'hu' => ['name' => 'Magyar', 'locale' => 'hu-HU', 'short_name' => 'HU'],
+            'bg' => ['name' => 'Български', 'locale' => 'bg-BG', 'short_name' => 'BG'],
+            'el' => ['name' => 'Ελληνικά', 'locale' => 'el-GR', 'short_name' => 'EL'],
+            'tr' => ['name' => 'Türkçe', 'locale' => 'tr-TR', 'short_name' => 'TR'],
+            'sv' => ['name' => 'Svenska', 'locale' => 'sv-SE', 'short_name' => 'SV'],
+            'da' => ['name' => 'Dansk', 'locale' => 'da-DK', 'short_name' => 'DA'],
+            'no' => ['name' => 'Norsk', 'locale' => 'nb-NO', 'short_name' => 'NO'],
+            'fi' => ['name' => 'Suomi', 'locale' => 'fi-FI', 'short_name' => 'FI'],
+            'et' => ['name' => 'Eesti', 'locale' => 'et-EE', 'short_name' => 'ET'],
+            'lv' => ['name' => 'Latviešu', 'locale' => 'lv-LV', 'short_name' => 'LV'],
+            'lt' => ['name' => 'Lietuvių', 'locale' => 'lt-LT', 'short_name' => 'LT'],
+            'hr' => ['name' => 'Hrvatski', 'locale' => 'hr-HR', 'short_name' => 'HR'],
+            'sl' => ['name' => 'Slovenščina', 'locale' => 'sl-SI', 'short_name' => 'SL'],
+            'sr' => ['name' => 'Српски', 'locale' => 'sr-RS', 'short_name' => 'SR'],
+            'ar' => ['name' => 'العربية', 'locale' => 'ar-SA', 'short_name' => 'AR'],
+            'he' => ['name' => 'עברית', 'locale' => 'he-IL', 'short_name' => 'HE'],
+            'zh' => ['name' => '中文', 'locale' => 'zh-CN', 'short_name' => 'ZH'],
+            'ja' => ['name' => '日本語', 'locale' => 'ja-JP', 'short_name' => 'JA'],
+            'ko' => ['name' => '한국어', 'locale' => 'ko-KR', 'short_name' => 'KO']
+        ];
+    }
+
+
     private static function ensureTable()
     {
         if (self::$schemaReady) {
@@ -42,10 +87,6 @@ class Language
             ->query("SELECT COUNT(*) FROM languages")
             ->fetchColumn();
 
-        // Стартовые языки создаём только один раз —
-        // при первом запуске языкового блока.
-        // После этого удаление и редактирование из админки
-        // должны сохраняться и не перезаписываться автоматически.
         if ($languageCount === 0) {
             self::seedBaseLanguages($db);
         }
@@ -58,34 +99,12 @@ class Language
 
     private static function seedBaseLanguages(PDO $db)
     {
+        $catalog = self::catalog();
+
         $languages = [
-            [
-                'code' => 'uk',
-                'locale' => 'uk-UA',
-                'name' => 'Українська',
-                'short_name' => 'UA',
-                'is_default' => 1,
-                'is_source' => 1,
-                'sort_order' => 10
-            ],
-            [
-                'code' => 'ru',
-                'locale' => 'ru-RU',
-                'name' => 'Русский',
-                'short_name' => 'RU',
-                'is_default' => 0,
-                'is_source' => 0,
-                'sort_order' => 20
-            ],
-            [
-                'code' => 'en',
-                'locale' => 'en-US',
-                'name' => 'English',
-                'short_name' => 'EN',
-                'is_default' => 0,
-                'is_source' => 0,
-                'sort_order' => 30
-            ]
+            ['code' => 'uk', 'is_default' => 1, 'is_source' => 1, 'sort_order' => 10],
+            ['code' => 'ru', 'is_default' => 0, 'is_source' => 0, 'sort_order' => 20],
+            ['code' => 'en', 'is_default' => 0, 'is_source' => 0, 'sort_order' => 30]
         ];
 
         $stmt = $db->prepare("
@@ -114,7 +133,17 @@ class Language
         ");
 
         foreach ($languages as $language) {
-            $stmt->execute($language);
+            $data = $catalog[$language['code']];
+
+            $stmt->execute([
+                'code' => $language['code'],
+                'locale' => $data['locale'],
+                'name' => $data['name'],
+                'short_name' => $data['short_name'],
+                'is_default' => $language['is_default'],
+                'is_source' => $language['is_source'],
+                'sort_order' => $language['sort_order']
+            ]);
         }
     }
 
@@ -135,7 +164,9 @@ class Language
         $sourceId = (int) $sourceStmt->fetchColumn();
 
         if ($sourceId <= 0) {
-            // Защитный случай для ручного изменения БД.
+            $catalog = self::catalog();
+            $source = $catalog[self::SOURCE_CODE];
+
             $insert = $db->prepare("
                 INSERT INTO languages
                 (
@@ -150,10 +181,10 @@ class Language
                 )
                 VALUES
                 (
-                    'uk',
-                    'uk-UA',
-                    'Українська',
-                    'UA',
+                    :code,
+                    :locale,
+                    :name,
+                    :short_name,
                     1,
                     1,
                     1,
@@ -161,7 +192,12 @@ class Language
                 )
             ");
 
-            $insert->execute();
+            $insert->execute([
+                'code' => self::SOURCE_CODE,
+                'locale' => $source['locale'],
+                'name' => $source['name'],
+                'short_name' => $source['short_name']
+            ]);
 
             $sourceId = (int) $db->lastInsertId();
         }
@@ -218,14 +254,34 @@ class Language
 
         $db = Database::connect();
 
-        $stmt = $db->query("
+        return $db->query("
             SELECT *
             FROM languages
             WHERE is_active = 1
             ORDER BY sort_order ASC, id ASC
-        ");
+        ")->fetchAll(PDO::FETCH_ASSOC);
+    }
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    public static function availableCatalog()
+    {
+        self::ensureTable();
+
+        $existingCodes = [];
+
+        foreach (self::all() as $language) {
+            $existingCodes[$language['code']] = true;
+        }
+
+        $available = [];
+
+        foreach (self::catalog() as $code => $data) {
+            if (!isset($existingCodes[$code])) {
+                $available[$code] = $data;
+            }
+        }
+
+        return $available;
     }
 
 
@@ -294,27 +350,26 @@ class Language
     }
 
 
-    public static function create(
-        $name,
-        $code,
-        $locale,
-        $shortName
-    ) {
+    public static function createFromCatalog($code)
+    {
         self::ensureTable();
 
-        $name = trim((string) $name);
         $code = self::normalizeCode($code);
-        $locale = self::normalizeLocale($locale);
-        $shortName = strtoupper(trim((string) $shortName));
+        $catalog = self::catalog();
 
-        self::validate($name, $code, $locale, $shortName);
-
-        if ($code === self::SOURCE_CODE) {
+        if (!isset($catalog[$code])) {
             throw new InvalidArgumentException(
-                'Код uk уже закреплён за исходным украинским языком.'
+                'Выберите язык из списка.'
             );
         }
 
+        if (self::findByCode($code)) {
+            throw new InvalidArgumentException(
+                'Этот язык уже добавлен.'
+            );
+        }
+
+        $data = $catalog[$code];
         $db = Database::connect();
 
         $maxOrder = (int) $db
@@ -348,9 +403,9 @@ class Language
 
         $stmt->execute([
             'code' => $code,
-            'locale' => $locale,
-            'name' => $name,
-            'short_name' => $shortName,
+            'locale' => $data['locale'],
+            'name' => $data['name'],
+            'short_name' => $data['short_name'],
             'sort_order' => $maxOrder + 10
         ]);
 
@@ -358,13 +413,8 @@ class Language
     }
 
 
-    public static function update(
-        $id,
-        $name,
-        $code,
-        $locale,
-        $shortName
-    ) {
+    public static function updateName($id, $name)
+    {
         self::ensureTable();
 
         $language = self::findById($id);
@@ -374,38 +424,24 @@ class Language
         }
 
         $name = trim((string) $name);
-        $code = self::normalizeCode($code);
-        $locale = self::normalizeLocale($locale);
-        $shortName = strtoupper(trim((string) $shortName));
 
-        if (!empty($language['is_source'])) {
-            $code = self::SOURCE_CODE;
-        } elseif ($code === self::SOURCE_CODE) {
+        if ($name === '') {
             throw new InvalidArgumentException(
-                'Код uk зарезервирован для исходного украинского языка.'
+                'Укажите название языка.'
             );
         }
-
-        self::validate($name, $code, $locale, $shortName);
 
         $db = Database::connect();
 
         $stmt = $db->prepare("
             UPDATE languages
-            SET
-                code = :code,
-                locale = :locale,
-                name = :name,
-                short_name = :short_name
+            SET name = :name
             WHERE id = :id
         ");
 
         return $stmt->execute([
             'id' => (int) $id,
-            'code' => $code,
-            'locale' => $locale,
-            'name' => $name,
-            'short_name' => $shortName
+            'name' => $name
         ]);
     }
 
@@ -525,44 +561,8 @@ class Language
     }
 
 
-    private static function validate(
-        $name,
-        $code,
-        $locale,
-        $shortName
-    ) {
-        if ($name === '') {
-            throw new InvalidArgumentException('Укажите название языка.');
-        }
-
-        if (!preg_match('/^[a-z]{2,10}$/', $code)) {
-            throw new InvalidArgumentException(
-                'Код языка: только латинские строчные буквы, от 2 до 10 символов.'
-            );
-        }
-
-        if (!preg_match('/^[a-zA-Z]{2,10}(?:-[a-zA-Z0-9]{2,10})?$/', $locale)) {
-            throw new InvalidArgumentException(
-                'Локаль должна быть в формате uk-UA, ru-RU, en-US.'
-            );
-        }
-
-        if ($shortName === '' || strlen($shortName) > 10) {
-            throw new InvalidArgumentException(
-                'Укажите короткое обозначение языка, например UA.'
-            );
-        }
-    }
-
-
     private static function normalizeCode($code)
     {
         return strtolower(trim((string) $code));
-    }
-
-
-    private static function normalizeLocale($locale)
-    {
-        return trim((string) $locale);
     }
 }
