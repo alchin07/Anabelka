@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '5 * * * *'
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/daily-backup.yml'
 
 permissions:
   contents: read
@@ -25,17 +30,17 @@ jobs:
           fi
 
       - name: Check out repository
-        if: steps.berlin_time.outputs.run_backup == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.berlin_time.outputs.run_backup == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Check for changes in the last 24 hours
-        if: steps.berlin_time.outputs.run_backup == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.berlin_time.outputs.run_backup == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         id: changes
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           elif git log --since='24 hours ago' --format='%H' | grep -q .; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
