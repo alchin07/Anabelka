@@ -1,0 +1,63 @@
+name: Daily Anabelka Backup
+
+on:
+  schedule:
+    - cron: '5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Berlin midnight window
+        id: berlin_time
+        shell: bash
+        run: |
+          HOUR=$(TZ=Europe/Berlin date +%H)
+          if [ "$HOUR" = "00" ]; then
+            echo "run_backup=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_backup=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out repository
+        if: steps.berlin_time.outputs.run_backup == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes in the last 24 hours
+        if: steps.berlin_time.outputs.run_backup == 'true' || github.event_name == 'workflow_dispatch'
+        id: changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          elif git log --since='24 hours ago' --format='%H' | grep -q .; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare clean project copy
+        if: steps.changes.outputs.has_changes == 'true'
+        shell: bash
+        run: |
+          DATE=$(TZ=Europe/Berlin date +%F)
+          echo "BACKUP_DATE=$DATE" >> "$GITHUB_ENV"
+          mkdir -p backup
+          rsync -a --exclude='.git' --exclude='backup' ./ backup/
+
+      - name: Upload project backup
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anabelka_${{ env.BACKUP_DATE }}
+          path: backup/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
