@@ -117,12 +117,26 @@ class AdminLanguageController extends Controller
     public function delete()
     {
         try {
-            Language::delete(
-                (int) ($_POST['language_id'] ?? 0)
+            $id =
+                (int) ($_POST['language_id'] ?? 0);
+
+            $language =
+                Language::findById($id);
+
+            if (!$language) {
+                throw new RuntimeException(
+                    'Язык не найден.'
+                );
+            }
+
+            Language::delete($id);
+
+            Translator::deleteForLanguage(
+                $language['code'] ?? ''
             );
 
             $_SESSION['language_message'] =
-                'Язык удалён.';
+                'Язык и его переводы удалены.';
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
