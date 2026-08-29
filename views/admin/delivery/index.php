@@ -159,7 +159,7 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/edit.js?v=3"
+        src="/Anabelka/js/admin-delivery/edit.js?v=4"
     ></script>
 
     <script
