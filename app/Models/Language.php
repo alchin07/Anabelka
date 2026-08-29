@@ -38,7 +38,19 @@ class Language
               COLLATE=utf8mb4_unicode_ci
         ");
 
-        self::seedBaseLanguages($db);
+        $languageCount = (int) $db
+            ->query("SELECT COUNT(*) FROM languages")
+            ->fetchColumn();
+
+        // Стартовые языки создаём только один раз —
+        // при первом запуске языкового блока.
+        // После этого удаление и редактирование из админки
+        // должны сохраняться и не перезаписываться автоматически.
+        if ($languageCount === 0) {
+            self::seedBaseLanguages($db);
+        }
+
+        self::enforceSourceLanguage($db);
 
         self::$schemaReady = true;
     }
@@ -99,39 +111,89 @@ class Language
                 :is_source,
                 :sort_order
             )
-            ON DUPLICATE KEY UPDATE
-                name = VALUES(name),
-                short_name = VALUES(short_name),
-                is_source = VALUES(is_source)
         ");
 
         foreach ($languages as $language) {
             $stmt->execute($language);
         }
+    }
 
-        // Украинский всегда остаётся исходным языком проекта.
-        $db->exec("
-            UPDATE languages
-            SET is_source = CASE
-                WHEN code = 'uk' THEN 1
-                ELSE 0
-            END
+
+    private static function enforceSourceLanguage(PDO $db)
+    {
+        $sourceStmt = $db->prepare("
+            SELECT id
+            FROM languages
+            WHERE code = :code
+            LIMIT 1
         ");
 
-        // Если основной язык сайта ещё не определён,
-        // назначаем украинский.
+        $sourceStmt->execute([
+            'code' => self::SOURCE_CODE
+        ]);
+
+        $sourceId = (int) $sourceStmt->fetchColumn();
+
+        if ($sourceId <= 0) {
+            // Защитный случай для ручного изменения БД.
+            $insert = $db->prepare("
+                INSERT INTO languages
+                (
+                    code,
+                    locale,
+                    name,
+                    short_name,
+                    is_active,
+                    is_default,
+                    is_source,
+                    sort_order
+                )
+                VALUES
+                (
+                    'uk',
+                    'uk-UA',
+                    'Українська',
+                    'UA',
+                    1,
+                    1,
+                    1,
+                    10
+                )
+            ");
+
+            $insert->execute();
+
+            $sourceId = (int) $db->lastInsertId();
+        }
+
+        $db->exec("UPDATE languages SET is_source = 0");
+
+        $stmt = $db->prepare("
+            UPDATE languages
+            SET
+                is_source = 1,
+                is_active = 1
+            WHERE id = :id
+        ");
+
+        $stmt->execute([
+            'id' => $sourceId
+        ]);
+
         $defaultCount = (int) $db
             ->query("SELECT COUNT(*) FROM languages WHERE is_default = 1")
             ->fetchColumn();
 
         if ($defaultCount === 0) {
-            $db->exec("
+            $stmt = $db->prepare("
                 UPDATE languages
-                SET is_default = CASE
-                    WHEN code = 'uk' THEN 1
-                    ELSE 0
-                END
+                SET is_default = 1
+                WHERE id = :id
             ");
+
+            $stmt->execute([
+                'id' => $sourceId
+            ]);
         }
     }
 
@@ -247,6 +309,12 @@ class Language
 
         self::validate($name, $code, $locale, $shortName);
 
+        if ($code === self::SOURCE_CODE) {
+            throw new InvalidArgumentException(
+                'Код uk уже закреплён за исходным украинским языком.'
+            );
+        }
+
         $db = Database::connect();
 
         $maxOrder = (int) $db
@@ -312,6 +380,10 @@ class Language
 
         if (!empty($language['is_source'])) {
             $code = self::SOURCE_CODE;
+        } elseif ($code === self::SOURCE_CODE) {
+            throw new InvalidArgumentException(
+                'Код uk зарезервирован для исходного украинского языка.'
+            );
         }
 
         self::validate($name, $code, $locale, $shortName);
