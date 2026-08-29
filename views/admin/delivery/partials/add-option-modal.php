@@ -85,10 +85,13 @@
 
             <div class="delivery-form-group">
 
-                <label>
+                <label
+                    style="display:flex;align-items:center;gap:8px;"
+                >
                     <input
                         type="checkbox"
                         id="add-option-customer-input"
+                        style="width:18px;height:18px;padding:0;margin:0;flex:0 0 auto;"
                     >
                     Запрашивать данные у покупателя
                 </label>
