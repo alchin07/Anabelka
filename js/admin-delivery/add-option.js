@@ -29,6 +29,48 @@ const addOptionName =
         'add-option-name'
     );
 
+const addOptionCustomerInput =
+    document.getElementById(
+        'add-option-customer-input'
+    );
+
+const addOptionCustomerInputSettings =
+    document.getElementById(
+        'add-option-customer-input-settings'
+    );
+
+const addOptionCustomerInputLabel =
+    document.getElementById(
+        'add-option-customer-input-label'
+    );
+
+const addOptionCustomerInputPlaceholder =
+    document.getElementById(
+        'add-option-customer-input-placeholder'
+    );
+
+
+function updateAddOptionCustomerInputVisibility()
+{
+    if (!addOptionCustomerInputSettings) {
+        return;
+    }
+
+    addOptionCustomerInputSettings.hidden =
+        !(
+            addOptionCustomerInput
+            && addOptionCustomerInput.checked
+        );
+}
+
+
+if (addOptionCustomerInput) {
+    addOptionCustomerInput.addEventListener(
+        'change',
+        updateAddOptionCustomerInputVisibility
+    );
+}
+
 
 /*
  * Открытие окна.
@@ -52,6 +94,7 @@ addOptionButtons.forEach(
 
 
                 addOptionForm.reset();
+                updateAddOptionCustomerInputVisibility();
 
 
                 addOptionServiceId.value =
@@ -192,12 +235,40 @@ if (
                 }
 
 
+                let settingsSaved = true;
+
+                if (
+                    typeof window.saveDeliveryOptionInput
+                    === 'function'
+                ) {
+                    try {
+                        await window.saveDeliveryOptionInput(
+                            result.id,
+                            Boolean(
+                                addOptionCustomerInput
+                                && addOptionCustomerInput.checked
+                            ),
+                            addOptionCustomerInputLabel
+                                ? addOptionCustomerInputLabel.value
+                                : '',
+                            addOptionCustomerInputPlaceholder
+                                ? addOptionCustomerInputPlaceholder.value
+                                : ''
+                        );
+                    } catch (error) {
+                        settingsSaved = false;
+                    }
+                }
+
+
                 addOptionModal.hidden =
                     true;
 
 
                 window.showMessage(
-                    'Опция доставки добавлена'
+                    settingsSaved
+                        ? 'Опция доставки добавлена'
+                        : 'Опция добавлена, но настройка поля не сохранена'
                 );
 
 
