@@ -37,6 +37,13 @@
             'edit-description'
         );
 
+    const translationSections =
+        Array.from(
+            document.querySelectorAll(
+                '.delivery-translation-section'
+            )
+        );
+
     const optionInputSection =
         document.getElementById(
             'edit-option-customer-input-section'
@@ -77,6 +84,192 @@
     }
 
 
+    function clearTranslationFields()
+    {
+        translationSections.forEach(
+            (section) => {
+                const nameInput =
+                    section.querySelector(
+                        '.delivery-translation-name'
+                    );
+
+                const descriptionInput =
+                    section.querySelector(
+                        '.delivery-translation-description'
+                    );
+
+                if (nameInput) {
+                    nameInput.value = '';
+                }
+
+                if (descriptionInput) {
+                    descriptionInput.value = '';
+                }
+            }
+        );
+    }
+
+
+    async function loadTranslations(type, id)
+    {
+        clearTranslationFields();
+
+        if (!type || !id) {
+            return;
+        }
+
+        const url =
+            '/Anabelka/admin/delivery/translations'
+            + '?type=' + encodeURIComponent(type)
+            + '&id=' + encodeURIComponent(id);
+
+        const response =
+            await fetch(
+                url,
+                {
+                    headers: {
+                        'X-Requested-With':
+                            'XMLHttpRequest'
+                    }
+                }
+            );
+
+        const text =
+            await response.text();
+
+        if (!response.ok) {
+            throw new Error(
+                text || 'Не удалось загрузить переводы.'
+            );
+        }
+
+        let data = {};
+
+        try {
+            data = JSON.parse(text);
+        } catch (error) {
+            throw new Error(
+                'Сервер вернул некорректные данные переводов.'
+            );
+        }
+
+        const translations =
+            data.translations || {};
+
+        translationSections.forEach(
+            (section) => {
+                const code =
+                    section.dataset.languageCode || '';
+
+                const translation =
+                    translations[code] || {};
+
+                const nameInput =
+                    section.querySelector(
+                        '.delivery-translation-name'
+                    );
+
+                const descriptionInput =
+                    section.querySelector(
+                        '.delivery-translation-description'
+                    );
+
+                if (nameInput) {
+                    nameInput.value =
+                        translation.name || '';
+                }
+
+                if (descriptionInput) {
+                    descriptionInput.value =
+                        translation.description || '';
+                }
+            }
+        );
+    }
+
+
+    function collectTranslations()
+    {
+        const translations = {};
+
+        translationSections.forEach(
+            (section) => {
+                const code =
+                    section.dataset.languageCode || '';
+
+                if (!code) {
+                    return;
+                }
+
+                const nameInput =
+                    section.querySelector(
+                        '.delivery-translation-name'
+                    );
+
+                const descriptionInput =
+                    section.querySelector(
+                        '.delivery-translation-description'
+                    );
+
+                translations[code] = {
+                    name:
+                        nameInput
+                            ? nameInput.value.trim()
+                            : '',
+                    description:
+                        descriptionInput
+                            ? descriptionInput.value.trim()
+                            : ''
+                };
+            }
+        );
+
+        return translations;
+    }
+
+
+    async function saveTranslations(type, id)
+    {
+        if (!type || !id) {
+            return;
+        }
+
+        const formData =
+            new FormData();
+
+        formData.set('type', type);
+        formData.set('id', id);
+        formData.set(
+            'translations',
+            JSON.stringify(
+                collectTranslations()
+            )
+        );
+
+        const response =
+            await fetch(
+                '/Anabelka/admin/delivery/translations',
+                {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With':
+                            'XMLHttpRequest'
+                    }
+                }
+            );
+
+        const text =
+            await response.text();
+
+        if (!response.ok) {
+            throw new Error(
+                text || 'Не удалось сохранить переводы.'
+            );
+        }
+    }
+
+
     if (optionInputToggle) {
         optionInputToggle.addEventListener(
             'change',
@@ -91,7 +284,7 @@
             (button) => {
                 button.addEventListener(
                     'click',
-                    function ()
+                    async function ()
                     {
                         if (
                             !editModal
@@ -119,6 +312,7 @@
                             this.dataset.description
                             || '';
 
+                        clearTranslationFields();
 
                         const isOption =
                             editType.value === 'option';
@@ -166,8 +360,20 @@
                             updateOptionInputVisibility();
                         }
 
-
                         editModal.hidden = false;
+
+                        try {
+                            await loadTranslations(
+                                editType.value,
+                                editId.value
+                            );
+                        } catch (error) {
+                            window.showMessage(
+                                error instanceof Error
+                                    ? error.message
+                                    : 'Не удалось загрузить переводы.'
+                            );
+                        }
 
                         setTimeout(
                             () => {
@@ -246,6 +452,10 @@
                     );
                 }
 
+                await saveTranslations(
+                    editType.value,
+                    editId.value
+                );
 
                 const selector =
                     '.edit-button'
@@ -265,7 +475,6 @@
                             '.delivery-row'
                         )
                         : null;
-
 
                 if (
                     editType.value === 'option'
@@ -312,7 +521,6 @@
                     }
                 }
 
-
                 if (editButton) {
                     if (row) {
                         const nameElement =
@@ -321,11 +529,6 @@
                             );
 
                         if (nameElement) {
-                            /*
-                             * Название выводим ровно таким,
-                             * каким его ввёл пользователь.
-                             * Никаких точек/маркеров для option.
-                             */
                             nameElement.textContent =
                                 editName.value;
                         }
@@ -391,7 +594,7 @@
                 editModal.hidden = true;
 
                 window.showMessage(
-                    'Изменения сохранены'
+                    'Изменения и переводы сохранены'
                 );
 
             } catch (error) {
