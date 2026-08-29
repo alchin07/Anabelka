@@ -5,7 +5,7 @@ class DeliveryOptionInput
     private static $schemaReady = false;
 
 
-    private static function defaults($optionId)
+    private static function defaults($optionId = 0)
     {
         return [
             'option_id' => (int) $optionId,
@@ -52,11 +52,8 @@ class DeliveryOptionInput
 
 
     /**
-     * Настройки дополнительного поля покупателя.
-     *
-     * Если таблица ещё не может быть создана,
-     * существующая страница Delivery продолжает
-     * работать с выключенной настройкой.
+     * Настройки дополнительного поля покупателя
+     * по ID опции. Используется в админ-панели.
      */
     public static function getForOption($optionId)
     {
@@ -93,6 +90,69 @@ class DeliveryOptionInput
 
         } catch (PDOException $e) {
             return self::defaults($optionId);
+        }
+    }
+
+
+    /**
+     * Публичные настройки поля для checkout.
+     *
+     * Настройка возвращается только если способ,
+     * служба и опция существуют, активны и действительно
+     * принадлежат друг другу.
+     */
+    public static function getPublicBySelection(
+        $methodSlug,
+        $serviceSlug,
+        $optionSlug
+    ) {
+        try {
+            self::ensureTable();
+
+            $db = Database::connect();
+
+            $stmt = $db->prepare("
+                SELECT
+                    o.id AS option_id,
+                    COALESCE(i.is_enabled, 0) AS is_enabled,
+                    COALESCE(i.field_label, '') AS field_label,
+                    COALESCE(i.placeholder, '') AS placeholder
+                FROM delivery_service_options o
+                INNER JOIN delivery_services s
+                    ON s.id = o.delivery_service_id
+                INNER JOIN delivery_methods m
+                    ON m.id = s.delivery_method_id
+                LEFT JOIN delivery_option_inputs i
+                    ON i.option_id = o.id
+                WHERE m.slug = :method_slug
+                  AND s.slug = :service_slug
+                  AND o.slug = :option_slug
+                  AND m.is_active = 1
+                  AND s.is_active = 1
+                  AND o.is_active = 1
+                LIMIT 1
+            ");
+
+            $stmt->execute([
+                'method_slug' => trim((string) $methodSlug),
+                'service_slug' => trim((string) $serviceSlug),
+                'option_slug' => trim((string) $optionSlug)
+            ]);
+
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$row) {
+                return self::defaults();
+            }
+
+            $row['option_id'] = (int) $row['option_id'];
+            $row['is_enabled'] =
+                !empty($row['is_enabled']) ? 1 : 0;
+
+            return $row;
+
+        } catch (PDOException $e) {
+            return self::defaults();
         }
     }
 
