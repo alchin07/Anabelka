@@ -102,3 +102,8 @@ $router->post(
     '/admin/delivery/create-option',
     'AdminDeliveryController@createOption'
 );
+
+$router->post(
+    '/admin/delivery/option-input',
+    'AdminDeliveryOptionInputController@save'
+);
