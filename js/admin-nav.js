@@ -4,6 +4,19 @@
 (function () {
     'use strict';
 
+    function createLink(href, text)
+    {
+        const link = document.createElement('a');
+        link.href = href;
+        link.textContent = text;
+        link.style.color = 'var(--primary-color)';
+        link.style.fontWeight = 'bold';
+        link.style.textDecoration = 'none';
+
+        return link;
+    }
+
+
     function init()
     {
         const header =
@@ -25,24 +38,30 @@
         nav.style.flexWrap = 'wrap';
         nav.style.marginTop = '12px';
 
-        const orders = document.createElement('a');
-        orders.href = '/Anabelka/admin/orders';
-        orders.textContent = 'Быстрые заказы';
-        orders.style.color = 'var(--primary-color)';
-        orders.style.fontWeight = 'bold';
-        orders.style.textDecoration = 'none';
+        nav.appendChild(
+            createLink(
+                '/Anabelka/admin/orders',
+                'Быстрые заказы'
+            )
+        );
 
-        const delivery = document.createElement('a');
-        delivery.href = '/Anabelka/admin/delivery';
-        delivery.textContent = 'Доставка';
-        delivery.style.color = 'var(--primary-color)';
-        delivery.style.fontWeight = 'bold';
-        delivery.style.textDecoration = 'none';
+        nav.appendChild(
+            createLink(
+                '/Anabelka/admin/delivery',
+                'Доставка'
+            )
+        );
 
-        nav.appendChild(orders);
-        nav.appendChild(delivery);
+        nav.appendChild(
+            createLink(
+                '/Anabelka/admin/languages',
+                'Языки'
+            )
+        );
+
         header.appendChild(nav);
     }
+
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
