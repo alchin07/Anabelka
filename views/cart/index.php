@@ -1,5 +1,12 @@
+<?php
+
+$currentLanguage = Translator::currentLanguage();
+$pageContext = 'cart';
+$pageTitle = Translator::t('cart.title', 'Кошик');
+
+?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
 
 <head>
 
@@ -10,7 +17,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Корзина — Анабелька</title>
+    <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
 
     <link
         rel="stylesheet"
@@ -26,13 +33,7 @@
 
 <body>
 
-    <?php
-
-$pageTitle = 'Корзина';
-
-require __DIR__ . '/../partials/header.php';
-
-?>
+    <?php require __DIR__ . '/../partials/header.php'; ?>
 
 
     <main class="catalog" id="cart-page">
@@ -43,7 +44,12 @@ require __DIR__ . '/../partials/header.php';
                 href="/Anabelka/catalog"
                 style="color: var(--primary-color);"
             >
-                ← Продолжить покупки
+                ← <?= htmlspecialchars(
+                    Translator::t(
+                        'cart.continue_shopping',
+                        'Продовжити покупки'
+                    )
+                ) ?>
             </a>
 
         </p>
@@ -52,7 +58,12 @@ require __DIR__ . '/../partials/header.php';
         <?php if (empty($items)): ?>
 
             <p id="empty-cart-message">
-                Корзина пока пуста.
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'cart.empty',
+                        'Кошик поки порожній.'
+                    )
+                ) ?>
             </p>
 
         <?php else: ?>
@@ -79,7 +90,9 @@ require __DIR__ . '/../partials/header.php';
 
 
                         <p>
-                            Цена:
+                            <?= htmlspecialchars(
+                                Translator::t('cart.price', 'Ціна')
+                            ) ?>:
                             <?= number_format(
                                 Product::getCurrentPrice($item['product']),
                                 2,
@@ -90,7 +103,9 @@ require __DIR__ . '/../partials/header.php';
 
 
                         <p>
-                            Размер:
+                            <?= htmlspecialchars(
+                                Translator::t('cart.size', 'Розмір')
+                            ) ?>:
                             <?= htmlspecialchars(
                                 $item['size']['value'] ?? '—'
                             ) ?>
@@ -150,7 +165,9 @@ require __DIR__ . '/../partials/header.php';
 
 
                         <p>
-                            Сумма:
+                            <?= htmlspecialchars(
+                                Translator::t('cart.sum', 'Сума')
+                            ) ?>:
                             <span class="cart-item-sum">
                                 <?= number_format(
                                     (float) $item['sum'],
@@ -176,7 +193,9 @@ require __DIR__ . '/../partials/header.php';
                                 padding: 0;
                             "
                         >
-                            Удалить
+                            <?= htmlspecialchars(
+                                Translator::t('cart.remove', 'Видалити')
+                            ) ?>
                         </button>
 
                     </section>
@@ -187,7 +206,9 @@ require __DIR__ . '/../partials/header.php';
 
 
             <h2>
-                Итого:
+                <?= htmlspecialchars(
+                    Translator::t('cart.total', 'Разом')
+                ) ?>:
                 <span id="cart-total">
                     <?= number_format(
                         (float) $total,
@@ -198,44 +219,74 @@ require __DIR__ . '/../partials/header.php';
                 </span>
                 €
             </h2>
-        <a
-    href="/Anabelka/checkout"
-    style="
-        display: block;
-        width: 100%;
-        box-sizing: border-box;
 
-        margin-top: 20px;
-        padding: 14px;
-
-        border-radius: 12px;
-
-        background:
-            var(--primary-color);
-
-        color: #fff;
-
-        text-align: center;
-        text-decoration: none;
-
-        font-size: 16px;
-        font-weight: bold;
-    "
->
-    Оформить заказ
-</a> 
+            <a
+                href="/Anabelka/checkout"
+                data-quick-order-label="<?= htmlspecialchars(
+                    Translator::t(
+                        'cart.quick_order',
+                        'Швидке замовлення'
+                    )
+                ) ?>"
+                style="
+                    display: block;
+                    width: 100%;
+                    box-sizing: border-box;
+                    margin-top: 20px;
+                    padding: 14px;
+                    border-radius: 12px;
+                    background: var(--primary-color);
+                    color: #fff;
+                    text-align: center;
+                    text-decoration: none;
+                    font-size: 16px;
+                    font-weight: bold;
+                "
+            >
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'cart.checkout',
+                        'Оформити замовлення'
+                    )
+                ) ?>
+            </a>
 
         <?php endif; ?>
 
     </main>
-  
-      <div
-      id="site-message"
-      class="site-message"
+
+    <div
+        id="site-message"
+        class="site-message"
     ></div>
 
 
     <script>
+
+        const cartMessages = {
+            change: <?= json_encode(
+                Translator::t(
+                    'cart.error_change',
+                    'Не вдалося змінити кошик.'
+                ),
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ) ?>,
+            quantity: <?= json_encode(
+                Translator::t(
+                    'cart.error_quantity',
+                    'Не вдалося змінити кількість.'
+                ),
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ) ?>,
+            remove: <?= json_encode(
+                Translator::t(
+                    'cart.error_remove',
+                    'Не вдалося видалити товар.'
+                ),
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ) ?>
+        };
+
 
         function formatMoney(value)
         {
@@ -243,42 +294,42 @@ require __DIR__ . '/../partials/header.php';
                 .toFixed(2)
                 .replace('.', ',');
         }
-        
+
+
         function updateHeaderCartCount()
-{
-    const cartCount =
-        document.getElementById(
-            'cart-count'
-        );
-
-    if (!cartCount) {
-        return;
-    }
-
-    let totalQuantity = 0;
-
-    document
-        .querySelectorAll('.cart-item')
-        .forEach((item) => {
-
-            const quantityElement =
-                item.querySelector(
-                    '.cart-quantity'
+        {
+            const cartCount =
+                document.getElementById(
+                    'cart-count'
                 );
 
-            if (quantityElement) {
-
-                totalQuantity +=
-                    parseInt(
-                        quantityElement.textContent,
-                        10
-                    ) || 0;
+            if (!cartCount) {
+                return;
             }
-        });
 
-    cartCount.textContent =
-        totalQuantity;
-}
+            let totalQuantity = 0;
+
+            document
+                .querySelectorAll('.cart-item')
+                .forEach((item) => {
+
+                    const quantityElement =
+                        item.querySelector(
+                            '.cart-quantity'
+                        );
+
+                    if (quantityElement) {
+                        totalQuantity +=
+                            parseInt(
+                                quantityElement.textContent,
+                                10
+                            ) || 0;
+                    }
+                });
+
+            cartCount.textContent =
+                totalQuantity;
+        }
 
 
         function recalculateCart()
@@ -309,9 +360,7 @@ require __DIR__ . '/../partials/header.php';
                     formatMoney(sum);
 
                 total += sum;
-
             });
-
 
             const totalElement =
                 document.getElementById('cart-total');
@@ -324,41 +373,35 @@ require __DIR__ . '/../partials/header.php';
 
 
         async function cartRequest(url, cartKey)
-{
-    const formData =
-        new FormData();
+        {
+            const formData =
+                new FormData();
 
-    formData.append(
-        'cart_key',
-        cartKey
-    );
+            formData.append(
+                'cart_key',
+                cartKey
+            );
 
+            const response =
+                await fetch(
+                    url,
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
 
-    const response =
-        await fetch(
-            url,
-            {
-                method: 'POST',
-                body: formData
+            const responseText =
+                await response.text();
+
+            if (!response.ok) {
+                throw new Error(
+                    responseText || cartMessages.change
+                );
             }
-        );
 
-
-    const responseText =
-        await response.text();
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            responseText ||
-            'Не удалось изменить корзину.'
-        );
-    }
-
-
-    return responseText;
-}
+            return responseText;
+        }
 
 
         document
@@ -370,15 +413,12 @@ require __DIR__ . '/../partials/header.php';
                     async function () {
 
                         const item =
-                            this.closest(
-                                '.cart-item'
-                            );
+                            this.closest('.cart-item');
 
                         const cartKey =
                             item.dataset.cartKey;
 
                         try {
-
                             await cartRequest(
                                 '/Anabelka/cart/increase',
                                 cartKey
@@ -394,21 +434,17 @@ require __DIR__ . '/../partials/header.php';
                                     quantityElement.textContent
                                 ) + 1;
 
-                            recalculateCart()
-                    updateHeaderCartCount();
+                            recalculateCart();
+                            updateHeaderCartCount();
 
                         } catch (error) {
-
-    showMessage(
-        error.message ||
-        'Не удалось изменить количество.'
-    );
-
+                            showMessage(
+                                error.message
+                                || cartMessages.quantity
+                            );
                         }
-
                     }
                 );
-
             });
 
 
@@ -421,9 +457,7 @@ require __DIR__ . '/../partials/header.php';
                     async function () {
 
                         const item =
-                            this.closest(
-                                '.cart-item'
-                            );
+                            this.closest('.cart-item');
 
                         const cartKey =
                             item.dataset.cartKey;
@@ -439,38 +473,29 @@ require __DIR__ . '/../partials/header.php';
                             );
 
                         try {
-
                             await cartRequest(
                                 '/Anabelka/cart/decrease',
                                 cartKey
                             );
 
                             if (currentQuantity <= 1) {
-
                                 item.remove();
-
                             } else {
-
                                 quantityElement.textContent =
                                     currentQuantity - 1;
-
                             }
 
                             recalculateCart();
-                  updateHeaderCartCount();
+                            updateHeaderCartCount();
 
                         } catch (error) {
-
-    showMessage(
-        error.message ||
-        'Не удалось удалить товар.'
-    );
-
-      }
-
+                            showMessage(
+                                error.message
+                                || cartMessages.remove
+                            );
+                        }
                     }
                 );
-
             });
 
 
@@ -483,15 +508,12 @@ require __DIR__ . '/../partials/header.php';
                     async function () {
 
                         const item =
-                            this.closest(
-                                '.cart-item'
-                            );
+                            this.closest('.cart-item');
 
                         const cartKey =
                             item.dataset.cartKey;
 
                         try {
-
                             await cartRequest(
                                 '/Anabelka/cart/remove',
                                 cartKey
@@ -500,54 +522,42 @@ require __DIR__ . '/../partials/header.php';
                             item.remove();
 
                             recalculateCart();
-                    updateHeaderCartCount();
+                            updateHeaderCartCount();
 
                         } catch (error) {
-
-                            alert(
-                                'Не удалось удалить товар.'
+                            showMessage(
+                                error.message
+                                || cartMessages.remove
                             );
-
                         }
-
                     }
                 );
-
             });
-      function showMessage(text)
-{
-    const message =
-        document.getElementById(
-            'site-message'
-        );
-
-    if (!message) {
-        return;
-    }
 
 
-    message.textContent =
-        text;
+        function showMessage(text)
+        {
+            const message =
+                document.getElementById(
+                    'site-message'
+                );
 
-    message.classList.add(
-        'show'
-    );
+            if (!message) {
+                return;
+            }
 
+            message.textContent = text;
+            message.classList.add('show');
 
-    clearTimeout(
-        window.siteMessageTimer
-    );
-
-
-    window.siteMessageTimer =
-        setTimeout(() => {
-
-            message.classList.remove(
-                'show'
+            clearTimeout(
+                window.siteMessageTimer
             );
 
-        }, 2200);
-}
+            window.siteMessageTimer =
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 2200);
+        }
 
     </script>
 
