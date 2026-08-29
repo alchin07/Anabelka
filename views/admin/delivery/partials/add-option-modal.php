@@ -82,6 +82,61 @@
 
             </div>
 
+
+            <div class="delivery-form-group">
+
+                <label>
+                    <input
+                        type="checkbox"
+                        id="add-option-customer-input"
+                    >
+                    Запрашивать данные у покупателя
+                </label>
+
+                <small class="delivery-field-help">
+                    Например: номер отделения или почтомата.
+                </small>
+
+            </div>
+
+
+            <div
+                id="add-option-customer-input-settings"
+                hidden
+            >
+
+                <div class="delivery-form-group">
+
+                    <label for="add-option-customer-input-label">
+                        Подпись поля
+                    </label>
+
+                    <input
+                        type="text"
+                        id="add-option-customer-input-label"
+                        placeholder="Например: Номер отделения"
+                    >
+
+                </div>
+
+
+                <div class="delivery-form-group">
+
+                    <label for="add-option-customer-input-placeholder">
+                        Подсказка внутри поля
+                    </label>
+
+                    <input
+                        type="text"
+                        id="add-option-customer-input-placeholder"
+                        placeholder="Например: 12"
+                    >
+
+                </div>
+
+            </div>
+
+
             <div class="delivery-modal-actions">
 
                 <button
