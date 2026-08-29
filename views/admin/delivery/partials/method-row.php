@@ -1,17 +1,17 @@
 <div class="delivery-card">
 
     <!--
-     * Карточка способа доставки.
-     * Кнопка создания способа находится
-     * только у первой карточки списка.
+     * Кнопка создания способа доставки.
+     * Показывается только перед первой карточкой
+     * и располагается так же, как кнопки
+     * создания служб и опций.
      -->
-    <div
-        class="admin-tree-row<?= !empty($isFirstMethod) ? '' : ' no-add' ?>"
-        style="--level: 1;"
-    >
+    <?php if (!empty($isFirstMethod)): ?>
 
-        <?php if (!empty($isFirstMethod)): ?>
-
+        <div
+            class="admin-tree-row"
+            style="--level: 1;"
+        >
             <button
                 type="button"
                 class="admin-tree-add add-delivery"
@@ -19,8 +19,18 @@
             >
                 +
             </button>
+        </div>
 
-        <?php endif; ?>
+    <?php endif; ?>
+
+
+    <!--
+     * Карточка способа доставки.
+     -->
+    <div
+        class="admin-tree-row no-add"
+        style="--level: 1;"
+    >
 
         <div
             class="
