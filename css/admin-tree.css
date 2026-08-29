@@ -32,7 +32,7 @@
 /*
  * Группа одного уровня.
  * Слева находится кнопка "+",
- * справа — карточка этого же элемента.
+ * справа — карточка или подпись действия.
  */
 .admin-tree-row {
     display: grid;
@@ -112,6 +112,31 @@
 
 
 /*
+ * Подпись рядом с кнопкой создания
+ * дочернего элемента.
+ */
+.admin-tree-add-label {
+    min-width: 0;
+
+    color: #777;
+
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+
+/*
+ * Отдельная строка действия:
+ * кнопка "+" и текстовая подпись.
+ */
+.admin-tree-add-row {
+    min-height:
+        var(--tree-button-size);
+}
+
+
+/*
  * Строка без кнопки "+".
  * Пустая первая колонка сохраняет
  * одинаковое положение карточек.
@@ -128,11 +153,11 @@
 
 
 /*
- * Служебная строка, в которой находится
- * только кнопка "+" перед следующей карточкой
- * дочернего уровня.
+ * Служебная строка без карточки и без подписи.
+ * Она может накладывать кнопку "+" на следующую
+ * карточку. Строки с подписью сюда не входят.
  */
-.admin-tree-row:not(.no-add):not(:has(.admin-tree-item)) {
+.admin-tree-row:not(.no-add):not(.admin-tree-add-row):not(:has(.admin-tree-item)) {
     margin-bottom: -36px;
 
     position: relative;
@@ -141,7 +166,7 @@
     pointer-events: none;
 }
 
-.admin-tree-row:not(.no-add):not(:has(.admin-tree-item))
+.admin-tree-row:not(.no-add):not(.admin-tree-add-row):not(:has(.admin-tree-item))
 .admin-tree-add {
     pointer-events: auto;
 }
@@ -176,5 +201,9 @@
 
     .admin-tree-add:active {
         transform: scale(0.94);
+    }
+
+    .admin-tree-add-label {
+        font-size: 12px;
     }
 }
