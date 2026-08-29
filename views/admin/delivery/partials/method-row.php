@@ -167,28 +167,31 @@
 
     <!--
      * Службы этого способа доставки.
+     * Одна кнопка «+» на всю группу служб.
      -->
-    <div
-        class="admin-tree-children"
-        data-method-children="<?= (int) $method['id'] ?>"
-    >
-        <?php foreach (
-    $method['services'] ?? []
-    as $serviceIndex => $service
-): ?>
+    <div class="admin-tree-children" data-method-children="<?= (int) $method['id'] ?>">
+        <?php if (!empty($method['services'])): ?>
 
-    <?php
+            <div class="admin-tree-row" style="--level: 2;">
+                <button
+                    type="button"
+                    class="admin-tree-add add-delivery-service"
+                    data-method-id="<?= (int) $method['id'] ?>"
+                    data-method-name="<?= htmlspecialchars(
+                        $method['name'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                    aria-label="Добавить службу"
+                >
+                    +
+                </button>
+            </div>
 
-    $isFirstService =
-        $serviceIndex === 0;
-
-    require __DIR__
-        . '/service-row.php';
-
-    ?>
-
-<?php endforeach; ?>    
-
+        <?php endif; ?>
+        <?php foreach ($method['services'] ?? [] as $service): ?>
+            <?php require __DIR__ . '/service-row.php'; ?>
+        <?php endforeach; ?>
     </div>
 
 </div>

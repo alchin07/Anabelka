@@ -1,72 +1,9 @@
 <div class="delivery-service">
 
     <!--
-     * Кнопка добавления опции.
-     *
-     * Эта строка накладывается
-     * на карточку службы доставки.
-     -->
-    <div
-        class="admin-tree-row"
-        style="--level: 2;"
-    >
-
-        <button
-            type="button"
-            class="
-                admin-tree-add
-                add-delivery-option
-            "
-            data-service-id="<?= (int) $service['id'] ?>"
-            data-service-name="<?= htmlspecialchars(
-                $service['name'],
-                ENT_QUOTES,
-                'UTF-8'
-            ) ?>"
-            aria-label="Добавить опцию"
-        >
-            +
-        </button>
-
-    </div>
-
-
-    <!--
      * Карточка службы доставки.
      -->
-    <div
-    class="
-        admin-tree-row
-        <?= empty($isFirstService)
-            ? 'no-add'
-            : '' ?>
-    "
-    style="--level: 2;"
->
-
-    <?php if (
-        !empty($isFirstService)
-    ): ?>
-
-        <button
-            type="button"
-            class="
-                admin-tree-add
-                add-delivery-service
-            "
-            data-method-id="<?= (int) $method['id'] ?>"
-            data-method-name="<?= htmlspecialchars(
-                $method['name'],
-                ENT_QUOTES,
-                'UTF-8'
-            ) ?>"
-            aria-label="Добавить службу"
-        >
-            +
-        </button>
-
-    <?php endif; ?>
-
+    <div class="admin-tree-row no-add" style="--level: 2;">
 
     <div
         class="
@@ -232,6 +169,31 @@
         class="admin-tree-children"
         data-service-children="<?= (int) $service['id'] ?>"
     >
+        <?php if (!empty($service['options'])): ?>
+
+            <div
+                class="admin-tree-row"
+                style="--level: 3;"
+            >
+                <button
+                    type="button"
+                    class="
+                        admin-tree-add
+                        add-delivery-option
+                    "
+                    data-service-id="<?= (int) $service['id'] ?>"
+                    data-service-name="<?= htmlspecialchars(
+                        $service['name'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                    aria-label="Добавить опцию"
+                >
+                    +
+                </button>
+            </div>
+
+        <?php endif; ?>
 
         <?php foreach (
             $service['options'] ?? []
