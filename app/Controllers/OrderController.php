@@ -10,6 +10,15 @@ class OrderController extends Controller
         $deliveryMethods =
             Delivery::getMethodsWithServices();
 
+        $currentLanguage =
+            Translator::currentLanguage();
+
+        $deliveryMethods =
+            DeliveryTranslator::localizeTree(
+                $deliveryMethods,
+                $currentLanguage['code'] ?? Language::SOURCE_CODE
+            );
+
         $this->view(
             'order/checkout',
             [
