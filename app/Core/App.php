@@ -23,6 +23,7 @@ class App
         require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
         require_once __DIR__ . '/../Models/Language.php';
         require_once __DIR__ . '/../Models/Translator.php';
+        require_once __DIR__ . '/../Models/DeliveryTranslator.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
