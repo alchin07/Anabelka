@@ -17,6 +17,19 @@ if (!$isAdminPage) {
         Translator::activeLanguages();
 }
 
+$requestPath = parse_url(
+    $_SERVER['REQUEST_URI'] ?? '',
+    PHP_URL_PATH
+);
+
+$requestPath = rtrim(
+    (string) $requestPath,
+    '/'
+);
+
+$isCheckoutPage =
+    $requestPath === '/Anabelka/checkout';
+
 ?>
 
 <header class="catalog-header">
@@ -256,7 +269,7 @@ echo $cartCount;
 
     <?php endif; ?>
 
-<?php if (($pageTitle ?? '') === 'Оформление заказа'): ?>
+<?php if ($isCheckoutPage): ?>
 
     <link
         rel="stylesheet"
