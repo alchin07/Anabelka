@@ -25,8 +25,11 @@ class App
         require_once __DIR__ . '/../Controllers/OrderController.php';
         require_once __DIR__ . '/../Models/Order.php';
         require_once __DIR__ . '/../Models/Delivery.php';
+        require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
         require_once __DIR__
-    . '/../Controllers/AdminDeliveryController.php'; 
+    . '/../Controllers/AdminDeliveryController.php';
+        require_once __DIR__
+    . '/../Controllers/AdminDeliveryOptionInputController.php';
 
         $router = new Router();
 
