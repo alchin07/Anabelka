@@ -85,6 +85,36 @@ $router->get(
 );
 
 $router->get(
+    '/admin/languages',
+    'AdminLanguageController@index'
+);
+
+$router->post(
+    '/admin/languages/create',
+    'AdminLanguageController@create'
+);
+
+$router->post(
+    '/admin/languages/update',
+    'AdminLanguageController@update'
+);
+
+$router->post(
+    '/admin/languages/toggle',
+    'AdminLanguageController@toggle'
+);
+
+$router->post(
+    '/admin/languages/default',
+    'AdminLanguageController@setDefault'
+);
+
+$router->post(
+    '/admin/languages/delete',
+    'AdminLanguageController@delete'
+);
+
+$router->get(
     '/admin/delivery',
     'AdminDeliveryController@index'
 );
