@@ -160,4 +160,12 @@ echo $cartCount;
 
 </div>
 
+<?php if (($pageTitle ?? '') === 'Оформление заказа'): ?>
+
+    <script
+        src="/Anabelka/js/checkout-delivery-input.js?v=1"
+    ></script>
+
+<?php endif; ?>
+
 </header>
