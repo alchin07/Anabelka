@@ -30,6 +30,8 @@ class App
     . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__
     . '/../Controllers/AdminDeliveryOptionInputController.php';
+        require_once __DIR__
+    . '/../Controllers/DeliveryOptionInputController.php';
 
         $router = new Router();
 
