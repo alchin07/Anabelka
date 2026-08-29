@@ -5,11 +5,13 @@ class AdminLanguageController extends Controller
     public function index()
     {
         $languages = Language::all();
+        $availableLanguages = Language::availableCatalog();
 
         $this->view(
             'admin/languages/index',
             [
                 'languages' => $languages,
+                'availableLanguages' => $availableLanguages,
                 'message' => $_SESSION['language_message'] ?? '',
                 'error' => $_SESSION['language_error'] ?? ''
             ]
@@ -23,11 +25,8 @@ class AdminLanguageController extends Controller
     public function create()
     {
         try {
-            Language::create(
-                $_POST['name'] ?? '',
-                $_POST['code'] ?? '',
-                $_POST['locale'] ?? '',
-                $_POST['short_name'] ?? ''
+            Language::createFromCatalog(
+                $_POST['language_code'] ?? ''
             );
 
             $_SESSION['language_message'] =
@@ -45,16 +44,13 @@ class AdminLanguageController extends Controller
     public function update()
     {
         try {
-            Language::update(
+            Language::updateName(
                 (int) ($_POST['language_id'] ?? 0),
-                $_POST['name'] ?? '',
-                $_POST['code'] ?? '',
-                $_POST['locale'] ?? '',
-                $_POST['short_name'] ?? ''
+                $_POST['name'] ?? ''
             );
 
             $_SESSION['language_message'] =
-                'Изменения языка сохранены.';
+                'Название языка сохранено.';
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -151,7 +147,7 @@ class AdminLanguageController extends Controller
     {
         if ($e instanceof PDOException) {
             if ((string) $e->getCode() === '23000') {
-                return 'Такой код языка или локаль уже существуют.';
+                return 'Этот язык уже добавлен.';
             }
 
             return 'Не удалось сохранить язык в базе данных.';
