@@ -1,5 +1,11 @@
+<?php
+
+$currentLanguage = Translator::currentLanguage();
+$pageTitle = Translator::t('quick.title', 'Швидке замовлення');
+
+?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -8,7 +14,12 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Быстрый заказ принят — Анабелька</title>
+    <title><?= htmlspecialchars(
+        Translator::t(
+            'quick.success_page_title',
+            'Швидке замовлення прийнято'
+        )
+    ) ?> — Анабелька</title>
 
     <link
         rel="stylesheet"
@@ -23,10 +34,7 @@
 
 <body>
 
-<?php
-$pageTitle = 'Быстрый заказ';
-require __DIR__ . '/../partials/header.php';
-?>
+<?php require __DIR__ . '/../partials/header.php'; ?>
 
 <main class="catalog">
 
@@ -39,20 +47,43 @@ require __DIR__ . '/../partials/header.php';
             text-align: center;
         "
     >
-        <h2>Заказ принят</h2>
+        <h2>
+            <?= htmlspecialchars(
+                Translator::t(
+                    'quick.accepted',
+                    'Замовлення прийнято'
+                )
+            ) ?>
+        </h2>
 
         <p style="margin: 0 0 12px;">
-            Спасибо, <?= htmlspecialchars(
+            <?= htmlspecialchars(
+                Translator::t(
+                    'quick.thanks',
+                    'Дякуємо'
+                )
+            ) ?>,
+            <?= htmlspecialchars(
                 $order['customer_name'] ?? ''
             ) ?>.
         </p>
 
         <p style="margin: 0 0 20px;">
-            Мы свяжемся с вами по номеру
+            <?= htmlspecialchars(
+                Translator::t(
+                    'quick.contact_before',
+                    'Ми зв’яжемося з вами за номером'
+                )
+            ) ?>
             <strong><?= htmlspecialchars(
                 $order['customer_phone'] ?? ''
             ) ?></strong>
-            для уточнения деталей заказа и доставки.
+            <?= htmlspecialchars(
+                Translator::t(
+                    'quick.contact_after',
+                    'для уточнення деталей замовлення та доставки.'
+                )
+            ) ?>
         </p>
 
         <a
@@ -71,7 +102,12 @@ require __DIR__ . '/../partials/header.php';
                 font-weight: bold;
             "
         >
-            Продолжить покупки
+            <?= htmlspecialchars(
+                Translator::t(
+                    'quick.continue_shopping',
+                    'Продовжити покупки'
+                )
+            ) ?>
         </a>
     </section>
 
