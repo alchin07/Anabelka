@@ -27,7 +27,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-tree.css?v=5"
+        href="/Anabelka/css/admin-tree.css?v=6"
     >
 
     <link
@@ -101,31 +101,15 @@
 
             </div>
 
-            <!--
-             * Единственная кнопка создания
-             * способа доставки.
-             * Стоит перед первой карточкой
-             * так же, как кнопки служб и опций.
-             -->
-            <div
-                class="admin-tree-row"
-                style="--level: 1;"
-            >
-                <button
-                    type="button"
-                    class="admin-tree-add add-delivery"
-                    aria-label="Добавить способ доставки"
-                >
-                    +
-                </button>
-            </div>
-
             <?php foreach (
                 $deliveryMethods
-                as $method
+                as $methodIndex => $method
             ): ?>
 
                 <?php
+
+                $isFirstMethod =
+                    $methodIndex === 0;
 
                 require __DIR__
                     . '/partials/method-row.php';
