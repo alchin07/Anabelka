@@ -1,3 +1,9 @@
+<?php
+
+$deliveryEditLanguages = Language::active();
+
+?>
+
 <div
     id="delivery-edit-modal"
     class="delivery-modal"
@@ -19,12 +25,9 @@
 
         <div class="delivery-modal-head">
 
-            <h3
-                id="delivery-edit-title"
-            >
+            <h3 id="delivery-edit-title">
                 Редактирование
             </h3>
-
 
             <button
                 type="button"
@@ -57,15 +60,24 @@
             >
 
 
+            <div
+                style="
+                    margin-bottom:16px;
+                    padding:12px;
+                    border:1px solid #eadcf7;
+                    border-radius:12px;
+                    background:#faf7ff;
+                "
+            >
+                <strong>Українська · вихідна мова</strong>
+            </div>
+
+
             <div class="delivery-form-group">
 
-                <label
-                    for="edit-name"
-                >
-                    Название
-                    <span class="required-mark">
-                        *
-                    </span>
+                <label for="edit-name">
+                    Назва
+                    <span class="required-mark">*</span>
                 </label>
 
                 <input
@@ -80,10 +92,8 @@
 
             <div class="delivery-form-group">
 
-                <label
-                    for="edit-description"
-                >
-                    Описание
+                <label for="edit-description">
+                    Опис
                 </label>
 
                 <textarea
@@ -93,6 +103,67 @@
                 ></textarea>
 
             </div>
+
+
+            <?php foreach ($deliveryEditLanguages as $language): ?>
+
+                <?php
+                $languageCode =
+                    strtolower(
+                        trim(
+                            (string) ($language['code'] ?? '')
+                        )
+                    );
+
+                if ($languageCode === Language::SOURCE_CODE) {
+                    continue;
+                }
+                ?>
+
+                <section
+                    class="delivery-translation-section"
+                    data-language-code="<?= htmlspecialchars($languageCode) ?>"
+                    style="
+                        margin-top:18px;
+                        padding-top:16px;
+                        border-top:1px solid #eadcf7;
+                    "
+                >
+                    <div
+                        style="
+                            margin-bottom:12px;
+                            font-weight:700;
+                        "
+                    >
+                        <?= htmlspecialchars($language['name']) ?>
+                        · <?= htmlspecialchars($language['short_name']) ?>
+                    </div>
+
+                    <div class="delivery-form-group">
+                        <label>
+                            Название / Name
+                        </label>
+
+                        <input
+                            type="text"
+                            class="delivery-translation-name"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="delivery-form-group">
+                        <label>
+                            Описание / Description
+                        </label>
+
+                        <textarea
+                            class="delivery-translation-description"
+                            rows="3"
+                        ></textarea>
+                    </div>
+                </section>
+
+            <?php endforeach; ?>
 
 
             <div
@@ -139,7 +210,6 @@
 
                     </div>
 
-
                     <div class="delivery-form-group">
 
                         <label for="edit-option-customer-input-placeholder">
@@ -168,7 +238,6 @@
                 >
                     Отмена
                 </button>
-
 
                 <button
                     type="submit"
