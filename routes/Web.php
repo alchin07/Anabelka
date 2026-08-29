@@ -54,6 +54,11 @@ $router->get(
 ); 
 
 $router->get(
+    '/delivery/option-input',
+    'DeliveryOptionInputController@show'
+);
+
+$router->get(
     '/order/success',
     'OrderController@success'
 );
