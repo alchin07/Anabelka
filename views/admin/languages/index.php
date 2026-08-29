@@ -22,7 +22,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-languages.css?v=1"
+        href="/Anabelka/css/admin-languages.css?v=2"
     >
 </head>
 
@@ -43,7 +43,7 @@ require __DIR__ . '/../../partials/header.php';
 
                 <p class="languages-subtitle">
                     Исходный язык контента — украинский.
-                    Остальные языки являются переводами.
+                    Технические параметры языка назначаются автоматически.
                 </p>
             </div>
         </div>
@@ -67,75 +67,47 @@ require __DIR__ . '/../../partials/header.php';
         >
             <h3>Добавить язык</h3>
 
-            <div class="language-fields">
-                <div class="language-field">
-                    <label for="language-create-name">
-                        Название
-                    </label>
+            <?php if (!empty($availableLanguages)): ?>
 
-                    <input
-                        id="language-create-name"
-                        name="name"
-                        type="text"
-                        placeholder="Deutsch"
-                        required
+                <div class="language-create-row">
+                    <div class="language-field">
+                        <label for="language-create-select">
+                            Язык
+                        </label>
+
+                        <select
+                            id="language-create-select"
+                            name="language_code"
+                            required
+                        >
+                            <option value="">
+                                Выберите язык
+                            </option>
+
+                            <?php foreach ($availableLanguages as $code => $languageData): ?>
+                                <option value="<?= htmlspecialchars($code) ?>">
+                                    <?= htmlspecialchars($languageData['name']) ?>
+                                    (<?= htmlspecialchars($languageData['short_name']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <button
+                        class="language-button"
+                        type="submit"
                     >
+                        Добавить язык
+                    </button>
                 </div>
 
-                <div class="language-field">
-                    <label for="language-create-code">
-                        Код
-                    </label>
+            <?php else: ?>
 
-                    <input
-                        id="language-create-code"
-                        name="code"
-                        type="text"
-                        placeholder="de"
-                        maxlength="10"
-                        required
-                    >
-                </div>
+                <p class="language-help">
+                    Все языки из встроенного справочника уже добавлены.
+                </p>
 
-                <div class="language-field">
-                    <label for="language-create-locale">
-                        Локаль
-                    </label>
-
-                    <input
-                        id="language-create-locale"
-                        name="locale"
-                        type="text"
-                        placeholder="de-DE"
-                        maxlength="20"
-                        required
-                    >
-                </div>
-
-                <div class="language-field">
-                    <label for="language-create-short">
-                        Коротко
-                    </label>
-
-                    <input
-                        id="language-create-short"
-                        name="short_name"
-                        type="text"
-                        placeholder="DE"
-                        maxlength="10"
-                        required
-                    >
-                </div>
-            </div>
-
-            <div class="language-actions">
-                <button
-                    class="language-button"
-                    type="submit"
-                >
-                    Добавить язык
-                </button>
-            </div>
+            <?php endif; ?>
         </form>
 
         <div class="language-list">
@@ -156,6 +128,10 @@ require __DIR__ . '/../../partials/header.php';
                             <strong>
                                 <?= htmlspecialchars($language['name']) ?>
                             </strong>
+
+                            <span class="language-short">
+                                <?= htmlspecialchars($language['short_name']) ?>
+                            </span>
 
                             <span
                                 class="language-badge <?= $isActive ? 'active' : 'inactive' ?>"
@@ -178,6 +154,7 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
 
                     <form
+                        class="language-name-form"
                         action="/Anabelka/admin/languages/update"
                         method="post"
                     >
@@ -187,72 +164,25 @@ require __DIR__ . '/../../partials/header.php';
                             value="<?= (int) $language['id'] ?>"
                         >
 
-                        <div class="language-fields">
-                            <div class="language-field">
-                                <label>
-                                    Название
-                                </label>
+                        <div class="language-field">
+                            <label>
+                                Название
+                            </label>
 
-                                <input
-                                    name="name"
-                                    type="text"
-                                    value="<?= htmlspecialchars($language['name']) ?>"
-                                    required
-                                >
-                            </div>
-
-                            <div class="language-field">
-                                <label>
-                                    Код
-                                </label>
-
-                                <input
-                                    name="code"
-                                    type="text"
-                                    value="<?= htmlspecialchars($language['code']) ?>"
-                                    maxlength="10"
-                                    <?= $isSource ? 'readonly' : '' ?>
-                                    required
-                                >
-                            </div>
-
-                            <div class="language-field">
-                                <label>
-                                    Локаль
-                                </label>
-
-                                <input
-                                    name="locale"
-                                    type="text"
-                                    value="<?= htmlspecialchars($language['locale']) ?>"
-                                    maxlength="20"
-                                    required
-                                >
-                            </div>
-
-                            <div class="language-field">
-                                <label>
-                                    Коротко
-                                </label>
-
-                                <input
-                                    name="short_name"
-                                    type="text"
-                                    value="<?= htmlspecialchars($language['short_name']) ?>"
-                                    maxlength="10"
-                                    required
-                                >
-                            </div>
-                        </div>
-
-                        <div class="language-actions">
-                            <button
-                                class="language-button"
-                                type="submit"
+                            <input
+                                name="name"
+                                type="text"
+                                value="<?= htmlspecialchars($language['name']) ?>"
+                                required
                             >
-                                Сохранить
-                            </button>
                         </div>
+
+                        <button
+                            class="language-button"
+                            type="submit"
+                        >
+                            Сохранить
+                        </button>
                     </form>
 
                     <div class="language-inline-actions">
@@ -317,8 +247,7 @@ require __DIR__ . '/../../partials/header.php';
 
                     <?php if ($isSource): ?>
                         <p class="language-help">
-                            Код исходного языка зафиксирован как <strong>uk</strong>.
-                            Его нельзя отключить или удалить.
+                            Украинский язык является исходным и не может быть отключён или удалён.
                         </p>
                     <?php endif; ?>
                 </article>
