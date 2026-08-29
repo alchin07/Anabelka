@@ -5,13 +5,13 @@
      -->
     <div class="admin-tree-row no-add" style="--level: 2;">
 
-    <div
-        class="
-            admin-tree-item
-            delivery-row
-            service-row
-        "
-    >    
+        <div
+            class="
+                admin-tree-item
+                delivery-row
+                service-row
+            "
+        >
 
             <div class="admin-tree-main">
 
@@ -164,36 +164,38 @@
 
     <!--
      * Опции этой службы доставки.
+     * Кнопка доступна даже если опций пока нет.
      -->
     <div
         class="admin-tree-children"
         data-service-children="<?= (int) $service['id'] ?>"
     >
-        <?php if (!empty($service['options'])): ?>
 
-            <div
-                class="admin-tree-row"
-                style="--level: 3;"
+        <div
+            class="admin-tree-row admin-tree-add-row"
+            style="--level: 3;"
+        >
+            <button
+                type="button"
+                class="
+                    admin-tree-add
+                    add-delivery-option
+                "
+                data-service-id="<?= (int) $service['id'] ?>"
+                data-service-name="<?= htmlspecialchars(
+                    $service['name'],
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+                aria-label="Добавить опцию"
             >
-                <button
-                    type="button"
-                    class="
-                        admin-tree-add
-                        add-delivery-option
-                    "
-                    data-service-id="<?= (int) $service['id'] ?>"
-                    data-service-name="<?= htmlspecialchars(
-                        $service['name'],
-                        ENT_QUOTES,
-                        'UTF-8'
-                    ) ?>"
-                    aria-label="Добавить опцию"
-                >
-                    +
-                </button>
-            </div>
+                +
+            </button>
 
-        <?php endif; ?>
+            <span class="admin-tree-add-label">
+                Создать опцию
+            </span>
+        </div>
 
         <?php foreach (
             $service['options'] ?? []
