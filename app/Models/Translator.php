@@ -45,8 +45,8 @@ class Translator
     private static function seedBaseTranslations(PDO $db)
     {
         /*
-         * Это стартовый набор интерфейса.
-         * INSERT IGNORE принципиален: будущие ручные или ИИ-переводы
+         * Стартовый словарь интерфейса.
+         * INSERT IGNORE принципиален: ручные и будущие ИИ-переводы
          * из админ-панели не должны перезаписываться кодом.
          */
         $translations = [
@@ -55,21 +55,111 @@ class Translator
                 'header.login' => 'Увійти',
                 'header.logout' => 'Вийти',
                 'header.register' => 'Реєстрація',
-                'language.switcher_label' => 'Мова сайту'
+                'language.switcher_label' => 'Мова сайту',
+
+                'cart.title' => 'Кошик',
+                'cart.continue_shopping' => 'Продовжити покупки',
+                'cart.empty' => 'Кошик поки порожній.',
+                'cart.price' => 'Ціна',
+                'cart.size' => 'Розмір',
+                'cart.sum' => 'Сума',
+                'cart.remove' => 'Видалити',
+                'cart.total' => 'Разом',
+                'cart.checkout' => 'Оформити замовлення',
+                'cart.quick_order' => 'Швидке замовлення',
+                'cart.error_change' => 'Не вдалося змінити кошик.',
+                'cart.error_quantity' => 'Не вдалося змінити кількість.',
+                'cart.error_remove' => 'Не вдалося видалити товар.',
+
+                'quick.title' => 'Швидке замовлення',
+                'quick.intro' => 'Залиште ім’я та номер телефону. Ми зв’яжемося з вами для уточнення доставки.',
+                'quick.name' => 'Ім’я',
+                'quick.phone' => 'Номер телефону',
+                'quick.comment' => 'Коментар',
+                'quick.total' => 'Сума замовлення',
+                'quick.submit' => 'Надіслати швидке замовлення',
+                'quick.success_page_title' => 'Швидке замовлення прийнято',
+                'quick.accepted' => 'Замовлення прийнято',
+                'quick.thanks' => 'Дякуємо',
+                'quick.contact_before' => 'Ми зв’яжемося з вами за номером',
+                'quick.contact_after' => 'для уточнення деталей замовлення та доставки.',
+                'quick.continue_shopping' => 'Продовжити покупки',
+                'quick.error_required' => 'Заповніть ім’я та номер телефону.',
+                'quick.error_empty' => 'Кошик порожній.'
             ],
             'ru' => [
                 'header.cart' => 'Корзина',
                 'header.login' => 'Войти',
                 'header.logout' => 'Выйти',
                 'header.register' => 'Регистрация',
-                'language.switcher_label' => 'Язык сайта'
+                'language.switcher_label' => 'Язык сайта',
+
+                'cart.title' => 'Корзина',
+                'cart.continue_shopping' => 'Продолжить покупки',
+                'cart.empty' => 'Корзина пока пуста.',
+                'cart.price' => 'Цена',
+                'cart.size' => 'Размер',
+                'cart.sum' => 'Сумма',
+                'cart.remove' => 'Удалить',
+                'cart.total' => 'Итого',
+                'cart.checkout' => 'Оформить заказ',
+                'cart.quick_order' => 'Быстрый заказ',
+                'cart.error_change' => 'Не удалось изменить корзину.',
+                'cart.error_quantity' => 'Не удалось изменить количество.',
+                'cart.error_remove' => 'Не удалось удалить товар.',
+
+                'quick.title' => 'Быстрый заказ',
+                'quick.intro' => 'Оставьте имя и номер телефона. Мы свяжемся с вами для уточнения доставки.',
+                'quick.name' => 'Имя',
+                'quick.phone' => 'Номер телефона',
+                'quick.comment' => 'Комментарий',
+                'quick.total' => 'Сумма заказа',
+                'quick.submit' => 'Отправить быстрый заказ',
+                'quick.success_page_title' => 'Быстрый заказ принят',
+                'quick.accepted' => 'Заказ принят',
+                'quick.thanks' => 'Спасибо',
+                'quick.contact_before' => 'Мы свяжемся с вами по номеру',
+                'quick.contact_after' => 'для уточнения деталей заказа и доставки.',
+                'quick.continue_shopping' => 'Продолжить покупки',
+                'quick.error_required' => 'Заполните имя и номер телефона.',
+                'quick.error_empty' => 'Корзина пуста.'
             ],
             'en' => [
                 'header.cart' => 'Cart',
                 'header.login' => 'Sign in',
                 'header.logout' => 'Sign out',
                 'header.register' => 'Register',
-                'language.switcher_label' => 'Site language'
+                'language.switcher_label' => 'Site language',
+
+                'cart.title' => 'Cart',
+                'cart.continue_shopping' => 'Continue shopping',
+                'cart.empty' => 'Your cart is empty.',
+                'cart.price' => 'Price',
+                'cart.size' => 'Size',
+                'cart.sum' => 'Subtotal',
+                'cart.remove' => 'Remove',
+                'cart.total' => 'Total',
+                'cart.checkout' => 'Checkout',
+                'cart.quick_order' => 'Quick order',
+                'cart.error_change' => 'Could not update the cart.',
+                'cart.error_quantity' => 'Could not update the quantity.',
+                'cart.error_remove' => 'Could not remove the item.',
+
+                'quick.title' => 'Quick order',
+                'quick.intro' => 'Leave your name and phone number. We will contact you to confirm delivery details.',
+                'quick.name' => 'Name',
+                'quick.phone' => 'Phone number',
+                'quick.comment' => 'Comment',
+                'quick.total' => 'Order total',
+                'quick.submit' => 'Send quick order',
+                'quick.success_page_title' => 'Quick order received',
+                'quick.accepted' => 'Order received',
+                'quick.thanks' => 'Thank you',
+                'quick.contact_before' => 'We will contact you at',
+                'quick.contact_after' => 'to confirm the order and delivery details.',
+                'quick.continue_shopping' => 'Continue shopping',
+                'quick.error_required' => 'Enter your name and phone number.',
+                'quick.error_empty' => 'Your cart is empty.'
             ]
         ];
 
@@ -112,12 +202,9 @@ class Translator
             return self::$currentLanguage;
         }
 
-        $sessionCode =
-            strtolower(
-                trim(
-                    (string) ($_SESSION['language_code'] ?? '')
-                )
-            );
+        $sessionCode = strtolower(
+            trim((string) ($_SESSION['language_code'] ?? ''))
+        );
 
         if ($sessionCode !== '') {
             $language = Language::findByCode($sessionCode);
@@ -157,9 +244,7 @@ class Translator
         $language = Language::findByCode($code);
 
         if (!$language || empty($language['is_active'])) {
-            throw new RuntimeException(
-                'Выбранный язык недоступен.'
-            );
+            throw new RuntimeException('Выбранный язык недоступен.');
         }
 
         $_SESSION['language_code'] = $language['code'];
