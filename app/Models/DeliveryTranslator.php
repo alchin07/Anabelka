@@ -130,6 +130,38 @@ class DeliveryTranslator
             ]
         ];
 
+        /*
+         * Старые записи Delivery могли быть созданы до того,
+         * как были зафиксированы системные slug courier/pickup/post.
+         * Поэтому базовые сущности дополнительно узнаём по названию.
+         */
+        $nameAliases = [
+            'method' => [
+                'courier' => ['Курьер', 'Кур’єр', "Кур'єр"],
+                'pickup' => ['Самовывоз', 'Самовивіз'],
+                'post' => ['Почтовая доставка', 'Поштова доставка']
+            ],
+            'service' => [
+                'nova_poshta' => ['Нова пошта', 'Новая почта'],
+                'nova-poshta' => ['Нова пошта', 'Новая почта'],
+                'ukrposhta' => ['Укрпошта', 'Укрпочта'],
+                'delivery' => ['Delivery']
+            ],
+            'option' => [
+                'branch' => ['Доставка в отделение', 'Доставка у відділення'],
+                'parcel_locker' => [
+                    'Доставка в почтомат',
+                    'Доставка у поштомат'
+                ],
+                'address' => [
+                    'Адресная доставка',
+                    'Адресна доставка',
+                    'Доставка по адресу',
+                    'Доставка за адресою'
+                ]
+            ]
+        ];
+
         $insert = $db->prepare("
             INSERT IGNORE INTO delivery_translations
             (
@@ -165,6 +197,35 @@ class DeliveryTranslator
                     ]);
 
                     $entityId = (int) $stmt->fetchColumn();
+
+                    /*
+                     * Если системный slug не совпал со старой записью,
+                     * ищем её по одному из известных исходных названий.
+                     */
+                    if (
+                        $entityId <= 0
+                        && !empty($nameAliases[$entityType][$slug])
+                    ) {
+                        foreach (
+                            $nameAliases[$entityType][$slug]
+                            as $alias
+                        ) {
+                            $nameStmt = $db->prepare(
+                                "SELECT id FROM {$table} WHERE name = :name LIMIT 1"
+                            );
+
+                            $nameStmt->execute([
+                                'name' => $alias
+                            ]);
+
+                            $entityId =
+                                (int) $nameStmt->fetchColumn();
+
+                            if ($entityId > 0) {
+                                break;
+                            }
+                        }
+                    }
 
                     if ($entityId <= 0) {
                         continue;
