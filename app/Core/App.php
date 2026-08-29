@@ -3,35 +3,36 @@
 class App
 {
     public function run()
-    {  // Запускаем сессию для корзины
+    {
+        // Запускаем сессию для корзины.
         if (session_status() === PHP_SESSION_NONE) {
-          session_start();
+            session_start();
         }
+
         require_once __DIR__ . '/Controller.php';
         require_once __DIR__ . '/Router.php';
         require_once __DIR__ . '/Database.php';
+
         require_once __DIR__ . '/../Models/Category.php';
         require_once __DIR__ . '/../Models/Product.php';
         require_once __DIR__ . '/../Models/Cart.php';
         require_once __DIR__ . '/../Models/User.php';
-        // Подключаем контроллер главной страницы
-        require_once __DIR__ . '/../Controllers/HomeController.php';
+        require_once __DIR__ . '/../Models/Order.php';
+        require_once __DIR__ . '/../Models/QuickOrder.php';
+        require_once __DIR__ . '/../Models/Delivery.php';
+        require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
 
-        // Подключаем контроллер каталога
+        require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
         require_once __DIR__ . '/../Controllers/ProductController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
         require_once __DIR__ . '/../Controllers/AuthController.php';
         require_once __DIR__ . '/../Controllers/OrderController.php';
-        require_once __DIR__ . '/../Models/Order.php';
-        require_once __DIR__ . '/../Models/Delivery.php';
-        require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
-        require_once __DIR__
-    . '/../Controllers/AdminDeliveryController.php';
-        require_once __DIR__
-    . '/../Controllers/AdminDeliveryOptionInputController.php';
-        require_once __DIR__
-    . '/../Controllers/DeliveryOptionInputController.php';
+        require_once __DIR__ . '/../Controllers/QuickOrderController.php';
+        require_once __DIR__ . '/../Controllers/AdminQuickOrderController.php';
+        require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
+        require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
+        require_once __DIR__ . '/../Controllers/DeliveryOptionInputController.php';
 
         $router = new Router();
 
