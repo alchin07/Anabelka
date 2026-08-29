@@ -32,7 +32,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-delivery.css?v=8"
+        href="/Anabelka/css/admin-delivery.css?v=9"
     >
 
 </head>
@@ -188,7 +188,7 @@
 ></script>
 
   <script
-    src="/Anabelka/js/admin-delivery/collapse.js?v=2"
+    src="/Anabelka/js/admin-delivery/collapse.js?v=4"
 ></script>
 
 </body>
