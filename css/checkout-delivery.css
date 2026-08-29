@@ -1,0 +1,38 @@
+/*
+ * ========================================
+ * CHECKOUT — УРОВНИ ДОСТАВКИ
+ * ========================================
+ *
+ * Способ доставки — первый уровень.
+ * Служба доставки — второй уровень.
+ * Опция — третий уровень.
+ *
+ * Вложенные уровни не образуют «лесенку»:
+ * радиокнопки службы и опции начинаются
+ * по одной вертикали с радиокнопкой способа.
+ */
+
+.delivery-services {
+    padding: 14px 15px 15px !important;
+    background: #efe3fa !important;
+    border-top: 1px solid var(--border-color);
+}
+
+.delivery-service-options {
+    margin: 8px -15px 0 !important;
+    padding: 12px 15px !important;
+    background: #e6d4f8 !important;
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 !important;
+}
+
+/*
+ * Дополнительное поле выбранной опции
+ * остаётся на той же вертикали,
+ * что и сама опция, и не уезжает вправо.
+ */
+#delivery-option-customer-input-group {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 8px 0 12px !important;
+}
