@@ -34,14 +34,15 @@
 
 
         /*
-         * Визуально разделяем уровни доставки.
+         * ========================================
+         * ГЕОМЕТРИЯ УРОВНЕЙ ДОСТАВКИ
+         * ========================================
          *
-         * Способ доставки остаётся самым светлым.
-         * Служба получает более тёмный фон,
-         * опция — ещё более тёмный.
-         *
-         * Одновременно убираем прежние
-         * левые отступы вложенных уровней.
+         * В checkout.php остались старые inline-
+         * отступы второго и третьего уровня.
+         * Здесь принудительно перекрываем их,
+         * чтобы все радиокнопки начинались
+         * по одной вертикали.
          */
         document
             .querySelectorAll(
@@ -49,14 +50,23 @@
             )
             .forEach(
                 (group) => {
-                    group.style.padding =
-                        '14px 15px 15px 15px';
+                    group.style.setProperty(
+                        'padding',
+                        '14px 15px 15px',
+                        'important'
+                    );
 
-                    group.style.background =
-                        '#efe3fa';
+                    group.style.setProperty(
+                        'background',
+                        '#efe3fa',
+                        'important'
+                    );
 
-                    group.style.borderTop =
-                        '1px solid var(--border-color)';
+                    group.style.setProperty(
+                        'border-top',
+                        '1px solid var(--border-color)',
+                        'important'
+                    );
                 }
             );
 
@@ -66,11 +76,35 @@
             )
             .forEach(
                 (group) => {
-                    group.style.marginLeft = '0';
-                    group.style.marginTop = '8px';
-                    group.style.padding = '12px 14px';
-                    group.style.background = '#e6d4f8';
-                    group.style.borderRadius = '10px';
+                    group.style.setProperty(
+                        'margin',
+                        '8px -15px 0',
+                        'important'
+                    );
+
+                    group.style.setProperty(
+                        'padding',
+                        '12px 15px',
+                        'important'
+                    );
+
+                    group.style.setProperty(
+                        'background',
+                        '#e6d4f8',
+                        'important'
+                    );
+
+                    group.style.setProperty(
+                        'border-top',
+                        '1px solid var(--border-color)',
+                        'important'
+                    );
+
+                    group.style.setProperty(
+                        'border-radius',
+                        '0',
+                        'important'
+                    );
                 }
             );
 
@@ -88,8 +122,23 @@
 
         extraGroup.hidden = true;
 
-        extraGroup.style.margin =
-            '8px 0 12px 0';
+        extraGroup.style.setProperty(
+            'width',
+            '100%',
+            'important'
+        );
+
+        extraGroup.style.setProperty(
+            'box-sizing',
+            'border-box',
+            'important'
+        );
+
+        extraGroup.style.setProperty(
+            'margin',
+            '8px 0 12px',
+            'important'
+        );
 
         extraGroup.style.padding =
             '12px';
