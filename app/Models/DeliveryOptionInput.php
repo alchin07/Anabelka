@@ -16,13 +16,6 @@ class DeliveryOptionInput
     }
 
 
-    /**
-     * Создаём таблицу настроек при первом обращении.
-     *
-     * В проекте пока нет отдельной системы миграций,
-     * поэтому этот небольшой служебный слой делает
-     * изменение БД безопасно через IF NOT EXISTS.
-     */
     private static function ensureTable()
     {
         if (self::$schemaReady) {
@@ -51,10 +44,6 @@ class DeliveryOptionInput
     }
 
 
-    /**
-     * Настройки дополнительного поля покупателя
-     * по ID опции. Используется в админ-панели.
-     */
     public static function getForOption($optionId)
     {
         try {
@@ -95,12 +84,71 @@ class DeliveryOptionInput
 
 
     /**
-     * Публичные настройки поля для checkout.
+     * Локализация уже существующих подписей дополнительного поля.
      *
-     * Настройка возвращается только если способ,
-     * служба и опция существуют, активны и действительно
-     * принадлежат друг другу.
+     * Само значение в delivery_option_inputs остаётся исходным —
+     * подменяем только публичный текст на checkout.
      */
+    private static function localizePublicText(array $row)
+    {
+        if (!class_exists('Translator')) {
+            return $row;
+        }
+
+        $language = Translator::currentLanguage();
+        $code = (string) ($language['code'] ?? Language::SOURCE_CODE);
+
+        $label = trim((string) ($row['field_label'] ?? ''));
+        $placeholder = trim((string) ($row['placeholder'] ?? ''));
+
+        $labelMap = [
+            'Номер отделения новой почты' => [
+                'uk' => 'Номер відділення Нової пошти',
+                'ru' => 'Номер отделения новой почты',
+                'en' => 'Nova Poshta branch number'
+            ],
+            'Номер отделения Новой почты' => [
+                'uk' => 'Номер відділення Нової пошти',
+                'ru' => 'Номер отделения Новой почты',
+                'en' => 'Nova Poshta branch number'
+            ],
+            'Номер почтомата новой почты' => [
+                'uk' => 'Номер поштомата Нової пошти',
+                'ru' => 'Номер почтомата новой почты',
+                'en' => 'Nova Poshta parcel locker number'
+            ],
+            'Укажите данные доставки' => [
+                'uk' => 'Вкажіть дані доставки',
+                'ru' => 'Укажите данные доставки',
+                'en' => 'Enter delivery details'
+            ]
+        ];
+
+        $placeholderMap = [
+            'Номер отделения' => [
+                'uk' => 'Номер відділення',
+                'ru' => 'Номер отделения',
+                'en' => 'Branch number'
+            ],
+            'Номер почтомата' => [
+                'uk' => 'Номер поштомата',
+                'ru' => 'Номер почтомата',
+                'en' => 'Parcel locker number'
+            ]
+        ];
+
+        if (isset($labelMap[$label][$code])) {
+            $row['field_label'] = $labelMap[$label][$code];
+        }
+
+        if (isset($placeholderMap[$placeholder][$code])) {
+            $row['placeholder'] = $placeholderMap[$placeholder][$code];
+        }
+
+        return $row;
+    }
+
+
     public static function getPublicBySelection(
         $methodSlug,
         $serviceSlug,
@@ -149,7 +197,7 @@ class DeliveryOptionInput
             $row['is_enabled'] =
                 !empty($row['is_enabled']) ? 1 : 0;
 
-            return $row;
+            return self::localizePublicText($row);
 
         } catch (PDOException $e) {
             return self::defaults();
@@ -157,9 +205,6 @@ class DeliveryOptionInput
     }
 
 
-    /**
-     * Создать или обновить настройки опции.
-     */
     public static function save(
         $optionId,
         $isEnabled,
