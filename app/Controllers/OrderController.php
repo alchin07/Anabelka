@@ -79,6 +79,12 @@ class OrderController extends Controller
                 ?? ''
             );
 
+        $deliveryOptionInput =
+            trim(
+                $_POST['delivery_option_input']
+                ?? ''
+            );
+
         $deliveryPostcode =
             trim(
                 $_POST['delivery_postcode']
@@ -176,8 +182,10 @@ class OrderController extends Controller
                  * значение обязательно проверяем и
                  * на сервере, а не только в браузере.
                  *
-                 * Значение хранится в delivery_address,
-                 * который уже входит в структуру заказа.
+                 * В checkout поле показывается прямо
+                 * под выбранной опцией. Для совместимости
+                 * с существующей структурой заказа его
+                 * значение сохраняем в delivery_address.
                  */
                 $optionInput =
                     DeliveryOptionInput::getPublicBySelection(
@@ -186,23 +194,26 @@ class OrderController extends Controller
                         $deliveryServiceOption
                     );
 
-                if (
-                    !empty($optionInput['is_enabled'])
-                    && $deliveryAddress === ''
-                ) {
-                    $fieldLabel =
-                        trim(
-                            $optionInput['field_label']
-                            ?? ''
-                        );
+                if (!empty($optionInput['is_enabled'])) {
 
-                    die(
-                        $fieldLabel !== ''
-                            ? 'Заполните поле «'
-                                . $fieldLabel
-                                . '».'
-                            : 'Укажите данные доставки.'
-                    );
+                    if ($deliveryOptionInput === '') {
+                        $fieldLabel =
+                            trim(
+                                $optionInput['field_label']
+                                ?? ''
+                            );
+
+                        die(
+                            $fieldLabel !== ''
+                                ? 'Заполните поле «'
+                                    . $fieldLabel
+                                    . '».'
+                                : 'Укажите данные доставки.'
+                        );
+                    }
+
+                    $deliveryAddress =
+                        $deliveryOptionInput;
                 }
 
             } else {
