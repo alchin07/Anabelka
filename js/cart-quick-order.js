@@ -36,7 +36,8 @@
             '/Anabelka/quick-order';
 
         quickButton.textContent =
-            'Быстрый заказ';
+            checkoutButton.dataset.quickOrderLabel
+            || 'Швидке замовлення';
 
         quickButton.style.display = 'block';
         quickButton.style.width = '100%';
