@@ -38,22 +38,6 @@ $optionInput =
         "
     >
 
-        <span
-            class="delivery-option-input-config"
-            data-enabled="<?= !empty($optionInput['is_enabled']) ? '1' : '0' ?>"
-            data-label="<?= htmlspecialchars(
-                $optionInput['field_label'] ?? '',
-                ENT_QUOTES,
-                'UTF-8'
-            ) ?>"
-            data-placeholder="<?= htmlspecialchars(
-                $optionInput['placeholder'] ?? '',
-                ENT_QUOTES,
-                'UTF-8'
-            ) ?>"
-            hidden
-        ></span>
-
         <div class="admin-tree-main">
 
             <div class="admin-tree-controls">
@@ -106,6 +90,22 @@ $optionInput =
             </div>
 
         </div>
+
+        <span
+            class="delivery-option-input-config"
+            data-enabled="<?= !empty($optionInput['is_enabled']) ? '1' : '0' ?>"
+            data-label="<?= htmlspecialchars(
+                $optionInput['field_label'] ?? '',
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>"
+            data-placeholder="<?= htmlspecialchars(
+                $optionInput['placeholder'] ?? '',
+                ENT_QUOTES,
+                'UTF-8'
+            ) ?>"
+            hidden
+        ></span>
 
         <?php
 
