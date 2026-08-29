@@ -25,10 +25,10 @@
         href="/Anabelka/css/catalog.css?v=4"
     >
 
-        <link
+    <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-tree.css?v=4"
-    > 
+        href="/Anabelka/css/admin-tree.css?v=5"
+    >
 
     <link
         rel="stylesheet"
@@ -100,32 +100,21 @@
                 </span>
 
             </div>
-              
-            <div
-    class="admin-tree-row"
-    style="--level: 1;"
->
-
-    <button
-        type="button"
-        class="
-            admin-tree-add
-            add-delivery
-        "
-        aria-label="Добавить способ доставки"
-    >
-        +
-    </button>
-
-            </div>
 
             <?php foreach (
                 $deliveryMethods
-                as $method
+                as $methodIndex => $method
             ): ?>
 
-                <?php require __DIR__
-                    . '/partials/method-row.php'; ?>
+                <?php
+
+                $isFirstMethod =
+                    $methodIndex === 0;
+
+                require __DIR__
+                    . '/partials/method-row.php';
+
+                ?>
 
             <?php endforeach; ?>
 
