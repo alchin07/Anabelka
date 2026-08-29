@@ -181,4 +181,12 @@ echo $cartCount;
 
 <?php endif; ?>
 
+<?php if (str_starts_with(($pageTitle ?? ''), 'Админ-панель')): ?>
+
+    <script
+        src="/Anabelka/js/admin-nav.js?v=1"
+    ></script>
+
+<?php endif; ?>
+
 </header>
