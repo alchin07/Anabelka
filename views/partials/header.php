@@ -181,7 +181,7 @@ echo $cartCount;
 
 <?php endif; ?>
 
-<?php if (str_starts_with(($pageTitle ?? ''), 'Админ-панель')): ?>
+<?php if (strpos(($pageTitle ?? ''), 'Админ-панель') === 0): ?>
 
     <script
         src="/Anabelka/js/admin-nav.js?v=1"
