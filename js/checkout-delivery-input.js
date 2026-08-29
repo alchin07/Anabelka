@@ -34,6 +34,48 @@
 
 
         /*
+         * Визуально разделяем уровни доставки.
+         *
+         * Способ доставки остаётся самым светлым.
+         * Служба получает более тёмный фон,
+         * опция — ещё более тёмный.
+         *
+         * Одновременно убираем прежние
+         * левые отступы вложенных уровней.
+         */
+        document
+            .querySelectorAll(
+                '.delivery-services'
+            )
+            .forEach(
+                (group) => {
+                    group.style.padding =
+                        '14px 15px 15px 15px';
+
+                    group.style.background =
+                        '#efe3fa';
+
+                    group.style.borderTop =
+                        '1px solid var(--border-color)';
+                }
+            );
+
+        document
+            .querySelectorAll(
+                '.delivery-service-options'
+            )
+            .forEach(
+                (group) => {
+                    group.style.marginLeft = '0';
+                    group.style.marginTop = '8px';
+                    group.style.padding = '12px 14px';
+                    group.style.background = '#e6d4f8';
+                    group.style.borderRadius = '10px';
+                }
+            );
+
+
+        /*
          * Создаём одно общее поле.
          * При выборе опции переносим его прямо
          * под соответствующую строку опции.
@@ -47,7 +89,7 @@
         extraGroup.hidden = true;
 
         extraGroup.style.margin =
-            '6px 0 12px 27px';
+            '8px 0 12px 0';
 
         extraGroup.style.padding =
             '12px';
