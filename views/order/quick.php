@@ -1,5 +1,11 @@
+<?php
+
+$currentLanguage = Translator::currentLanguage();
+$pageTitle = Translator::t('quick.title', 'Швидке замовлення');
+
+?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -8,7 +14,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Быстрый заказ — Анабелька</title>
+    <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
 
     <link
         rel="stylesheet"
@@ -23,10 +29,7 @@
 
 <body>
 
-<?php
-$pageTitle = 'Быстрый заказ';
-require __DIR__ . '/../partials/header.php';
-?>
+<?php require __DIR__ . '/../partials/header.php'; ?>
 
 <main class="catalog">
 
@@ -39,7 +42,14 @@ require __DIR__ . '/../partials/header.php';
         "
     >
 
-        <h2>Быстрый заказ</h2>
+        <h2>
+            <?= htmlspecialchars(
+                Translator::t(
+                    'quick.title',
+                    'Швидке замовлення'
+                )
+            ) ?>
+        </h2>
 
         <p
             style="
@@ -47,8 +57,12 @@ require __DIR__ . '/../partials/header.php';
                 opacity: 0.75;
             "
         >
-            Оставьте имя и номер телефона.
-            Мы свяжемся с вами для уточнения доставки.
+            <?= htmlspecialchars(
+                Translator::t(
+                    'quick.intro',
+                    'Залиште ім’я та номер телефону. Ми зв’яжемося з вами для уточнення доставки.'
+                )
+            ) ?>
         </p>
 
         <form
@@ -58,7 +72,12 @@ require __DIR__ . '/../partials/header.php';
 
             <div style="margin-bottom: 15px;">
                 <label>
-                    Имя
+                    <?= htmlspecialchars(
+                        Translator::t(
+                            'quick.name',
+                            'Ім’я'
+                        )
+                    ) ?>
                     <span
                         style="
                             color: var(--primary-color);
@@ -87,7 +106,12 @@ require __DIR__ . '/../partials/header.php';
 
             <div style="margin-bottom: 15px;">
                 <label>
-                    Номер телефона
+                    <?= htmlspecialchars(
+                        Translator::t(
+                            'quick.phone',
+                            'Номер телефону'
+                        )
+                    ) ?>
                     <span
                         style="
                             color: var(--primary-color);
@@ -114,7 +138,12 @@ require __DIR__ . '/../partials/header.php';
 
             <div style="margin-bottom: 20px;">
                 <label>
-                    Комментарий
+                    <?= htmlspecialchars(
+                        Translator::t(
+                            'quick.comment',
+                            'Коментар'
+                        )
+                    ) ?>
                 </label>
 
                 <textarea
@@ -141,7 +170,12 @@ require __DIR__ . '/../partials/header.php';
                 "
             >
                 <strong>
-                    Сумма заказа:
+                    <?= htmlspecialchars(
+                        Translator::t(
+                            'quick.total',
+                            'Сума замовлення'
+                        )
+                    ) ?>:
                     <?= number_format(
                         (float) $total,
                         2,
@@ -165,7 +199,12 @@ require __DIR__ . '/../partials/header.php';
                     cursor: pointer;
                 "
             >
-                Отправить быстрый заказ
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'quick.submit',
+                        'Надіслати швидке замовлення'
+                    )
+                ) ?>
             </button>
 
         </form>
