@@ -269,10 +269,13 @@ echo $cartCount;
 
 <?php endif; ?>
 
-<?php if (($pageTitle ?? '') === 'Корзина'): ?>
+<?php if (
+    ($pageContext ?? '') === 'cart'
+    || ($pageTitle ?? '') === 'Корзина'
+): ?>
 
     <script
-        src="/Anabelka/js/cart-quick-order.js?v=1"
+        src="/Anabelka/js/cart-quick-order.js?v=2"
     ></script>
 
 <?php endif; ?>
