@@ -45,82 +45,7 @@ class DeliveryTranslator
               COLLATE=utf8mb4_unicode_ci
         ");
 
-        self::seedKnownBaseTranslations($db);
-
         self::$schemaReady = true;
-    }
-
-
-    private static function dictionary()
-    {
-        return [
-            'method' => [
-                'courier' => [
-                    'aliases' => ['Курьер', 'Кур’єр', "Кур'єр"],
-                    'uk' => ['Кур’єр', 'Доставка кур’єром.'],
-                    'ru' => ['Курьер', 'Доставка курьером.'],
-                    'en' => ['Courier', 'Courier delivery.']
-                ],
-                'pickup' => [
-                    'aliases' => ['Самовывоз', 'Самовивіз'],
-                    'uk' => ['Самовивіз', 'Забрати замовлення самостійно'],
-                    'ru' => ['Самовывоз', 'Забрать заказ самостоятельно'],
-                    'en' => ['Pickup', 'Pick up the order yourself']
-                ],
-                'post' => [
-                    'aliases' => ['Почтовая доставка', 'Поштова доставка'],
-                    'uk' => ['Поштова доставка', 'Доставка через поштову службу'],
-                    'ru' => ['Почтовая доставка', 'Доставка через почтовую службу'],
-                    'en' => ['Postal delivery', 'Delivery via a postal service']
-                ]
-            ],
-            'service' => [
-                'nova_poshta' => [
-                    'aliases' => ['Нова пошта', 'Новая почта'],
-                    'slugs' => ['nova_poshta', 'nova-poshta'],
-                    'uk' => ['Нова пошта', null],
-                    'ru' => ['Нова пошта', null],
-                    'en' => ['Nova Poshta', null]
-                ],
-                'ukrposhta' => [
-                    'aliases' => ['Укрпошта', 'Укрпочта'],
-                    'uk' => ['Укрпошта', null],
-                    'ru' => ['Укрпочта', null],
-                    'en' => ['Ukrposhta', null]
-                ],
-                'delivery' => [
-                    'aliases' => ['Delivery'],
-                    'uk' => ['Delivery', null],
-                    'ru' => ['Delivery', null],
-                    'en' => ['Delivery', null]
-                ]
-            ],
-            'option' => [
-                'branch' => [
-                    'aliases' => ['Доставка в отделение', 'Доставка у відділення'],
-                    'uk' => ['Доставка у відділення', 'Доставка у відділення'],
-                    'ru' => ['Доставка в отделение', 'Доставка в отделение'],
-                    'en' => ['Delivery to a branch', 'Delivery to a branch']
-                ],
-                'parcel_locker' => [
-                    'aliases' => ['Доставка в почтомат', 'Доставка у поштомат'],
-                    'uk' => ['Доставка у поштомат', 'Доставка у поштомат'],
-                    'ru' => ['Доставка в почтомат', 'Доставка в почтомат'],
-                    'en' => ['Delivery to a parcel locker', 'Delivery to a parcel locker']
-                ],
-                'address' => [
-                    'aliases' => [
-                        'Адресная доставка',
-                        'Адресна доставка',
-                        'Доставка по адресу',
-                        'Доставка за адресою'
-                    ],
-                    'uk' => ['Адресна доставка', 'Доставка за адресою'],
-                    'ru' => ['Адресная доставка', 'Доставка по адресу'],
-                    'en' => ['Address delivery', 'Delivery to an address']
-                ]
-            ]
-        ];
     }
 
 
@@ -135,152 +60,6 @@ class DeliveryTranslator
 
             case 'option':
                 return 'delivery_service_options';
-        }
-
-        return null;
-    }
-
-
-    private static function seedKnownBaseTranslations(PDO $db)
-    {
-        $dictionary = self::dictionary();
-
-        $insert = $db->prepare("
-            INSERT IGNORE INTO delivery_translations
-            (
-                entity_type,
-                entity_id,
-                language_code,
-                name,
-                description,
-                source,
-                status
-            )
-            VALUES
-            (
-                :entity_type,
-                :entity_id,
-                :language_code,
-                :name,
-                :description,
-                'system',
-                'approved'
-            )
-        ");
-
-        foreach ($dictionary as $entityType => $items) {
-            $table = self::tableForType($entityType);
-
-            if (!$table) {
-                continue;
-            }
-
-            foreach ($items as $key => $data) {
-                $entityIds = [];
-                $slugs = $data['slugs'] ?? [$key];
-
-                foreach ($slugs as $slug) {
-                    $stmt = $db->prepare(
-                        "SELECT id FROM {$table} WHERE slug = :slug"
-                    );
-                    $stmt->execute(['slug' => $slug]);
-
-                    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
-                        $entityIds[(int) $id] = true;
-                    }
-                }
-
-                foreach ($data['aliases'] ?? [] as $alias) {
-                    $stmt = $db->prepare(
-                        "SELECT id FROM {$table} WHERE name = :name"
-                    );
-                    $stmt->execute(['name' => $alias]);
-
-                    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
-                        $entityIds[(int) $id] = true;
-                    }
-                }
-
-                foreach (array_keys($entityIds) as $entityId) {
-                    if ($entityId <= 0) {
-                        continue;
-                    }
-
-                    foreach (['uk', 'ru', 'en'] as $languageCode) {
-                        if (empty($data[$languageCode])) {
-                            continue;
-                        }
-
-                        $translation = $data[$languageCode];
-
-                        $insert->execute([
-                            'entity_type' => $entityType,
-                            'entity_id' => $entityId,
-                            'language_code' => $languageCode,
-                            'name' => $translation[0],
-                            'description' => $translation[1]
-                        ]);
-                    }
-                }
-            }
-        }
-    }
-
-
-    private static function fallbackTranslation(
-        $entityType,
-        array $row,
-        $languageCode
-    ) {
-        $dictionary = self::dictionary();
-        $items = $dictionary[$entityType] ?? [];
-
-        $rowSlug = trim((string) ($row['slug'] ?? ''));
-        $rowName = trim((string) ($row['name'] ?? ''));
-        $searchText = mb_strtolower(
-            $rowSlug . ' ' . $rowName,
-            'UTF-8'
-        );
-
-        foreach ($items as $key => $data) {
-            $slugs = $data['slugs'] ?? [$key];
-            $aliases = $data['aliases'] ?? [];
-
-            $matches = false;
-
-            foreach ($slugs as $slug) {
-                if ($rowSlug !== '' && $rowSlug === $slug) {
-                    $matches = true;
-                    break;
-                }
-            }
-
-            if (!$matches) {
-                foreach ($aliases as $alias) {
-                    $aliasLower = mb_strtolower($alias, 'UTF-8');
-                    if (
-                        $rowName === $alias
-                        || ($aliasLower !== '' && mb_strpos($searchText, $aliasLower, 0, 'UTF-8') !== false)
-                    ) {
-                        $matches = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!$matches) {
-                continue;
-            }
-
-            $translation = $data[$languageCode] ?? null;
-            if (!$translation) {
-                return null;
-            }
-
-            return [
-                'name' => $translation[0],
-                'description' => $translation[1]
-            ];
         }
 
         return null;
@@ -348,7 +127,9 @@ class DeliveryTranslator
             || $entityId <= 0
             || $languageCode === ''
         ) {
-            throw new InvalidArgumentException('Некорректные данные перевода.');
+            throw new InvalidArgumentException(
+                'Некорректные данные перевода.'
+            );
         }
 
         if ($languageCode === Language::SOURCE_CODE) {
@@ -417,7 +198,8 @@ class DeliveryTranslator
             'entity_id' => $entityId,
             'language_code' => $languageCode,
             'name' => $name,
-            'description' => $description !== '' ? $description : null,
+            'description' =>
+                $description !== '' ? $description : null,
             'source' => trim((string) $source) ?: 'manual'
         ]);
     }
@@ -431,12 +213,15 @@ class DeliveryTranslator
         self::ensureTable();
 
         $entityId = (int) ($row['id'] ?? 0);
-        $languageCode = trim((string) $languageCode);
+        $languageCode = strtolower(
+            trim((string) $languageCode)
+        );
 
         if ($entityId <= 0 || $languageCode === '') {
             return $row;
         }
 
+        // Украинский хранится в самих таблицах Delivery.
         if ($languageCode === Language::SOURCE_CODE) {
             return $row;
         }
@@ -463,14 +248,7 @@ class DeliveryTranslator
 
         $translation = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$translation) {
-            $translation = self::fallbackTranslation(
-                $entityType,
-                $row,
-                $languageCode
-            );
-        }
-
+        // Нет перевода — оставляем украинский оригинал.
         if (!$translation) {
             return $row;
         }
@@ -514,13 +292,11 @@ class DeliveryTranslator
                 if (
                     empty(
                         $methods[$methodIndex]
-                            ['services'][$serviceIndex]
-                            ['options']
+                            ['services'][$serviceIndex]['options']
                     )
                     || !is_array(
                         $methods[$methodIndex]
-                            ['services'][$serviceIndex]
-                            ['options']
+                            ['services'][$serviceIndex]['options']
                     )
                 ) {
                     continue;
@@ -528,8 +304,7 @@ class DeliveryTranslator
 
                 foreach (
                     $methods[$methodIndex]
-                        ['services'][$serviceIndex]
-                        ['options']
+                        ['services'][$serviceIndex]['options']
                     as $optionIndex => $option
                 ) {
                     $methods[$methodIndex]
