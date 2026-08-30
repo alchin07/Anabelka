@@ -78,4 +78,70 @@ class Category
 
         return $stmt->fetchAll();
     }
+
+
+    /**
+     * Получить все категории для админ-панели.
+     * Включает отключённые категории.
+     */
+    public static function getAllForAdmin()
+    {
+        $db = Database::connect();
+
+        $stmt = $db->query("
+            SELECT
+                id,
+                department_id,
+                parent_id,
+                name,
+                slug,
+                description,
+                image,
+                sort_order,
+                is_active
+            FROM categories
+            ORDER BY
+                COALESCE(parent_id, 0) ASC,
+                sort_order ASC,
+                id ASC
+        ");
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+    /**
+     * Обновить украинский оригинал категории.
+     * Slug и положение в дереве здесь не меняются.
+     */
+    public static function updateAdmin(
+        $categoryId,
+        $name,
+        $description
+    ) {
+        $categoryId = (int) $categoryId;
+        $name = trim((string) $name);
+        $description = trim((string) $description);
+
+        if ($categoryId <= 0 || $name === '') {
+            return false;
+        }
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            UPDATE categories
+            SET
+                name = :name,
+                description = :description
+            WHERE id = :id
+        ");
+
+        return $stmt->execute([
+            'id' => $categoryId,
+            'name' => $name,
+            'description' =>
+                $description !== '' ? $description : null
+        ]);
+    }
 }
