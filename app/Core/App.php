@@ -30,6 +30,11 @@ class App
         require_once __DIR__ . '/../Models/PublicInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/ProductInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/DeliveryTranslator.php';
+
+        require_once __DIR__ . '/../Services/AITranslationProviderInterface.php';
+        require_once __DIR__ . '/../Services/OpenAITranslationProvider.php';
+        require_once __DIR__ . '/../Services/GeminiTranslationProvider.php';
+        require_once __DIR__ . '/../Services/DeepLTranslationProvider.php';
         require_once __DIR__ . '/../Services/AITranslationService.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
