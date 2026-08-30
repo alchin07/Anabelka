@@ -147,6 +147,30 @@
             font-weight: 700;
         }
 
+        .product-language-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .product-ai-translate {
+            border: 1px solid var(--primary-color);
+            border-radius: 9px;
+            padding: 7px 10px;
+            background: #fff;
+            color: var(--primary-color);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .product-ai-translate:disabled {
+            opacity: 0.55;
+            cursor: wait;
+        }
+
         .product-translation-section {
             margin-top: 18px;
             padding-top: 16px;
@@ -345,8 +369,19 @@ require __DIR__ . '/../../partials/header.php';
                     data-product-language="<?= htmlspecialchars($code) ?>"
                 >
                     <div class="product-language-head">
-                        <?= htmlspecialchars($language['name']) ?>
-                        · <?= htmlspecialchars($language['short_name']) ?>
+                        <span>
+                            <?= htmlspecialchars($language['name']) ?>
+                            · <?= htmlspecialchars($language['short_name']) ?>
+                        </span>
+
+                        <button
+                            type="button"
+                            class="product-ai-translate"
+                            data-product-ai-translate
+                            data-target-language="<?= htmlspecialchars($code) ?>"
+                        >
+                            Перевести через ИИ
+                        </button>
                     </div>
 
                     <div class="product-form-group">
@@ -415,7 +450,7 @@ require __DIR__ . '/../../partials/header.php';
         clearTimeout(window.productMessageTimer);
         window.productMessageTimer = setTimeout(function () {
             message.classList.remove('show');
-        }, 2200);
+        }, 3000);
     }
 
     document.querySelectorAll('.product-edit-button').forEach(function (button) {
@@ -450,6 +485,64 @@ require __DIR__ . '/../../partials/header.php';
 
     document.querySelectorAll('[data-product-close]').forEach(function (button) {
         button.addEventListener('click', closeModal);
+    });
+
+    document.querySelectorAll('[data-product-ai-translate]').forEach(function (button) {
+        button.addEventListener('click', async function () {
+            const section = button.closest('[data-product-language]');
+
+            if (!section) {
+                return;
+            }
+
+            if (
+                !window.AnabelkaAITranslation
+                || typeof window.AnabelkaAITranslation.suggest !== 'function'
+            ) {
+                showMessage('Система ИИ-перевода ещё загружается. Попробуйте ещё раз.');
+                return;
+            }
+
+            const targetLanguage = button.dataset.targetLanguage || '';
+            const translationName =
+                section.querySelector('.product-translation-name');
+            const translationDescription =
+                section.querySelector('.product-translation-description');
+
+            const originalText = button.textContent;
+
+            button.disabled = true;
+            button.textContent = 'Перевод…';
+
+            try {
+                const translation =
+                    await window.AnabelkaAITranslation.suggest({
+                        targetLanguage: targetLanguage,
+                        name: nameField.value,
+                        description: descriptionField.value,
+                        context: 'product'
+                    });
+
+                if (translationName) {
+                    translationName.value = translation.name || '';
+                }
+
+                if (translationDescription) {
+                    translationDescription.value =
+                        translation.description || '';
+                }
+
+                showMessage('ИИ-перевод получен. Проверьте его и нажмите «Сохранить».');
+
+            } catch (error) {
+                showMessage(
+                    error.message || 'Не удалось получить ИИ-перевод.'
+                );
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        });
     });
 
     form.addEventListener('submit', async function (event) {
