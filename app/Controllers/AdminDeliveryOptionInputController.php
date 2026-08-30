@@ -2,6 +2,46 @@
 
 class AdminDeliveryOptionInputController extends Controller
 {
+    public function show()
+    {
+        $optionId =
+            (int) (
+                $_GET['option_id']
+                ?? 0
+            );
+
+        if ($optionId <= 0) {
+            http_response_code(400);
+            exit('Некорректная опция доставки.');
+        }
+
+        $config =
+            DeliveryOptionInput::getForOption(
+                $optionId
+            );
+
+        $translations =
+            DeliveryOptionInput::getTranslationsForOption(
+                $optionId
+            );
+
+        header(
+            'Content-Type: application/json; charset=UTF-8'
+        );
+
+        echo json_encode(
+            [
+                'success' => true,
+                'config' => $config,
+                'translations' => $translations
+            ],
+            JSON_UNESCAPED_UNICODE
+        );
+
+        exit;
+    }
+
+
     /**
      * Сохранить настройку дополнительного поля,
      * которое покупатель заполняет для опции доставки.
@@ -32,11 +72,28 @@ class AdminDeliveryOptionInputController extends Controller
                 ?? ''
             );
 
+        $translationsJson =
+            (string) (
+                $_POST['translations']
+                ?? '{}'
+            );
+
 
         if ($optionId <= 0) {
             http_response_code(400);
             echo 'Некорректная опция доставки.';
             exit;
+        }
+
+        $translations =
+            json_decode(
+                $translationsJson,
+                true
+            );
+
+        if (!is_array($translations)) {
+            http_response_code(400);
+            exit('Некорректный формат переводов поля.');
         }
 
 
@@ -47,6 +104,20 @@ class AdminDeliveryOptionInputController extends Controller
                 $fieldLabel,
                 $placeholder
             );
+
+            foreach ($translations as $languageCode => $translation) {
+                if (!is_array($translation)) {
+                    continue;
+                }
+
+                DeliveryOptionInput::saveTranslation(
+                    $optionId,
+                    $languageCode,
+                    $translation['field_label'] ?? '',
+                    $translation['placeholder'] ?? '',
+                    'manual'
+                );
+            }
 
             header(
                 'Content-Type: application/json; charset=UTF-8'
@@ -65,9 +136,9 @@ class AdminDeliveryOptionInputController extends Controller
 
             exit;
 
-        } catch (PDOException $e) {
+        } catch (Throwable $e) {
             http_response_code(500);
-            echo 'Не удалось сохранить настройку поля доставки.';
+            echo $e->getMessage();
             exit;
         }
     }
