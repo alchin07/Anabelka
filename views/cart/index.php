@@ -72,6 +72,15 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
                 <?php foreach ($items as $item): ?>
 
+                    <?php
+                    $localizedProduct =
+                        ProductTranslator::localize(
+                            $item['product'],
+                            $currentLanguage['code']
+                            ?? Language::SOURCE_CODE
+                        );
+                    ?>
+
                     <section
                         class="product-card cart-item"
                         data-cart-key="<?= htmlspecialchars($item['cart_key']) ?>"
@@ -84,7 +93,8 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
                         <h2>
                             <?= htmlspecialchars(
-                                $item['product']['name']
+                                $localizedProduct['name']
+                                ?? $item['product']['name']
                             ) ?>
                         </h2>
 
