@@ -119,6 +119,11 @@ $router->post(
     'AdminLanguageController@delete'
 );
 
+$router->post(
+    '/admin/ai-translation/suggest',
+    'AdminAITranslationController@suggest'
+);
+
 $router->get(
     '/admin/categories',
     'AdminCategoryController@index'
