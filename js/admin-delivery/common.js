@@ -52,7 +52,8 @@ window.saveDeliveryOptionInput =
         optionId,
         isEnabled,
         fieldLabel,
-        placeholder
+        placeholder,
+        translations
     ) {
         const formData =
             new FormData();
@@ -75,6 +76,13 @@ window.saveDeliveryOptionInput =
         formData.append(
             'placeholder',
             placeholder || ''
+        );
+
+        formData.append(
+            'translations',
+            JSON.stringify(
+                translations || {}
+            )
         );
 
         const response =
