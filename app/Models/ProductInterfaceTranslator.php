@@ -38,7 +38,9 @@ class ProductInterfaceTranslator
                 'product.add_error' => 'Не вдалося додати товар до кошика.',
                 'product.php_error' => 'Помилка PHP. Дивіться текст нижче.',
                 'product.size_sold_out' => 'Розмір {size} закінчився.',
-                'product.stock_error' => 'Недостатньо товару на складі.'
+                'product.stock_error' => 'Недостатньо товару на складі.',
+                'product.badge_new' => 'Новий товар',
+                'product.badge_sale' => 'Знижка'
             ],
             'ru' => [
                 'product.back_catalog' => 'Каталог',
@@ -61,7 +63,9 @@ class ProductInterfaceTranslator
                 'product.add_error' => 'Не удалось добавить товар в корзину.',
                 'product.php_error' => 'Ошибка PHP. Смотри текст ниже.',
                 'product.size_sold_out' => 'Размер {size} закончился.',
-                'product.stock_error' => 'Недостаточно товара на складе.'
+                'product.stock_error' => 'Недостаточно товара на складе.',
+                'product.badge_new' => 'Новый товар',
+                'product.badge_sale' => 'Скидка'
             ],
             'en' => [
                 'product.back_catalog' => 'Catalog',
@@ -84,7 +88,9 @@ class ProductInterfaceTranslator
                 'product.add_error' => 'Could not add the item to the cart.',
                 'product.php_error' => 'PHP error. See details below.',
                 'product.size_sold_out' => 'Size {size} is sold out.',
-                'product.stock_error' => 'Not enough stock available.'
+                'product.stock_error' => 'Not enough stock available.',
+                'product.badge_new' => 'New product',
+                'product.badge_sale' => 'Sale'
             ]
         ];
 
