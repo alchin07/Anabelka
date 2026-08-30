@@ -17,6 +17,51 @@
     }
 
 
+    function ensureAiTranslationSwitcher()
+    {
+        if (!document.querySelector('link[data-admin-ai-translation]')) {
+            const stylesheet = document.createElement('link');
+            stylesheet.rel = 'stylesheet';
+            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=1';
+            stylesheet.dataset.adminAiTranslation = '1';
+            document.head.appendChild(stylesheet);
+        }
+
+        if (!document.getElementById('ai-provider-switcher')) {
+            const switcher = document.createElement('div');
+            switcher.id = 'ai-provider-switcher';
+            switcher.className = 'ai-provider-switcher';
+            switcher.hidden = true;
+
+            const label = document.createElement('label');
+            label.htmlFor = 'ai-provider-select';
+            label.textContent = 'ИИ-перевод';
+
+            const select = document.createElement('select');
+            select.id = 'ai-provider-select';
+            select.className = 'ai-provider-select';
+            select.setAttribute('aria-label', 'Провайдер ИИ-перевода');
+
+            const status = document.createElement('span');
+            status.id = 'ai-provider-status';
+            status.className = 'ai-provider-status';
+            status.setAttribute('aria-live', 'polite');
+
+            switcher.appendChild(label);
+            switcher.appendChild(select);
+            switcher.appendChild(status);
+            document.body.appendChild(switcher);
+        }
+
+        if (!document.querySelector('script[data-admin-ai-translation]')) {
+            const script = document.createElement('script');
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=1';
+            script.dataset.adminAiTranslation = '1';
+            document.body.appendChild(script);
+        }
+    }
+
+
     function init()
     {
         const header =
@@ -26,40 +71,54 @@
             return;
         }
 
-        if (document.getElementById('admin-section-nav')) {
-            return;
+        if (!document.getElementById('admin-section-nav')) {
+            const nav = document.createElement('nav');
+            nav.id = 'admin-section-nav';
+            nav.style.display = 'flex';
+            nav.style.justifyContent = 'center';
+            nav.style.gap = '14px';
+            nav.style.flexWrap = 'wrap';
+            nav.style.marginTop = '12px';
+
+            nav.appendChild(
+                createLink(
+                    '/Anabelka/admin/orders',
+                    'Быстрые заказы'
+                )
+            );
+
+            nav.appendChild(
+                createLink(
+                    '/Anabelka/admin/delivery',
+                    'Доставка'
+                )
+            );
+
+            nav.appendChild(
+                createLink(
+                    '/Anabelka/admin/languages',
+                    'Языки'
+                )
+            );
+
+            nav.appendChild(
+                createLink(
+                    '/Anabelka/admin/categories',
+                    'Категории'
+                )
+            );
+
+            nav.appendChild(
+                createLink(
+                    '/Anabelka/admin/products',
+                    'Товары'
+                )
+            );
+
+            header.appendChild(nav);
         }
 
-        const nav = document.createElement('nav');
-        nav.id = 'admin-section-nav';
-        nav.style.display = 'flex';
-        nav.style.justifyContent = 'center';
-        nav.style.gap = '14px';
-        nav.style.flexWrap = 'wrap';
-        nav.style.marginTop = '12px';
-
-        nav.appendChild(
-            createLink(
-                '/Anabelka/admin/orders',
-                'Быстрые заказы'
-            )
-        );
-
-        nav.appendChild(
-            createLink(
-                '/Anabelka/admin/delivery',
-                'Доставка'
-            )
-        );
-
-        nav.appendChild(
-            createLink(
-                '/Anabelka/admin/languages',
-                'Языки'
-            )
-        );
-
-        header.appendChild(nav);
+        ensureAiTranslationSwitcher();
     }
 
 
