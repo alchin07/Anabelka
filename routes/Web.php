@@ -120,6 +120,16 @@ $router->post(
 );
 
 $router->get(
+    '/admin/categories',
+    'AdminCategoryController@index'
+);
+
+$router->post(
+    '/admin/categories/update',
+    'AdminCategoryController@update'
+);
+
+$router->get(
     '/admin/delivery',
     'AdminDeliveryController@index'
 );
