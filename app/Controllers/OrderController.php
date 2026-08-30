@@ -63,6 +63,12 @@ class OrderController extends Controller
             $method['id']
         );
 
+        $deliveryRequirements =
+            DeliveryRequirements::forMethod(
+                $method,
+                $availableServices
+            );
+
         if (!empty($availableServices)) {
             if ($deliveryService === '') {
                 die(
@@ -169,60 +175,61 @@ class OrderController extends Controller
 
         /*
          * Серверная проверка обязательных полей доставки.
-         *
-         * Она зеркально повторяет правила checkout.php:
-         * courier / post — страна, город и адрес обязательны;
-         * pickup — эти поля не требуются.
-         *
-         * Если для опции Delivery включено отдельное поле,
-         * выше его значение уже перенесено в deliveryAddress.
+         * Правила определяются по исходному способу доставки,
+         * а не по автоматически созданному slug.
          */
-        if (
-            $deliveryMethod === 'courier'
-            || $deliveryMethod === 'post'
-        ) {
-            $requiredDeliveryFields = [
-                [
-                    'value' => $deliveryCountry,
-                    'label' => Translator::t(
-                        'checkout.country',
-                        'Країна'
-                    )
-                ],
-                [
-                    'value' => $deliveryCity,
-                    'label' => Translator::t(
-                        'checkout.city',
-                        'Місто'
-                    )
-                ],
-                [
-                    'value' => $deliveryAddress,
-                    'label' => Translator::t(
-                        'checkout.address',
-                        'Адреса'
-                    )
-                ]
-            ];
+        $requiredDeliveryFields = [
+            'country' => [
+                'value' => $deliveryCountry,
+                'label' => Translator::t(
+                    'checkout.country',
+                    'Країна'
+                )
+            ],
+            'city' => [
+                'value' => $deliveryCity,
+                'label' => Translator::t(
+                    'checkout.city',
+                    'Місто'
+                )
+            ],
+            'address' => [
+                'value' => $deliveryAddress,
+                'label' => Translator::t(
+                    'checkout.address',
+                    'Адреса'
+                )
+            ],
+            'postcode' => [
+                'value' => $deliveryPostcode,
+                'label' => Translator::t(
+                    'checkout.postcode',
+                    'Поштовий індекс'
+                )
+            ]
+        ];
 
-            foreach ($requiredDeliveryFields as $requiredField) {
-                if ($requiredField['value'] !== '') {
-                    continue;
-                }
-
-                $message = Translator::t(
-                    'public.order.error_fill_field',
-                    'Заповніть поле «{field}».'
-                );
-
-                die(
-                    str_replace(
-                        '{field}',
-                        $requiredField['label'],
-                        $message
-                    )
-                );
+        foreach ($requiredDeliveryFields as $fieldKey => $requiredField) {
+            if (empty($deliveryRequirements[$fieldKey])) {
+                continue;
             }
+
+            if ($requiredField['value'] !== '') {
+                continue;
+            }
+
+            $message = Translator::t(
+                'public.order.error_fill_field',
+                'Заповніть поле «{field}».'
+            );
+
+            die(
+                str_replace(
+                    '{field}',
+                    $requiredField['label'],
+                    $message
+                )
+            );
         }
 
         if ($customerName === '' || $customerEmail === '') {
