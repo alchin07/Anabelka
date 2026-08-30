@@ -167,6 +167,64 @@ class OrderController extends Controller
             $deliveryServiceOption = '';
         }
 
+        /*
+         * Серверная проверка обязательных полей доставки.
+         *
+         * Она зеркально повторяет правила checkout.php:
+         * courier / post — страна, город и адрес обязательны;
+         * pickup — эти поля не требуются.
+         *
+         * Если для опции Delivery включено отдельное поле,
+         * выше его значение уже перенесено в deliveryAddress.
+         */
+        if (
+            $deliveryMethod === 'courier'
+            || $deliveryMethod === 'post'
+        ) {
+            $requiredDeliveryFields = [
+                [
+                    'value' => $deliveryCountry,
+                    'label' => Translator::t(
+                        'checkout.country',
+                        'Країна'
+                    )
+                ],
+                [
+                    'value' => $deliveryCity,
+                    'label' => Translator::t(
+                        'checkout.city',
+                        'Місто'
+                    )
+                ],
+                [
+                    'value' => $deliveryAddress,
+                    'label' => Translator::t(
+                        'checkout.address',
+                        'Адреса'
+                    )
+                ]
+            ];
+
+            foreach ($requiredDeliveryFields as $requiredField) {
+                if ($requiredField['value'] !== '') {
+                    continue;
+                }
+
+                $message = Translator::t(
+                    'public.order.error_fill_field',
+                    'Заповніть поле «{field}».'
+                );
+
+                die(
+                    str_replace(
+                        '{field}',
+                        $requiredField['label'],
+                        $message
+                    )
+                );
+            }
+        }
+
         if ($customerName === '' || $customerEmail === '') {
             die(
                 Translator::t(
