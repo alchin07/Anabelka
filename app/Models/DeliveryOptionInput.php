@@ -152,7 +152,9 @@ class DeliveryOptionInput
         $placeholder = trim((string) $placeholder);
 
         if ($optionId <= 0 || $languageCode === '') {
-            throw new InvalidArgumentException('Некорректные данные перевода поля.');
+            throw new InvalidArgumentException(
+                'Некорректные данные перевода поля.'
+            );
         }
 
         if ($languageCode === Language::SOURCE_CODE) {
@@ -206,8 +208,10 @@ class DeliveryOptionInput
         return $stmt->execute([
             'option_id' => $optionId,
             'language_code' => $languageCode,
-            'field_label' => $fieldLabel !== '' ? $fieldLabel : null,
-            'placeholder' => $placeholder !== '' ? $placeholder : null,
+            'field_label' =>
+                $fieldLabel !== '' ? $fieldLabel : null,
+            'placeholder' =>
+                $placeholder !== '' ? $placeholder : null,
             'source' => trim((string) $source) ?: 'manual'
         ]);
     }
@@ -245,6 +249,7 @@ class DeliveryOptionInput
 
         $translation = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // Нет перевода — оставляем украинский оригинал.
         if (!$translation) {
             return $row;
         }
@@ -255,76 +260,6 @@ class DeliveryOptionInput
 
         if (trim((string) ($translation['placeholder'] ?? '')) !== '') {
             $row['placeholder'] = $translation['placeholder'];
-        }
-
-        return $row;
-    }
-
-
-    /**
-     * Временный запасной словарь для старых записей.
-     * Сохранённые вручную переводы имеют приоритет.
-     */
-    private static function localizePublicText(array $row)
-    {
-        $stored = self::applyStoredTranslation($row);
-
-        if ($stored !== $row) {
-            return $stored;
-        }
-
-        if (!class_exists('Translator')) {
-            return $row;
-        }
-
-        $language = Translator::currentLanguage();
-        $code = (string) ($language['code'] ?? Language::SOURCE_CODE);
-
-        $label = trim((string) ($row['field_label'] ?? ''));
-        $placeholder = trim((string) ($row['placeholder'] ?? ''));
-
-        $labelMap = [
-            'Номер отделения новой почты' => [
-                'uk' => 'Номер відділення Нової пошти',
-                'ru' => 'Номер отделения новой почты',
-                'en' => 'Nova Poshta branch number'
-            ],
-            'Номер отделения Новой почты' => [
-                'uk' => 'Номер відділення Нової пошти',
-                'ru' => 'Номер отделения Новой почты',
-                'en' => 'Nova Poshta branch number'
-            ],
-            'Номер почтомата новой почты' => [
-                'uk' => 'Номер поштомата Нової пошти',
-                'ru' => 'Номер почтомата новой почты',
-                'en' => 'Nova Poshta parcel locker number'
-            ],
-            'Укажите данные доставки' => [
-                'uk' => 'Вкажіть дані доставки',
-                'ru' => 'Укажите данные доставки',
-                'en' => 'Enter delivery details'
-            ]
-        ];
-
-        $placeholderMap = [
-            'Номер отделения' => [
-                'uk' => 'Номер відділення',
-                'ru' => 'Номер отделения',
-                'en' => 'Branch number'
-            ],
-            'Номер почтомата' => [
-                'uk' => 'Номер поштомата',
-                'ru' => 'Номер почтомата',
-                'en' => 'Parcel locker number'
-            ]
-        ];
-
-        if (isset($labelMap[$label][$code])) {
-            $row['field_label'] = $labelMap[$label][$code];
-        }
-
-        if (isset($placeholderMap[$placeholder][$code])) {
-            $row['placeholder'] = $placeholderMap[$placeholder][$code];
         }
 
         return $row;
@@ -379,7 +314,7 @@ class DeliveryOptionInput
             $row['is_enabled'] =
                 !empty($row['is_enabled']) ? 1 : 0;
 
-            return self::localizePublicText($row);
+            return self::applyStoredTranslation($row);
 
         } catch (PDOException $e) {
             return self::defaults();
