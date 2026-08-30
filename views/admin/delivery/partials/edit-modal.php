@@ -196,16 +196,28 @@ $deliveryEditLanguages = Language::active();
                     hidden
                 >
 
+                    <div
+                        style="
+                            margin:14px 0 12px;
+                            padding:10px 12px;
+                            border:1px solid #eadcf7;
+                            border-radius:10px;
+                            background:#faf7ff;
+                        "
+                    >
+                        <strong>Українська · поле для покупця</strong>
+                    </div>
+
                     <div class="delivery-form-group">
 
                         <label for="edit-option-customer-input-label">
-                            Подпись поля
+                            Підпис поля
                         </label>
 
                         <input
                             type="text"
                             id="edit-option-customer-input-label"
-                            placeholder="Например: Номер отделения"
+                            placeholder="Наприклад: Номер відділення"
                         >
 
                     </div>
@@ -213,16 +225,63 @@ $deliveryEditLanguages = Language::active();
                     <div class="delivery-form-group">
 
                         <label for="edit-option-customer-input-placeholder">
-                            Подсказка внутри поля
+                            Підказка всередині поля
                         </label>
 
                         <input
                             type="text"
                             id="edit-option-customer-input-placeholder"
-                            placeholder="Например: 12"
+                            placeholder="Наприклад: 12"
                         >
 
                     </div>
+
+                    <?php foreach ($deliveryEditLanguages as $language): ?>
+
+                        <?php
+                        $languageCode = strtolower(
+                            trim((string) ($language['code'] ?? ''))
+                        );
+
+                        if ($languageCode === Language::SOURCE_CODE) {
+                            continue;
+                        }
+                        ?>
+
+                        <section
+                            class="delivery-option-input-translation-section"
+                            data-language-code="<?= htmlspecialchars($languageCode) ?>"
+                            style="
+                                margin-top:16px;
+                                padding-top:14px;
+                                border-top:1px solid #eadcf7;
+                            "
+                        >
+                            <div style="margin-bottom:10px;font-weight:700;">
+                                <?= htmlspecialchars($language['name']) ?>
+                                · <?= htmlspecialchars($language['short_name']) ?>
+                            </div>
+
+                            <div class="delivery-form-group">
+                                <label>Подпись поля / Label</label>
+                                <input
+                                    type="text"
+                                    class="delivery-option-input-translation-label"
+                                    autocomplete="off"
+                                >
+                            </div>
+
+                            <div class="delivery-form-group">
+                                <label>Подсказка / Placeholder</label>
+                                <input
+                                    type="text"
+                                    class="delivery-option-input-translation-placeholder"
+                                    autocomplete="off"
+                                >
+                            </div>
+                        </section>
+
+                    <?php endforeach; ?>
 
                 </div>
 
