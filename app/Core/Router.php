@@ -97,7 +97,16 @@ class Router
 
         http_response_code(404);
 
-        echo '404 — Страница не найдена';
+        PublicInterfaceTranslator::seed();
+
+        echo htmlspecialchars(
+            Translator::t(
+                'public.404',
+                '404 — Сторінку не знайдено'
+            ),
+            ENT_QUOTES,
+            'UTF-8'
+        );
     }
 
 
