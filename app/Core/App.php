@@ -40,6 +40,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';
         require_once __DIR__ . '/../Controllers/DeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminLanguageController.php';
+        require_once __DIR__ . '/../Controllers/AdminCategoryController.php';
 
         $router = new Router();
 
