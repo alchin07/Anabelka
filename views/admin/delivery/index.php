@@ -151,7 +151,7 @@
         . '/partials/add-option-modal.php'; ?>
 
     <script
-        src="/Anabelka/js/admin-delivery/common.js?v=2"
+        src="/Anabelka/js/admin-delivery/common.js?v=3"
     ></script>
 
     <script
@@ -159,7 +159,7 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/edit.js?v=4"
+        src="/Anabelka/js/admin-delivery/edit.js?v=5"
     ></script>
 
     <script
