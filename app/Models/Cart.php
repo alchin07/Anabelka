@@ -2,12 +2,6 @@
 
 class Cart
 {
-    /**
-     * Получить корзину пользователя.
-     *
-     * Если корзины ещё нет —
-     * автоматически создаём её.
-     */
     public static function getOrCreateByUserId($userId)
     {
         $userId = (int) $userId;
@@ -18,110 +12,50 @@ class Cart
 
         $db = Database::connect();
 
-
-        // Ищем существующую корзину.
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             SELECT *
             FROM carts
             WHERE user_id = ?
             LIMIT 1
-            "
-        );
+        ");
 
-        $stmt->execute([
-            $userId
-        ]);
+        $stmt->execute([$userId]);
 
-        $cart =
-            $stmt->fetch(
-                PDO::FETCH_ASSOC
-            );
+        $cart = $stmt->fetch(PDO::FETCH_ASSOC);
 
-
-        // Корзина уже существует.
         if ($cart) {
             return $cart;
         }
 
+        $stmt = $db->prepare("
+            INSERT INTO carts (user_id)
+            VALUES (?)
+        ");
 
-        // Корзины ещё нет — создаём.
-        $stmt = $db->prepare(
-            "
-            INSERT INTO carts
-                (user_id)
-            VALUES
-                (?)
-            "
-        );
-
-        $stmt->execute([
-            $userId
-        ]);
-
+        $stmt->execute([$userId]);
 
         return [
-            'id' =>
-                (int) $db->lastInsertId(),
-
-            'user_id' =>
-                $userId
+            'id' => (int) $db->lastInsertId(),
+            'user_id' => $userId
         ];
     }
 
 
-    /**
-     * Перенести гостевую корзину
-     * из сессии в корзину пользователя.
-     */
-    public static function mergeSessionCart(
-        $userId,
-        $sessionCart
-    ) {
-        if (
-            empty($sessionCart) ||
-            !is_array($sessionCart)
-        ) {
+    public static function mergeSessionCart($userId, $sessionCart)
+    {
+        if (empty($sessionCart) || !is_array($sessionCart)) {
             return;
         }
 
-
         foreach ($sessionCart as $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $sizeId = (int) ($item['size_id'] ?? 0);
+            $quantity = (int) ($item['quantity'] ?? 0);
 
-            $productId =
-                (int) (
-                    $item['product_id']
-                    ?? 0
-                );
-
-            $sizeId =
-                (int) (
-                    $item['size_id']
-                    ?? 0
-                );
-
-            $quantity =
-                (int) (
-                    $item['quantity']
-                    ?? 0
-                );
-
-
-            if (
-                $productId <= 0 ||
-                $sizeId <= 0 ||
-                $quantity <= 0
-            ) {
+            if ($productId <= 0 || $sizeId <= 0 || $quantity <= 0) {
                 continue;
             }
 
-
-            /*
-             * Добавляем через общий метод.
-             *
-             * Он сам проверит остаток
-             * конкретного размера.
-             */
             self::addItem(
                 $userId,
                 $productId,
@@ -132,59 +66,44 @@ class Cart
     }
 
 
-    /**
-     * Получить все позиции
-     * корзины пользователя.
-     */
-    public static function getItemsByUserId(
-        $userId
-    ) {
-        $cart =
-            self::getOrCreateByUserId(
-                $userId
-            );
+    public static function getItemsByUserId($userId)
+    {
+        $cart = self::getOrCreateByUserId($userId);
 
         if (!$cart) {
             return [];
         }
 
-
         $db = Database::connect();
 
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             SELECT
                 id,
                 cart_id,
                 product_id,
                 size_id,
                 quantity
-
             FROM cart_items
-
             WHERE cart_id = :cart_id
-
             ORDER BY id ASC
-            "
-        );
+        ");
 
         $stmt->execute([
-            'cart_id' =>
-                $cart['id']
+            'cart_id' => $cart['id']
         ]);
 
-
-        return $stmt->fetchAll(
-            PDO::FETCH_ASSOC
-        );
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
 
     /**
      * Добавить товар в корзину пользователя.
      *
-     * Не позволяет превысить остаток
-     * конкретного размера.
+     * total:
+     * проверяем общий остаток товара по всем размерам.
+     *
+     * by_size:
+     * проверяем остаток конкретного размера.
      */
     public static function addItem(
         $userId,
@@ -192,206 +111,132 @@ class Cart
         $sizeId,
         $quantity = 1
     ) {
-        $userId =
-            (int) $userId;
-
-        $productId =
-            (int) $productId;
-
-        $sizeId =
-            (int) $sizeId;
-
-        $quantity =
-            (int) $quantity;
-
+        $userId = (int) $userId;
+        $productId = (int) $productId;
+        $sizeId = (int) $sizeId;
+        $quantity = (int) $quantity;
 
         if (
-            $userId <= 0 ||
-            $productId <= 0 ||
-            $sizeId <= 0 ||
-            $quantity <= 0
+            $userId <= 0
+            || $productId <= 0
+            || $sizeId <= 0
+            || $quantity <= 0
         ) {
             return false;
         }
 
+        $product = Product::findById($productId);
 
-        $cart =
-            self::getOrCreateByUserId(
-                $userId
-            );
+        if (!$product) {
+            return false;
+        }
+
+        /*
+         * Размер должен действительно принадлежать товару.
+         * Это проверяем независимо от режима остатков.
+         */
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            SELECT 1
+            FROM product_attributes
+            WHERE product_id = :product_id
+              AND attribute_value_id = :size_id
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            'product_id' => $productId,
+            'size_id' => $sizeId
+        ]);
+
+        if (!$stmt->fetchColumn()) {
+            return false;
+        }
+
+        $cart = self::getOrCreateByUserId($userId);
 
         if (!$cart) {
             return false;
         }
 
-
-        $db = Database::connect();
-
-
-        /*
-         * Получаем остаток конкретного размера.
-         */
-        $stmt = $db->prepare(
-            "
-            SELECT stock
-
-            FROM product_attributes
-
-            WHERE product_id = :product_id
-              AND attribute_value_id = :size_id
-
-            LIMIT 1
-            "
+        $stockLimit = Product::getStockLimit(
+            $product,
+            $sizeId
         );
 
-        $stmt->execute([
-            'product_id' =>
-                $productId,
+        $currentQuantity = self::getCurrentQuantityForMode(
+            $userId,
+            $product,
+            $sizeId
+        );
 
-            'size_id' =>
-                $sizeId
-        ]);
-
-        $stockRow =
-            $stmt->fetch(
-                PDO::FETCH_ASSOC
-            );
-
-
-        if (!$stockRow) {
+        if ($currentQuantity + $quantity > $stockLimit) {
             return false;
         }
 
-
-        $stock =
-            (int) $stockRow['stock'];
-
-
-        /*
-         * Проверяем, есть ли уже
-         * такая позиция в корзине.
-         */
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             SELECT
                 id,
                 quantity
-
             FROM cart_items
-
             WHERE cart_id = :cart_id
               AND product_id = :product_id
               AND size_id = :size_id
-
             LIMIT 1
-            "
-        );
+        ");
 
         $stmt->execute([
-            'cart_id' =>
-                $cart['id'],
-
-            'product_id' =>
-                $productId,
-
-            'size_id' =>
-                $sizeId
+            'cart_id' => $cart['id'],
+            'product_id' => $productId,
+            'size_id' => $sizeId
         ]);
 
-        $existingItem =
-            $stmt->fetch(
-                PDO::FETCH_ASSOC
-            );
+        $existingItem = $stmt->fetch(PDO::FETCH_ASSOC);
 
-
-        /*
-         * Позиция уже существует.
-         */
         if ($existingItem) {
-
-            $currentQuantity =
-                (int) $existingItem['quantity'];
-
             $newQuantity =
-                $currentQuantity
+                (int) $existingItem['quantity']
                 + $quantity;
 
-
-            if ($newQuantity > $stock) {
-                return false;
-            }
-
-
-            $stmt = $db->prepare(
-                "
+            $stmt = $db->prepare("
                 UPDATE cart_items
-
                 SET quantity = :quantity
-
                 WHERE id = :id
-                "
-            );
+            ");
 
             return $stmt->execute([
-                'quantity' =>
-                    $newQuantity,
-
-                'id' =>
-                    $existingItem['id']
+                'quantity' => $newQuantity,
+                'id' => $existingItem['id']
             ]);
         }
 
-
-        /*
-         * Позиции ещё нет.
-         */
-        if ($quantity > $stock) {
-            return false;
-        }
-
-
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             INSERT INTO cart_items
-                (
-                    cart_id,
-                    product_id,
-                    size_id,
-                    quantity
-                )
+            (
+                cart_id,
+                product_id,
+                size_id,
+                quantity
+            )
             VALUES
-                (
-                    :cart_id,
-                    :product_id,
-                    :size_id,
-                    :quantity
-                )
-            "
-        );
-
+            (
+                :cart_id,
+                :product_id,
+                :size_id,
+                :quantity
+            )
+        ");
 
         return $stmt->execute([
-            'cart_id' =>
-                $cart['id'],
-
-            'product_id' =>
-                $productId,
-
-            'size_id' =>
-                $sizeId,
-
-            'quantity' =>
-                $quantity
+            'cart_id' => $cart['id'],
+            'product_id' => $productId,
+            'size_id' => $sizeId,
+            'quantity' => $quantity
         ]);
     }
 
 
-    /**
-     * Увеличить количество товара на 1.
-     *
-     * Не позволяет превысить остаток
-     * конкретного размера.
-     */
     public static function increaseItem(
         $userId,
         $productId,
@@ -406,393 +251,234 @@ class Cart
     }
 
 
-    /**
-     * Уменьшить количество товара на 1.
-     *
-     * Если осталась одна штука —
-     * полностью удаляем позицию.
-     */
     public static function decreaseItem(
         $userId,
         $productId,
         $sizeId
     ) {
-        $cart =
-            self::getOrCreateByUserId(
-                $userId
-            );
+        $cart = self::getOrCreateByUserId($userId);
 
         if (!$cart) {
             return false;
         }
 
-
         $db = Database::connect();
 
-
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             SELECT
                 id,
                 quantity
-
             FROM cart_items
-
             WHERE cart_id = :cart_id
               AND product_id = :product_id
               AND size_id = :size_id
-
             LIMIT 1
-            "
-        );
+        ");
 
         $stmt->execute([
-            'cart_id' =>
-                $cart['id'],
-
-            'product_id' =>
-                $productId,
-
-            'size_id' =>
-                $sizeId
+            'cart_id' => $cart['id'],
+            'product_id' => (int) $productId,
+            'size_id' => (int) $sizeId
         ]);
 
-        $item =
-            $stmt->fetch(
-                PDO::FETCH_ASSOC
-            );
-
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$item) {
             return false;
         }
 
-
-        $quantity =
-            (int) $item['quantity'];
-
-
-        /*
-         * Если одна штука —
-         * удаляем позицию.
-         */
-        if ($quantity <= 1) {
-
-            $stmt = $db->prepare(
-                "
+        if ((int) $item['quantity'] <= 1) {
+            $stmt = $db->prepare("
                 DELETE FROM cart_items
-
                 WHERE id = :id
-                "
-            );
+            ");
 
             return $stmt->execute([
-                'id' =>
-                    $item['id']
+                'id' => $item['id']
             ]);
         }
 
-
-        /*
-         * Иначе уменьшаем на 1.
-         */
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             UPDATE cart_items
-
-            SET quantity =
-                quantity - 1
-
+            SET quantity = quantity - 1
             WHERE id = :id
-            "
-        );
-
+        ");
 
         return $stmt->execute([
-            'id' =>
-                $item['id']
+            'id' => $item['id']
         ]);
     }
 
 
-    /**
-     * Полностью удалить позицию
-     * из корзины пользователя.
-     */
     public static function removeItem(
         $userId,
         $productId,
         $sizeId
     ) {
-        $cart =
-            self::getOrCreateByUserId(
-                $userId
-            );
+        $cart = self::getOrCreateByUserId($userId);
 
         if (!$cart) {
             return false;
         }
 
-
         $db = Database::connect();
 
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             DELETE FROM cart_items
-
             WHERE cart_id = :cart_id
               AND product_id = :product_id
               AND size_id = :size_id
-            "
-        );
-
+        ");
 
         return $stmt->execute([
-            'cart_id' =>
-                $cart['id'],
-
-            'product_id' =>
-                $productId,
-
-            'size_id' =>
-                $sizeId
+            'cart_id' => $cart['id'],
+            'product_id' => (int) $productId,
+            'size_id' => (int) $sizeId
         ]);
     }
 
 
-    /**
-     * Сколько всего штук конкретного товара
-     * находится в корзине пользователя.
-     *
-     * Суммируем все размеры.
-     */
     public static function getProductQuantity(
         $userId,
         $productId
     ) {
-        $cart =
-            self::getOrCreateByUserId(
-                $userId
-            );
+        $cart = self::getOrCreateByUserId($userId);
 
         if (!$cart) {
             return 0;
         }
 
-
         $db = Database::connect();
 
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             SELECT
-                COALESCE(
-                    SUM(quantity),
-                    0
-                ) AS total_quantity
-
+                COALESCE(SUM(quantity), 0) AS total_quantity
             FROM cart_items
-
             WHERE cart_id = :cart_id
               AND product_id = :product_id
-            "
-        );
+        ");
 
         $stmt->execute([
-            'cart_id' =>
-                $cart['id'],
-
-            'product_id' =>
-                $productId
+            'cart_id' => $cart['id'],
+            'product_id' => (int) $productId
         ]);
 
-        $result =
-            $stmt->fetch(
-                PDO::FETCH_ASSOC
-            );
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-
-        return (int) (
-            $result['total_quantity']
-            ?? 0
-        );
+        return (int) ($result['total_quantity'] ?? 0);
     }
 
 
-    /**
-     * Сколько штук конкретного размера
-     * товара находится в корзине пользователя.
-     */
     public static function getSizeQuantity(
         $userId,
         $productId,
         $sizeId
     ) {
-        $cart =
-            self::getOrCreateByUserId(
-                $userId
-            );
+        $cart = self::getOrCreateByUserId($userId);
 
         if (!$cart) {
             return 0;
         }
 
-
         $db = Database::connect();
 
-        $stmt = $db->prepare(
-            "
+        $stmt = $db->prepare("
             SELECT quantity
-
             FROM cart_items
-
             WHERE cart_id = :cart_id
               AND product_id = :product_id
               AND size_id = :size_id
-
             LIMIT 1
-            "
-        );
+        ");
 
         $stmt->execute([
-            'cart_id' =>
-                $cart['id'],
-
-            'product_id' =>
-                $productId,
-
-            'size_id' =>
-                $sizeId
+            'cart_id' => $cart['id'],
+            'product_id' => (int) $productId,
+            'size_id' => (int) $sizeId
         ]);
 
-        $result =
-            $stmt->fetch(
-                PDO::FETCH_ASSOC
-            );
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $result
+            ? (int) $result['quantity']
+            : 0;
+    }
 
 
-        if (!$result) {
+    public static function getCurrentQuantityForMode(
+        $userId,
+        $product,
+        $sizeId
+    ) {
+        $productId = (int) ($product['id'] ?? 0);
+        $stockMode = $product['stock_mode'] ?? 'total';
+
+        if ($productId <= 0) {
             return 0;
         }
 
+        if ($stockMode === 'by_size') {
+            return self::getSizeQuantity(
+                $userId,
+                $productId,
+                $sizeId
+            );
+        }
 
-        return (int) $result['quantity'];
-    }
-
-  /**
- * Получить текущее количество товара в корзине
- * с учётом режима складского остатка.
- *
- * by_size:
- * считаем только конкретный размер.
- *
- * total:
- * считаем весь товар по всем размерам.
- */
-public static function getCurrentQuantityForMode(
-    $userId,
-    $product,
-    $sizeId
-) {
-    $productId =
-        (int) ($product['id'] ?? 0);
-
-    $stockMode =
-        $product['stock_mode']
-        ?? 'total';
-
-
-    if ($productId <= 0) {
-        return 0;
-    }
-
-
-    /*
-     * Остаток считается отдельно
-     * для каждого размера.
-     */
-    if ($stockMode === 'by_size') {
-
-        return self::getSizeQuantity(
+        return self::getProductQuantity(
             $userId,
-            $productId,
-            $sizeId
+            $productId
         );
     }
 
 
-    /*
-     * Общий остаток товара:
-     * суммируем все размеры.
-     */
-    return self::getProductQuantity(
-        $userId,
-        $productId
-    );
-}
+    public static function getDetailedItemsByUserId($userId)
+    {
+        $dbItems = self::getItemsByUserId($userId);
+        $items = [];
 
-  /**
- * Получить готовые позиции корзины пользователя
- * для оформления заказа.
- */
-public static function getDetailedItemsByUserId($userId)
-{
-    $dbItems =
-        self::getItemsByUserId(
-            $userId
-        );
-
-    $items = [];
-
-    foreach ($dbItems as $item) {
-
-        $product =
-            Product::findById(
+        foreach ($dbItems as $item) {
+            $product = Product::findById(
                 $item['product_id']
             );
 
-        if (!$product) {
-            continue;
-        }
+            if (!$product) {
+                continue;
+            }
 
-        $size =
-            Product::getAttributeValueById(
+            $size = Product::getAttributeValueById(
                 $item['size_id']
             );
 
-        $items[] = [
-            'product' => $product,
-            'size_id' => $item['size_id'],
-            'size' => $size,
-            'quantity' => (int) $item['quantity']
-        ];
+            $items[] = [
+                'product' => $product,
+                'size_id' => $item['size_id'],
+                'size' => $size,
+                'quantity' => (int) $item['quantity']
+            ];
+        }
+
+        return $items;
     }
 
-    return $items;
-}
 
-  /**
- * Очистить корзину пользователя.
- */
-public static function clearByUserId($userId)
-{
-    $cart =
-        self::getOrCreateByUserId(
-            $userId
-        );
+    public static function clearByUserId($userId)
+    {
+        $cart = self::getOrCreateByUserId($userId);
 
-    if (!$cart) {
-        return false;
+        if (!$cart) {
+            return false;
+        }
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            DELETE FROM cart_items
+            WHERE cart_id = :cart_id
+        ");
+
+        return $stmt->execute([
+            'cart_id' => $cart['id']
+        ]);
     }
-
-    $db = Database::connect();
-
-    $stmt = $db->prepare("
-        DELETE FROM cart_items
-        WHERE cart_id = :cart_id
-    ");
-
-    return $stmt->execute([
-        'cart_id' => $cart['id']
-    ]);
-}
 }
