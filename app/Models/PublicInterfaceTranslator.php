@@ -63,7 +63,8 @@ class PublicInterfaceTranslator
                 'public.order.error_delivery_data' => 'Вкажіть дані доставки.',
                 'public.order.error_name_email' => 'Заповніть ім’я та Email.',
                 'public.order.error_email' => 'Некоректний Email.',
-                'public.order.error_empty_cart' => 'Кошик порожній.'
+                'public.order.error_empty_cart' => 'Кошик порожній.',
+                'public.404' => '404 — Сторінку не знайдено'
             ],
             'ru' => [
                 'public.home.shop' => 'Интернет-магазин',
@@ -113,7 +114,8 @@ class PublicInterfaceTranslator
                 'public.order.error_delivery_data' => 'Укажите данные доставки.',
                 'public.order.error_name_email' => 'Заполните имя и Email.',
                 'public.order.error_email' => 'Некорректный Email.',
-                'public.order.error_empty_cart' => 'Корзина пуста.'
+                'public.order.error_empty_cart' => 'Корзина пуста.',
+                'public.404' => '404 — Страница не найдена'
             ],
             'en' => [
                 'public.home.shop' => 'Online store',
@@ -163,7 +165,8 @@ class PublicInterfaceTranslator
                 'public.order.error_delivery_data' => 'Enter the delivery details.',
                 'public.order.error_name_email' => 'Enter your name and Email.',
                 'public.order.error_email' => 'Invalid Email.',
-                'public.order.error_empty_cart' => 'Your cart is empty.'
+                'public.order.error_empty_cart' => 'Your cart is empty.',
+                'public.404' => '404 — Page not found'
             ]
         ];
 
