@@ -23,7 +23,9 @@ $productUi = [
     'add_error' => Translator::t('product.add_error', 'Не вдалося додати товар до кошика.'),
     'php_error' => Translator::t('product.php_error', 'Помилка PHP. Дивіться текст нижче.'),
     'size_sold_out' => Translator::t('product.size_sold_out', 'Розмір {size} закінчився.'),
-    'stock_error' => Translator::t('product.stock_error', 'Недостатньо товару на складі.')
+    'stock_error' => Translator::t('product.stock_error', 'Недостатньо товару на складі.'),
+    'badge_new' => Translator::t('product.badge_new', 'Новий товар'),
+    'badge_sale' => Translator::t('product.badge_sale', 'Знижка')
 ];
 ?>
 <script>
@@ -33,7 +35,7 @@ window.addEventListener('load', function () {
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     ) ?>;
 
-    function replaceExactText(root, source, target) {
+    function textNodes(root) {
         const walker = document.createTreeWalker(
             root,
             NodeFilter.SHOW_TEXT
@@ -44,7 +46,11 @@ window.addEventListener('load', function () {
             nodes.push(walker.currentNode);
         }
 
-        nodes.forEach(function (node) {
+        return nodes;
+    }
+
+    function replaceExactText(root, source, target) {
+        textNodes(root).forEach(function (node) {
             if (node.nodeValue.trim() === source) {
                 const before = node.nodeValue.match(/^\s*/)?.[0] || '';
                 const after = node.nodeValue.match(/\s*$/)?.[0] || '';
@@ -53,25 +59,57 @@ window.addEventListener('load', function () {
         });
     }
 
-    const replacements = [
-        ['Каталог', t.back_catalog],
+    function replaceLeadingLabel(root, source, target) {
+        textNodes(root).forEach(function (node) {
+            const original = node.nodeValue;
+            const trimmed = original.trimStart();
+
+            if (!trimmed.startsWith(source)) {
+                return;
+            }
+
+            const prefix = original.slice(
+                0,
+                original.length - trimmed.length
+            );
+
+            node.nodeValue =
+                prefix
+                + target
+                + trimmed.slice(source.length);
+        });
+    }
+
+    const exactReplacements = [
         ['Фото товара', t.photo],
-        ['Артикул:', t.sku + ':'],
         ['Цены:', t.prices + ':'],
         ['Цена', t.price],
         ['Персональная цена', t.personal_price],
-        ['Старая цена:', t.old_price + ':'],
-        ['Бренд:', t.brand + ':'],
-        ['Страна:', t.country + ':'],
         ['Описание:', t.description + ':'],
         ['Выберите размер:', t.choose_size + ':'],
-        ['В наличии:', t.in_stock + ':'],
         ['Нет в наличии', t.out_of_stock],
         ['Добавить выбранное в корзину', t.add_to_cart]
     ];
 
-    replacements.forEach(function (pair) {
+    exactReplacements.forEach(function (pair) {
         replaceExactText(document.body, pair[0], pair[1]);
+    });
+
+    /*
+     * Подписи, рядом с которыми находится динамическое значение,
+     * переводим по началу текстового узла.
+     */
+    const leadingReplacements = [
+        ['← Каталог', '← ' + t.back_catalog],
+        ['Артикул:', t.sku + ':'],
+        ['Старая цена:', t.old_price + ':'],
+        ['Бренд:', t.brand + ':'],
+        ['Страна:', t.country + ':'],
+        ['В наличии:', t.in_stock + ':']
+    ];
+
+    leadingReplacements.forEach(function (pair) {
+        replaceLeadingLabel(document.body, pair[0], pair[1]);
     });
 
     document.querySelectorAll('.size-stock').forEach(function (element) {
@@ -92,6 +130,20 @@ window.addEventListener('load', function () {
         if (match) {
             element.textContent = t.in_stock + ': ' + match[1] + ' ' + t.pcs;
         }
+    });
+
+    const newBadge = document.querySelector('.product-badge-new');
+    if (newBadge) {
+        newBadge.textContent = t.badge_new;
+    }
+
+    document.querySelectorAll('.product-badge-sale').forEach(function (badge) {
+        const original = badge.textContent.trim();
+        const percent = original.match(/\d+(?:[.,]\d+)?\s*%/);
+
+        badge.textContent = percent
+            ? t.badge_sale + ' ' + percent[0]
+            : t.badge_sale;
     });
 
     const message = document.getElementById('site-message');
@@ -128,7 +180,7 @@ window.addEventListener('load', function () {
         message.classList.add('show');
 
         clearTimeout(window.siteMessageTimer);
-        window.siteMessageTimer = setTimeout(function () {
+        window.siteMessageTimer = window.setTimeout(function () {
             message.classList.remove('show');
         }, 2200);
     };
