@@ -30,6 +30,12 @@ $requestPath = rtrim(
 $isCheckoutPage =
     $requestPath === '/Anabelka/checkout';
 
+$isProductPage =
+    strpos(
+        $requestPath,
+        '/Anabelka/product/'
+    ) === 0;
+
 ?>
 
 <header class="catalog-header">
@@ -112,8 +118,6 @@ $cartCount = 0;
 
 if (!empty($_SESSION['user_id'])) {
 
-    // Авторизованный пользователь:
-    // считаем товары из MySQL.
     $dbItems = Cart::getItemsByUserId(
         $_SESSION['user_id']
     );
@@ -124,8 +128,6 @@ if (!empty($_SESSION['user_id'])) {
 
 } else {
 
-    // Гость:
-    // считаем товары из сессии.
     foreach ($_SESSION['cart'] ?? [] as $item) {
         $cartCount += (int) ($item['quantity'] ?? 0);
     }
@@ -279,6 +281,12 @@ echo $cartCount;
     <script
         src="/Anabelka/js/checkout-delivery-input.js?v=4"
     ></script>
+
+<?php endif; ?>
+
+<?php if ($isProductPage): ?>
+
+    <?php require __DIR__ . '/product-i18n.php'; ?>
 
 <?php endif; ?>
 
