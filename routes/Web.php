@@ -130,6 +130,16 @@ $router->post(
 );
 
 $router->get(
+    '/admin/products',
+    'AdminProductController@index'
+);
+
+$router->post(
+    '/admin/products/update',
+    'AdminProductController@update'
+);
+
+$router->get(
     '/admin/delivery',
     'AdminDeliveryController@index'
 );
