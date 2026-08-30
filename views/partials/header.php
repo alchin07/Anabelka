@@ -299,6 +299,8 @@ echo $cartCount;
         src="/Anabelka/js/cart-quick-order.js?v=2"
     ></script>
 
+    <?php require __DIR__ . '/cart-server-i18n.php'; ?>
+
 <?php endif; ?>
 
 <?php if ($isAdminPage): ?>
