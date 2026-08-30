@@ -51,6 +51,12 @@ class CatalogController extends Controller
                 $languageCode
             );
 
+        $products =
+            ProductTranslator::localizeList(
+                $products,
+                $languageCode
+            );
+
         $this->view('catalog/category', [
             'category' => $category,
             'children' => $children,
