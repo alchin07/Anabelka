@@ -119,6 +119,16 @@ $router->post(
     'AdminLanguageController@delete'
 );
 
+$router->get(
+    '/admin/ai-translation/providers',
+    'AdminAITranslationController@providers'
+);
+
+$router->post(
+    '/admin/ai-translation/provider',
+    'AdminAITranslationController@setProvider'
+);
+
 $router->post(
     '/admin/ai-translation/suggest',
     'AdminAITranslationController@suggest'
