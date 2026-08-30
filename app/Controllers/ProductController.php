@@ -199,6 +199,15 @@ class ProductController extends Controller
                 $productId
             );
 
+        $currentLanguage =
+            Translator::currentLanguage();
+
+        $product =
+            ProductTranslator::localize(
+                $product,
+                $currentLanguage['code'] ?? Language::SOURCE_CODE
+            );
+
 
         $this->view(
             'product/show',
