@@ -35,8 +35,6 @@ window.addEventListener('load', function () {
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     ) ?>;
 
-    let normalizing = false;
-
     function textNodes(root) {
         const walker = document.createTreeWalker(
             root,
@@ -83,12 +81,6 @@ window.addEventListener('load', function () {
     }
 
     function normalizeStockTexts() {
-        if (normalizing) {
-            return;
-        }
-
-        normalizing = true;
-
         document.querySelectorAll('.size-stock').forEach(function (element) {
             const text = element.textContent.replace(/\s+/g, ' ').trim();
 
@@ -97,7 +89,11 @@ window.addEventListener('load', function () {
             );
 
             if (quantityMatch) {
-                element.textContent = quantityMatch[1] + ' ' + t.pcs;
+                const normalized = quantityMatch[1] + ' ' + t.pcs;
+
+                if (element.textContent.trim() !== normalized) {
+                    element.textContent = normalized;
+                }
                 return;
             }
 
@@ -106,7 +102,9 @@ window.addEventListener('load', function () {
                 || text === 'Немає в наявності'
                 || text === 'Out of stock'
             ) {
-                element.textContent = t.out_of_stock;
+                if (element.textContent.trim() !== t.out_of_stock) {
+                    element.textContent = t.out_of_stock;
+                }
             }
         });
 
@@ -118,16 +116,18 @@ window.addEventListener('load', function () {
             );
 
             if (stockMatch) {
-                element.textContent =
+                const normalized =
                     t.in_stock
                     + ': '
                     + stockMatch[1]
                     + ' '
                     + t.pcs;
+
+                if (element.textContent.trim() !== normalized) {
+                    element.textContent = normalized;
+                }
             }
         });
-
-        normalizing = false;
     }
 
     const exactReplacements = [
@@ -175,21 +175,19 @@ window.addEventListener('load', function () {
     });
 
     /*
-     * Старый JS карточки товара после AJAX сам меняет
-     * подписи остатков на русские строки. Наблюдаем только
-     * за блоком размеров и сразу возвращаем текущий язык.
+     * После AJAX старый JS карточки обновляет остатки русскими
+     * строками. MutationObserver здесь не используем: изменение
+     * текста внутри observer может зациклить страницу.
+     * Вместо этого делаем несколько одноразовых проверок после
+     * отправки формы — достаточно для ответа локального AJAX.
      */
-    const sizeOptions = document.querySelector('.size-options');
+    const cartForm = document.getElementById('cart-form');
 
-    if (sizeOptions) {
-        const stockObserver = new MutationObserver(function () {
-            normalizeStockTexts();
-        });
-
-        stockObserver.observe(sizeOptions, {
-            subtree: true,
-            childList: true,
-            characterData: true
+    if (cartForm) {
+        cartForm.addEventListener('submit', function () {
+            [100, 300, 700, 1200].forEach(function (delay) {
+                window.setTimeout(normalizeStockTexts, delay);
+            });
         });
     }
 
