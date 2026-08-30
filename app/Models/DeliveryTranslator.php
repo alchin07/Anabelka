@@ -486,35 +486,63 @@ class DeliveryTranslator
         array $methods,
         $languageCode
     ) {
-        foreach ($methods as &$method) {
-            $method = self::localize(
+        foreach ($methods as $methodIndex => $method) {
+            $methods[$methodIndex] = self::localize(
                 'method',
                 $method,
                 $languageCode
             );
 
-            foreach ($method['services'] ?? [] as &$service) {
-                $service = self::localize(
-                    'service',
-                    $service,
-                    $languageCode
-                );
-
-                foreach ($service['options'] ?? [] as &$option) {
-                    $option = self::localize(
-                        'option',
-                        $option,
-                        $languageCode
-                    );
-                }
-
-                unset($option);
+            if (
+                empty($methods[$methodIndex]['services'])
+                || !is_array($methods[$methodIndex]['services'])
+            ) {
+                continue;
             }
 
-            unset($service);
-        }
+            foreach (
+                $methods[$methodIndex]['services']
+                as $serviceIndex => $service
+            ) {
+                $methods[$methodIndex]['services'][$serviceIndex] =
+                    self::localize(
+                        'service',
+                        $service,
+                        $languageCode
+                    );
 
-        unset($method);
+                if (
+                    empty(
+                        $methods[$methodIndex]
+                            ['services'][$serviceIndex]
+                            ['options']
+                    )
+                    || !is_array(
+                        $methods[$methodIndex]
+                            ['services'][$serviceIndex]
+                            ['options']
+                    )
+                ) {
+                    continue;
+                }
+
+                foreach (
+                    $methods[$methodIndex]
+                        ['services'][$serviceIndex]
+                        ['options']
+                    as $optionIndex => $option
+                ) {
+                    $methods[$methodIndex]
+                        ['services'][$serviceIndex]
+                        ['options'][$optionIndex] =
+                            self::localize(
+                                'option',
+                                $option,
+                                $languageCode
+                            );
+                }
+            }
+        }
 
         return $methods;
     }
