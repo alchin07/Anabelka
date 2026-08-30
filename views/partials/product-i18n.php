@@ -35,6 +35,8 @@ window.addEventListener('load', function () {
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
     ) ?>;
 
+    let normalizing = false;
+
     function textNodes(root) {
         const walker = document.createTreeWalker(
             root,
@@ -80,6 +82,54 @@ window.addEventListener('load', function () {
         });
     }
 
+    function normalizeStockTexts() {
+        if (normalizing) {
+            return;
+        }
+
+        normalizing = true;
+
+        document.querySelectorAll('.size-stock').forEach(function (element) {
+            const text = element.textContent.replace(/\s+/g, ' ').trim();
+
+            const quantityMatch = text.match(
+                /^(\d+)\s*(?:шт\.|pcs\.)$/i
+            );
+
+            if (quantityMatch) {
+                element.textContent = quantityMatch[1] + ' ' + t.pcs;
+                return;
+            }
+
+            if (
+                text === 'Нет в наличии'
+                || text === 'Немає в наявності'
+                || text === 'Out of stock'
+            ) {
+                element.textContent = t.out_of_stock;
+            }
+        });
+
+        document.querySelectorAll('p').forEach(function (element) {
+            const text = element.textContent.replace(/\s+/g, ' ').trim();
+
+            const stockMatch = text.match(
+                /^(?:В наличии|В наявності|In stock):\s*(\d+)\s*(?:шт\.|pcs\.)$/i
+            );
+
+            if (stockMatch) {
+                element.textContent =
+                    t.in_stock
+                    + ': '
+                    + stockMatch[1]
+                    + ' '
+                    + t.pcs;
+            }
+        });
+
+        normalizing = false;
+    }
+
     const exactReplacements = [
         ['Фото товара', t.photo],
         ['Цены:', t.prices + ':'],
@@ -95,10 +145,6 @@ window.addEventListener('load', function () {
         replaceExactText(document.body, pair[0], pair[1]);
     });
 
-    /*
-     * Подписи, рядом с которыми находится динамическое значение,
-     * переводим по началу текстового узла.
-     */
     const leadingReplacements = [
         ['← Каталог', '← ' + t.back_catalog],
         ['Артикул:', t.sku + ':'],
@@ -112,25 +158,7 @@ window.addEventListener('load', function () {
         replaceLeadingLabel(document.body, pair[0], pair[1]);
     });
 
-    document.querySelectorAll('.size-stock').forEach(function (element) {
-        const text = element.textContent.trim();
-
-        if (/^\d+\s*шт\.$/.test(text)) {
-            const quantity = text.match(/^\d+/)?.[0] || '';
-            element.textContent = quantity + ' ' + t.pcs;
-        } else if (text === 'Нет в наличии') {
-            element.textContent = t.out_of_stock;
-        }
-    });
-
-    document.querySelectorAll('p').forEach(function (element) {
-        const text = element.textContent.replace(/\s+/g, ' ').trim();
-        const match = text.match(/^В наличии:\s*(\d+)\s*шт\.$/);
-
-        if (match) {
-            element.textContent = t.in_stock + ': ' + match[1] + ' ' + t.pcs;
-        }
-    });
+    normalizeStockTexts();
 
     const newBadge = document.querySelector('.product-badge-new');
     if (newBadge) {
@@ -145,6 +173,25 @@ window.addEventListener('load', function () {
             ? t.badge_sale + ' ' + percent[0]
             : t.badge_sale;
     });
+
+    /*
+     * Старый JS карточки товара после AJAX сам меняет
+     * подписи остатков на русские строки. Наблюдаем только
+     * за блоком размеров и сразу возвращаем текущий язык.
+     */
+    const sizeOptions = document.querySelector('.size-options');
+
+    if (sizeOptions) {
+        const stockObserver = new MutationObserver(function () {
+            normalizeStockTexts();
+        });
+
+        stockObserver.observe(sizeOptions, {
+            subtree: true,
+            childList: true,
+            characterData: true
+        });
+    }
 
     const message = document.getElementById('site-message');
 
