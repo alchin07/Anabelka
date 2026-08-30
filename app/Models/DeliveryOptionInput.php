@@ -40,6 +40,24 @@ class DeliveryOptionInput
               COLLATE=utf8mb4_unicode_ci
         ");
 
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS delivery_option_input_translations
+            (
+                option_id INT NOT NULL,
+                language_code VARCHAR(10) NOT NULL,
+                field_label VARCHAR(120) NULL,
+                placeholder VARCHAR(160) NULL,
+                source VARCHAR(20) NOT NULL DEFAULT 'manual',
+                updated_at TIMESTAMP NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (option_id, language_code),
+                KEY idx_delivery_option_input_language (language_code)
+            ) ENGINE=InnoDB
+              DEFAULT CHARSET=utf8mb4
+              COLLATE=utf8mb4_unicode_ci
+        ");
+
         self::$schemaReady = true;
     }
 
@@ -83,14 +101,178 @@ class DeliveryOptionInput
     }
 
 
+    public static function getTranslationsForOption($optionId)
+    {
+        self::ensureTable();
+
+        $optionId = (int) $optionId;
+
+        if ($optionId <= 0) {
+            return [];
+        }
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            SELECT
+                language_code,
+                field_label,
+                placeholder,
+                source
+            FROM delivery_option_input_translations
+            WHERE option_id = :option_id
+        ");
+
+        $stmt->execute([
+            'option_id' => $optionId
+        ]);
+
+        $result = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $result[$row['language_code']] = $row;
+        }
+
+        return $result;
+    }
+
+
+    public static function saveTranslation(
+        $optionId,
+        $languageCode,
+        $fieldLabel,
+        $placeholder,
+        $source = 'manual'
+    ) {
+        self::ensureTable();
+
+        $optionId = (int) $optionId;
+        $languageCode = strtolower(trim((string) $languageCode));
+        $fieldLabel = trim((string) $fieldLabel);
+        $placeholder = trim((string) $placeholder);
+
+        if ($optionId <= 0 || $languageCode === '') {
+            throw new InvalidArgumentException('Некорректные данные перевода поля.');
+        }
+
+        if ($languageCode === Language::SOURCE_CODE) {
+            return true;
+        }
+
+        $language = Language::findByCode($languageCode);
+
+        if (!$language || empty($language['is_active'])) {
+            throw new InvalidArgumentException('Язык недоступен.');
+        }
+
+        $db = Database::connect();
+
+        if ($fieldLabel === '' && $placeholder === '') {
+            $stmt = $db->prepare("
+                DELETE FROM delivery_option_input_translations
+                WHERE option_id = :option_id
+                  AND language_code = :language_code
+            ");
+
+            return $stmt->execute([
+                'option_id' => $optionId,
+                'language_code' => $languageCode
+            ]);
+        }
+
+        $stmt = $db->prepare("
+            INSERT INTO delivery_option_input_translations
+            (
+                option_id,
+                language_code,
+                field_label,
+                placeholder,
+                source
+            )
+            VALUES
+            (
+                :option_id,
+                :language_code,
+                :field_label,
+                :placeholder,
+                :source
+            )
+            ON DUPLICATE KEY UPDATE
+                field_label = VALUES(field_label),
+                placeholder = VALUES(placeholder),
+                source = VALUES(source)
+        ");
+
+        return $stmt->execute([
+            'option_id' => $optionId,
+            'language_code' => $languageCode,
+            'field_label' => $fieldLabel !== '' ? $fieldLabel : null,
+            'placeholder' => $placeholder !== '' ? $placeholder : null,
+            'source' => trim((string) $source) ?: 'manual'
+        ]);
+    }
+
+
+    private static function applyStoredTranslation(array $row)
+    {
+        if (!class_exists('Translator')) {
+            return $row;
+        }
+
+        $language = Translator::currentLanguage();
+        $code = (string) ($language['code'] ?? Language::SOURCE_CODE);
+
+        if ($code === Language::SOURCE_CODE) {
+            return $row;
+        }
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            SELECT
+                field_label,
+                placeholder
+            FROM delivery_option_input_translations
+            WHERE option_id = :option_id
+              AND language_code = :language_code
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            'option_id' => (int) ($row['option_id'] ?? 0),
+            'language_code' => $code
+        ]);
+
+        $translation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$translation) {
+            return $row;
+        }
+
+        if (trim((string) ($translation['field_label'] ?? '')) !== '') {
+            $row['field_label'] = $translation['field_label'];
+        }
+
+        if (trim((string) ($translation['placeholder'] ?? '')) !== '') {
+            $row['placeholder'] = $translation['placeholder'];
+        }
+
+        return $row;
+    }
+
+
     /**
-     * Локализация уже существующих подписей дополнительного поля.
-     *
-     * Само значение в delivery_option_inputs остаётся исходным —
-     * подменяем только публичный текст на checkout.
+     * Временный запасной словарь для старых записей.
+     * Сохранённые вручную переводы имеют приоритет.
      */
     private static function localizePublicText(array $row)
     {
+        $stored = self::applyStoredTranslation($row);
+
+        if ($stored !== $row) {
+            return $stored;
+        }
+
         if (!class_exists('Translator')) {
             return $row;
         }
@@ -219,7 +401,7 @@ class DeliveryOptionInput
         $placeholder = trim((string) $placeholder);
 
         if ($isEnabled && $fieldLabel === '') {
-            $fieldLabel = 'Укажите данные доставки';
+            $fieldLabel = 'Вкажіть дані доставки';
         }
 
         $stmt = $db->prepare("
