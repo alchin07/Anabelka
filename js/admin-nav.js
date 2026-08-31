@@ -17,18 +17,20 @@
     }
 
 
-    function ensureAiTranslationSwitcher()
+    function ensureAiTranslationSwitcher(header)
     {
         if (!document.querySelector('link[data-admin-ai-translation]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';
-            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=1';
+            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=2';
             stylesheet.dataset.adminAiTranslation = '1';
             document.head.appendChild(stylesheet);
         }
 
-        if (!document.getElementById('ai-provider-switcher')) {
-            const switcher = document.createElement('div');
+        let switcher = document.getElementById('ai-provider-switcher');
+
+        if (!switcher) {
+            switcher = document.createElement('div');
             switcher.id = 'ai-provider-switcher';
             switcher.className = 'ai-provider-switcher';
             switcher.hidden = true;
@@ -50,7 +52,15 @@
             switcher.appendChild(label);
             switcher.appendChild(select);
             switcher.appendChild(status);
-            document.body.appendChild(switcher);
+        }
+
+        /*
+         * Переключатель ИИ является частью шапки админ-панели,
+         * а не плавающим элементом поверх содержимого.
+         * Поэтому он больше не перекрывает кнопки модальных окон.
+         */
+        if (header && switcher.parentElement !== header) {
+            header.appendChild(switcher);
         }
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
@@ -118,7 +128,7 @@
             header.appendChild(nav);
         }
 
-        ensureAiTranslationSwitcher();
+        ensureAiTranslationSwitcher(header);
     }
 
 
