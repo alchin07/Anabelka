@@ -26,6 +26,11 @@ class AITranslationService
                     ? $providerConfigs['gemini']
                     : []
             ),
+            'groq' => new GroqTranslationProvider(
+                is_array($providerConfigs['groq'] ?? null)
+                    ? $providerConfigs['groq']
+                    : []
+            ),
             'deepl' => new DeepLTranslationProvider(
                 is_array($providerConfigs['deepl'] ?? null)
                     ? $providerConfigs['deepl']
