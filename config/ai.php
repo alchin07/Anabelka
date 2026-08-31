@@ -13,6 +13,11 @@ $config = [
             'model' => 'gemini-3.7-flash',
             'timeout' => 30
         ],
+        'groq' => [
+            'api_key' => getenv('GROQ_API_KEY') ?: '',
+            'model' => 'openai/gpt-oss-20b',
+            'timeout' => 30
+        ],
         'deepl' => [
             'api_key' => getenv('DEEPL_API_KEY') ?: '',
             'endpoint' => 'https://api.deepl.com/v2/translate',
