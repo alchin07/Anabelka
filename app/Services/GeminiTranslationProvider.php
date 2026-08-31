@@ -40,7 +40,11 @@ class GeminiTranslationProvider implements AITranslationProviderInterface
 
         $apiKey = trim((string) $this->config['api_key']);
         $model = trim((string) ($this->config['model'] ?? 'gemini-3.7-flash'));
-        $timeout = max(5, (int) ($this->config['timeout'] ?? 30));
+
+        // Gemini 3.7 Flash по умолчанию использует medium thinking,
+        // что для короткого перевода может заметно увеличить задержку.
+        // Для админ-панели нам важнее быстрый отклик.
+        $timeout = max(60, (int) ($this->config['timeout'] ?? 60));
 
         $prompt = [
             'task' => 'Translate ecommerce content from Ukrainian.',
@@ -72,7 +76,10 @@ class GeminiTranslationProvider implements AITranslationProviderInterface
                 ]]
             ]],
             'generationConfig' => [
-                'responseMimeType' => 'application/json'
+                'responseMimeType' => 'application/json',
+                'thinkingConfig' => [
+                    'thinkingLevel' => 'low'
+                ]
             ]
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -85,17 +92,26 @@ class GeminiTranslationProvider implements AITranslationProviderInterface
             . ':generateContent';
 
         $curl = curl_init($url);
-        curl_setopt_array($curl, [
+
+        $curlOptions = [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_CONNECTTIMEOUT => 15,
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_HTTPHEADER => [
                 'x-goog-api-key: ' . $apiKey,
                 'Content-Type: application/json'
             ],
             CURLOPT_POSTFIELDS => $payload
-        ]);
+        ];
+
+        // На некоторых Android-сетях KSWEB/cURL зависает на IPv6-маршруте
+        // к Google API. Предпочитаем IPv4, если эта возможность доступна.
+        if (defined('CURLOPT_IPRESOLVE') && defined('CURL_IPRESOLVE_V4')) {
+            $curlOptions[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+        }
+
+        curl_setopt_array($curl, $curlOptions);
 
         $rawResponse = curl_exec($curl);
         $curlError = curl_error($curl);
