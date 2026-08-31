@@ -11,6 +11,10 @@ return [
             'api_key' => 'PASTE_GEMINI_API_KEY_HERE',
             'model' => 'gemini-3.7-flash'
         ],
+        'groq' => [
+            'api_key' => 'PASTE_GROQ_API_KEY_HERE',
+            'model' => 'openai/gpt-oss-20b'
+        ],
         'deepl' => [
             'api_key' => 'PASTE_DEEPL_API_KEY_HERE',
             'endpoint' => 'https://api.deepl.com/v2/translate'
