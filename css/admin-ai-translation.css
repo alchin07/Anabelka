@@ -1,17 +1,17 @@
 .ai-provider-switcher {
-    position: fixed;
-    right: 14px;
-    bottom: 14px;
-    z-index: 10020;
+    position: static;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    max-width: calc(100vw - 28px);
+    width: fit-content;
+    max-width: calc(100% - 28px);
+    margin: 14px auto 0;
     padding: 9px 11px;
     border: 1px solid var(--border-color, #eadcf7);
     border-radius: 12px;
     background: #fff;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
     font-size: 13px;
 }
 
@@ -37,9 +37,10 @@
 
 @media (max-width: 650px) {
     .ai-provider-switcher {
-        left: 12px;
-        right: 12px;
-        bottom: 12px;
+        width: calc(100% - 24px);
+        max-width: none;
+        box-sizing: border-box;
+        margin: 14px 12px 0;
         justify-content: center;
     }
 
@@ -49,19 +50,7 @@
 
     .ai-provider-select {
         flex: 1;
+        min-width: 0;
         max-width: none;
-    }
-
-    /*
-     * Оставляем внизу мобильного окна редактирования товара
-     * место под фиксированный переключатель ИИ.
-     * Так кнопки «Отмена» и «Сохранить» не перекрываются.
-     */
-    .product-modal {
-        padding: 12px 12px 92px !important;
-    }
-
-    .product-modal-window {
-        max-height: calc(100vh - 116px) !important;
     }
 }
