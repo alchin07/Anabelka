@@ -34,6 +34,7 @@ class App
         require_once __DIR__ . '/../Services/AITranslationProviderInterface.php';
         require_once __DIR__ . '/../Services/OpenAITranslationProvider.php';
         require_once __DIR__ . '/../Services/GeminiTranslationProvider.php';
+        require_once __DIR__ . '/../Services/GroqTranslationProvider.php';
         require_once __DIR__ . '/../Services/DeepLTranslationProvider.php';
         require_once __DIR__ . '/../Services/AITranslationService.php';
 
