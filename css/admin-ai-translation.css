@@ -51,4 +51,17 @@
         flex: 1;
         max-width: none;
     }
+
+    /*
+     * Оставляем внизу мобильного окна редактирования товара
+     * место под фиксированный переключатель ИИ.
+     * Так кнопки «Отмена» и «Сохранить» не перекрываются.
+     */
+    .product-modal {
+        padding: 12px 12px 92px !important;
+    }
+
+    .product-modal-window {
+        max-height: calc(100vh - 116px) !important;
+    }
 }
