@@ -101,19 +101,30 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
             <div class="translation-missing-list">
                 <?php foreach ($items as $item): ?>
                     <?php
+                    $itemType = (string) ($item['type'] ?? '');
+                    $itemId = (int) ($item['id'] ?? 0);
+
                     $itemName = str_replace(
                         ' — поле покупателя',
                         ' — поле покупця',
                         (string) ($item['name'] ?? '')
                     );
+
+                    $openUrl = (string) ($item['url'] ?? '');
+
+                    if ($itemType === 'category' && $itemId > 0) {
+                        $openUrl =
+                            '/Anabelka/admin/categories?highlight='
+                            . $itemId;
+                    }
                     ?>
 
                     <article class="translation-missing-card">
                         <div class="translation-missing-main">
                             <span class="translation-missing-type">
                                 <?= htmlspecialchars(
-                                    $typeLabels[$item['type'] ?? '']
-                                    ?? (string) ($item['type'] ?? '')
+                                    $typeLabels[$itemType]
+                                    ?? $itemType
                                 ) ?>
                             </span>
 
@@ -140,12 +151,12 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                             <?php endforeach; ?>
                         </div>
 
-                        <?php if (!empty($item['url'])): ?>
+                        <?php if ($openUrl !== ''): ?>
                             <a
                                 class="translation-missing-open"
-                                href="<?= htmlspecialchars((string) $item['url']) ?>"
+                                href="<?= htmlspecialchars($openUrl) ?>"
                             >
-                                Відкрити розділ
+                                Відкрити для редагування
                             </a>
                         <?php endif; ?>
                     </article>
