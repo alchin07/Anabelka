@@ -76,13 +76,21 @@
     {
         const path = window.location.pathname.replace(/\/$/, '');
 
-        if (
-            path === '/Anabelka/admin/categories'
-            && !document.querySelector('script[data-admin-category-ai]')
-        ) {
+        if (path !== '/Anabelka/admin/categories') {
+            return;
+        }
+
+        if (!document.querySelector('script[data-admin-category-ai]')) {
             const script = document.createElement('script');
             script.src = '/Anabelka/js/admin-category-ai-translation.js?v=1';
             script.dataset.adminCategoryAi = '1';
+            document.body.appendChild(script);
+        }
+
+        if (!document.querySelector('script[data-admin-category-cards]')) {
+            const script = document.createElement('script');
+            script.src = '/Anabelka/js/admin-category-cards.js?v=1';
+            script.dataset.adminCategoryCards = '1';
             document.body.appendChild(script);
         }
     }
