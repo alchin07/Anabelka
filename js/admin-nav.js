@@ -1,5 +1,5 @@
 /*
- * Простая навигация между текущими разделами админ-панели.
+ * Проста навігація між поточними розділами адмін-панелі.
  */
 (function () {
     'use strict';
@@ -80,12 +80,12 @@
 
             const label = document.createElement('label');
             label.htmlFor = 'ai-provider-select';
-            label.textContent = 'ИИ-перевод';
+            label.textContent = 'ШІ-переклад';
 
             const select = document.createElement('select');
             select.id = 'ai-provider-select';
             select.className = 'ai-provider-select';
-            select.setAttribute('aria-label', 'Провайдер ИИ-перевода');
+            select.setAttribute('aria-label', 'Провайдер ШІ-перекладу');
 
             const status = document.createElement('span');
             status.id = 'ai-provider-status';
@@ -97,18 +97,13 @@
             switcher.appendChild(status);
         }
 
-        /*
-         * Переключатель ИИ является частью шапки админ-панели,
-         * а не плавающим элементом поверх содержимого.
-         * Поэтому он больше не перекрывает кнопки модальных окон.
-         */
         if (header && switcher.parentElement !== header) {
             header.appendChild(switcher);
         }
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
             const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=1';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=2';
             script.dataset.adminAiTranslation = '1';
             document.body.appendChild(script);
         }
@@ -134,7 +129,7 @@
 
         if (path === '/Anabelka/admin/categories') {
             appendScript(
-                '/Anabelka/js/admin-category-ai-translation.js?v=1',
+                '/Anabelka/js/admin-category-ai-translation.js?v=2',
                 'data-admin-category-ai'
             );
 
@@ -148,7 +143,7 @@
 
         if (path === '/Anabelka/admin/delivery') {
             appendScript(
-                '/Anabelka/js/admin-delivery-ai-translation.js?v=1',
+                '/Anabelka/js/admin-delivery-ai-translation.js?v=2',
                 'data-admin-delivery-ai'
             );
         }
@@ -178,7 +173,7 @@
             nav.appendChild(
                 createLink(
                     '/Anabelka/admin/orders',
-                    'Быстрые заказы'
+                    'Швидкі замовлення'
                 )
             );
 
@@ -192,28 +187,28 @@
             nav.appendChild(
                 createLink(
                     '/Anabelka/admin/languages',
-                    'Языки'
+                    'Мови'
                 )
             );
 
             nav.appendChild(
                 createLink(
                     '/Anabelka/admin/translations',
-                    'Переводы'
+                    'Переклади'
                 )
             );
 
             nav.appendChild(
                 createLink(
                     '/Anabelka/admin/categories',
-                    'Категории'
+                    'Категорії'
                 )
             );
 
             nav.appendChild(
                 createLink(
                     '/Anabelka/admin/products',
-                    'Товары'
+                    'Товари'
                 )
             );
 
