@@ -41,7 +41,13 @@
                 );
             }
 
-            if (button && button.getAttribute('aria-expanded') !== 'true') {
+            if (
+                button
+                && (
+                    container.hidden
+                    || button.getAttribute('aria-expanded') !== 'true'
+                )
+            ) {
                 button.click();
             }
         });
@@ -64,48 +70,84 @@
             type = 'option';
         }
 
-        const moveButton = document.querySelector(
-            '[data-move-type="' + type + '"]'
-            + '[data-move-id="' + id + '"]'
+        /*
+         * Основний ідентифікатор — кнопка редагування.
+         * Вона вже має точні data-type/data-id на всіх рівнях Delivery.
+         */
+        let button = document.querySelector(
+            '.edit-button[data-type="' + type + '"]'
+            + '[data-id="' + id + '"]'
         );
 
-        return moveButton ? moveButton.closest('.admin-tree-row') : null;
+        /*
+         * Запасний варіант для старої розмітки.
+         */
+        if (!button) {
+            button = document.querySelector(
+                '[data-move-type="' + type + '"]'
+                + '[data-move-id="' + id + '"]'
+            );
+        }
+
+        return button ? button.closest('.admin-tree-row') : null;
     }
 
 
-    function highlightTarget()
+    function resolveTarget()
     {
         const params = new URLSearchParams(window.location.search);
         const id = String(params.get('highlight') || '').trim();
 
         if (!/^\d+$/.test(id)) {
-            return;
+            return null;
         }
 
         const path = window.location.pathname.replace(/\/$/, '');
-        let target = null;
 
         if (path === '/Anabelka/admin/products') {
-            target = findProductTarget(id);
-        } else if (path === '/Anabelka/admin/delivery') {
+            return findProductTarget(id);
+        }
+
+        if (path === '/Anabelka/admin/delivery') {
             const type = String(
                 params.get('highlight_type') || ''
             ).trim();
 
             if (!['method', 'service', 'option', 'option_input'].includes(type)) {
-                return;
+                return null;
             }
 
-            target = findDeliveryTarget(type, id);
+            const target = findDeliveryTarget(type, id);
 
             if (target) {
                 expandDeliveryParents(target);
             }
+
+            return target;
         }
 
+        return null;
+    }
+
+
+    function highlightTarget(attempt)
+    {
+        const target = resolveTarget();
+
         if (!target) {
+            if (attempt < 5) {
+                window.setTimeout(function () {
+                    highlightTarget(attempt + 1);
+                }, 120);
+            }
             return;
         }
+
+        document
+            .querySelectorAll('.is-translation-target')
+            .forEach(function (element) {
+                element.classList.remove('is-translation-target');
+            });
 
         target.classList.add('is-translation-target');
 
@@ -118,9 +160,15 @@
     }
 
 
+    function init()
+    {
+        highlightTarget(0);
+    }
+
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', highlightTarget);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        highlightTarget();
+        init();
     }
 })();
