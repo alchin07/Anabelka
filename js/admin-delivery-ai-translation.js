@@ -1,8 +1,8 @@
 /*
- * ИИ-перевод для редактора Delivery.
+ * ШІ-переклад для редактора Delivery.
  *
- * ИИ только предлагает перевод. Сохранение выполняется существующей
- * кнопкой формы Delivery, поэтому ручной режим остаётся независимым.
+ * ШІ лише пропонує переклад. Збереження виконується існуючою
+ * кнопкою форми Delivery, тому ручний режим залишається незалежним.
  */
 (function () {
     'use strict';
@@ -110,7 +110,7 @@
         button.className = 'delivery-ai-translate';
         button.dataset.deliveryAiTranslate = '1';
         button.dataset.targetLanguage = languageCode;
-        button.textContent = 'Перевести через ИИ';
+        button.textContent = 'Перекласти через ШІ';
 
         button.addEventListener('click', async function () {
             if (
@@ -118,7 +118,7 @@
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
                 showMessage(
-                    'Система ИИ-перевода ещё загружается. Попробуйте ещё раз.'
+                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
                 );
                 return;
             }
@@ -142,7 +142,7 @@
 
             const originalText = button.textContent;
             button.disabled = true;
-            button.textContent = 'Перевод…';
+            button.textContent = 'Переклад…';
 
             try {
                 const translation =
@@ -165,14 +165,14 @@
                 }
 
                 showMessage(
-                    'ИИ-перевод получен. Проверьте его и нажмите «Сохранить».'
+                    'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
                 );
 
             } catch (error) {
                 showMessage(
                     error && error.message
                         ? error.message
-                        : 'Не удалось получить ИИ-перевод.'
+                        : 'Не вдалося отримати ШІ-переклад.'
                 );
             } finally {
                 button.disabled = false;
@@ -207,7 +207,7 @@
         button.className = 'delivery-ai-translate';
         button.dataset.deliveryOptionInputAiTranslate = '1';
         button.dataset.targetLanguage = languageCode;
-        button.textContent = 'Перевести через ИИ';
+        button.textContent = 'Перекласти через ШІ';
 
         button.addEventListener('click', async function () {
             if (
@@ -215,7 +215,7 @@
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
                 showMessage(
-                    'Система ИИ-перевода ещё загружается. Попробуйте ещё раз.'
+                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
                 );
                 return;
             }
@@ -236,13 +236,9 @@
 
             const originalText = button.textContent;
             button.disabled = true;
-            button.textContent = 'Перевод…';
+            button.textContent = 'Переклад…';
 
             try {
-                /*
-                 * Универсальный сервис переводит пары name/description.
-                 * Для поля покупателя используем их как label/placeholder.
-                 */
                 const translation =
                     await window.AnabelkaAITranslation.suggest({
                         targetLanguage: languageCode,
@@ -263,14 +259,14 @@
                 }
 
                 showMessage(
-                    'ИИ-перевод поля получен. Проверьте его и нажмите «Сохранить».'
+                    'ШІ-переклад поля отримано. Перевірте його та натисніть «Зберегти».'
                 );
 
             } catch (error) {
                 showMessage(
                     error && error.message
                         ? error.message
-                        : 'Не удалось получить ИИ-перевод поля.'
+                        : 'Не вдалося отримати ШІ-переклад поля.'
                 );
             } finally {
                 button.disabled = false;
