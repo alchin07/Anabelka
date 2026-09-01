@@ -175,6 +175,16 @@
     color: var(--primary-color);
 }
 
+.translation-missing-link {
+    color: #333;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--primary-color);
+}
+
+.translation-missing-link:hover {
+    color: var(--primary-color);
+}
+
 .translation-coverage-link {
     color: var(--primary-color);
     font-size: 12px;
@@ -231,6 +241,80 @@
     font-size: 12px;
 }
 
+.translation-missing-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.translation-missing-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 13px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #faf7ff;
+}
+
+.translation-missing-main {
+    min-width: 0;
+}
+
+.translation-missing-type {
+    display: block;
+    margin-bottom: 4px;
+    color: #777;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.translation-missing-name {
+    display: block;
+    overflow-wrap: anywhere;
+    font-size: 15px;
+}
+
+.translation-missing-languages {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.translation-missing-language {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    min-height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.translation-missing-open {
+    color: var(--primary-color);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.translation-missing-empty {
+    padding: 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #faf7ff;
+    color: #777;
+    text-align: center;
+}
+
 @media (max-width: 650px) {
     .translations-admin {
         padding: 12px 7px;
@@ -246,5 +330,18 @@
 
     .translation-providers {
         grid-template-columns: 1fr;
+    }
+
+    .translation-missing-card {
+        grid-template-columns: 1fr;
+        gap: 9px;
+    }
+
+    .translation-missing-languages {
+        justify-content: flex-start;
+    }
+
+    .translation-missing-open {
+        justify-self: start;
     }
 }
