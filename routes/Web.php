@@ -125,6 +125,11 @@ $router->get(
 );
 
 $router->get(
+    '/admin/translations/missing',
+    'AdminTranslationController@missing'
+);
+
+$router->get(
     '/admin/ai-translation/providers',
     'AdminAITranslationController@providers'
 );
