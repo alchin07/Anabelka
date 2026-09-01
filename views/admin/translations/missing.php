@@ -112,10 +112,26 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
 
                     $openUrl = (string) ($item['url'] ?? '');
 
-                    if ($itemType === 'category' && $itemId > 0) {
-                        $openUrl =
-                            '/Anabelka/admin/categories?highlight='
-                            . $itemId;
+                    if ($itemId > 0) {
+                        if ($itemType === 'category') {
+                            $openUrl =
+                                '/Anabelka/admin/categories?highlight='
+                                . $itemId;
+                        } elseif ($itemType === 'product') {
+                            $openUrl =
+                                '/Anabelka/admin/products?highlight='
+                                . $itemId;
+                        } elseif (in_array(
+                            $itemType,
+                            ['method', 'service', 'option', 'option_input'],
+                            true
+                        )) {
+                            $openUrl =
+                                '/Anabelka/admin/delivery?highlight='
+                                . $itemId
+                                . '&highlight_type='
+                                . rawurlencode($itemType);
+                        }
                     }
                     ?>
 
