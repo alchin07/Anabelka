@@ -54,7 +54,7 @@ class AdminTranslationController extends Controller
                 'admin/translations/missing',
                 [
                     'section' => $section,
-                    'sectionLabel' => 'Переводы',
+                    'sectionLabel' => 'Переклади',
                     'sectionUrl' => '/Anabelka/admin/translations',
                     'targetLanguages' => [],
                     'items' => [],
@@ -68,7 +68,7 @@ class AdminTranslationController extends Controller
                 'admin/translations/missing',
                 [
                     'section' => $section,
-                    'sectionLabel' => 'Переводы',
+                    'sectionLabel' => 'Переклади',
                     'sectionUrl' => '/Anabelka/admin/translations',
                     'targetLanguages' => [],
                     'items' => [],
