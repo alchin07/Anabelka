@@ -42,36 +42,62 @@
         .category-admin-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
+        /*
+         * Правило Анабельки:
+         * уровни дерева НЕ смещаются вправо.
+         * Иерархия показывается только оттенком карточки.
+         */
         .category-admin-row {
-            margin-left: calc(var(--level, 0) * 24px);
             display: grid;
             grid-template-columns: minmax(0, 1fr) 44px;
             gap: 10px;
             align-items: stretch;
+            margin-left: 0;
         }
 
         .category-admin-card {
             min-width: 0;
-            padding: 14px;
-            border: 1px solid #eadcf7;
+            min-height: 92px;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 1px solid var(--border-color);
             border-radius: 14px;
             background: #faf7ff;
+        }
+
+        /* Уровень 1 — самый светлый. */
+        .category-admin-row[data-category-level="0"] .category-admin-card {
+            background: #faf7ff;
+        }
+
+        /* Уровень 2 — темнее. */
+        .category-admin-row[data-category-level="1"] .category-admin-card {
+            background: #f2e8fc;
+        }
+
+        /* Уровень 3 и глубже — ещё темнее. */
+        .category-admin-row[data-category-level="2"] .category-admin-card,
+        .category-admin-row[data-category-level="3"] .category-admin-card,
+        .category-admin-row[data-category-level="4"] .category-admin-card,
+        .category-admin-row[data-category-level="5"] .category-admin-card {
+            background: #e4cef8;
         }
 
         .category-admin-name {
             display: block;
             font-weight: 700;
-            font-size: 17px;
+            font-size: 16px;
         }
 
         .category-admin-description {
             display: block;
             margin-top: 5px;
             color: #777;
-            font-size: 14px;
+            font-size: 13px;
+            line-height: 1.4;
         }
 
         .category-admin-slug {
@@ -82,11 +108,24 @@
         }
 
         .category-edit-button {
-            border: 1px solid #eadcf7;
-            border-radius: 12px;
+            width: 44px;
+            min-height: 92px;
+            padding: 0;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
             background: #fff;
+            color: var(--primary-color);
             font-size: 20px;
             cursor: pointer;
+        }
+
+        .category-edit-button:hover {
+            background: var(--primary-light-color);
         }
 
         .category-modal[hidden] {
@@ -195,8 +234,27 @@
         }
 
         @media (max-width: 650px) {
+            .category-admin {
+                padding: 12px 7px;
+            }
+
+            .category-admin-list {
+                gap: 8px;
+            }
+
             .category-admin-row {
-                margin-left: calc(var(--level, 0) * 12px);
+                grid-template-columns: minmax(0, 1fr) 42px;
+                gap: 8px;
+                margin-left: 0;
+            }
+
+            .category-admin-card,
+            .category-edit-button {
+                min-height: 86px;
+            }
+
+            .category-edit-button {
+                width: 42px;
             }
         }
     </style>
@@ -248,7 +306,7 @@ $depthFor = function ($category) use (&$categoryById) {
 
                 <div
                     class="category-admin-row"
-                    style="--level: <?= (int) $depth ?>;"
+                    data-category-level="<?= (int) $depth ?>"
                 >
                     <div class="category-admin-card">
                         <span class="category-admin-name">
