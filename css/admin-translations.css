@@ -1,0 +1,250 @@
+.translations-admin {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 18px;
+}
+
+.translations-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.translations-head h2 {
+    margin: 0 0 5px;
+    font-size: 26px;
+}
+
+.translations-subtitle {
+    margin: 0;
+    color: #777;
+    font-size: 14px;
+}
+
+.translations-language-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--primary-color);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.translations-language-link:hover {
+    background: var(--primary-light-color);
+}
+
+.translations-error {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid #e0a5a5;
+    border-radius: 12px;
+    background: #fff5f5;
+    color: #8a2c2c;
+}
+
+.translations-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.translations-summary-card {
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #faf7ff;
+}
+
+.translations-summary-label {
+    display: block;
+    margin-bottom: 5px;
+    color: #777;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.translations-summary-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.translations-languages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 9px;
+}
+
+.translations-language-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.translations-section {
+    margin-top: 20px;
+}
+
+.translations-section-title {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+
+.translation-coverage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.translation-coverage-card {
+    padding: 13px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #fff;
+}
+
+.translation-coverage-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.translation-coverage-title {
+    font-weight: 700;
+}
+
+.translation-coverage-percent {
+    color: var(--primary-color);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.translation-coverage-meta {
+    margin-top: 5px;
+    color: #777;
+    font-size: 12px;
+}
+
+.translation-progress {
+    height: 8px;
+    margin-top: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #f1e8f9;
+}
+
+.translation-progress-bar {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary-color);
+}
+
+.translation-coverage-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.translation-missing {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.translation-missing.is-complete {
+    color: var(--primary-color);
+}
+
+.translation-coverage-link {
+    color: var(--primary-color);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.translation-providers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.translation-provider-card {
+    padding: 13px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #faf7ff;
+}
+
+.translation-provider-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.translation-provider-name {
+    font-weight: 700;
+}
+
+.translation-provider-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: #fff;
+    color: #777;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.translation-provider-status.ready {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.translation-provider-current {
+    display: block;
+    margin-top: 7px;
+    color: #777;
+    font-size: 12px;
+}
+
+@media (max-width: 650px) {
+    .translations-admin {
+        padding: 12px 7px;
+    }
+
+    .translations-head h2 {
+        font-size: 22px;
+    }
+
+    .translations-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .translation-providers {
+        grid-template-columns: 1fr;
+    }
+}
