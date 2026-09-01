@@ -31,6 +31,31 @@
     }
 
 
+    function normalizeAdminHeading(header)
+    {
+        const heading = header ? header.querySelector('h1') : null;
+
+        if (!heading) {
+            return;
+        }
+
+        const replacements = {
+            'Админ-панель — Быстрые заказы': 'Адмін-панель — Швидкі замовлення',
+            'Админ-панель — Доставка': 'Адмін-панель — Доставка',
+            'Админ-панель — Языки': 'Адмін-панель — Мови',
+            'Админ-панель — Переводы': 'Адмін-панель — Переклади',
+            'Админ-панель — Категории': 'Адмін-панель — Категорії',
+            'Админ-панель — Товары': 'Адмін-панель — Товари'
+        };
+
+        const current = (heading.textContent || '').trim();
+
+        if (replacements[current]) {
+            heading.textContent = replacements[current];
+        }
+    }
+
+
     function normalizePencilButtons()
     {
         const pencilSvg = [
@@ -160,6 +185,7 @@
         }
 
         ensureAdminControlsStyles();
+        normalizeAdminHeading(header);
 
         if (!document.getElementById('admin-section-nav')) {
             const nav = document.createElement('nav');
