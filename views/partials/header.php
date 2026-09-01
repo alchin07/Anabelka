@@ -1,9 +1,19 @@
 <?php
 
+$requestPath = parse_url(
+    $_SERVER['REQUEST_URI'] ?? '',
+    PHP_URL_PATH
+);
+
+$requestPath = rtrim(
+    (string) $requestPath,
+    '/'
+);
+
 $isAdminPage =
     strpos(
-        ($pageTitle ?? ''),
-        'Админ-панель'
+        $requestPath,
+        '/Anabelka/admin'
     ) === 0;
 
 $currentLanguage = null;
@@ -16,16 +26,6 @@ if (!$isAdminPage) {
     $activeLanguages =
         Translator::activeLanguages();
 }
-
-$requestPath = parse_url(
-    $_SERVER['REQUEST_URI'] ?? '',
-    PHP_URL_PATH
-);
-
-$requestPath = rtrim(
-    (string) $requestPath,
-    '/'
-);
 
 $isCheckoutPage =
     $requestPath === '/Anabelka/checkout';
@@ -156,7 +156,7 @@ echo $cartCount;
 
             <span>
                 <?= htmlspecialchars(
-                    $_SESSION['user_name'] ?? 'Пользователь'
+                    $_SESSION['user_name'] ?? 'Користувач'
                 ) ?>
             </span>
 
@@ -306,7 +306,7 @@ echo $cartCount;
 <?php if ($isAdminPage): ?>
 
     <script
-        src="/Anabelka/js/admin-nav.js?v=5"
+        src="/Anabelka/js/admin-nav.js?v=6"
     ></script>
 
 <?php endif; ?>
