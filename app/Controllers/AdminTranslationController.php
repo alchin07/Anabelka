@@ -30,4 +30,51 @@ class AdminTranslationController extends Controller
             );
         }
     }
+
+
+    public function missing()
+    {
+        $section = strtolower(
+            trim((string) ($_GET['section'] ?? ''))
+        );
+
+        try {
+            $service = new TranslationDashboardService();
+            $data = $service->getMissingTranslations($section);
+
+            $this->view(
+                'admin/translations/missing',
+                $data
+            );
+
+        } catch (InvalidArgumentException $e) {
+            http_response_code(400);
+
+            $this->view(
+                'admin/translations/missing',
+                [
+                    'section' => $section,
+                    'sectionLabel' => 'Переводы',
+                    'sectionUrl' => '/Anabelka/admin/translations',
+                    'targetLanguages' => [],
+                    'items' => [],
+                    'missingError' => $e->getMessage()
+                ]
+            );
+        } catch (Throwable $e) {
+            http_response_code(500);
+
+            $this->view(
+                'admin/translations/missing',
+                [
+                    'section' => $section,
+                    'sectionLabel' => 'Переводы',
+                    'sectionUrl' => '/Anabelka/admin/translations',
+                    'targetLanguages' => [],
+                    'items' => [],
+                    'missingError' => $e->getMessage()
+                ]
+            );
+        }
+    }
 }
