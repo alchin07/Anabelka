@@ -17,6 +17,49 @@
     }
 
 
+    function ensureAdminControlsStyles()
+    {
+        if (document.querySelector('link[data-admin-controls]')) {
+            return;
+        }
+
+        const stylesheet = document.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.href = '/Anabelka/css/admin-controls.css?v=1';
+        stylesheet.dataset.adminControls = '1';
+        document.head.appendChild(stylesheet);
+    }
+
+
+    function normalizePencilButtons()
+    {
+        const pencilSvg = [
+            '<svg',
+            ' viewBox="0 0 24 24"',
+            ' fill="none"',
+            ' stroke="currentColor"',
+            ' stroke-width="2"',
+            ' stroke-linecap="round"',
+            ' stroke-linejoin="round"',
+            ' aria-hidden="true"',
+            '>',
+            '<path d="M16.5 3.5 a2.1 2.1 0 0 1 3 3 L8 18 l-4 1 1-4 Z"></path>',
+            '</svg>'
+        ].join('');
+
+        document.querySelectorAll('button').forEach(function (button) {
+            const text = (button.textContent || '').trim();
+
+            if (!['✎', '✏', '✐'].includes(text)) {
+                return;
+            }
+
+            button.classList.add('admin-pencil-button');
+            button.innerHTML = pencilSvg;
+        });
+    }
+
+
     function ensureAiTranslationSwitcher(header)
     {
         if (!document.querySelector('link[data-admin-ai-translation]')) {
@@ -105,6 +148,8 @@
             return;
         }
 
+        ensureAdminControlsStyles();
+
         if (!document.getElementById('admin-section-nav')) {
             const nav = document.createElement('nav');
             nav.id = 'admin-section-nav';
@@ -152,6 +197,7 @@
             header.appendChild(nav);
         }
 
+        normalizePencilButtons();
         ensureAiTranslationSwitcher(header);
         ensurePageAiModules();
     }
