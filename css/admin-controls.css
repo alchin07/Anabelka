@@ -1,0 +1,46 @@
+.admin-pencil-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+
+    align-self: center !important;
+    justify-self: center !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    margin: 0 auto !important;
+    padding: 0 !important;
+
+    border: 1px solid var(--border-color) !important;
+    border-radius: 9px !important;
+
+    background: #fff !important;
+    color: var(--primary-color) !important;
+
+    font-size: 0 !important;
+    line-height: 1 !important;
+
+    cursor: pointer;
+}
+
+.admin-pencil-button svg {
+    width: 19px;
+    height: 19px;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.admin-pencil-button:hover {
+    background: var(--primary-light-color) !important;
+}
+
+.admin-pencil-button:active {
+    transform: scale(0.96);
+}
