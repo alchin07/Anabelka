@@ -115,26 +115,42 @@
     }
 
 
+    function appendScript(src, dataName, dataValue)
+    {
+        if (document.querySelector('script[' + dataName + ']')) {
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = src;
+        script.setAttribute(dataName, dataValue || '1');
+        document.body.appendChild(script);
+    }
+
+
     function ensurePageAiModules()
     {
         const path = window.location.pathname.replace(/\/$/, '');
 
-        if (path !== '/Anabelka/admin/categories') {
+        if (path === '/Anabelka/admin/categories') {
+            appendScript(
+                '/Anabelka/js/admin-category-ai-translation.js?v=1',
+                'data-admin-category-ai'
+            );
+
+            appendScript(
+                '/Anabelka/js/admin-category-cards.js?v=1',
+                'data-admin-category-cards'
+            );
+
             return;
         }
 
-        if (!document.querySelector('script[data-admin-category-ai]')) {
-            const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-category-ai-translation.js?v=1';
-            script.dataset.adminCategoryAi = '1';
-            document.body.appendChild(script);
-        }
-
-        if (!document.querySelector('script[data-admin-category-cards]')) {
-            const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-category-cards.js?v=1';
-            script.dataset.adminCategoryCards = '1';
-            document.body.appendChild(script);
+        if (path === '/Anabelka/admin/delivery') {
+            appendScript(
+                '/Anabelka/js/admin-delivery-ai-translation.js?v=1',
+                'data-admin-delivery-ai'
+            );
         }
     }
 
