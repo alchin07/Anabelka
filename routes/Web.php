@@ -120,6 +120,11 @@ $router->post(
 );
 
 $router->get(
+    '/admin/translations',
+    'AdminTranslationController@index'
+);
+
+$router->get(
     '/admin/ai-translation/providers',
     'AdminAITranslationController@providers'
 );
