@@ -72,6 +72,22 @@
     }
 
 
+    function ensurePageAiModules()
+    {
+        const path = window.location.pathname.replace(/\/$/, '');
+
+        if (
+            path === '/Anabelka/admin/categories'
+            && !document.querySelector('script[data-admin-category-ai]')
+        ) {
+            const script = document.createElement('script');
+            script.src = '/Anabelka/js/admin-category-ai-translation.js?v=1';
+            script.dataset.adminCategoryAi = '1';
+            document.body.appendChild(script);
+        }
+    }
+
+
     function init()
     {
         const header =
@@ -129,6 +145,7 @@
         }
 
         ensureAiTranslationSwitcher(header);
+        ensurePageAiModules();
     }
 
 
