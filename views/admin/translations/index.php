@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=1"
+        href="/Anabelka/css/admin-translations.css?v=2"
     >
 </head>
 <body>
@@ -120,6 +120,12 @@ $currentProviderName = (string) (
                         min(100, (int) ($item['percent'] ?? 0))
                     );
                     $missing = (int) ($item['missing'] ?? 0);
+                    $section = (string) ($item['section'] ?? '');
+                    $hasDetails = in_array(
+                        $section,
+                        ['products', 'categories', 'delivery'],
+                        true
+                    );
                     ?>
 
                     <article class="translation-coverage-card">
@@ -153,15 +159,22 @@ $currentProviderName = (string) (
                         </div>
 
                         <div class="translation-coverage-footer">
-                            <span
-                                class="translation-missing<?= $missing === 0 ? ' is-complete' : '' ?>"
-                            >
-                                <?php if ($missing === 0): ?>
+                            <?php if ($missing === 0): ?>
+                                <span class="translation-missing is-complete">
                                     Всё переведено
-                                <?php else: ?>
+                                </span>
+                            <?php elseif ($hasDetails): ?>
+                                <a
+                                    class="translation-missing translation-missing-link"
+                                    href="/Anabelka/admin/translations/missing?section=<?= htmlspecialchars($section) ?>"
+                                >
                                     Требуют перевода: <?= $missing ?>
-                                <?php endif; ?>
-                            </span>
+                                </a>
+                            <?php else: ?>
+                                <span class="translation-missing">
+                                    Требуют перевода: <?= $missing ?>
+                                </span>
+                            <?php endif; ?>
 
                             <?php if (!empty($item['url'])): ?>
                                 <a
