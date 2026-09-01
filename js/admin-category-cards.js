@@ -1,8 +1,8 @@
 /*
- * Оформление списка категорий по правилам Анабельки.
+ * Оформлення списку категорій за правилами Анабельки.
  *
- * В карточке показываем только название и краткое описание.
- * Slug остаётся техническим полем и в списке не выводится.
+ * У картці показуємо лише назву та короткий опис.
+ * Slug залишається технічним полем і в списку не виводиться.
  */
 (function () {
     'use strict';
@@ -23,6 +23,64 @@
 
         return characters.slice(0, limit).join('').trimEnd() + '…';
     }
+
+
+    function ensureHighlightStyles()
+    {
+        if (document.getElementById('category-highlight-styles')) {
+            return;
+        }
+
+        const style = document.createElement('style');
+        style.id = 'category-highlight-styles';
+        style.textContent = [
+            '.category-admin-row.is-translation-target .category-admin-card {',
+            '  box-shadow: 0 0 0 3px var(--primary-color), 0 8px 24px rgba(138,43,226,.18);',
+            '}',
+            '.category-admin-row.is-translation-target .category-edit-button {',
+            '  box-shadow: 0 0 0 3px var(--primary-color);',
+            '}',
+            '.category-admin-row.is-translation-target {',
+            '  scroll-margin-top: 120px;',
+            '}'
+        ].join('\n');
+
+        document.head.appendChild(style);
+    }
+
+
+    function highlightRequestedCategory()
+    {
+        const params = new URLSearchParams(window.location.search);
+        const categoryId = String(params.get('highlight') || '').trim();
+
+        if (!/^\d+$/.test(categoryId)) {
+            return;
+        }
+
+        const button = document.querySelector(
+            '.category-edit-button[data-category-id="' + categoryId + '"]'
+        );
+
+        const row = button
+            ? button.closest('.category-admin-row')
+            : null;
+
+        if (!row) {
+            return;
+        }
+
+        ensureHighlightStyles();
+        row.classList.add('is-translation-target');
+
+        window.setTimeout(function () {
+            row.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }, 120);
+    }
+
 
     function init()
     {
@@ -54,6 +112,8 @@
                 description.title = fullText;
             }
         });
+
+        highlightRequestedCategory();
     }
 
     if (document.readyState === 'loading') {
