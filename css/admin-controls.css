@@ -44,3 +44,24 @@
 .admin-pencil-button:active {
     transform: scale(0.96);
 }
+
+/*
+ * Підсвічування елемента, відкритого з центру перекладів.
+ * Однаковий візуальний сигнал для товарів і Delivery.
+ */
+.product-admin-row.is-translation-target,
+.admin-tree-row.is-translation-target {
+    scroll-margin-top: 120px;
+}
+
+.product-admin-row.is-translation-target .product-admin-card,
+.admin-tree-row.is-translation-target .admin-tree-item {
+    box-shadow:
+        0 0 0 3px var(--primary-color),
+        0 8px 24px rgba(138, 43, 226, 0.18);
+}
+
+.product-admin-row.is-translation-target .product-edit-button,
+.admin-tree-row.is-translation-target .admin-pencil-button {
+    box-shadow: 0 0 0 3px var(--primary-color);
+}
