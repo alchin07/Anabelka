@@ -37,6 +37,7 @@ class App
         require_once __DIR__ . '/../Services/GroqTranslationProvider.php';
         require_once __DIR__ . '/../Services/DeepLTranslationProvider.php';
         require_once __DIR__ . '/../Services/AITranslationService.php';
+        require_once __DIR__ . '/../Services/TranslationDashboardService.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
@@ -55,6 +56,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminCategoryController.php';
         require_once __DIR__ . '/../Controllers/AdminProductController.php';
         require_once __DIR__ . '/../Controllers/AdminAITranslationController.php';
+        require_once __DIR__ . '/../Controllers/AdminTranslationController.php';
 
         $router = new Router();
 
