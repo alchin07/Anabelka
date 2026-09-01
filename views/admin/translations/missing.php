@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta
@@ -7,7 +7,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Неполные переводы — Админ-панель</title>
+    <title>Неповні переклади — Адмін-панель</title>
 
     <link
         rel="stylesheet"
@@ -27,7 +27,7 @@
 <body>
 
 <?php
-$pageTitle = 'Админ-панель — Переводы';
+$pageTitle = 'Адмін-панель — Переклади';
 require __DIR__ . '/../../partials/header.php';
 
 $languageMap = [];
@@ -45,13 +45,22 @@ foreach ($targetLanguages ?? [] as $language) {
 
 $typeLabels = [
     'product' => 'Товар',
-    'category' => 'Категория',
-    'method' => 'Способ доставки',
+    'category' => 'Категорія',
+    'method' => 'Спосіб доставки',
     'service' => 'Служба доставки',
-    'option' => 'Опция',
-    'delivery' => 'Delivery',
-    'option_input' => 'Поле покупателя'
+    'option' => 'Опція',
+    'delivery' => 'Доставка',
+    'option_input' => 'Поле покупця'
 ];
+
+$sectionLabels = [
+    'products' => 'Товари',
+    'categories' => 'Категорії',
+    'delivery' => 'Доставка'
+];
+
+$displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
+    ?? (string) ($sectionLabel ?? 'Переклади');
 ?>
 
 <main class="catalog">
@@ -60,13 +69,13 @@ $typeLabels = [
         <div class="translations-head">
             <div>
                 <h2>
-                    Требуют перевода ·
-                    <?= htmlspecialchars((string) ($sectionLabel ?? '')) ?>
+                    Потребують перекладу ·
+                    <?= htmlspecialchars($displaySectionLabel) ?>
                 </h2>
 
                 <p class="translations-subtitle">
-                    Один элемент показан один раз. Значки справа — языки,
-                    для которых перевод отсутствует.
+                    Кожен елемент показано один раз. Позначки праворуч — мови,
+                    для яких переклад відсутній.
                 </p>
             </div>
 
@@ -74,7 +83,7 @@ $typeLabels = [
                 class="translations-language-link"
                 href="/Anabelka/admin/translations"
             >
-                ← К центру переводов
+                ← До центру перекладів
             </a>
         </div>
 
@@ -86,11 +95,19 @@ $typeLabels = [
 
         <?php if (empty($items)): ?>
             <div class="translation-missing-empty">
-                Для этого раздела отсутствующих переводов нет.
+                У цьому розділі немає відсутніх перекладів.
             </div>
         <?php else: ?>
             <div class="translation-missing-list">
                 <?php foreach ($items as $item): ?>
+                    <?php
+                    $itemName = str_replace(
+                        ' — поле покупателя',
+                        ' — поле покупця',
+                        (string) ($item['name'] ?? '')
+                    );
+                    ?>
+
                     <article class="translation-missing-card">
                         <div class="translation-missing-main">
                             <span class="translation-missing-type">
@@ -101,9 +118,7 @@ $typeLabels = [
                             </span>
 
                             <strong class="translation-missing-name">
-                                <?= htmlspecialchars(
-                                    (string) ($item['name'] ?? '')
-                                ) ?>
+                                <?= htmlspecialchars($itemName) ?>
                             </strong>
                         </div>
 
@@ -130,7 +145,7 @@ $typeLabels = [
                                 class="translation-missing-open"
                                 href="<?= htmlspecialchars((string) $item['url']) ?>"
                             >
-                                Открыть раздел
+                                Відкрити розділ
                             </a>
                         <?php endif; ?>
                     </article>
