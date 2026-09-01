@@ -198,6 +198,13 @@
 
             nav.appendChild(
                 createLink(
+                    '/Anabelka/admin/translations',
+                    'Переводы'
+                )
+            );
+
+            nav.appendChild(
+                createLink(
                     '/Anabelka/admin/categories',
                     'Категории'
                 )
