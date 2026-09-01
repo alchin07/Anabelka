@@ -168,7 +168,7 @@
 
         if (path === '/Anabelka/admin/products') {
             appendScript(
-                '/Anabelka/js/admin-translation-target.js?v=1',
+                '/Anabelka/js/admin-translation-target.js?v=2',
                 'data-admin-translation-target'
             );
             return;
@@ -181,7 +181,7 @@
             );
 
             appendScript(
-                '/Anabelka/js/admin-translation-target.js?v=1',
+                '/Anabelka/js/admin-translation-target.js?v=2',
                 'data-admin-translation-target'
             );
         }
