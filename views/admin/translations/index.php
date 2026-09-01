@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta
@@ -7,7 +7,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Переводы — Админ-панель</title>
+    <title>Переклади — Адмін-панель</title>
 
     <link
         rel="stylesheet"
@@ -27,7 +27,7 @@
 <body>
 
 <?php
-$pageTitle = 'Админ-панель — Переводы';
+$pageTitle = 'Адмін-панель — Переклади';
 require __DIR__ . '/../../partials/header.php';
 
 $sourceName = (string) (
@@ -39,6 +39,13 @@ $currentProviderName = (string) (
     ?? $selectedProvider
     ?? '—'
 );
+
+$sectionLabels = [
+    'products' => 'Товари',
+    'categories' => 'Категорії',
+    'delivery' => 'Доставка',
+    'interface' => 'Інтерфейс'
+];
 ?>
 
 <main class="catalog">
@@ -46,9 +53,9 @@ $currentProviderName = (string) (
 
         <div class="translations-head">
             <div>
-                <h2>Переводы</h2>
+                <h2>Переклади</h2>
                 <p class="translations-subtitle">
-                    Центр управления мультиязычностью Анабельки
+                    Центр керування багатомовністю Анабельки
                 </p>
             </div>
 
@@ -56,7 +63,7 @@ $currentProviderName = (string) (
                 class="translations-language-link"
                 href="/Anabelka/admin/languages"
             >
-                Управление языками
+                Керування мовами
             </a>
         </div>
 
@@ -69,7 +76,7 @@ $currentProviderName = (string) (
         <div class="translations-summary">
             <div class="translations-summary-card">
                 <span class="translations-summary-label">
-                    Исходный язык
+                    Вихідна мова
                 </span>
                 <span class="translations-summary-value">
                     <?= htmlspecialchars($sourceName) ?>
@@ -78,7 +85,7 @@ $currentProviderName = (string) (
 
             <div class="translations-summary-card">
                 <span class="translations-summary-label">
-                    Языков перевода
+                    Мов перекладу
                 </span>
                 <span class="translations-summary-value">
                     <?= count($targetLanguages ?? []) ?>
@@ -99,7 +106,7 @@ $currentProviderName = (string) (
 
             <div class="translations-summary-card">
                 <span class="translations-summary-label">
-                    Основной ИИ
+                    Основний ШІ
                 </span>
                 <span class="translations-summary-value">
                     <?= htmlspecialchars($currentProviderName ?: '—') ?>
@@ -109,7 +116,7 @@ $currentProviderName = (string) (
 
         <section class="translations-section">
             <h3 class="translations-section-title">
-                Состояние переводов
+                Стан перекладів
             </h3>
 
             <div class="translation-coverage-list">
@@ -126,14 +133,14 @@ $currentProviderName = (string) (
                         ['products', 'categories', 'delivery'],
                         true
                     );
+                    $displayLabel = $sectionLabels[$section]
+                        ?? (string) ($item['label'] ?? '');
                     ?>
 
                     <article class="translation-coverage-card">
                         <div class="translation-coverage-head">
                             <span class="translation-coverage-title">
-                                <?= htmlspecialchars(
-                                    (string) ($item['label'] ?? '')
-                                ) ?>
+                                <?= htmlspecialchars($displayLabel) ?>
                             </span>
 
                             <span class="translation-coverage-percent">
@@ -142,15 +149,15 @@ $currentProviderName = (string) (
                         </div>
 
                         <div class="translation-coverage-meta">
-                            Элементов: <?= (int) ($item['entity_count'] ?? 0) ?>
-                            · Переведено:
+                            Елементів: <?= (int) ($item['entity_count'] ?? 0) ?>
+                            · Перекладено:
                             <?= (int) ($item['translated'] ?? 0) ?>
-                            из <?= (int) ($item['required'] ?? 0) ?>
+                            з <?= (int) ($item['required'] ?? 0) ?>
                         </div>
 
                         <div
                             class="translation-progress"
-                            aria-label="Покрытие переводами <?= $percent ?>%"
+                            aria-label="Покриття перекладами <?= $percent ?>%"
                         >
                             <div
                                 class="translation-progress-bar"
@@ -161,18 +168,18 @@ $currentProviderName = (string) (
                         <div class="translation-coverage-footer">
                             <?php if ($missing === 0): ?>
                                 <span class="translation-missing is-complete">
-                                    Всё переведено
+                                    Усе перекладено
                                 </span>
                             <?php elseif ($hasDetails): ?>
                                 <a
                                     class="translation-missing translation-missing-link"
                                     href="/Anabelka/admin/translations/missing?section=<?= htmlspecialchars($section) ?>"
                                 >
-                                    Требуют перевода: <?= $missing ?>
+                                    Потребують перекладу: <?= $missing ?>
                                 </a>
                             <?php else: ?>
                                 <span class="translation-missing">
-                                    Требуют перевода: <?= $missing ?>
+                                    Потребують перекладу: <?= $missing ?>
                                 </span>
                             <?php endif; ?>
 
@@ -181,7 +188,7 @@ $currentProviderName = (string) (
                                     class="translation-coverage-link"
                                     href="<?= htmlspecialchars($item['url']) ?>"
                                 >
-                                    Открыть раздел
+                                    Відкрити розділ
                                 </a>
                             <?php endif; ?>
                         </div>
@@ -192,7 +199,7 @@ $currentProviderName = (string) (
 
         <section class="translations-section">
             <h3 class="translations-section-title">
-                Средства перевода
+                Засоби перекладу
             </h3>
 
             <div class="translation-providers">
@@ -213,14 +220,14 @@ $currentProviderName = (string) (
                             <span
                                 class="translation-provider-status<?= $isConfigured ? ' ready' : '' ?>"
                             >
-                                <?= $isConfigured ? 'Готов' : 'Нужен ключ' ?>
+                                <?= $isConfigured ? 'Готово' : 'Потрібен ключ' ?>
                             </span>
                         </div>
 
                         <span class="translation-provider-current">
                             <?= $isCurrent
-                                ? 'Используется сейчас'
-                                : 'Доступен для выбора' ?>
+                                ? 'Використовується зараз'
+                                : 'Доступний для вибору' ?>
                         </span>
                     </article>
                 <?php endforeach; ?>
