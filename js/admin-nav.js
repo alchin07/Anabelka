@@ -159,7 +159,7 @@
             );
 
             appendScript(
-                '/Anabelka/js/admin-category-cards.js?v=1',
+                '/Anabelka/js/admin-category-cards.js?v=2',
                 'data-admin-category-cards'
             );
 
