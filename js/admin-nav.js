@@ -25,7 +25,7 @@
 
         const stylesheet = document.createElement('link');
         stylesheet.rel = 'stylesheet';
-        stylesheet.href = '/Anabelka/css/admin-controls.css?v=1';
+        stylesheet.href = '/Anabelka/css/admin-controls.css?v=2';
         stylesheet.dataset.adminControls = '1';
         document.head.appendChild(stylesheet);
     }
@@ -166,10 +166,23 @@
             return;
         }
 
+        if (path === '/Anabelka/admin/products') {
+            appendScript(
+                '/Anabelka/js/admin-translation-target.js?v=1',
+                'data-admin-translation-target'
+            );
+            return;
+        }
+
         if (path === '/Anabelka/admin/delivery') {
             appendScript(
                 '/Anabelka/js/admin-delivery-ai-translation.js?v=2',
                 'data-admin-delivery-ai'
+            );
+
+            appendScript(
+                '/Anabelka/js/admin-translation-target.js?v=1',
+                'data-admin-translation-target'
             );
         }
     }
