@@ -1,8 +1,8 @@
 /*
- * ИИ-перевод для редактора категорий.
+ * ШІ-переклад для редактора категорій.
  *
- * Украинский текст остаётся исходным. ИИ только предлагает перевод
- * для выбранного языка; сохранение выполняется обычной кнопкой формы.
+ * Український текст залишається вихідним. ШІ лише пропонує переклад
+ * для вибраної мови; збереження виконується звичайною кнопкою форми.
  */
 (function () {
     'use strict';
@@ -90,7 +90,7 @@
         button.className = 'category-ai-translate';
         button.dataset.categoryAiTranslate = '1';
         button.dataset.targetLanguage = languageCode;
-        button.textContent = 'Перевести через ИИ';
+        button.textContent = 'Перекласти через ШІ';
 
         button.addEventListener('click', async function () {
             if (
@@ -98,7 +98,7 @@
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
                 showMessage(
-                    'Система ИИ-перевода ещё загружается. Попробуйте ещё раз.'
+                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
                 );
                 return;
             }
@@ -115,7 +115,7 @@
             const originalText = button.textContent;
 
             button.disabled = true;
-            button.textContent = 'Перевод…';
+            button.textContent = 'Переклад…';
 
             try {
                 const translation =
@@ -138,12 +138,12 @@
                 }
 
                 showMessage(
-                    'ИИ-перевод получен. Проверьте его и нажмите «Сохранить».'
+                    'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
                 );
 
             } catch (error) {
                 showMessage(
-                    error.message || 'Не удалось получить ИИ-перевод.'
+                    error.message || 'Не вдалося отримати ШІ-переклад.'
                 );
             } finally {
                 button.disabled = false;
