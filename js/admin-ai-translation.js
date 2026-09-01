@@ -17,7 +17,7 @@
         const data = await response.json();
 
         if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Ошибка ИИ-перевода.');
+            throw new Error(data.message || 'Помилка ШІ-перекладу.');
         }
 
         return data;
@@ -39,7 +39,7 @@
 
             option.value = code;
             option.textContent = provider.name
-                + (provider.configured ? '' : ' · не настроен');
+                + (provider.configured ? '' : ' · не налаштовано');
             option.selected = code === selectedProvider;
 
             select.appendChild(option);
@@ -60,7 +60,7 @@
             return;
         }
 
-        setStatus(provider.configured ? 'готов' : 'нужен ключ');
+        setStatus(provider.configured ? 'готово' : 'потрібен ключ');
     }
 
     async function loadProviders() {
@@ -71,7 +71,7 @@
 
             renderProviders(data);
         } catch (error) {
-            setStatus(error.message || 'ошибка');
+            setStatus(error.message || 'помилка');
         }
     }
 
@@ -109,7 +109,7 @@
             options.provider || selectedProvider || ''
         );
 
-        setStatus('перевод…');
+        setStatus('переклад…');
 
         try {
             const data = await request(
@@ -142,13 +142,13 @@
             const previous = selectedProvider;
 
             try {
-                setStatus('сохранение…');
+                setStatus('збереження…');
                 await chooseProvider(select.value);
             } catch (error) {
                 select.value = previous;
                 selectedProvider = previous;
                 updateStatus();
-                window.alert(error.message || 'Не удалось сменить ИИ.');
+                window.alert(error.message || 'Не вдалося змінити ШІ.');
             }
         });
     }
