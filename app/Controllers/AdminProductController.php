@@ -43,7 +43,14 @@ class AdminProductController extends Controller
             );
         }
 
+        $activeLanguages = Language::active();
+        ProductTranslator::getForProduct(0);
+
+        $db = Database::connect();
+
         try {
+            $db->beginTransaction();
+
             $updated = AdminProduct::updateText(
                 $productId,
                 $name,
@@ -70,7 +77,9 @@ class AdminProductController extends Controller
                 $translationDescriptions = [];
             }
 
-            foreach (Language::active() as $language) {
+            $expectedTranslations = [];
+
+            foreach ($activeLanguages as $language) {
                 $code = strtolower(
                     trim((string) ($language['code'] ?? ''))
                 );
@@ -82,14 +91,34 @@ class AdminProductController extends Controller
                     continue;
                 }
 
+                $translationName = trim(
+                    (string) ($translationNames[$code] ?? '')
+                );
+
+                $translationDescription = trim(
+                    (string) ($translationDescriptions[$code] ?? '')
+                );
+
                 ProductTranslator::saveForProduct(
                     $productId,
                     $code,
-                    $translationNames[$code] ?? '',
-                    $translationDescriptions[$code] ?? '',
+                    $translationName,
+                    $translationDescription,
                     'manual'
                 );
+
+                $expectedTranslations[$code] = [
+                    'name' => $translationName,
+                    'description' => $translationDescription
+                ];
             }
+
+            $this->verifySavedTranslations(
+                ProductTranslator::getForProduct($productId),
+                $expectedTranslations
+            );
+
+            $db->commit();
 
             header(
                 'Content-Type: application/json; charset=UTF-8'
@@ -106,10 +135,57 @@ class AdminProductController extends Controller
             exit;
 
         } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
             $this->jsonErrorResponse(
                 $e->getMessage(),
                 500
             );
+        }
+    }
+
+
+    private function verifySavedTranslations(
+        array $storedTranslations,
+        array $expectedTranslations
+    ) {
+        foreach ($expectedTranslations as $code => $expected) {
+            $expectedName = trim(
+                (string) ($expected['name'] ?? '')
+            );
+
+            $expectedDescription = trim(
+                (string) ($expected['description'] ?? '')
+            );
+
+            if ($expectedName === '' && $expectedDescription === '') {
+                if (isset($storedTranslations[$code])) {
+                    throw new RuntimeException(
+                        'Порожній переклад ' . strtoupper($code)
+                        . ' не було видалено.'
+                    );
+                }
+
+                continue;
+            }
+
+            $stored = $storedTranslations[$code] ?? null;
+
+            if (
+                !$stored
+                || trim((string) ($stored['name'] ?? ''))
+                    !== $expectedName
+                || trim((string) ($stored['description'] ?? ''))
+                    !== $expectedDescription
+                || (string) ($stored['status'] ?? '') !== 'approved'
+            ) {
+                throw new RuntimeException(
+                    'База даних не підтвердила збереження перекладу '
+                    . strtoupper($code) . '.'
+                );
+            }
         }
     }
 

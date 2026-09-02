@@ -506,6 +506,22 @@ require __DIR__ . '/../../partials/header.php';
         }, 50);
     }
 
+    function getTranslationReturnUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const requestedId = String(
+            params.get('highlight') || ''
+        ).trim();
+        const languageCode = String(
+            params.get('focus_language') || ''
+        ).trim();
+
+        if (/^\d+$/.test(requestedId) && languageCode !== '') {
+            return '/Anabelka/admin/translations/missing?section=products';
+        }
+
+        return '';
+    }
+
     function closeModal() {
         modal.hidden = true;
     }
@@ -646,6 +662,13 @@ require __DIR__ . '/../../partials/header.php';
             closeModal();
 
             setTimeout(function () {
+                const returnUrl = getTranslationReturnUrl();
+
+                if (returnUrl) {
+                    window.location.replace(returnUrl);
+                    return;
+                }
+
                 window.location.reload();
             }, 400);
 

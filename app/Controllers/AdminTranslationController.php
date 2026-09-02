@@ -34,6 +34,15 @@ class AdminTranslationController extends Controller
 
     public function missing()
     {
+        /*
+         * Список має відображати щойно збережені переклади, зокрема
+         * після повернення кнопкою браузера на мобільному пристрої.
+         */
+        header(
+            'Cache-Control: no-store, no-cache, must-revalidate, max-age=0'
+        );
+        header('Pragma: no-cache');
+
         $section = strtolower(
             trim((string) ($_GET['section'] ?? ''))
         );
