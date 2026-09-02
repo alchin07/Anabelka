@@ -72,22 +72,6 @@ class AITranslationService
             return $storedProvider;
         }
 
-        /*
-         * Одноразово переносимо попередній вибір із сесії до бази.
-         */
-        $sessionProvider = strtolower(
-            trim((string) ($_SESSION['ai_translation_provider'] ?? ''))
-        );
-
-        if ($this->isConfiguredProvider($sessionProvider)) {
-            AppSetting::set(
-                self::DEFAULT_PROVIDER_SETTING,
-                $sessionProvider
-            );
-
-            return $sessionProvider;
-        }
-
         $configuredDefault = strtolower(
             trim((string) ($this->config['default_provider'] ?? 'openai'))
         );
@@ -112,6 +96,47 @@ class AITranslationService
     }
 
 
+    public function getCurrentProviderCode()
+    {
+        $sessionProvider = strtolower(
+            trim((string) ($_SESSION['ai_translation_provider'] ?? ''))
+        );
+
+        if ($this->isConfiguredProvider($sessionProvider)) {
+            return $sessionProvider;
+        }
+
+        if ($sessionProvider !== '') {
+            unset($_SESSION['ai_translation_provider']);
+        }
+
+        return $this->getDefaultProviderCode();
+    }
+
+
+    public function setCurrentProviderCode($providerCode)
+    {
+        $providerCode = $this->normalizeProviderCode($providerCode);
+
+        if (!$this->providers[$providerCode]->isConfigured()) {
+            throw new InvalidArgumentException(
+                $this->providers[$providerCode]->getName()
+                . ' не можна вибрати: спочатку додайте API-ключ.'
+            );
+        }
+
+        $_SESSION['ai_translation_provider'] = $providerCode;
+
+        return $providerCode;
+    }
+
+
+    public function clearCurrentProviderCode()
+    {
+        unset($_SESSION['ai_translation_provider']);
+    }
+
+
     public function setDefaultProviderCode($providerCode)
     {
         $providerCode = $this->normalizeProviderCode($providerCode);
@@ -127,8 +152,6 @@ class AITranslationService
             self::DEFAULT_PROVIDER_SETTING,
             $providerCode
         );
-
-        $_SESSION['ai_translation_provider'] = $providerCode;
 
         return $providerCode;
     }
@@ -173,7 +196,7 @@ class AITranslationService
 
         $providerCode = $providerCode !== null
             ? $this->normalizeProviderCode($providerCode)
-            : $this->getDefaultProviderCode();
+            : $this->getCurrentProviderCode();
 
         $provider = $this->providers[$providerCode];
 
@@ -184,11 +207,42 @@ class AITranslationService
             );
         }
 
-        $translation = $provider->translate(
-            $targetLanguage,
-            $name,
-            $description,
-            $context
+        $inputCharacters = $this->characterLength($name)
+            + $this->characterLength($description);
+
+        try {
+            $translation = $provider->translate(
+                $targetLanguage,
+                $name,
+                $description,
+                $context
+            );
+        } catch (Throwable $e) {
+            $this->recordUsageSafely(
+                $providerCode,
+                $targetLanguageCode,
+                $context,
+                $inputCharacters,
+                0,
+                false
+            );
+
+            throw $e;
+        }
+
+        $outputCharacters = $this->characterLength(
+            (string) ($translation['name'] ?? '')
+        ) + $this->characterLength(
+            (string) ($translation['description'] ?? '')
+        );
+
+        $this->recordUsageSafely(
+            $providerCode,
+            $targetLanguageCode,
+            $context,
+            $inputCharacters,
+            $outputCharacters,
+            true
         );
 
         $translation['provider'] = $providerCode;
@@ -216,6 +270,46 @@ class AITranslationService
     {
         return isset($this->providers[$providerCode])
             && $this->providers[$providerCode]->isConfigured();
+    }
+
+
+    private function characterLength($text)
+    {
+        $text = (string) $text;
+
+        if (function_exists('mb_strlen')) {
+            return (int) mb_strlen($text, 'UTF-8');
+        }
+
+        $count = preg_match_all('/./us', $text, $characters);
+
+        return $count === false ? strlen($text) : (int) $count;
+    }
+
+
+    private function recordUsageSafely(
+        $providerCode,
+        $targetLanguageCode,
+        $context,
+        $inputCharacters,
+        $outputCharacters,
+        $isSuccess
+    ) {
+        try {
+            AITranslationUsage::record(
+                $providerCode,
+                $targetLanguageCode,
+                $context,
+                $inputCharacters,
+                $outputCharacters,
+                $isSuccess
+            );
+        } catch (Throwable $e) {
+            error_log(
+                'AI translation usage statistics error: '
+                . $e->getMessage()
+            );
+        }
     }
 
 

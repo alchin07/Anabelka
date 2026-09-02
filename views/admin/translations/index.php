@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=4"
+        href="/Anabelka/css/admin-translations.css?v=5"
     >
 </head>
 <body>
@@ -32,12 +32,6 @@ require __DIR__ . '/../../partials/header.php';
 
 $sourceName = (string) (
     $sourceLanguage['name'] ?? 'Українська'
-);
-
-$currentProviderName = (string) (
-    $providers[$selectedProvider]['name']
-    ?? $selectedProvider
-    ?? '—'
 );
 
 $sectionLabels = [
@@ -59,12 +53,21 @@ $sectionLabels = [
                 </p>
             </div>
 
-            <a
-                class="translations-language-link"
-                href="/Anabelka/admin/languages"
-            >
-                Керування мовами
-            </a>
+            <div class="translations-head-actions">
+                <a
+                    class="translations-language-link"
+                    href="/Anabelka/admin/languages"
+                >
+                    Керування мовами
+                </a>
+
+                <a
+                    class="translations-language-link"
+                    href="/Anabelka/admin/ai-translation"
+                >
+                    Налаштування ШІ
+                </a>
+            </div>
         </div>
 
         <?php if (!empty($dashboardError)): ?>
@@ -104,17 +107,6 @@ $sectionLabels = [
                 <?php endif; ?>
             </div>
 
-            <div class="translations-summary-card">
-                <span class="translations-summary-label">
-                    Основний ШІ
-                </span>
-                <span
-                    class="translations-summary-value"
-                    data-ai-default-provider-name
-                >
-                    <?= htmlspecialchars($currentProviderName ?: '—') ?>
-                </span>
-            </div>
         </div>
 
         <section class="translations-section">
@@ -200,51 +192,6 @@ $sectionLabels = [
                                 </a>
                             <?php endif; ?>
                         </div>
-                    </article>
-                <?php endforeach; ?>
-            </div>
-        </section>
-
-        <section class="translations-section">
-            <h3 class="translations-section-title">
-                Засоби перекладу
-            </h3>
-
-            <div class="translation-providers">
-                <?php foreach ($providers ?? [] as $code => $provider): ?>
-                    <?php
-                    $isConfigured = !empty($provider['configured']);
-                    $isCurrent = (string) $selectedProvider === (string) $code;
-                    ?>
-
-                    <article
-                        class="translation-provider-card<?= $isCurrent ? ' is-default' : '' ?>"
-                        data-ai-provider-code="<?= htmlspecialchars((string) $code) ?>"
-                    >
-                        <div class="translation-provider-head">
-                            <span class="translation-provider-name">
-                                <?= htmlspecialchars(
-                                    (string) ($provider['name'] ?? $code)
-                                ) ?>
-                            </span>
-
-                            <span
-                                class="translation-provider-status<?= $isConfigured ? ' ready' : '' ?>"
-                            >
-                                <?= $isConfigured ? 'Готово' : 'Потрібен ключ' ?>
-                            </span>
-                        </div>
-
-                        <span
-                            class="translation-provider-current"
-                            data-ai-provider-current
-                        >
-                            <?= $isCurrent
-                                ? 'За замовчуванням'
-                                : ($isConfigured
-                                    ? 'Доступний для вибору'
-                                    : 'Недоступний без ключа') ?>
-                        </span>
                     </article>
                 <?php endforeach; ?>
             </div>

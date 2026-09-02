@@ -140,6 +140,16 @@ $router->post(
 );
 
 $router->get(
+    '/admin/ai-translation',
+    'AdminAITranslationController@index'
+);
+
+$router->post(
+    '/admin/ai-translation/default-provider',
+    'AdminAITranslationController@setDefaultProvider'
+);
+
+$router->get(
     '/admin/ai-translation/providers',
     'AdminAITranslationController@providers'
 );

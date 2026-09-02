@@ -44,6 +44,7 @@
             'Админ-панель — Доставка': 'Адмін-панель — Доставка',
             'Админ-панель — Языки': 'Адмін-панель — Мови',
             'Админ-панель — Переводы': 'Адмін-панель — Переклади',
+            'Админ-панель — ИИ-перевод': 'Адмін-панель — ШІ-переклад',
             'Админ-панель — Категории': 'Адмін-панель — Категорії',
             'Админ-панель — Товары': 'Адмін-панель — Товари'
         };
@@ -128,7 +129,7 @@
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
             const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=3';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=4';
             script.dataset.adminAiTranslation = '1';
             document.body.appendChild(script);
         }
@@ -234,6 +235,13 @@
                 createLink(
                     '/Anabelka/admin/translations',
                     'Переклади'
+                )
+            );
+
+            nav.appendChild(
+                createLink(
+                    '/Anabelka/admin/ai-translation',
+                    'ШІ'
                 )
             );
 

@@ -2,6 +2,60 @@
 
 class AdminAITranslationController extends Controller
 {
+    public function index()
+    {
+        try {
+            $service = new AITranslationService();
+            $statistics = [
+                'periods' => [],
+                'providers' => [],
+                'recent' => []
+            ];
+            $statisticsError = '';
+
+            try {
+                $statistics = AITranslationUsage::dashboard();
+            } catch (Throwable $e) {
+                $statisticsError = $e->getMessage();
+            }
+
+            $this->view(
+                'admin/ai-translation/index',
+                [
+                    'providers' => $service->getProviders(),
+                    'defaultProvider' =>
+                        $service->getDefaultProviderCode(),
+                    'statistics' => $statistics,
+                    'statisticsError' => $statisticsError,
+                    'saved' => !empty($_GET['saved']),
+                    'settingsError' => trim(
+                        (string) ($_GET['error'] ?? '')
+                    )
+                ]
+            );
+
+        } catch (Throwable $e) {
+            http_response_code(500);
+
+            $this->view(
+                'admin/ai-translation/index',
+                [
+                    'providers' => [],
+                    'defaultProvider' => '',
+                    'statistics' => [
+                        'periods' => [],
+                        'providers' => [],
+                        'recent' => []
+                    ],
+                    'statisticsError' => '',
+                    'saved' => false,
+                    'settingsError' => $e->getMessage()
+                ]
+            );
+        }
+    }
+
+
     public function suggest()
     {
         $targetLanguage = strtolower(
@@ -32,7 +86,7 @@ class AdminAITranslationController extends Controller
 
             $this->jsonSuccess([
                 'translation' => $translation,
-                'selected_provider' => $service->getDefaultProviderCode(),
+                'selected_provider' => $service->getCurrentProviderCode(),
                 'providers' => $service->getProviders()
             ]);
 
@@ -50,7 +104,8 @@ class AdminAITranslationController extends Controller
             $service = new AITranslationService();
 
             $this->jsonSuccess([
-                'selected_provider' => $service->getDefaultProviderCode(),
+                'selected_provider' => $service->getCurrentProviderCode(),
+                'default_provider' => $service->getDefaultProviderCode(),
                 'providers' => $service->getProviders()
             ]);
 
@@ -72,10 +127,11 @@ class AdminAITranslationController extends Controller
 
         try {
             $service = new AITranslationService();
-            $selected = $service->setDefaultProviderCode($provider);
+            $selected = $service->setCurrentProviderCode($provider);
 
             $this->jsonSuccess([
                 'selected_provider' => $selected,
+                'default_provider' => $service->getDefaultProviderCode(),
                 'providers' => $service->getProviders()
             ]);
 
@@ -83,6 +139,39 @@ class AdminAITranslationController extends Controller
             $this->jsonError($e->getMessage(), 400);
         } catch (Throwable $e) {
             $this->jsonError($e->getMessage(), 500);
+        }
+    }
+
+
+    public function setDefaultProvider()
+    {
+        $provider = strtolower(
+            trim((string) ($_POST['provider'] ?? ''))
+        );
+
+        if ($provider === '') {
+            $this->redirectToSettings(
+                'Оберіть ШІ за замовчуванням.'
+            );
+        }
+
+        try {
+            $service = new AITranslationService();
+            $service->setDefaultProviderCode($provider);
+
+            /*
+             * Після зміни основного сервісу верхній список одразу
+             * починає слідувати новому значенню за замовчуванням.
+             */
+            $service->clearCurrentProviderCode();
+
+            header(
+                'Location: /Anabelka/admin/ai-translation?saved=1'
+            );
+            exit;
+
+        } catch (Throwable $e) {
+            $this->redirectToSettings($e->getMessage());
         }
     }
 
@@ -110,6 +199,16 @@ class AdminAITranslationController extends Controller
                 'message' => (string) $message
             ],
             JSON_UNESCAPED_UNICODE
+        );
+        exit;
+    }
+
+
+    private function redirectToSettings($error)
+    {
+        header(
+            'Location: /Anabelka/admin/ai-translation?error='
+            . rawurlencode((string) $error)
         );
         exit;
     }

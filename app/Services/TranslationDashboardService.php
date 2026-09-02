@@ -27,16 +27,11 @@ class TranslationDashboardService
         DeliveryTranslator::getForEntity('method', 0);
         DeliveryOptionInput::getForOption(0);
 
-        $aiService = new AITranslationService();
-
         return [
             'sourceLanguage' =>
                 Language::findByCode(Language::SOURCE_CODE),
             'languages' => $languages,
             'targetLanguages' => $targetLanguages,
-            'providers' => $aiService->getProviders(),
-            'selectedProvider' =>
-                $aiService->getDefaultProviderCode(),
             'coverage' =>
                 $this->buildCoverage($targetLanguages)
         ];

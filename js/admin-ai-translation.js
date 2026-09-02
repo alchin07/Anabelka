@@ -51,46 +51,6 @@
         }
 
         updateStatus();
-        updatePageIndicators();
-    }
-
-    function updatePageIndicators() {
-        const currentProvider = providers[selectedProvider] || null;
-
-        document
-            .querySelectorAll('[data-ai-default-provider-name]')
-            .forEach(function (element) {
-                element.textContent = currentProvider
-                    ? currentProvider.name
-                    : '—';
-            });
-
-        document
-            .querySelectorAll('[data-ai-provider-code]')
-            .forEach(function (card) {
-                const code = card.dataset.aiProviderCode || '';
-                const provider = providers[code] || null;
-                const label = card.querySelector(
-                    '[data-ai-provider-current]'
-                );
-
-                card.classList.toggle(
-                    'is-default',
-                    code === selectedProvider
-                );
-
-                if (!label) {
-                    return;
-                }
-
-                if (code === selectedProvider) {
-                    label.textContent = 'За замовчуванням';
-                } else if (provider && provider.configured) {
-                    label.textContent = 'Доступний для вибору';
-                } else {
-                    label.textContent = 'Недоступний без ключа';
-                }
-            });
     }
 
     function updateStatus() {
@@ -103,7 +63,7 @@
 
         setStatus(
             provider.configured
-                ? 'за замовчуванням'
+                ? 'готово'
                 : 'потрібен ключ'
         );
     }

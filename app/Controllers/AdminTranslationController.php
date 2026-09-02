@@ -22,8 +22,6 @@ class AdminTranslationController extends Controller
                     'sourceLanguage' => null,
                     'languages' => [],
                     'targetLanguages' => [],
-                    'providers' => [],
-                    'selectedProvider' => '',
                     'coverage' => [],
                     'dashboardError' => $e->getMessage()
                 ]

@@ -18,6 +18,12 @@
     font-size: 26px;
 }
 
+.translations-head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .translations-subtitle {
     margin: 0;
     color: #777;
@@ -53,7 +59,7 @@
 
 .translations-summary {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 18px;
 }
@@ -190,60 +196,6 @@
     font-size: 12px;
     font-weight: 700;
     text-decoration: none;
-}
-
-.translation-providers {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.translation-provider-card {
-    padding: 13px;
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
-    background: #faf7ff;
-}
-
-.translation-provider-card.is-default {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.12);
-}
-
-.translation-provider-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-}
-
-.translation-provider-name {
-    font-weight: 700;
-}
-
-.translation-provider-status {
-    display: inline-flex;
-    align-items: center;
-    min-height: 26px;
-    padding: 0 9px;
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    background: #fff;
-    color: #777;
-    font-size: 11px;
-    font-weight: 700;
-}
-
-.translation-provider-status.ready {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.translation-provider-current {
-    display: block;
-    margin-top: 7px;
-    color: #777;
-    font-size: 12px;
 }
 
 .translation-missing-list {
@@ -463,10 +415,6 @@
     }
 
     .translations-summary {
-        grid-template-columns: 1fr;
-    }
-
-    .translation-providers {
         grid-template-columns: 1fr;
     }
 
