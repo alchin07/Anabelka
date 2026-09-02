@@ -9,42 +9,20 @@
  * - hidden у дочірнього контейнера;
  * - aria-expanded;
  * - поворот стрілки;
- * - збереження стану в sessionStorage.
+ * - початково згорнутий стан дерева.
+ *
+ * Після кожного нового завантаження всі рівні згорнуті.
+ * Виняток — батьківські рівні цілі, відкритої з центру перекладів.
  */
 
 (function () {
     'use strict';
 
-    const storageKey =
-        'delivery-collapsed-items';
-
-
-    function getCollapsedItems()
+    function clearLegacyStoredState()
     {
         try {
-            const value =
-                JSON.parse(
-                    sessionStorage.getItem(
-                        storageKey
-                    )
-                );
-
-            return Array.isArray(value)
-                ? value
-                : [];
-
-        } catch (error) {
-            return [];
-        }
-    }
-
-
-    function saveCollapsedItems(items)
-    {
-        try {
-            sessionStorage.setItem(
-                storageKey,
-                JSON.stringify(items)
+            sessionStorage.removeItem(
+                'delivery-collapsed-items'
             );
         } catch (error) {
             /* Недоступне сховище не повинно ламати дерево. */
@@ -116,43 +94,11 @@
     }
 
 
-    function setStoredState(
-        key,
-        isCollapsed
-    ) {
-        const items =
-            getCollapsedItems();
-
-        const index =
-            items.indexOf(key);
-
-        if (isCollapsed) {
-
-            if (index === -1) {
-                items.push(key);
-            }
-
-        } else if (index !== -1) {
-
-            items.splice(
-                index,
-                1
-            );
-        }
-
-        saveCollapsedItems(items);
-    }
-
-
-    function restoreLevel(
+    function initializeLevel(
         buttonSelector,
         dataName,
-        childrenAttribute,
-        keyPrefix
+        childrenAttribute
     ) {
-        const collapsedItems =
-            getCollapsedItems();
-
         const anchorTarget =
             getAnchorTarget();
 
@@ -181,9 +127,6 @@
                         return;
                     }
 
-                    const key =
-                        keyPrefix + id;
-
                     const containsClassTarget =
                         children.querySelector(
                             '.delivery-translation-target'
@@ -198,38 +141,30 @@
                         || containsAnchorTarget;
 
                     const shouldCollapse =
-                        !containsTranslationTarget
-                        && collapsedItems.includes(key);
+                        !containsTranslationTarget;
 
                     setCollapsedState(
                         button,
                         children,
                         shouldCollapse
                     );
-
-                    if (containsTranslationTarget) {
-                        setStoredState(
-                            key,
-                            false
-                        );
-                    }
                 }
             );
     }
 
 
-    restoreLevel(
+    clearLegacyStoredState();
+
+    initializeLevel(
         '[data-collapse-method]',
         'collapseMethod',
-        'data-method-children',
-        'method:'
+        'data-method-children'
     );
 
-    restoreLevel(
+    initializeLevel(
         '[data-collapse-service]',
         'collapseService',
-        'data-service-children',
-        'service:'
+        'data-service-children'
     );
 
 
@@ -263,11 +198,6 @@
                 setCollapsedState(
                     methodButton,
                     children,
-                    isCollapsed
-                );
-
-                setStoredState(
-                    'method:' + id,
                     isCollapsed
                 );
 
@@ -307,10 +237,6 @@
                 isCollapsed
             );
 
-            setStoredState(
-                'service:' + id,
-                isCollapsed
-            );
         }
     );
 })();

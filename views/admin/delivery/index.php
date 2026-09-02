@@ -220,7 +220,7 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/collapse.js?v=9"
+        src="/Anabelka/js/admin-delivery/collapse.js?v=10"
     ></script>
 
     <script
