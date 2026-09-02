@@ -142,13 +142,30 @@
                         return;
                     }
 
+                    const key =
+                        keyPrefix + id;
+
+                    const containsTranslationTarget =
+                        children.querySelector(
+                            '.delivery-translation-target'
+                        ) !== null;
+
+                    const shouldCollapse =
+                        !containsTranslationTarget
+                        && collapsedItems.includes(key);
+
                     setCollapsedState(
                         button,
                         children,
-                        collapsedItems.includes(
-                            keyPrefix + id
-                        )
+                        shouldCollapse
                     );
+
+                    if (containsTranslationTarget) {
+                        setStoredState(
+                            key,
+                            false
+                        );
+                    }
                 }
             );
     }
