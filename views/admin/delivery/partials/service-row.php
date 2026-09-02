@@ -1,7 +1,12 @@
 <div class="delivery-service">
 
     <div
-        class="admin-tree-row<?= $isFirstService ? '' : ' no-add' ?>"
+        class="admin-tree-row<?= $isFirstService ? '' : ' no-add' ?><?= (
+            ($translationHighlightType ?? '') === 'service'
+            && (int) ($translationHighlightId ?? 0) === (int) $service['id']
+        ) ? ' delivery-translation-target' : '' ?>"
+        data-delivery-target-type="service"
+        data-delivery-target-id="<?= (int) $service['id'] ?>"
         style="--level: 2;"
     >
 
