@@ -8,7 +8,12 @@ $optionInput =
 ?>
 
 <div
-    class="admin-tree-row<?= $isFirstOption ? '' : ' no-add' ?>"
+    class="admin-tree-row<?= $isFirstOption ? '' : ' no-add' ?><?= (
+        ($translationHighlightType ?? '') === 'option'
+        && (int) ($translationHighlightId ?? 0) === (int) $option['id']
+    ) ? ' delivery-translation-target' : '' ?>"
+    data-delivery-target-type="option"
+    data-delivery-target-id="<?= (int) $option['id'] ?>"
     style="--level: 3;"
 >
 
