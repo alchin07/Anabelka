@@ -1,12 +1,17 @@
 /*
  * Підсвічування елемента Delivery,
  * відкритого з центру перекладів.
+ *
+ * Основний механізм — стандартний браузерний :target.
+ * Клас delivery-translation-target залишається як запасний варіант.
  */
-.admin-tree-row.delivery-translation-target {
+.admin-tree-row.delivery-translation-target,
+.admin-tree-row:has(.edit-button:target) {
     scroll-margin-top: 120px;
 }
 
-.admin-tree-row.delivery-translation-target > .admin-tree-item {
+.admin-tree-row.delivery-translation-target > .admin-tree-item,
+.admin-tree-row:has(.edit-button:target) > .admin-tree-item {
     outline: 4px solid var(--primary-color);
     outline-offset: 2px;
 
@@ -14,6 +19,7 @@
         0 10px 28px rgba(138, 43, 226, 0.28);
 }
 
-.admin-tree-row.delivery-translation-target > .admin-tree-item > .edit-button {
+.admin-tree-row.delivery-translation-target > .admin-tree-item > .edit-button,
+.admin-tree-row:has(.edit-button:target) > .admin-tree-item > .edit-button {
     box-shadow: 0 0 0 3px var(--primary-color);
 }
