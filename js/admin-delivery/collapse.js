@@ -2,17 +2,14 @@
 
 /*
  * ========================================
- * СВОРАЧИВАНИЕ ДЕРЕВА DELIVERY
+ * ЗГОРТАННЯ ДЕРЕВА DELIVERY
  * ========================================
  *
- * Этот файл отвечает ТОЛЬКО за:
- * - hidden у дочернего контейнера;
+ * Файл відповідає тільки за:
+ * - hidden у дочірнього контейнера;
  * - aria-expanded;
- * - поворот стрелки;
- * - сохранение состояния в sessionStorage.
- *
- * Он не перемещает и не скрывает кнопки "+"
- * отдельно от дочернего уровня.
+ * - поворот стрілки;
+ * - збереження стану в sessionStorage.
  */
 
 (function () {
@@ -50,10 +47,25 @@
                 JSON.stringify(items)
             );
         } catch (error) {
-            /*
-             * Недоступное хранилище не должно
-             * ломать само раскрытие дерева.
-             */
+            /* Недоступне сховище не повинно ламати дерево. */
+        }
+    }
+
+
+    function getAnchorTarget()
+    {
+        const hash = String(window.location.hash || '');
+
+        if (!hash || hash === '#') {
+            return null;
+        }
+
+        try {
+            return document.getElementById(
+                decodeURIComponent(hash.slice(1))
+            );
+        } catch (error) {
+            return null;
         }
     }
 
@@ -117,6 +129,9 @@
         const collapsedItems =
             getCollapsedItems();
 
+        const anchorTarget =
+            getAnchorTarget();
+
         document
             .querySelectorAll(buttonSelector)
             .forEach(
@@ -145,10 +160,18 @@
                     const key =
                         keyPrefix + id;
 
-                    const containsTranslationTarget =
+                    const containsClassTarget =
                         children.querySelector(
                             '.delivery-translation-target'
                         ) !== null;
+
+                    const containsAnchorTarget =
+                        !!anchorTarget
+                        && children.contains(anchorTarget);
+
+                    const containsTranslationTarget =
+                        containsClassTarget
+                        || containsAnchorTarget;
 
                     const shouldCollapse =
                         !containsTranslationTarget
