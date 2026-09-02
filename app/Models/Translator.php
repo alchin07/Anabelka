@@ -392,6 +392,138 @@ class Translator
     }
 
 
+    public static function getForKey($key)
+    {
+        self::ensureTable();
+
+        $key = trim((string) $key);
+
+        if ($key === '' || strlen($key) > 190) {
+            return [];
+        }
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            SELECT
+                language_code,
+                value,
+                source,
+                status
+            FROM interface_translations
+            WHERE translation_key = :translation_key
+        ");
+
+        $stmt->execute([
+            'translation_key' => $key
+        ]);
+
+        $result = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $code = strtolower(
+                trim((string) ($row['language_code'] ?? ''))
+            );
+
+            if ($code !== '') {
+                $result[$code] = $row;
+            }
+        }
+
+        return $result;
+    }
+
+
+    public static function saveForKey(
+        $key,
+        $languageCode,
+        $value,
+        $source = 'manual'
+    ) {
+        self::ensureTable();
+
+        $key = trim((string) $key);
+        $languageCode = strtolower(
+            trim((string) $languageCode)
+        );
+        $value = trim((string) $value);
+        $source = trim((string) $source) ?: 'manual';
+
+        if (
+            $key === ''
+            || strlen($key) > 190
+            || $languageCode === ''
+        ) {
+            throw new InvalidArgumentException(
+                'Некоректні дані перекладу інтерфейсу.'
+            );
+        }
+
+        $language = Language::findByCode($languageCode);
+
+        if (!$language || empty($language['is_active'])) {
+            throw new InvalidArgumentException(
+                'Мова перекладу недоступна.'
+            );
+        }
+
+        if (
+            $languageCode === Language::SOURCE_CODE
+            && $value === ''
+        ) {
+            throw new InvalidArgumentException(
+                'Український вихідний текст не може бути порожнім.'
+            );
+        }
+
+        /*
+         * Порожній цільовий текст зберігаємо як draft, а не видаляємо.
+         * Інакше INSERT IGNORE базового словника відновить старе значення.
+         * Draft не використовується на сайті, тому спрацює fallback на UK.
+         */
+        $status = $value === ''
+            ? 'draft'
+            : 'approved';
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            INSERT INTO interface_translations
+            (
+                translation_key,
+                language_code,
+                value,
+                source,
+                status
+            )
+            VALUES
+            (
+                :translation_key,
+                :language_code,
+                :value,
+                :source,
+                :status
+            )
+            ON DUPLICATE KEY UPDATE
+                value = VALUES(value),
+                source = VALUES(source),
+                status = VALUES(status)
+        ");
+
+        $result = $stmt->execute([
+            'translation_key' => $key,
+            'language_code' => $languageCode,
+            'value' => $value,
+            'source' => $source,
+            'status' => $status
+        ]);
+
+        self::$cache = [];
+
+        return $result;
+    }
+
+
     private static function findValue($key, $code)
     {
         $cacheKey = $code . ':' . $key;

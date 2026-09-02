@@ -130,6 +130,16 @@ $router->get(
 );
 
 $router->get(
+    '/admin/translations/interface',
+    'AdminTranslationController@interfaceEdit'
+);
+
+$router->post(
+    '/admin/translations/interface/save',
+    'AdminTranslationController@saveInterface'
+);
+
+$router->get(
     '/admin/ai-translation/providers',
     'AdminAITranslationController@providers'
 );

@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=2"
+        href="/Anabelka/css/admin-translations.css?v=3"
     >
 </head>
 <body>
@@ -50,13 +50,15 @@ $typeLabels = [
     'service' => 'Служба доставки',
     'option' => 'Опція',
     'delivery' => 'Доставка',
-    'option_input' => 'Поле покупця'
+    'option_input' => 'Поле покупця',
+    'interface' => 'Інтерфейс'
 ];
 
 $sectionLabels = [
     'products' => 'Товари',
     'categories' => 'Категорії',
-    'delivery' => 'Доставка'
+    'delivery' => 'Доставка',
+    'interface' => 'Інтерфейс'
 ];
 
 $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
@@ -103,6 +105,9 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                     <?php
                     $itemType = (string) ($item['type'] ?? '');
                     $itemId = (int) ($item['id'] ?? 0);
+                    $itemKey = trim(
+                        (string) ($item['key'] ?? '')
+                    );
 
                     $missingLanguages = array_values(
                         $item['missing_languages'] ?? []
@@ -122,7 +127,21 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
 
                     $openUrl = (string) ($item['url'] ?? '');
 
-                    if ($itemId > 0) {
+                    if (
+                        $itemType === 'interface'
+                        && $itemKey !== ''
+                    ) {
+                        $openUrl =
+                            '/Anabelka/admin/translations/interface?key='
+                            . rawurlencode($itemKey)
+                            . (
+                                $focusLanguage !== ''
+                                ? '&focus_language='
+                                    . rawurlencode($focusLanguage)
+                                : ''
+                            );
+
+                    } elseif ($itemId > 0) {
                         if ($itemType === 'category') {
                             $openUrl =
                                 '/Anabelka/admin/categories?highlight='
@@ -172,6 +191,12 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                             <strong class="translation-missing-name">
                                 <?= htmlspecialchars($itemName) ?>
                             </strong>
+
+                            <?php if ($itemKey !== ''): ?>
+                                <code class="translation-missing-key">
+                                    <?= htmlspecialchars($itemKey) ?>
+                                </code>
+                            <?php endif; ?>
                         </div>
 
                         <div class="translation-missing-languages">

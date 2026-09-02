@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=2"
+        href="/Anabelka/css/admin-translations.css?v=3"
     >
 </head>
 <body>
@@ -130,7 +130,12 @@ $sectionLabels = [
                     $section = (string) ($item['section'] ?? '');
                     $hasDetails = in_array(
                         $section,
-                        ['products', 'categories', 'delivery'],
+                        [
+                            'products',
+                            'categories',
+                            'delivery',
+                            'interface'
+                        ],
                         true
                     );
                     $displayLabel = $sectionLabels[$section]

@@ -20,6 +20,8 @@ class TranslationDashboardService
          * Гарантируем наличие таблиц переводов до подсчётов.
          */
         Translator::activeLanguages();
+        ProductInterfaceTranslator::seed();
+        PublicInterfaceTranslator::seed();
         CategoryTranslator::getForCategory(0);
         ProductTranslator::getForProduct(0);
         DeliveryTranslator::getForEntity('method', 0);
@@ -67,6 +69,10 @@ class TranslationDashboardService
             'delivery' => [
                 'label' => 'Delivery',
                 'url' => '/Anabelka/admin/delivery'
+            ],
+            'interface' => [
+                'label' => 'Інтерфейс',
+                'url' => '/Anabelka/admin/translations'
             ]
         ];
 
@@ -84,6 +90,8 @@ class TranslationDashboardService
             $items = $this->missingCategories();
         } elseif ($section === 'delivery') {
             $items = $this->missingDelivery();
+        } elseif ($section === 'interface') {
+            $items = $this->missingInterface();
         }
 
         return [
@@ -266,6 +274,76 @@ class TranslationDashboardService
         );
 
         return array_values(array_merge($items, $inputItems));
+    }
+
+
+    private function missingInterface()
+    {
+        /*
+         * Створює таблицю та базовий словник, якщо це перший
+         * вхід до розділу перекладів після встановлення проєкту.
+         */
+        Translator::activeLanguages();
+        ProductInterfaceTranslator::seed();
+        PublicInterfaceTranslator::seed();
+
+        $db = Database::connect();
+
+        $rows = $db->query("
+            SELECT
+                source.translation_key,
+                source.value AS source_value,
+                l.code AS language_code
+            FROM interface_translations AS source
+            INNER JOIN languages AS l
+                ON l.is_active = 1
+               AND l.code <> 'uk'
+            LEFT JOIN interface_translations AS t
+                ON t.translation_key = source.translation_key
+               AND t.language_code = l.code
+               AND t.status = 'approved'
+               AND TRIM(t.value) <> ''
+            WHERE source.language_code = 'uk'
+              AND TRIM(source.value) <> ''
+              AND t.translation_key IS NULL
+            ORDER BY
+                source.translation_key ASC,
+                l.sort_order ASC,
+                l.id ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $items = [];
+
+        foreach ($rows as $row) {
+            $key = trim(
+                (string) ($row['translation_key'] ?? '')
+            );
+
+            if ($key === '') {
+                continue;
+            }
+
+            if (!isset($items[$key])) {
+                $items[$key] = [
+                    'type' => 'interface',
+                    'id' => 0,
+                    'key' => $key,
+                    'name' => (string) ($row['source_value'] ?? ''),
+                    'missing_languages' => [],
+                    'url' => '/Anabelka/admin/translations/interface'
+                ];
+            }
+
+            $code = strtolower(
+                trim((string) ($row['language_code'] ?? ''))
+            );
+
+            if ($code !== '') {
+                $items[$key]['missing_languages'][] = $code;
+            }
+        }
+
+        return array_values($items);
     }
 
 
@@ -540,6 +618,7 @@ class TranslationDashboardService
                 WHERE t.language_code IN ($languageList)
                   AND t.status = 'approved'
                   AND TRIM(t.value) <> ''
+                  AND TRIM(source.value) <> ''
             ")
             ->fetchColumn();
 
