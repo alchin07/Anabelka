@@ -1,7 +1,12 @@
 <div class="delivery-card">
 
     <div
-        class="admin-tree-row<?= $isFirstMethod ? '' : ' no-add' ?>"
+        class="admin-tree-row<?= $isFirstMethod ? '' : ' no-add' ?><?= (
+            ($translationHighlightType ?? '') === 'method'
+            && (int) ($translationHighlightId ?? 0) === (int) $method['id']
+        ) ? ' delivery-translation-target' : '' ?>"
+        data-delivery-target-type="method"
+        data-delivery-target-id="<?= (int) $method['id'] ?>"
         style="--level: 1;"
     >
 
