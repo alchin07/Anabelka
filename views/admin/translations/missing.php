@@ -132,7 +132,11 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                                 : $itemType;
 
                             $openUrl =
-                                '/Anabelka/admin/delivery#delivery-'
+                                '/Anabelka/admin/delivery?highlight='
+                                . $itemId
+                                . '&highlight_type='
+                                . rawurlencode($itemType)
+                                . '#delivery-'
                                 . rawurlencode($deliveryAnchorType)
                                 . '-'
                                 . $itemId;
