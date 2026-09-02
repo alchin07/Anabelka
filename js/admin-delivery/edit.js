@@ -40,6 +40,138 @@
     );
 
 
+    function getTranslationFocusRequest(button)
+    {
+        const params = new URLSearchParams(window.location.search);
+
+        const languageCode = String(
+            params.get('focus_language') || ''
+        ).trim().toLowerCase();
+
+        const requestedId = String(
+            params.get('highlight') || ''
+        ).trim();
+
+        const requestedType = String(
+            params.get('highlight_type') || ''
+        ).trim().toLowerCase();
+
+        const editableType = requestedType === 'option_input'
+            ? 'option'
+            : requestedType;
+
+        if (
+            languageCode === ''
+            || !/^\d+$/.test(requestedId)
+            || ![
+                'method',
+                'service',
+                'option',
+                'option_input'
+            ].includes(requestedType)
+            || editableType !== String(button.dataset.type || '')
+            || requestedId !== String(button.dataset.id || '')
+        ) {
+            return null;
+        }
+
+        return {
+            languageCode,
+            isOptionInput: requestedType === 'option_input'
+        };
+    }
+
+
+    function findLanguageSection(sections, languageCode)
+    {
+        return sections.find((section) => {
+            return String(
+                section.dataset.languageCode || ''
+            ).trim().toLowerCase() === languageCode;
+        }) || null;
+    }
+
+
+    function getTranslationFocusField(button)
+    {
+        const request = getTranslationFocusRequest(button);
+
+        if (!request) {
+            return null;
+        }
+
+        if (!request.isOptionInput) {
+            const section = findLanguageSection(
+                translationSections,
+                request.languageCode
+            );
+
+            return section
+                ? section.querySelector('.delivery-translation-name')
+                : null;
+        }
+
+        const section = findLanguageSection(
+            optionInputTranslationSections,
+            request.languageCode
+        );
+
+        if (!section) {
+            return null;
+        }
+
+        const labelInput = section.querySelector(
+            '.delivery-option-input-translation-label'
+        );
+
+        const placeholderInput = section.querySelector(
+            '.delivery-option-input-translation-placeholder'
+        );
+
+        if (
+            optionInputLabel
+            && optionInputLabel.value.trim() !== ''
+            && labelInput
+            && labelInput.value.trim() === ''
+        ) {
+            return labelInput;
+        }
+
+        if (
+            optionInputPlaceholder
+            && optionInputPlaceholder.value.trim() !== ''
+            && placeholderInput
+            && placeholderInput.value.trim() === ''
+        ) {
+            return placeholderInput;
+        }
+
+        return labelInput || placeholderInput;
+    }
+
+
+    function focusEditField(field)
+    {
+        const target = field || editName;
+
+        if (!target) {
+            return;
+        }
+
+        target.focus();
+
+        if (typeof target.select === 'function') {
+            target.select();
+        }
+
+        if (field && typeof target.scrollIntoView === 'function') {
+            target.scrollIntoView({
+                block: 'center'
+            });
+        }
+    }
+
+
     function updateOptionInputVisibility()
     {
         if (!optionInputSettings) {
@@ -412,9 +544,11 @@
                         );
                     }
 
+                    const translationFocusField =
+                        getTranslationFocusField(this);
+
                     setTimeout(() => {
-                        editName.focus();
-                        editName.select();
+                        focusEditField(translationFocusField);
                     }, 50);
                 }
             );

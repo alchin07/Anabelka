@@ -104,6 +104,16 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                     $itemType = (string) ($item['type'] ?? '');
                     $itemId = (int) ($item['id'] ?? 0);
 
+                    $missingLanguages = array_values(
+                        $item['missing_languages'] ?? []
+                    );
+
+                    $focusLanguage = strtolower(
+                        trim(
+                            (string) ($missingLanguages[0] ?? '')
+                        )
+                    );
+
                     $itemName = str_replace(
                         ' — поле покупателя',
                         ' — поле покупця',
@@ -136,6 +146,12 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                                 . $itemId
                                 . '&highlight_type='
                                 . rawurlencode($itemType)
+                                . (
+                                    $focusLanguage !== ''
+                                    ? '&focus_language='
+                                        . rawurlencode($focusLanguage)
+                                    : ''
+                                )
                                 . '#delivery-'
                                 . rawurlencode($deliveryAnchorType)
                                 . '-'
@@ -159,7 +175,7 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                         </div>
 
                         <div class="translation-missing-languages">
-                            <?php foreach ($item['missing_languages'] ?? [] as $code): ?>
+                            <?php foreach ($missingLanguages as $code): ?>
                                 <?php
                                 $language = $languageMap[$code] ?? [
                                     'name' => strtoupper((string) $code),

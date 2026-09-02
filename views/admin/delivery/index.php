@@ -200,7 +200,7 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/edit.js?v=5"
+        src="/Anabelka/js/admin-delivery/edit.js?v=6"
     ></script>
 
     <script
