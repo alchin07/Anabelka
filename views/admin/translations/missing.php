@@ -126,11 +126,16 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                             ['method', 'service', 'option', 'option_input'],
                             true
                         )) {
+                            $deliveryAnchorType =
+                                $itemType === 'option_input'
+                                ? 'option'
+                                : $itemType;
+
                             $openUrl =
-                                '/Anabelka/admin/delivery?highlight='
-                                . $itemId
-                                . '&highlight_type='
-                                . rawurlencode($itemType);
+                                '/Anabelka/admin/delivery#delivery-'
+                                . rawurlencode($deliveryAnchorType)
+                                . '-'
+                                . $itemId;
                         }
                     }
                     ?>
