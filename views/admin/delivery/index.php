@@ -182,5 +182,9 @@
         src="/Anabelka/js/admin-delivery/collapse.js?v=6"
     ></script>
 
+    <script
+        src="/Anabelka/js/admin-delivery/translation-target.js?v=1"
+    ></script>
+
 </body>
 </html>
