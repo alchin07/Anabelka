@@ -145,11 +145,23 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                         if ($itemType === 'category') {
                             $openUrl =
                                 '/Anabelka/admin/categories?highlight='
-                                . $itemId;
+                                . $itemId
+                                . (
+                                    $focusLanguage !== ''
+                                    ? '&focus_language='
+                                        . rawurlencode($focusLanguage)
+                                    : ''
+                                );
                         } elseif ($itemType === 'product') {
                             $openUrl =
                                 '/Anabelka/admin/products?highlight='
-                                . $itemId;
+                                . $itemId
+                                . (
+                                    $focusLanguage !== ''
+                                    ? '&focus_language='
+                                        . rawurlencode($focusLanguage)
+                                    : ''
+                                );
                         } elseif (in_array(
                             $itemType,
                             ['method', 'service', 'option', 'option_input'],

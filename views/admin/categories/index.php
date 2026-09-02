@@ -190,6 +190,17 @@
             margin-top: 18px;
             padding-top: 16px;
             border-top: 1px solid #eadcf7;
+            scroll-margin: 18px;
+        }
+
+        .category-translation-section.is-translation-focus {
+            margin-right: -8px;
+            margin-left: -8px;
+            padding-right: 8px;
+            padding-left: 8px;
+            border-radius: 12px;
+            background: #faf7ff;
+            box-shadow: 0 0 0 2px var(--primary-color);
         }
 
         .category-form-group {
@@ -479,6 +490,67 @@ $depthFor = function ($category) use (&$categoryById) {
     const nameField = document.getElementById('category-edit-name');
     const descriptionField = document.getElementById('category-edit-description');
 
+    function getTranslationFocusField(button) {
+        const params = new URLSearchParams(window.location.search);
+        const languageCode = String(
+            params.get('focus_language') || ''
+        ).trim().toLowerCase();
+        const requestedId = String(
+            params.get('highlight') || ''
+        ).trim();
+
+        if (
+            languageCode === ''
+            || !/^\d+$/.test(requestedId)
+            || requestedId !== String(button.dataset.categoryId || '')
+        ) {
+            return null;
+        }
+
+        const section = Array.from(
+            document.querySelectorAll('[data-category-language]')
+        ).find(function (item) {
+            return String(
+                item.dataset.categoryLanguage || ''
+            ).trim().toLowerCase() === languageCode;
+        }) || null;
+
+        return section
+            ? section.querySelector('.category-translation-name')
+            : null;
+    }
+
+    function focusTranslationField(field) {
+        document
+            .querySelectorAll('.category-translation-section.is-translation-focus')
+            .forEach(function (section) {
+                section.classList.remove('is-translation-focus');
+            });
+
+        if (!field) {
+            nameField.focus();
+            return;
+        }
+
+        const section = field.closest('.category-translation-section');
+
+        if (section) {
+            section.classList.add('is-translation-focus');
+        }
+
+        field.focus();
+
+        if (typeof field.select === 'function') {
+            field.select();
+        }
+
+        window.setTimeout(function () {
+            field.scrollIntoView({
+                block: 'center'
+            });
+        }, 50);
+    }
+
     function closeModal() {
         modal.hidden = true;
     }
@@ -525,6 +597,13 @@ $depthFor = function ($category) use (&$categoryById) {
             });
 
             modal.hidden = false;
+
+            const translationFocusField =
+                getTranslationFocusField(button);
+
+            window.setTimeout(function () {
+                focusTranslationField(translationFocusField);
+            }, 50);
         });
     });
 
