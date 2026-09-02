@@ -1,8 +1,8 @@
 <?php
 
 /*
- * Настраиваем поля
- * в зависимости от уровня.
+ * Налаштовуємо поля
+ * залежно від рівня.
  */
 switch ($actionType) {
 
@@ -50,6 +50,12 @@ $isActive =
         $isActive
     );
 
+$editAnchorId =
+    'delivery-'
+    . $actionType
+    . '-'
+    . (int) $itemId;
+
 ?>
 
 
@@ -84,8 +90,8 @@ $isActive =
         type="submit"
         class="icon-button"
         title="<?= $isActive
-            ? 'Выключить'
-            : 'Включить' ?>"
+            ? 'Вимкнути'
+            : 'Увімкнути' ?>"
     >
 
         <svg
@@ -116,6 +122,7 @@ $isActive =
 
 <button
     type="button"
+    id="<?= htmlspecialchars($editAnchorId) ?>"
     class="
         icon-button
         edit-button
@@ -139,7 +146,7 @@ $isActive =
         'UTF-8'
     ) ?>"
 
-    title="Редактировать"
+    title="Редагувати"
 >
 
     <svg
@@ -181,7 +188,7 @@ $isActive =
     ENT_QUOTES,
     'UTF-8'
 ) ?>"
-    title="Удалить"
+    title="Видалити"
 >
 
     <svg
