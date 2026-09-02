@@ -1,15 +1,36 @@
 /*
  * Перехід із центру перекладів до конкретного елемента Delivery.
  *
- * Цільова картка вже позначена PHP-класом delivery-translation-target.
- * JavaScript лише гарантує розкриття батьків та прокручує до неї.
+ * Основна ціль визначається стандартним URL-якорем #delivery-... .
+ * JavaScript лише розкриває батьківські рівні, додає запасний клас
+ * підсвічування та прокручує картку до центру екрана.
  */
 (function () {
     'use strict';
 
-    function openParents(target)
+    function getTarget()
     {
-        let current = target;
+        const hash = String(window.location.hash || '');
+
+        if (!hash || hash === '#') {
+            return document.querySelector(
+                '.delivery-translation-target'
+            );
+        }
+
+        try {
+            return document.getElementById(
+                decodeURIComponent(hash.slice(1))
+            );
+        } catch (error) {
+            return null;
+        }
+    }
+
+
+    function openParents(row)
+    {
+        let current = row;
 
         while (current) {
             const container = current.closest('.admin-tree-children');
@@ -45,25 +66,43 @@
         }
     }
 
+
     function init()
     {
-        const target = document.querySelector(
-            '.delivery-translation-target'
-        );
+        const target = getTarget();
 
         if (!target) {
             return;
         }
 
-        openParents(target);
+        const row = target.classList.contains('admin-tree-row')
+            ? target
+            : target.closest('.admin-tree-row');
+
+        if (!row) {
+            return;
+        }
+
+        openParents(row);
+
+        document
+            .querySelectorAll('.delivery-translation-target')
+            .forEach(function (item) {
+                item.classList.remove('delivery-translation-target');
+            });
+
+        row.classList.add('delivery-translation-target');
 
         window.setTimeout(function () {
-            target.scrollIntoView({
+            row.scrollIntoView({
                 behavior: 'smooth',
                 block: 'center'
             });
         }, 120);
     }
 
+
     init();
+
+    window.addEventListener('hashchange', init);
 })();
