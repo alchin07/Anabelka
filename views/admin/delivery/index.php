@@ -29,11 +29,52 @@
         rel="stylesheet"
         href="/Anabelka/css/admin-delivery.css?v=9"
     >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/admin-delivery-translation-target.css?v=1"
+    >
 </head>
 
 <body>
 
     <?php
+
+    $translationHighlightId = 0;
+    $translationHighlightType = '';
+
+    $rawHighlightId =
+        trim((string) ($_GET['highlight'] ?? ''));
+
+    $rawHighlightType = strtolower(
+        trim((string) ($_GET['highlight_type'] ?? ''))
+    );
+
+    if (ctype_digit($rawHighlightId)) {
+        $translationHighlightId =
+            (int) $rawHighlightId;
+    }
+
+    if ($rawHighlightType === 'option_input') {
+        $rawHighlightType = 'option';
+    }
+
+    if (in_array(
+        $rawHighlightType,
+        ['method', 'service', 'option'],
+        true
+    )) {
+        $translationHighlightType =
+            $rawHighlightType;
+    }
+
+    if (
+        $translationHighlightId <= 0
+        || $translationHighlightType === ''
+    ) {
+        $translationHighlightId = 0;
+        $translationHighlightType = '';
+    }
 
     $pageTitle =
         'Админ-панель — Доставка';
@@ -179,11 +220,11 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/collapse.js?v=6"
+        src="/Anabelka/js/admin-delivery/collapse.js?v=7"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/translation-target.js?v=1"
+        src="/Anabelka/js/admin-delivery/translation-target.js?v=2"
     ></script>
 
 </body>
