@@ -55,18 +55,42 @@
     function getAnchorTarget()
     {
         const hash = String(window.location.hash || '');
+        let target = null;
 
-        if (!hash || hash === '#') {
+        if (hash && hash !== '#') {
+            try {
+                target = document.getElementById(
+                    decodeURIComponent(hash.slice(1))
+                );
+            } catch (error) {
+                target = null;
+            }
+        }
+
+        if (target) {
+            return target;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const id = String(params.get('highlight') || '').trim();
+        let type = String(params.get('highlight_type') || '').trim();
+
+        if (!/^\d+$/.test(id)) {
             return null;
         }
 
-        try {
-            return document.getElementById(
-                decodeURIComponent(hash.slice(1))
-            );
-        } catch (error) {
+        if (type === 'option_input') {
+            type = 'option';
+        }
+
+        if (!['method', 'service', 'option'].includes(type)) {
             return null;
         }
+
+        return document.querySelector(
+            '[data-delivery-target-type="' + type + '"]'
+            + '[data-delivery-target-id="' + id + '"]'
+        );
     }
 
 

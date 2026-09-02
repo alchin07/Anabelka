@@ -177,17 +177,23 @@ class TranslationDashboardService
 
                 SELECT
                     'service' AS entity_type,
-                    id AS entity_id,
-                    name AS entity_name
-                FROM delivery_services
+                    s.id AS entity_id,
+                    s.name AS entity_name
+                FROM delivery_services AS s
+                INNER JOIN delivery_methods AS m
+                    ON m.id = s.delivery_method_id
 
                 UNION ALL
 
                 SELECT
                     'option' AS entity_type,
-                    id AS entity_id,
-                    name AS entity_name
-                FROM delivery_service_options
+                    o.id AS entity_id,
+                    o.name AS entity_name
+                FROM delivery_service_options AS o
+                INNER JOIN delivery_services AS s
+                    ON s.id = o.delivery_service_id
+                INNER JOIN delivery_methods AS m
+                    ON m.id = s.delivery_method_id
             ) AS e
             INNER JOIN languages AS l
                 ON l.is_active = 1
@@ -221,6 +227,10 @@ class TranslationDashboardService
             FROM delivery_option_inputs AS i
             INNER JOIN delivery_service_options AS o
                 ON o.id = i.option_id
+            INNER JOIN delivery_services AS s
+                ON s.id = o.delivery_service_id
+            INNER JOIN delivery_methods AS m
+                ON m.id = s.delivery_method_id
             INNER JOIN languages AS l
                 ON l.is_active = 1
                AND l.code <> 'uk'
@@ -329,21 +339,39 @@ class TranslationDashboardService
                 SELECT
                     (SELECT COUNT(*) FROM delivery_methods)
                     +
-                    (SELECT COUNT(*) FROM delivery_services)
+                    (
+                        SELECT COUNT(*)
+                        FROM delivery_services AS s
+                        INNER JOIN delivery_methods AS m
+                            ON m.id = s.delivery_method_id
+                    )
                     +
-                    (SELECT COUNT(*) FROM delivery_service_options)
+                    (
+                        SELECT COUNT(*)
+                        FROM delivery_service_options AS o
+                        INNER JOIN delivery_services AS s
+                            ON s.id = o.delivery_service_id
+                        INNER JOIN delivery_methods AS m
+                            ON m.id = s.delivery_method_id
+                    )
             ")
             ->fetchColumn();
 
         $deliveryInputCount = (int) $db
             ->query("
                 SELECT COUNT(*)
-                FROM delivery_option_inputs
-                WHERE is_enabled = 1
+                FROM delivery_option_inputs AS i
+                INNER JOIN delivery_service_options AS o
+                    ON o.id = i.option_id
+                INNER JOIN delivery_services AS s
+                    ON s.id = o.delivery_service_id
+                INNER JOIN delivery_methods AS m
+                    ON m.id = s.delivery_method_id
+                WHERE i.is_enabled = 1
                   AND (
-                        TRIM(COALESCE(field_label, '')) <> ''
+                        TRIM(COALESCE(i.field_label, '')) <> ''
                         OR
-                        TRIM(COALESCE(placeholder, '')) <> ''
+                        TRIM(COALESCE(i.placeholder, '')) <> ''
                   )
             ")
             ->fetchColumn();
@@ -440,10 +468,38 @@ class TranslationDashboardService
         $deliveryTranslated = (int) $db
             ->query("
                 SELECT COUNT(*)
-                FROM delivery_translations
-                WHERE language_code IN ($languageList)
-                  AND status = 'approved'
-                  AND TRIM(name) <> ''
+                FROM delivery_translations AS t
+                INNER JOIN (
+                    SELECT
+                        'method' AS entity_type,
+                        m.id AS entity_id
+                    FROM delivery_methods AS m
+
+                    UNION ALL
+
+                    SELECT
+                        'service' AS entity_type,
+                        s.id AS entity_id
+                    FROM delivery_services AS s
+                    INNER JOIN delivery_methods AS m
+                        ON m.id = s.delivery_method_id
+
+                    UNION ALL
+
+                    SELECT
+                        'option' AS entity_type,
+                        o.id AS entity_id
+                    FROM delivery_service_options AS o
+                    INNER JOIN delivery_services AS s
+                        ON s.id = o.delivery_service_id
+                    INNER JOIN delivery_methods AS m
+                        ON m.id = s.delivery_method_id
+                ) AS e
+                    ON e.entity_type = t.entity_type
+                   AND e.entity_id = t.entity_id
+                WHERE t.language_code IN ($languageList)
+                  AND t.status = 'approved'
+                  AND TRIM(t.name) <> ''
             ")
             ->fetchColumn();
 
@@ -453,6 +509,12 @@ class TranslationDashboardService
                 FROM delivery_option_input_translations AS t
                 INNER JOIN delivery_option_inputs AS i
                     ON i.option_id = t.option_id
+                INNER JOIN delivery_service_options AS o
+                    ON o.id = i.option_id
+                INNER JOIN delivery_services AS s
+                    ON s.id = o.delivery_service_id
+                INNER JOIN delivery_methods AS m
+                    ON m.id = s.delivery_method_id
                 WHERE i.is_enabled = 1
                   AND t.language_code IN ($languageList)
                   AND (

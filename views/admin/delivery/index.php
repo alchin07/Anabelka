@@ -32,7 +32,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-delivery-translation-target.css?v=2"
+        href="/Anabelka/css/admin-delivery-translation-target.css?v=3"
     >
 </head>
 
@@ -220,11 +220,11 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/collapse.js?v=8"
+        src="/Anabelka/js/admin-delivery/collapse.js?v=9"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/translation-target.js?v=3"
+        src="/Anabelka/js/admin-delivery/translation-target.js?v=4"
     ></script>
 
 </body>

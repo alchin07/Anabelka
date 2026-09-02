@@ -50,12 +50,6 @@ $isActive =
         $isActive
     );
 
-$editAnchorId =
-    'delivery-'
-    . $actionType
-    . '-'
-    . (int) $itemId;
-
 ?>
 
 
@@ -122,7 +116,6 @@ $editAnchorId =
 
 <button
     type="button"
-    id="<?= htmlspecialchars($editAnchorId) ?>"
     class="
         icon-button
         edit-button

@@ -8,22 +8,46 @@
 (function () {
     'use strict';
 
+    function getQueryTarget()
+    {
+        const params = new URLSearchParams(window.location.search);
+        const id = String(params.get('highlight') || '').trim();
+        let type = String(params.get('highlight_type') || '').trim();
+
+        if (!/^\d+$/.test(id)) {
+            return null;
+        }
+
+        if (type === 'option_input') {
+            type = 'option';
+        }
+
+        if (!['method', 'service', 'option'].includes(type)) {
+            return null;
+        }
+
+        return document.querySelector(
+            '[data-delivery-target-type="' + type + '"]'
+            + '[data-delivery-target-id="' + id + '"]'
+        );
+    }
+
+
     function getTarget()
     {
         const hash = String(window.location.hash || '');
 
         if (!hash || hash === '#') {
-            return document.querySelector(
-                '.delivery-translation-target'
-            );
+            return getQueryTarget()
+                || document.querySelector('.delivery-translation-target');
         }
 
         try {
             return document.getElementById(
                 decodeURIComponent(hash.slice(1))
-            );
+            ) || getQueryTarget();
         } catch (error) {
-            return null;
+            return getQueryTarget();
         }
     }
 
@@ -72,6 +96,12 @@
         const target = getTarget();
 
         if (!target) {
+            document
+                .querySelectorAll('.delivery-translation-target')
+                .forEach(function (item) {
+                    item.classList.remove('delivery-translation-target');
+                });
+
             return;
         }
 

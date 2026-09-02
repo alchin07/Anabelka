@@ -1,6 +1,7 @@
 <div class="delivery-card">
 
     <div
+        id="delivery-method-<?= (int) $method['id'] ?>"
         class="admin-tree-row<?= $isFirstMethod ? '' : ' no-add' ?><?= (
             ($translationHighlightType ?? '') === 'method'
             && (int) ($translationHighlightId ?? 0) === (int) $method['id']

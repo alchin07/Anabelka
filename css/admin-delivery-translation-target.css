@@ -6,12 +6,12 @@
  * Клас delivery-translation-target залишається як запасний варіант.
  */
 .admin-tree-row.delivery-translation-target,
-.admin-tree-row:has(.edit-button:target) {
+.admin-tree-row:target {
     scroll-margin-top: 120px;
 }
 
 .admin-tree-row.delivery-translation-target > .admin-tree-item,
-.admin-tree-row:has(.edit-button:target) > .admin-tree-item {
+.admin-tree-row:target > .admin-tree-item {
     outline: 4px solid var(--primary-color);
     outline-offset: 2px;
 
@@ -20,6 +20,6 @@
 }
 
 .admin-tree-row.delivery-translation-target > .admin-tree-item > .edit-button,
-.admin-tree-row:has(.edit-button:target) > .admin-tree-item > .edit-button {
+.admin-tree-row:target > .admin-tree-item > .edit-button {
     box-shadow: 0 0 0 3px var(--primary-color);
 }

@@ -1,6 +1,7 @@
 <div class="delivery-service">
 
     <div
+        id="delivery-service-<?= (int) $service['id'] ?>"
         class="admin-tree-row<?= $isFirstService ? '' : ' no-add' ?><?= (
             ($translationHighlightType ?? '') === 'service'
             && (int) ($translationHighlightId ?? 0) === (int) $service['id']
