@@ -22,10 +22,6 @@ class AdminAITranslationController extends Controller
         try {
             $service = new AITranslationService();
 
-            if ($provider !== '') {
-                $service->setDefaultProviderCode($provider);
-            }
-
             $translation = $service->suggest(
                 $targetLanguage,
                 $name,

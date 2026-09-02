@@ -306,7 +306,7 @@ echo $cartCount;
 <?php if ($isAdminPage): ?>
 
     <script
-        src="/Anabelka/js/admin-nav.js?v=9"
+        src="/Anabelka/js/admin-nav.js?v=10"
     ></script>
 
 <?php endif; ?>

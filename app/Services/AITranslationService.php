@@ -2,6 +2,9 @@
 
 class AITranslationService
 {
+    private const DEFAULT_PROVIDER_SETTING =
+        'ai_translation.default_provider';
+
     private $config;
     private $providers = [];
 
@@ -58,17 +61,50 @@ class AITranslationService
 
     public function getDefaultProviderCode()
     {
+        $storedProvider = strtolower(
+            trim((string) AppSetting::get(
+                self::DEFAULT_PROVIDER_SETTING,
+                ''
+            ))
+        );
+
+        if ($this->isConfiguredProvider($storedProvider)) {
+            return $storedProvider;
+        }
+
+        /*
+         * Одноразово переносимо попередній вибір із сесії до бази.
+         */
         $sessionProvider = strtolower(
             trim((string) ($_SESSION['ai_translation_provider'] ?? ''))
         );
 
-        if (isset($this->providers[$sessionProvider])) {
+        if ($this->isConfiguredProvider($sessionProvider)) {
+            AppSetting::set(
+                self::DEFAULT_PROVIDER_SETTING,
+                $sessionProvider
+            );
+
             return $sessionProvider;
         }
 
         $configuredDefault = strtolower(
             trim((string) ($this->config['default_provider'] ?? 'openai'))
         );
+
+        if ($this->isConfiguredProvider($configuredDefault)) {
+            return $configuredDefault;
+        }
+
+        foreach ($this->providers as $code => $provider) {
+            if ($provider->isConfigured()) {
+                return $code;
+            }
+        }
+
+        if (isset($this->providers[$storedProvider])) {
+            return $storedProvider;
+        }
 
         return isset($this->providers[$configuredDefault])
             ? $configuredDefault
@@ -79,6 +115,19 @@ class AITranslationService
     public function setDefaultProviderCode($providerCode)
     {
         $providerCode = $this->normalizeProviderCode($providerCode);
+
+        if (!$this->providers[$providerCode]->isConfigured()) {
+            throw new InvalidArgumentException(
+                $this->providers[$providerCode]->getName()
+                . ' не можна зробити основним: спочатку додайте API-ключ.'
+            );
+        }
+
+        AppSetting::set(
+            self::DEFAULT_PROVIDER_SETTING,
+            $providerCode
+        );
+
         $_SESSION['ai_translation_provider'] = $providerCode;
 
         return $providerCode;
@@ -160,6 +209,13 @@ class AITranslationService
         }
 
         return $providerCode;
+    }
+
+
+    private function isConfiguredProvider($providerCode)
+    {
+        return isset($this->providers[$providerCode])
+            && $this->providers[$providerCode]->isConfigured();
     }
 
 

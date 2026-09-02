@@ -205,6 +205,11 @@
     background: #faf7ff;
 }
 
+.translation-provider-card.is-default {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.12);
+}
+
 .translation-provider-head {
     display: flex;
     justify-content: space-between;

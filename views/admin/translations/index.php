@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=3"
+        href="/Anabelka/css/admin-translations.css?v=4"
     >
 </head>
 <body>
@@ -108,7 +108,10 @@ $sectionLabels = [
                 <span class="translations-summary-label">
                     Основний ШІ
                 </span>
-                <span class="translations-summary-value">
+                <span
+                    class="translations-summary-value"
+                    data-ai-default-provider-name
+                >
                     <?= htmlspecialchars($currentProviderName ?: '—') ?>
                 </span>
             </div>
@@ -214,7 +217,10 @@ $sectionLabels = [
                     $isCurrent = (string) $selectedProvider === (string) $code;
                     ?>
 
-                    <article class="translation-provider-card">
+                    <article
+                        class="translation-provider-card<?= $isCurrent ? ' is-default' : '' ?>"
+                        data-ai-provider-code="<?= htmlspecialchars((string) $code) ?>"
+                    >
                         <div class="translation-provider-head">
                             <span class="translation-provider-name">
                                 <?= htmlspecialchars(
@@ -229,10 +235,15 @@ $sectionLabels = [
                             </span>
                         </div>
 
-                        <span class="translation-provider-current">
+                        <span
+                            class="translation-provider-current"
+                            data-ai-provider-current
+                        >
                             <?= $isCurrent
-                                ? 'Використовується зараз'
-                                : 'Доступний для вибору' ?>
+                                ? 'За замовчуванням'
+                                : ($isConfigured
+                                    ? 'Доступний для вибору'
+                                    : 'Недоступний без ключа') ?>
                         </span>
                     </article>
                 <?php endforeach; ?>
