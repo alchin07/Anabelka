@@ -41,7 +41,7 @@ $translationBadge = (int) (
 
 <link
     rel="stylesheet"
-    href="/Anabelka/css/admin-layout.css?v=1"
+    href="/Anabelka/css/admin-layout.css?v=2"
 >
 
 <header class="admin-site-header">

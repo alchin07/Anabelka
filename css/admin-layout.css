@@ -296,40 +296,45 @@ body.admin-menu-open {
 
 @media (max-width: 650px) {
     :root {
-        --admin-header-height: 64px;
+        --admin-header-height: 54px;
     }
 
     .admin-topbar {
-        width: calc(100% - 20px);
-        grid-template-columns: 42px minmax(0, 1fr) auto;
-        gap: 9px;
+        width: calc(100% - 12px);
+        grid-template-columns: 36px minmax(0, 1fr) auto;
+        gap: 7px;
     }
 
     .admin-menu-toggle {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+        width: 34px;
+        height: 34px;
+        gap: 4px;
+        border-radius: 9px;
+    }
+
+    .admin-menu-toggle span {
+        width: 17px;
     }
 
     .admin-brand {
         display: grid;
-        gap: 2px;
+        gap: 1px;
     }
 
     .admin-brand-name {
-        font-size: 22px;
+        font-size: 20px;
     }
 
     .admin-page-name {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
     }
 
     .admin-store-link {
-        min-height: 38px;
-        padding: 7px 10px;
-        border-radius: 10px;
-        font-size: 12px;
+        min-height: 34px;
+        padding: 5px 8px;
+        border-radius: 9px;
+        font-size: 11px;
     }
 
     .admin-store-link-full {
@@ -338,6 +343,92 @@ body.admin-menu-open {
 
     .admin-store-link-short {
         display: inline;
+    }
+
+    .admin-drawer {
+        width: min(304px, calc(100vw - 18px));
+        padding: 10px 11px 12px;
+    }
+
+    .admin-drawer-head {
+        gap: 10px;
+        padding: 0 1px 9px;
+    }
+
+    .admin-drawer-head strong {
+        font-size: 21px;
+    }
+
+    .admin-drawer-head span {
+        font-size: 10px;
+    }
+
+    .admin-menu-close {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        font-size: 23px;
+    }
+
+    .admin-section-nav {
+        gap: 2px;
+        padding: 6px 0;
+    }
+
+    .admin-section-nav a {
+        min-height: 38px;
+        gap: 8px;
+        padding: 7px 9px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    .admin-nav-group-title {
+        margin: 7px 8px 1px;
+        font-size: 9px;
+    }
+
+    .admin-nav-group-title:first-child {
+        margin-top: 1px;
+    }
+
+    .admin-nav-badge {
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        font-size: 10px;
+    }
+
+    .admin-drawer-ai {
+        padding: 8px 0;
+    }
+
+    .admin-drawer-ai-title {
+        margin-bottom: 4px;
+        font-size: 10px;
+    }
+
+    .admin-drawer .ai-provider-switcher {
+        gap: 5px;
+        padding: 5px 7px;
+        border-radius: 9px;
+        font-size: 11px;
+    }
+
+    .admin-drawer .ai-provider-select {
+        padding: 5px 7px;
+        border-radius: 7px;
+        font-size: 12px;
+    }
+
+    .admin-drawer .ai-provider-status {
+        font-size: 10px;
+    }
+
+    .admin-drawer-store-link {
+        min-height: 36px;
+        border-radius: 9px;
+        font-size: 12px;
     }
 }
 

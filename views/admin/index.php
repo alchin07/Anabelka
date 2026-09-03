@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-dashboard.css?v=1"
+        href="/Anabelka/css/admin-dashboard.css?v=2"
     >
 </head>
 <body>
@@ -129,7 +129,12 @@ $aiStateClass = !$aiAvailable
             <span class="dashboard-alert-dot" aria-hidden="true">З</span>
 
             <span class="dashboard-alert-copy">
-                <strong>Нові замовлення</strong>
+                <strong class="dashboard-alert-title-full">
+                    Нові замовлення
+                </strong>
+                <strong class="dashboard-alert-title-short">
+                    Звичайні
+                </strong>
                 <span>
                     Звичайне оформлення з доставкою
                 </span>
@@ -147,7 +152,12 @@ $aiStateClass = !$aiAvailable
             <span class="dashboard-alert-dot" aria-hidden="true">Ш</span>
 
             <span class="dashboard-alert-copy">
-                <strong>Швидкі замовлення</strong>
+                <strong class="dashboard-alert-title-full">
+                    Швидкі замовлення
+                </strong>
+                <strong class="dashboard-alert-title-short">
+                    Швидкі
+                </strong>
                 <span>
                     Ім’я, телефон і товари з кошика
                 </span>
