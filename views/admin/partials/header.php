@@ -209,4 +209,4 @@ $translationBadge = (int) (
     </a>
 </aside>
 
-<script src="/Anabelka/js/admin-nav.js?v=14"></script>
+<script src="/Anabelka/js/admin-nav.js?v=15"></script>

@@ -144,12 +144,12 @@
                     window.setCategoryTranslationWorkflow(
                         section,
                         'ai',
-                        'draft'
+                        'approved'
                     );
                 }
 
                 showMessage(
-                    'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
+                    'ШІ-переклад отримано. «Зберегти» підтвердить переклад.'
                 );
 
             } catch (error) {
