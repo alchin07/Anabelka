@@ -30,7 +30,7 @@ class AdminLanguageController extends Controller
             );
 
             $_SESSION['language_message'] =
-                'Язык добавлен.';
+                'Мову додано.';
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -50,7 +50,7 @@ class AdminLanguageController extends Controller
             );
 
             $_SESSION['language_message'] =
-                'Название языка сохранено.';
+                'Назву мови збережено.';
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -72,7 +72,7 @@ class AdminLanguageController extends Controller
 
             if (!$language) {
                 throw new RuntimeException(
-                    'Язык не найден.'
+                    'Мову не знайдено.'
                 );
             }
 
@@ -83,8 +83,8 @@ class AdminLanguageController extends Controller
 
             $_SESSION['language_message'] =
                 empty($language['is_active'])
-                    ? 'Язык включён.'
-                    : 'Язык отключён.';
+                    ? 'Мову увімкнено.'
+                    : 'Мову вимкнено.';
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -103,7 +103,7 @@ class AdminLanguageController extends Controller
             );
 
             $_SESSION['language_message'] =
-                'Основной язык сайта изменён.';
+                'Основну мову сайту змінено.';
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -125,7 +125,7 @@ class AdminLanguageController extends Controller
 
             if (!$language) {
                 throw new RuntimeException(
-                    'Язык не найден.'
+                    'Мову не знайдено.'
                 );
             }
 
@@ -136,7 +136,7 @@ class AdminLanguageController extends Controller
             );
 
             $_SESSION['language_message'] =
-                'Язык и его переводы удалены.';
+                'Мову та її переклади видалено.';
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -161,10 +161,10 @@ class AdminLanguageController extends Controller
     {
         if ($e instanceof PDOException) {
             if ((string) $e->getCode() === '23000') {
-                return 'Этот язык уже добавлен.';
+                return 'Цю мову вже додано.';
             }
 
-            return 'Не удалось сохранить язык в базе данных.';
+            return 'Не вдалося зберегти мову в базі даних.';
         }
 
         return $e->getMessage();

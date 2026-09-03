@@ -8,10 +8,10 @@ class Language
 
 
     /**
-     * Локальный справочник языков.
+     * Локальний довідник мов.
      *
-     * Администратор выбирает только язык,
-     * а code / locale / short_name назначаются автоматически.
+     * Адміністратор обирає лише мову,
+     * а code / locale / short_name призначаються автоматично.
      */
     public static function catalog()
     {
@@ -359,13 +359,13 @@ class Language
 
         if (!isset($catalog[$code])) {
             throw new InvalidArgumentException(
-                'Выберите язык из списка.'
+                'Оберіть мову зі списку.'
             );
         }
 
         if (self::findByCode($code)) {
             throw new InvalidArgumentException(
-                'Этот язык уже добавлен.'
+                'Цю мову вже додано.'
             );
         }
 
@@ -420,14 +420,14 @@ class Language
         $language = self::findById($id);
 
         if (!$language) {
-            throw new RuntimeException('Язык не найден.');
+            throw new RuntimeException('Мову не знайдено.');
         }
 
         $name = trim((string) $name);
 
         if ($name === '') {
             throw new InvalidArgumentException(
-                'Укажите название языка.'
+                'Укажіть назву мови.'
             );
         }
 
@@ -453,18 +453,18 @@ class Language
         $language = self::findById($id);
 
         if (!$language) {
-            throw new RuntimeException('Язык не найден.');
+            throw new RuntimeException('Мову не знайдено.');
         }
 
         if (!empty($language['is_source']) && !$isActive) {
             throw new RuntimeException(
-                'Исходный украинский язык нельзя отключить.'
+                'Вихідну українську мову не можна вимкнути.'
             );
         }
 
         if (!empty($language['is_default']) && !$isActive) {
             throw new RuntimeException(
-                'Основной язык сайта нельзя отключить.'
+                'Основну мову сайту не можна вимкнути.'
             );
         }
 
@@ -490,12 +490,12 @@ class Language
         $language = self::findById($id);
 
         if (!$language) {
-            throw new RuntimeException('Язык не найден.');
+            throw new RuntimeException('Мову не знайдено.');
         }
 
         if (empty($language['is_active'])) {
             throw new RuntimeException(
-                'Сначала включите язык, затем назначьте его основным.'
+                'Спочатку увімкніть мову, а потім призначте її основною.'
             );
         }
 
@@ -533,18 +533,18 @@ class Language
         $language = self::findById($id);
 
         if (!$language) {
-            throw new RuntimeException('Язык не найден.');
+            throw new RuntimeException('Мову не знайдено.');
         }
 
         if (!empty($language['is_source'])) {
             throw new RuntimeException(
-                'Исходный украинский язык нельзя удалить.'
+                'Вихідну українську мову не можна видалити.'
             );
         }
 
         if (!empty($language['is_default'])) {
             throw new RuntimeException(
-                'Сначала назначьте другой язык основным.'
+                'Спочатку призначте іншу мову основною.'
             );
         }
 

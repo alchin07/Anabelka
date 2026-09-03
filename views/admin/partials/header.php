@@ -2,7 +2,7 @@
 
 $adminPageTitle = trim((string) ($pageTitle ?? ''));
 $adminPageLabel = preg_replace(
-    '/^(Адмін-панель|Админ-панель)\s*[—-]\s*/u',
+    '/^(Адмін-панель|Админ-панель|Адмінпанель|Админпанель)\s*(?:[—–·:-])?\s*/u',
     '',
     $adminPageTitle
 );
@@ -22,6 +22,8 @@ $adminPageLabelMap = [
 
 $adminPageLabel = $adminPageLabelMap[$adminPageLabel]
     ?? $adminPageLabel;
+
+$adminPageLabel = 'Адмін-панель · ' . $adminPageLabel;
 
 $adminNavBadges = is_array($navBadges ?? null)
     ? $navBadges

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 
 <head>
     <meta charset="UTF-8">
@@ -8,7 +8,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Языки — Админ-панель</title>
+    <title>Мови — Адмін-панель</title>
 
     <link
         rel="stylesheet"
@@ -29,7 +29,7 @@
 <body>
 
 <?php
-$pageTitle = 'Админ-панель — Языки';
+$pageTitle = 'Адмін-панель — Мови';
 require __DIR__ . '/../../partials/header.php';
 ?>
 
@@ -39,11 +39,11 @@ require __DIR__ . '/../../partials/header.php';
 
         <div class="languages-head">
             <div>
-                <h2>Языки сайта</h2>
+                <h2>Мови сайту</h2>
 
                 <p class="languages-subtitle">
-                    Исходный язык контента — украинский.
-                    Технические параметры языка назначаются автоматически.
+                    Вихідна мова контенту — українська.
+                    Технічні параметри мови призначаються автоматично.
                 </p>
             </div>
         </div>
@@ -65,14 +65,14 @@ require __DIR__ . '/../../partials/header.php';
             action="/Anabelka/admin/languages/create"
             method="post"
         >
-            <h3>Добавить язык</h3>
+            <h3>Додати мову</h3>
 
             <?php if (!empty($availableLanguages)): ?>
 
                 <div class="language-create-row">
                     <div class="language-field">
                         <label for="language-create-select">
-                            Язык
+                            Мова
                         </label>
 
                         <select
@@ -81,7 +81,7 @@ require __DIR__ . '/../../partials/header.php';
                             required
                         >
                             <option value="">
-                                Выберите язык
+                                Оберіть мову
                             </option>
 
                             <?php foreach ($availableLanguages as $code => $languageData): ?>
@@ -97,14 +97,14 @@ require __DIR__ . '/../../partials/header.php';
                         class="language-button"
                         type="submit"
                     >
-                        Добавить язык
+                        Додати мову
                     </button>
                 </div>
 
             <?php else: ?>
 
                 <p class="language-help">
-                    Все языки из встроенного справочника уже добавлены.
+                    Усі мови з вбудованого довідника вже додано.
                 </p>
 
             <?php endif; ?>
@@ -136,18 +136,18 @@ require __DIR__ . '/../../partials/header.php';
                             <span
                                 class="language-badge <?= $isActive ? 'active' : 'inactive' ?>"
                             >
-                                <?= $isActive ? 'Включён' : 'Отключён' ?>
+                                <?= $isActive ? 'Увімкнена' : 'Вимкнена' ?>
                             </span>
 
                             <?php if ($isSource): ?>
                                 <span class="language-badge">
-                                    Исходный
+                                    Вихідна
                                 </span>
                             <?php endif; ?>
 
                             <?php if ($isDefault): ?>
                                 <span class="language-badge">
-                                    Основной
+                                    Основна
                                 </span>
                             <?php endif; ?>
                         </div>
@@ -166,7 +166,7 @@ require __DIR__ . '/../../partials/header.php';
 
                         <div class="language-field">
                             <label>
-                                Название
+                                Назва
                             </label>
 
                             <input
@@ -181,7 +181,7 @@ require __DIR__ . '/../../partials/header.php';
                             class="language-button"
                             type="submit"
                         >
-                            Сохранить
+                            Зберегти
                         </button>
                     </form>
 
@@ -201,7 +201,7 @@ require __DIR__ . '/../../partials/header.php';
                                 type="submit"
                                 <?= ($isSource || $isDefault) && $isActive ? 'disabled' : '' ?>
                             >
-                                <?= $isActive ? 'Отключить' : 'Включить' ?>
+                                <?= $isActive ? 'Вимкнути' : 'Увімкнути' ?>
                             </button>
                         </form>
 
@@ -220,14 +220,14 @@ require __DIR__ . '/../../partials/header.php';
                                 type="submit"
                                 <?= (!$isActive || $isDefault) ? 'disabled' : '' ?>
                             >
-                                Сделать основным
+                                Зробити основною
                             </button>
                         </form>
 
                         <form
                             action="/Anabelka/admin/languages/delete"
                             method="post"
-                            onsubmit="return confirm('Удалить этот язык? Все будущие переводы этого языка также будут связаны с ним.');"
+                            onsubmit="return confirm('Видалити цю мову разом з усіма її перекладами?');"
                         >
                             <input
                                 type="hidden"
@@ -240,14 +240,14 @@ require __DIR__ . '/../../partials/header.php';
                                 type="submit"
                                 <?= ($isSource || $isDefault) ? 'disabled' : '' ?>
                             >
-                                Удалить
+                                Видалити
                             </button>
                         </form>
                     </div>
 
                     <?php if ($isSource): ?>
                         <p class="language-help">
-                            Украинский язык является исходным и не может быть отключён или удалён.
+                            Українська мова є вихідною, тому її не можна вимкнути або видалити.
                         </p>
                     <?php endif; ?>
                 </article>
