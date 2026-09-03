@@ -1,21 +1,8 @@
 /*
- * Проста навігація між поточними розділами адмін-панелі.
+ * Спільне меню і допоміжні модулі адмін-панелі.
  */
 (function () {
     'use strict';
-
-    function createLink(href, text)
-    {
-        const link = document.createElement('a');
-        link.href = href;
-        link.textContent = text;
-        link.style.color = 'var(--primary-color)';
-        link.style.fontWeight = 'bold';
-        link.style.textDecoration = 'none';
-
-        return link;
-    }
-
 
     function ensureAdminControlsStyles()
     {
@@ -33,20 +20,20 @@
 
     function normalizeAdminHeading(header)
     {
-        const heading = header ? header.querySelector('h1') : null;
+        const heading = header ? header.querySelector('.admin-page-name') : null;
 
         if (!heading) {
             return;
         }
 
         const replacements = {
-            'Админ-панель — Быстрые заказы': 'Адмін-панель — Швидкі замовлення',
-            'Админ-панель — Доставка': 'Адмін-панель — Доставка',
-            'Админ-панель — Языки': 'Адмін-панель — Мови',
-            'Админ-панель — Переводы': 'Адмін-панель — Переклади',
-            'Админ-панель — ИИ-перевод': 'Адмін-панель — ШІ-переклад',
-            'Админ-панель — Категории': 'Адмін-панель — Категорії',
-            'Админ-панель — Товары': 'Адмін-панель — Товари'
+            'Быстрые заказы': 'Швидкі замовлення',
+            'Доставка': 'Доставка',
+            'Языки': 'Мови',
+            'Переводы': 'Переклади',
+            'ИИ-перевод': 'ШІ-переклад',
+            'Категории': 'Категорії',
+            'Товары': 'Товари'
         };
 
         const current = (heading.textContent || '').trim();
@@ -86,7 +73,7 @@
     }
 
 
-    function ensureAiTranslationSwitcher(header)
+    function ensureAiTranslationSwitcher()
     {
         if (!document.querySelector('link[data-admin-ai-translation]')) {
             const stylesheet = document.createElement('link');
@@ -123,8 +110,10 @@
             switcher.appendChild(status);
         }
 
-        if (header && switcher.parentElement !== header) {
-            header.appendChild(switcher);
+        const target = document.getElementById('admin-ai-slot');
+
+        if (target && switcher.parentElement !== target) {
+            target.appendChild(switcher);
         }
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
@@ -189,10 +178,99 @@
     }
 
 
+    function markActiveSection()
+    {
+        const currentPath = window.location.pathname.replace(/\/$/, '');
+
+        document.querySelectorAll('[data-admin-route]').forEach(function (link) {
+            const route = (link.dataset.adminRoute || '').replace(/\/$/, '');
+            const isExact = link.dataset.adminExact === 'true';
+            const isActive = route !== '' && (
+                currentPath === route
+                || (!isExact && currentPath.indexOf(route + '/') === 0)
+            );
+
+            link.classList.toggle('is-active', isActive);
+
+            if (isActive) {
+                link.setAttribute('aria-current', 'page');
+            } else {
+                link.removeAttribute('aria-current');
+            }
+        });
+    }
+
+
+    function initDrawer()
+    {
+        const toggle = document.getElementById('admin-menu-toggle');
+        const close = document.getElementById('admin-menu-close');
+        const drawer = document.getElementById('admin-drawer');
+        const backdrop = document.getElementById('admin-menu-backdrop');
+
+        if (!toggle || !drawer || !backdrop) {
+            return;
+        }
+
+        let previousFocus = null;
+
+        function setOpen(isOpen)
+        {
+            drawer.classList.toggle('is-open', isOpen);
+            backdrop.classList.toggle('is-open', isOpen);
+            document.body.classList.toggle('admin-menu-open', isOpen);
+            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+            backdrop.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+
+            if (isOpen) {
+                previousFocus = document.activeElement;
+
+                if (close) {
+                    close.focus();
+                }
+            } else if (
+                previousFocus
+                && typeof previousFocus.focus === 'function'
+            ) {
+                previousFocus.focus();
+            }
+        }
+
+        toggle.addEventListener('click', function () {
+            setOpen(!drawer.classList.contains('is-open'));
+        });
+
+        if (close) {
+            close.addEventListener('click', function () {
+                setOpen(false);
+            });
+        }
+
+        backdrop.addEventListener('click', function () {
+            setOpen(false);
+        });
+
+        drawer.querySelectorAll('a').forEach(function (link) {
+            link.addEventListener('click', function () {
+                setOpen(false);
+            });
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (
+                event.key === 'Escape'
+                && drawer.classList.contains('is-open')
+            ) {
+                setOpen(false);
+            }
+        });
+    }
+
+
     function init()
     {
-        const header =
-            document.querySelector('.catalog-header');
+        const header = document.querySelector('.admin-site-header');
 
         if (!header) {
             return;
@@ -200,70 +278,10 @@
 
         ensureAdminControlsStyles();
         normalizeAdminHeading(header);
-
-        if (!document.getElementById('admin-section-nav')) {
-            const nav = document.createElement('nav');
-            nav.id = 'admin-section-nav';
-            nav.style.display = 'flex';
-            nav.style.justifyContent = 'center';
-            nav.style.gap = '14px';
-            nav.style.flexWrap = 'wrap';
-            nav.style.marginTop = '12px';
-
-            nav.appendChild(
-                createLink(
-                    '/Anabelka/admin/orders',
-                    'Швидкі замовлення'
-                )
-            );
-
-            nav.appendChild(
-                createLink(
-                    '/Anabelka/admin/delivery',
-                    'Доставка'
-                )
-            );
-
-            nav.appendChild(
-                createLink(
-                    '/Anabelka/admin/languages',
-                    'Мови'
-                )
-            );
-
-            nav.appendChild(
-                createLink(
-                    '/Anabelka/admin/translations',
-                    'Переклади'
-                )
-            );
-
-            nav.appendChild(
-                createLink(
-                    '/Anabelka/admin/ai-translation',
-                    'ШІ'
-                )
-            );
-
-            nav.appendChild(
-                createLink(
-                    '/Anabelka/admin/categories',
-                    'Категорії'
-                )
-            );
-
-            nav.appendChild(
-                createLink(
-                    '/Anabelka/admin/products',
-                    'Товари'
-                )
-            );
-
-            header.appendChild(nav);
-        }
-
         normalizePencilButtons();
-        ensureAiTranslationSwitcher(header);
+        markActiveSection();
+        initDrawer();
+        ensureAiTranslationSwitcher();
         ensurePageAiModules();
     }
 

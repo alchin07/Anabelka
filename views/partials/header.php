@@ -36,6 +36,11 @@ $isProductPage =
         '/Anabelka/product/'
     ) === 0;
 
+if ($isAdminPage) {
+    require __DIR__ . '/../admin/partials/header.php';
+    return;
+}
+
 ?>
 
 <header class="catalog-header">
@@ -300,14 +305,6 @@ echo $cartCount;
     ></script>
 
     <?php require __DIR__ . '/cart-server-i18n.php'; ?>
-
-<?php endif; ?>
-
-<?php if ($isAdminPage): ?>
-
-    <script
-        src="/Anabelka/js/admin-nav.js?v=13"
-    ></script>
 
 <?php endif; ?>
 

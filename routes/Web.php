@@ -85,6 +85,11 @@ $router->get(
 );
 
 $router->get(
+    '/admin',
+    'AdminDashboardController@index'
+);
+
+$router->get(
     '/admin/orders',
     'AdminQuickOrderController@index'
 );
