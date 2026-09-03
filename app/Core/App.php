@@ -28,6 +28,7 @@ class App
         require_once __DIR__ . '/../Models/Language.php';
         require_once __DIR__ . '/../Models/AppSetting.php';
         require_once __DIR__ . '/../Models/AITranslationUsage.php';
+        require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
         require_once __DIR__ . '/../Models/Translator.php';
         require_once __DIR__ . '/../Models/PublicInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/ProductInterfaceTranslator.php';
@@ -62,7 +63,7 @@ class App
 
         $router = new Router();
 
-        require __DIR__ . '/../../routes/web.php';
+        require __DIR__ . '/../../routes/Web.php';
 
         $router->dispatch(
             $_SERVER['REQUEST_URI'],

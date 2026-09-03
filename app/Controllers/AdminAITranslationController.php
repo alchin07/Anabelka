@@ -12,11 +12,19 @@ class AdminAITranslationController extends Controller
                 'recent' => []
             ];
             $statisticsError = '';
+            $providerHealth = [];
+            $healthError = '';
 
             try {
                 $statistics = AITranslationUsage::dashboard();
             } catch (Throwable $e) {
                 $statisticsError = $e->getMessage();
+            }
+
+            try {
+                $providerHealth = AITranslationProviderHealth::all();
+            } catch (Throwable $e) {
+                $healthError = $e->getMessage();
             }
 
             $this->view(
@@ -25,9 +33,20 @@ class AdminAITranslationController extends Controller
                     'providers' => $service->getProviders(),
                     'defaultProvider' =>
                         $service->getDefaultProviderCode(),
+                    'fallbackProvider' =>
+                        $service->getFallbackProviderCode(),
+                    'providerHealth' => $providerHealth,
+                    'healthError' => $healthError,
                     'statistics' => $statistics,
                     'statisticsError' => $statisticsError,
                     'saved' => !empty($_GET['saved']),
+                    'testedProvider' => strtolower(
+                        trim((string) ($_GET['tested'] ?? ''))
+                    ),
+                    'testResponseMs' => max(
+                        0,
+                        (int) ($_GET['response_ms'] ?? 0)
+                    ),
                     'settingsError' => trim(
                         (string) ($_GET['error'] ?? '')
                     )
@@ -42,6 +61,9 @@ class AdminAITranslationController extends Controller
                 [
                     'providers' => [],
                     'defaultProvider' => '',
+                    'fallbackProvider' => '',
+                    'providerHealth' => [],
+                    'healthError' => '',
                     'statistics' => [
                         'periods' => [],
                         'providers' => [],
@@ -49,6 +71,8 @@ class AdminAITranslationController extends Controller
                     ],
                     'statisticsError' => '',
                     'saved' => false,
+                    'testedProvider' => '',
+                    'testResponseMs' => 0,
                     'settingsError' => $e->getMessage()
                 ]
             );
@@ -87,6 +111,8 @@ class AdminAITranslationController extends Controller
             $this->jsonSuccess([
                 'translation' => $translation,
                 'selected_provider' => $service->getCurrentProviderCode(),
+                'fallback_provider' =>
+                    $service->getFallbackProviderCode(),
                 'providers' => $service->getProviders()
             ]);
 
@@ -106,6 +132,8 @@ class AdminAITranslationController extends Controller
             $this->jsonSuccess([
                 'selected_provider' => $service->getCurrentProviderCode(),
                 'default_provider' => $service->getDefaultProviderCode(),
+                'fallback_provider' =>
+                    $service->getFallbackProviderCode(),
                 'providers' => $service->getProviders()
             ]);
 
@@ -132,6 +160,8 @@ class AdminAITranslationController extends Controller
             $this->jsonSuccess([
                 'selected_provider' => $selected,
                 'default_provider' => $service->getDefaultProviderCode(),
+                'fallback_provider' =>
+                    $service->getFallbackProviderCode(),
                 'providers' => $service->getProviders()
             ]);
 
@@ -148,6 +178,9 @@ class AdminAITranslationController extends Controller
         $provider = strtolower(
             trim((string) ($_POST['provider'] ?? ''))
         );
+        $fallbackProvider = strtolower(
+            trim((string) ($_POST['fallback_provider'] ?? ''))
+        );
 
         if ($provider === '') {
             $this->redirectToSettings(
@@ -157,7 +190,10 @@ class AdminAITranslationController extends Controller
 
         try {
             $service = new AITranslationService();
-            $service->setDefaultProviderCode($provider);
+            $service->configureDefaultProviders(
+                $provider,
+                $fallbackProvider
+            );
 
             /*
              * Після зміни основного сервісу верхній список одразу
@@ -172,6 +208,41 @@ class AdminAITranslationController extends Controller
 
         } catch (Throwable $e) {
             $this->redirectToSettings($e->getMessage());
+        }
+    }
+
+
+    public function testProvider()
+    {
+        $provider = strtolower(
+            trim((string) ($_POST['provider'] ?? ''))
+        );
+
+        if ($provider === '') {
+            $this->redirectToSettings(
+                'Не вказано сервіс для перевірки.'
+            );
+        }
+
+        try {
+            $service = new AITranslationService();
+            $result = $service->testProvider($provider);
+
+            header(
+                'Location: /Anabelka/admin/ai-translation?tested='
+                . rawurlencode($provider)
+                . '&response_ms='
+                . (int) ($result['response_ms'] ?? 0)
+                . '#provider-'
+                . rawurlencode($provider)
+            );
+            exit;
+
+        } catch (Throwable $e) {
+            $this->redirectToSettings(
+                $e->getMessage(),
+                'provider-' . $provider
+            );
         }
     }
 
@@ -204,12 +275,22 @@ class AdminAITranslationController extends Controller
     }
 
 
-    private function redirectToSettings($error)
+    private function redirectToSettings($error, $anchor = '')
     {
-        header(
-            'Location: /Anabelka/admin/ai-translation?error='
-            . rawurlencode((string) $error)
+        $location = '/Anabelka/admin/ai-translation?error='
+            . rawurlencode((string) $error);
+
+        $anchor = preg_replace(
+            '/[^a-z0-9_-]/i',
+            '',
+            (string) $anchor
         );
+
+        if ($anchor !== '') {
+            $location .= '#' . $anchor;
+        }
+
+        header('Location: ' . $location);
         exit;
     }
 }

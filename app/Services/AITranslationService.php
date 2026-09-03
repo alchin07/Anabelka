@@ -5,6 +5,9 @@ class AITranslationService
     private const DEFAULT_PROVIDER_SETTING =
         'ai_translation.default_provider';
 
+    private const FALLBACK_PROVIDER_SETTING =
+        'ai_translation.fallback_provider';
+
     private $config;
     private $providers = [];
 
@@ -114,6 +117,21 @@ class AITranslationService
     }
 
 
+    public function getFallbackProviderCode()
+    {
+        $storedProvider = strtolower(
+            trim((string) AppSetting::get(
+                self::FALLBACK_PROVIDER_SETTING,
+                ''
+            ))
+        );
+
+        return $this->isConfiguredProvider($storedProvider)
+            ? $storedProvider
+            : '';
+    }
+
+
     public function setCurrentProviderCode($providerCode)
     {
         $providerCode = $this->normalizeProviderCode($providerCode);
@@ -157,6 +175,61 @@ class AITranslationService
     }
 
 
+    public function configureDefaultProviders(
+        $defaultProviderCode,
+        $fallbackProviderCode = ''
+    ) {
+        $defaultProviderCode = $this->normalizeProviderCode(
+            $defaultProviderCode
+        );
+
+        if (!$this->isConfiguredProvider($defaultProviderCode)) {
+            throw new InvalidArgumentException(
+                $this->providers[$defaultProviderCode]->getName()
+                . ' не можна зробити основним: спочатку додайте API-ключ.'
+            );
+        }
+
+        $fallbackProviderCode = strtolower(
+            trim((string) $fallbackProviderCode)
+        );
+
+        if ($fallbackProviderCode !== '') {
+            $fallbackProviderCode = $this->normalizeProviderCode(
+                $fallbackProviderCode
+            );
+
+            if (!$this->isConfiguredProvider($fallbackProviderCode)) {
+                throw new InvalidArgumentException(
+                    $this->providers[$fallbackProviderCode]->getName()
+                    . ' не можна зробити резервним: спочатку додайте API-ключ.'
+                );
+            }
+
+            if ($fallbackProviderCode === $defaultProviderCode) {
+                throw new InvalidArgumentException(
+                    'Основний і резервний ШІ мають бути різними.'
+                );
+            }
+        }
+
+        AppSetting::set(
+            self::DEFAULT_PROVIDER_SETTING,
+            $defaultProviderCode
+        );
+
+        AppSetting::set(
+            self::FALLBACK_PROVIDER_SETTING,
+            $fallbackProviderCode
+        );
+
+        return [
+            'default_provider' => $defaultProviderCode,
+            'fallback_provider' => $fallbackProviderCode
+        ];
+    }
+
+
     public function suggest(
         $targetLanguageCode,
         $name,
@@ -194,15 +267,15 @@ class AITranslationService
             );
         }
 
-        $providerCode = $providerCode !== null
+        $primaryProviderCode = $providerCode !== null
             ? $this->normalizeProviderCode($providerCode)
             : $this->getCurrentProviderCode();
 
-        $provider = $this->providers[$providerCode];
+        $primaryProvider = $this->providers[$primaryProviderCode];
 
-        if (!$provider->isConfigured()) {
+        if (!$primaryProvider->isConfigured()) {
             throw new RuntimeException(
-                $provider->getName()
+                $primaryProvider->getName()
                 . ' ещё не настроен: отсутствует API-ключ.'
             );
         }
@@ -211,44 +284,112 @@ class AITranslationService
             + $this->characterLength($description);
 
         try {
-            $translation = $provider->translate(
+            $result = $this->translateWithProvider(
+                $primaryProviderCode,
                 $targetLanguage,
+                $targetLanguageCode,
                 $name,
                 $description,
-                $context
-            );
-        } catch (Throwable $e) {
-            $this->recordUsageSafely(
-                $providerCode,
-                $targetLanguageCode,
                 $context,
-                $inputCharacters,
-                0,
-                false
+                $inputCharacters
             );
+        } catch (Throwable $primaryError) {
+            $fallbackProviderCode = $this->getFallbackProviderCode();
 
-            throw $e;
+            if (
+                $fallbackProviderCode === ''
+                || $fallbackProviderCode === $primaryProviderCode
+            ) {
+                throw $primaryError;
+            }
+
+            try {
+                $result = $this->translateWithProvider(
+                    $fallbackProviderCode,
+                    $targetLanguage,
+                    $targetLanguageCode,
+                    $name,
+                    $description,
+                    $context,
+                    $inputCharacters
+                );
+            } catch (Throwable $fallbackError) {
+                throw new RuntimeException(
+                    $primaryProvider->getName()
+                    . ' і резервний '
+                    . $this->providers[$fallbackProviderCode]->getName()
+                    . ' зараз недоступні. Остання помилка: '
+                    . $this->sanitizeProviderError(
+                        $fallbackError->getMessage()
+                    ),
+                    0,
+                    $fallbackError
+                );
+            }
+
+            $translation = $result['translation'];
+            $translation['provider'] = $fallbackProviderCode;
+            $translation['provider_name'] =
+                $this->providers[$fallbackProviderCode]->getName();
+            $translation['fallback_used'] = true;
+            $translation['primary_provider'] = $primaryProviderCode;
+            $translation['primary_provider_name'] =
+                $primaryProvider->getName();
+
+            return $translation;
         }
 
-        $outputCharacters = $this->characterLength(
-            (string) ($translation['name'] ?? '')
-        ) + $this->characterLength(
-            (string) ($translation['description'] ?? '')
-        );
-
-        $this->recordUsageSafely(
-            $providerCode,
-            $targetLanguageCode,
-            $context,
-            $inputCharacters,
-            $outputCharacters,
-            true
-        );
-
-        $translation['provider'] = $providerCode;
-        $translation['provider_name'] = $provider->getName();
+        $translation = $result['translation'];
+        $translation['provider'] = $primaryProviderCode;
+        $translation['provider_name'] = $primaryProvider->getName();
+        $translation['fallback_used'] = false;
 
         return $translation;
+    }
+
+
+    public function testProvider($providerCode)
+    {
+        $providerCode = $this->normalizeProviderCode($providerCode);
+
+        if (!$this->isConfiguredProvider($providerCode)) {
+            throw new InvalidArgumentException(
+                $this->providers[$providerCode]->getName()
+                . ' не налаштовано: спочатку додайте API-ключ.'
+            );
+        }
+
+        $sourceText = 'Перевірка з’єднання';
+        $targetLanguage = [
+            'code' => 'en',
+            'name' => 'English',
+            'locale' => 'en_US',
+            'is_active' => 1
+        ];
+
+        try {
+            $result = $this->translateWithProvider(
+                $providerCode,
+                $targetLanguage,
+                'en',
+                $sourceText,
+                '',
+                'connection_test',
+                $this->characterLength($sourceText)
+            );
+        } catch (Throwable $e) {
+            throw new RuntimeException(
+                $this->sanitizeProviderError($e->getMessage()),
+                0,
+                $e
+            );
+        }
+
+        return [
+            'provider' => $providerCode,
+            'provider_name' => $this->providers[$providerCode]->getName(),
+            'response_ms' => (int) ($result['response_ms'] ?? 0)
+        ];
     }
 
 
@@ -270,6 +411,108 @@ class AITranslationService
     {
         return isset($this->providers[$providerCode])
             && $this->providers[$providerCode]->isConfigured();
+    }
+
+
+    private function translateWithProvider(
+        $providerCode,
+        array $targetLanguage,
+        $targetLanguageCode,
+        $name,
+        $description,
+        $context,
+        $inputCharacters
+    ) {
+        $provider = $this->providers[$providerCode];
+        $startedAt = microtime(true);
+
+        try {
+            $translation = $provider->translate(
+                $targetLanguage,
+                $name,
+                $description,
+                $context
+            );
+        } catch (Throwable $e) {
+            $responseMs = $this->elapsedMilliseconds($startedAt);
+
+            $this->recordUsageSafely(
+                $providerCode,
+                $targetLanguageCode,
+                $context,
+                $inputCharacters,
+                0,
+                false
+            );
+
+            $this->recordHealthSafely(
+                $providerCode,
+                false,
+                $responseMs,
+                $this->sanitizeProviderError($e->getMessage())
+            );
+
+            throw $e;
+        }
+
+        $responseMs = $this->elapsedMilliseconds($startedAt);
+        $outputCharacters = $this->characterLength(
+            (string) ($translation['name'] ?? '')
+        ) + $this->characterLength(
+            (string) ($translation['description'] ?? '')
+        );
+
+        $this->recordUsageSafely(
+            $providerCode,
+            $targetLanguageCode,
+            $context,
+            $inputCharacters,
+            $outputCharacters,
+            true
+        );
+
+        $this->recordHealthSafely(
+            $providerCode,
+            true,
+            $responseMs,
+            ''
+        );
+
+        return [
+            'translation' => $translation,
+            'response_ms' => $responseMs
+        ];
+    }
+
+
+    private function elapsedMilliseconds($startedAt)
+    {
+        return max(
+            1,
+            (int) round((microtime(true) - (float) $startedAt) * 1000)
+        );
+    }
+
+
+    private function sanitizeProviderError($message)
+    {
+        $message = trim((string) $message);
+
+        foreach (($this->config['providers'] ?? []) as $providerConfig) {
+            if (!is_array($providerConfig)) {
+                continue;
+            }
+
+            $apiKey = trim((string) ($providerConfig['api_key'] ?? ''));
+
+            if ($apiKey !== '') {
+                $message = str_replace($apiKey, '***', $message);
+            }
+        }
+
+        return $message !== ''
+            ? $message
+            : 'Невідома помилка сервісу.';
     }
 
 
@@ -307,6 +550,28 @@ class AITranslationService
         } catch (Throwable $e) {
             error_log(
                 'AI translation usage statistics error: '
+                . $e->getMessage()
+            );
+        }
+    }
+
+
+    private function recordHealthSafely(
+        $providerCode,
+        $isSuccess,
+        $responseMs,
+        $errorMessage
+    ) {
+        try {
+            AITranslationProviderHealth::record(
+                $providerCode,
+                $isSuccess,
+                $responseMs,
+                $errorMessage
+            );
+        } catch (Throwable $e) {
+            error_log(
+                'AI provider health statistics error: '
                 . $e->getMessage()
             );
         }

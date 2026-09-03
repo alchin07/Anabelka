@@ -128,13 +128,22 @@
                 }
             );
 
+            const translation = data.translation || {};
+
             if (data.providers) {
                 renderProviders(data);
             } else {
                 updateStatus();
             }
 
-            return data.translation || {};
+            if (translation.fallback_used) {
+                setStatus(
+                    'резерв: '
+                    + (translation.provider_name || translation.provider || '')
+                );
+            }
+
+            return translation;
 
         } catch (error) {
             updateStatus();

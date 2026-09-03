@@ -149,6 +149,11 @@ $router->post(
     'AdminAITranslationController@setDefaultProvider'
 );
 
+$router->post(
+    '/admin/ai-translation/test-provider',
+    'AdminAITranslationController@testProvider'
+);
+
 $router->get(
     '/admin/ai-translation/providers',
     'AdminAITranslationController@providers'
