@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=3"
+        href="/Anabelka/css/admin-translations.css?v=6"
     >
 </head>
 <body>
@@ -63,6 +63,48 @@ $sectionLabels = [
 
 $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
     ?? (string) ($sectionLabel ?? 'Переклади');
+
+$sectionCode = (string) ($section ?? '');
+$isInterfaceSection = $sectionCode === 'interface';
+$filters = is_array($filters ?? null) ? $filters : [];
+$selectedLanguage = strtolower(
+    trim((string) ($filters['language'] ?? ''))
+);
+$keyFilter = trim((string) ($filters['key'] ?? ''));
+$sourceFilter = trim((string) ($filters['source'] ?? ''));
+$visibleItemCount = count($items ?? []);
+$totalItemCount = max(
+    $visibleItemCount,
+    (int) ($totalItems ?? $visibleItemCount)
+);
+$hasActiveFilters = $selectedLanguage !== ''
+    || $keyFilter !== ''
+    || $sourceFilter !== '';
+
+$listParams = ['section' => $sectionCode];
+
+if ($selectedLanguage !== '') {
+    $listParams['language'] = $selectedLanguage;
+}
+
+if ($isInterfaceSection && $keyFilter !== '') {
+    $listParams['translation_key'] = $keyFilter;
+}
+
+if ($sourceFilter !== '') {
+    $listParams['source_text'] = $sourceFilter;
+}
+
+$currentListUrl = '/Anabelka/admin/translations/missing?'
+    . http_build_query(
+        $listParams,
+        '',
+        '&',
+        PHP_QUERY_RFC3986
+    );
+
+$resetUrl = '/Anabelka/admin/translations/missing?section='
+    . rawurlencode($sectionCode);
 ?>
 
 <main class="catalog">
@@ -95,9 +137,115 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
             </div>
         <?php endif; ?>
 
+        <?php if (empty($missingError)): ?>
+
+        <section class="translation-filters">
+            <div class="translation-filters-head">
+                <div>
+                    <h3>Пошук і фільтри</h3>
+                    <p>
+                        Знайдено: <?= $visibleItemCount ?>
+                        із <?= $totalItemCount ?>
+                    </p>
+                </div>
+
+                <?php if ($hasActiveFilters): ?>
+                    <a href="<?= htmlspecialchars($resetUrl) ?>">
+                        Очистити
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <form
+                class="translation-filter-form"
+                method="get"
+                action="/Anabelka/admin/translations/missing"
+            >
+                <input
+                    type="hidden"
+                    name="section"
+                    value="<?= htmlspecialchars($sectionCode) ?>"
+                >
+
+                <div class="translation-filter-grid<?= $isInterfaceSection ? '' : ' is-compact' ?>">
+                    <label>
+                        <span>Відсутня мова</span>
+
+                        <select name="language">
+                            <option value="">Усі мови</option>
+
+                            <?php foreach ($targetLanguages ?? [] as $language): ?>
+                                <?php
+                                $code = strtolower(
+                                    trim(
+                                        (string) ($language['code'] ?? '')
+                                    )
+                                );
+
+                                if ($code === '') {
+                                    continue;
+                                }
+                                ?>
+
+                                <option
+                                    value="<?= htmlspecialchars($code) ?>"
+                                    <?= $selectedLanguage === $code
+                                        ? 'selected'
+                                        : '' ?>
+                                >
+                                    <?= htmlspecialchars(
+                                        (string) ($language['name'] ?? $code)
+                                    ) ?> · <?= htmlspecialchars(
+                                        (string) (
+                                            $language['short_name']
+                                            ?? strtoupper($code)
+                                        )
+                                    ) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <?php if ($isInterfaceSection): ?>
+                        <label>
+                            <span>Ключ інтерфейсу</span>
+
+                            <input
+                                type="search"
+                                name="translation_key"
+                                value="<?= htmlspecialchars($keyFilter) ?>"
+                                maxlength="190"
+                                placeholder="Наприклад: header.cart"
+                                autocomplete="off"
+                            >
+                        </label>
+                    <?php endif; ?>
+
+                    <label>
+                        <span>Український текст</span>
+
+                        <input
+                            type="search"
+                            name="source_text"
+                            value="<?= htmlspecialchars($sourceFilter) ?>"
+                            maxlength="250"
+                            placeholder="Введіть частину тексту"
+                            autocomplete="off"
+                        >
+                    </label>
+                </div>
+
+                <button type="submit">
+                    Застосувати
+                </button>
+            </form>
+        </section>
+
         <?php if (empty($items)): ?>
             <div class="translation-missing-empty">
-                У цьому розділі немає відсутніх перекладів.
+                <?= $hasActiveFilters
+                    ? 'За заданими фільтрами нічого не знайдено.'
+                    : 'У цьому розділі немає відсутніх перекладів.' ?>
             </div>
         <?php else: ?>
             <div class="translation-missing-list">
@@ -119,6 +267,17 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                         )
                     );
 
+                    if (
+                        $selectedLanguage !== ''
+                        && in_array(
+                            $selectedLanguage,
+                            $missingLanguages,
+                            true
+                        )
+                    ) {
+                        $focusLanguage = $selectedLanguage;
+                    }
+
                     $itemName = str_replace(
                         ' — поле покупателя',
                         ' — поле покупця',
@@ -139,7 +298,9 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                                 ? '&focus_language='
                                     . rawurlencode($focusLanguage)
                                 : ''
-                            );
+                            )
+                            . '&return_url='
+                            . rawurlencode($currentListUrl);
 
                     } elseif ($itemId > 0) {
                         if ($itemType === 'category') {
@@ -221,7 +382,7 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                                 ?>
 
                                 <span
-                                    class="translation-missing-language"
+                                    class="translation-missing-language<?= $selectedLanguage === $code ? ' is-selected' : '' ?>"
                                     title="<?= htmlspecialchars($language['name']) ?>"
                                 >
                                     <?= htmlspecialchars($language['short_name']) ?>
@@ -240,6 +401,8 @@ $displaySectionLabel = $sectionLabels[(string) ($section ?? '')]
                     </article>
                 <?php endforeach; ?>
             </div>
+        <?php endif; ?>
+
         <?php endif; ?>
 
     </section>

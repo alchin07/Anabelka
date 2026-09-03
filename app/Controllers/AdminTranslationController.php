@@ -45,9 +45,18 @@ class AdminTranslationController extends Controller
             trim((string) ($_GET['section'] ?? ''))
         );
 
+        $filters = [
+            'language' => $_GET['language'] ?? '',
+            'key' => $_GET['translation_key'] ?? '',
+            'source' => $_GET['source_text'] ?? ''
+        ];
+
         try {
             $service = new TranslationDashboardService();
-            $data = $service->getMissingTranslations($section);
+            $data = $service->getMissingTranslations(
+                $section,
+                $filters
+            );
 
             $this->view(
                 'admin/translations/missing',
@@ -65,6 +74,12 @@ class AdminTranslationController extends Controller
                     'sectionUrl' => '/Anabelka/admin/translations',
                     'targetLanguages' => [],
                     'items' => [],
+                    'totalItems' => 0,
+                    'filters' => [
+                        'language' => '',
+                        'key' => '',
+                        'source' => ''
+                    ],
                     'missingError' => $e->getMessage()
                 ]
             );
@@ -79,6 +94,12 @@ class AdminTranslationController extends Controller
                     'sectionUrl' => '/Anabelka/admin/translations',
                     'targetLanguages' => [],
                     'items' => [],
+                    'totalItems' => 0,
+                    'filters' => [
+                        'language' => '',
+                        'key' => '',
+                        'source' => ''
+                    ],
                     'missingError' => $e->getMessage()
                 ]
             );
@@ -94,6 +115,10 @@ class AdminTranslationController extends Controller
 
         $requestedFocusLanguage = strtolower(
             trim((string) ($_GET['focus_language'] ?? ''))
+        );
+
+        $returnUrl = $this->normalizeInterfaceReturnUrl(
+            $_GET['return_url'] ?? ''
         );
 
         try {
@@ -171,7 +196,8 @@ class AdminTranslationController extends Controller
                     'sourceTranslation' => $source,
                     'targetLanguages' => $targetLanguages,
                     'missingLanguages' => $missingLanguages,
-                    'focusLanguage' => $focusLanguage
+                    'focusLanguage' => $focusLanguage,
+                    'returnUrl' => $returnUrl
                 ]
             );
 
@@ -187,6 +213,7 @@ class AdminTranslationController extends Controller
                     'targetLanguages' => [],
                     'missingLanguages' => [],
                     'focusLanguage' => '',
+                    'returnUrl' => $returnUrl,
                     'editorError' => $e->getMessage()
                 ]
             );
@@ -203,6 +230,7 @@ class AdminTranslationController extends Controller
                     'targetLanguages' => [],
                     'missingLanguages' => [],
                     'focusLanguage' => '',
+                    'returnUrl' => $returnUrl,
                     'editorError' => $e->getMessage()
                 ]
             );
@@ -219,6 +247,10 @@ class AdminTranslationController extends Controller
         $sourceValue = $_POST['source_value'] ?? '';
         $translationValues =
             $_POST['translation_value'] ?? [];
+
+        $returnUrl = $this->normalizeInterfaceReturnUrl(
+            $_POST['return_url'] ?? ''
+        );
 
         if (is_array($sourceValue)) {
             $sourceValue = '';
@@ -294,8 +326,7 @@ class AdminTranslationController extends Controller
 
             $this->jsonSuccess([
                 'message' => 'Переклади інтерфейсу збережено.',
-                'return_url' =>
-                    '/Anabelka/admin/translations/missing?section=interface'
+                'return_url' => $returnUrl
             ]);
 
         } catch (InvalidArgumentException $e) {
@@ -340,6 +371,98 @@ class AdminTranslationController extends Controller
             JSON_UNESCAPED_UNICODE
         );
         exit;
+    }
+
+
+    private function normalizeInterfaceReturnUrl($value)
+    {
+        $defaultUrl =
+            '/Anabelka/admin/translations/missing?section=interface';
+
+        if (!is_scalar($value)) {
+            return $defaultUrl;
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '' || strlen($value) > 4000) {
+            return $defaultUrl;
+        }
+
+        $parts = parse_url($value);
+
+        if (
+            !is_array($parts)
+            || isset($parts['scheme'])
+            || isset($parts['host'])
+            || (string) ($parts['path'] ?? '')
+                !== '/Anabelka/admin/translations/missing'
+        ) {
+            return $defaultUrl;
+        }
+
+        $query = [];
+        parse_str((string) ($parts['query'] ?? ''), $query);
+
+        if ((string) ($query['section'] ?? '') !== 'interface') {
+            return $defaultUrl;
+        }
+
+        $params = ['section' => 'interface'];
+        $language = $this->returnFilterValue(
+            $query['language'] ?? '',
+            16
+        );
+
+        if (
+            $language !== ''
+            && preg_match('/^[a-z0-9_-]+$/i', $language)
+        ) {
+            $params['language'] = strtolower($language);
+        }
+
+        $filterKey = $this->returnFilterValue(
+            $query['translation_key'] ?? '',
+            190
+        );
+
+        if ($filterKey !== '') {
+            $params['translation_key'] = $filterKey;
+        }
+
+        $sourceText = $this->returnFilterValue(
+            $query['source_text'] ?? '',
+            250
+        );
+
+        if ($sourceText !== '') {
+            $params['source_text'] = $sourceText;
+        }
+
+        return '/Anabelka/admin/translations/missing?'
+            . http_build_query(
+                $params,
+                '',
+                '&',
+                PHP_QUERY_RFC3986
+            );
+    }
+
+
+    private function returnFilterValue($value, $limit)
+    {
+        if (!is_scalar($value)) {
+            return '';
+        }
+
+        $value = trim((string) $value);
+        $limit = max(1, (int) $limit);
+
+        if (function_exists('mb_substr')) {
+            return (string) mb_substr($value, 0, $limit, 'UTF-8');
+        }
+
+        return substr($value, 0, $limit);
     }
 
 

@@ -57,6 +57,90 @@
     color: #8a2c2c;
 }
 
+.translation-filters {
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: #faf7ff;
+}
+
+.translation-filters-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.translation-filters-head h3 {
+    margin: 0 0 3px;
+    font-size: 18px;
+}
+
+.translation-filters-head p {
+    margin: 0;
+    color: #777;
+    font-size: 12px;
+}
+
+.translation-filters-head a {
+    color: var(--primary-color);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.translation-filter-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(150px, 0.75fr)
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+    gap: 9px;
+}
+
+.translation-filter-grid.is-compact {
+    grid-template-columns:
+        minmax(170px, 0.7fr)
+        minmax(0, 1.3fr);
+}
+
+.translation-filter-grid label > span {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.translation-filter-grid input,
+.translation-filter-grid select {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 0 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    color: #333;
+    font: inherit;
+    font-size: 16px;
+}
+
+.translation-filter-form > button {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 10px;
+    padding: 0 16px;
+    border: 1px solid var(--primary-color);
+    border-radius: 10px;
+    background: var(--primary-color);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
 .translations-summary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -263,6 +347,11 @@
     font-weight: 700;
 }
 
+.translation-missing-language.is-selected {
+    background: var(--primary-color);
+    color: #fff;
+}
+
 .translation-missing-open {
     color: var(--primary-color);
     font-size: 12px;
@@ -415,6 +504,11 @@
     }
 
     .translations-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .translation-filter-grid,
+    .translation-filter-grid.is-compact {
         grid-template-columns: 1fr;
     }
 

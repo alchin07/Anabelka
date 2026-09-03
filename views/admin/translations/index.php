@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=5"
+        href="/Anabelka/css/admin-translations.css?v=6"
     >
 </head>
 <body>

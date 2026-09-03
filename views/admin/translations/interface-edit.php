@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=3"
+        href="/Anabelka/css/admin-translations.css?v=6"
     >
 </head>
 <body>
@@ -43,6 +43,10 @@ $focusLanguage = strtolower(
 $sourceValue = (string) (
     $sourceTranslation['value'] ?? ''
 );
+$returnUrl = (string) (
+    $returnUrl
+    ?? '/Anabelka/admin/translations/missing?section=interface'
+);
 ?>
 
 <main class="catalog">
@@ -61,7 +65,7 @@ $sourceValue = (string) (
 
             <a
                 class="translations-language-link"
-                href="/Anabelka/admin/translations/missing?section=interface"
+                href="<?= htmlspecialchars($returnUrl) ?>"
             >
                 ← До списку
             </a>
@@ -90,6 +94,12 @@ $sourceValue = (string) (
                     type="hidden"
                     name="translation_key"
                     value="<?= htmlspecialchars($translationKey) ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="return_url"
+                    value="<?= htmlspecialchars($returnUrl) ?>"
                 >
 
                 <section class="interface-editor-source">
@@ -180,7 +190,7 @@ $sourceValue = (string) (
                 <div class="interface-editor-actions">
                     <a
                         class="interface-editor-cancel"
-                        href="/Anabelka/admin/translations/missing?section=interface"
+                        href="<?= htmlspecialchars($returnUrl) ?>"
                     >
                         Скасувати
                     </a>

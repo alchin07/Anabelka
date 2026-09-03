@@ -38,7 +38,7 @@ class TranslationDashboardService
     }
 
 
-    public function getMissingTranslations($section)
+    public function getMissingTranslations($section, array $filters = [])
     {
         $section = strtolower(trim((string) $section));
         $targetLanguages = array_values(
@@ -89,12 +89,23 @@ class TranslationDashboardService
             $items = $this->missingInterface();
         }
 
+        $filters = $this->normalizeMissingFilters(
+            $section,
+            $filters,
+            $targetLanguages
+        );
+
+        $totalItems = count($items);
+        $items = $this->filterMissingItems($items, $filters);
+
         return [
             'section' => $section,
             'sectionLabel' => $allowed[$section]['label'],
             'sectionUrl' => $allowed[$section]['url'],
             'targetLanguages' => $targetLanguages,
-            'items' => $items
+            'items' => $items,
+            'totalItems' => $totalItems,
+            'filters' => $filters
         ];
     }
 
@@ -378,6 +389,133 @@ class TranslationDashboardService
         }
 
         return array_values($items);
+    }
+
+
+    private function normalizeMissingFilters(
+        $section,
+        array $filters,
+        array $targetLanguages
+    ) {
+        $language = strtolower(
+            $this->filterValue($filters['language'] ?? '', 16)
+        );
+
+        $targetCodes = [];
+
+        foreach ($targetLanguages as $targetLanguage) {
+            $code = strtolower(
+                trim((string) ($targetLanguage['code'] ?? ''))
+            );
+
+            if ($code !== '') {
+                $targetCodes[] = $code;
+            }
+        }
+
+        if (!in_array($language, $targetCodes, true)) {
+            $language = '';
+        }
+
+        return [
+            'language' => $language,
+            'key' => $section === 'interface'
+                ? $this->filterValue($filters['key'] ?? '', 190)
+                : '',
+            'source' => $this->filterValue(
+                $filters['source'] ?? '',
+                250
+            )
+        ];
+    }
+
+
+    private function filterMissingItems(array $items, array $filters)
+    {
+        $language = (string) ($filters['language'] ?? '');
+        $key = (string) ($filters['key'] ?? '');
+        $source = (string) ($filters['source'] ?? '');
+
+        return array_values(
+            array_filter(
+                $items,
+                function ($item) use ($language, $key, $source) {
+                    $missingLanguages = array_map(
+                        'strtolower',
+                        array_map(
+                            'strval',
+                            $item['missing_languages'] ?? []
+                        )
+                    );
+
+                    if (
+                        $language !== ''
+                        && !in_array(
+                            $language,
+                            $missingLanguages,
+                            true
+                        )
+                    ) {
+                        return false;
+                    }
+
+                    if (
+                        $key !== ''
+                        && !$this->containsText(
+                            (string) ($item['key'] ?? ''),
+                            $key
+                        )
+                    ) {
+                        return false;
+                    }
+
+                    return $source === ''
+                        || $this->containsText(
+                            (string) ($item['name'] ?? ''),
+                            $source
+                        );
+                }
+            )
+        );
+    }
+
+
+    private function filterValue($value, $limit)
+    {
+        if (!is_scalar($value)) {
+            return '';
+        }
+
+        $value = trim((string) $value);
+        $limit = max(1, (int) $limit);
+
+        if (function_exists('mb_substr')) {
+            return (string) mb_substr($value, 0, $limit, 'UTF-8');
+        }
+
+        return substr($value, 0, $limit);
+    }
+
+
+    private function containsText($haystack, $needle)
+    {
+        $haystack = (string) $haystack;
+        $needle = (string) $needle;
+
+        if ($needle === '') {
+            return true;
+        }
+
+        if (function_exists('mb_stripos')) {
+            return mb_stripos(
+                $haystack,
+                $needle,
+                0,
+                'UTF-8'
+            ) !== false;
+        }
+
+        return stripos($haystack, $needle) !== false;
     }
 
 
