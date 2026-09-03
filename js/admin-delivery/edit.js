@@ -39,6 +39,93 @@
         )
     );
 
+    const workflowStatuses = [
+        'draft',
+        'review',
+        'approved',
+        'outdated'
+    ];
+
+
+    function setTranslationWorkflow(
+        section,
+        scope,
+        source,
+        status,
+        resetOriginal
+    ) {
+        if (!section) {
+            return;
+        }
+
+        const isOptionInput = scope === 'option_input';
+        const sourceField = section.querySelector(
+            isOptionInput
+                ? '.delivery-option-input-translation-source'
+                : '.delivery-translation-source'
+        );
+        const sourceLabel = section.querySelector(
+            isOptionInput
+                ? '.delivery-option-input-translation-origin'
+                : '.delivery-translation-origin'
+        );
+        const statusField = section.querySelector(
+            isOptionInput
+                ? '.delivery-option-input-translation-status'
+                : '.delivery-translation-status'
+        );
+        const normalizedSource = source === 'ai' ? 'ai' : 'manual';
+        const normalizedStatus = workflowStatuses.includes(status)
+            ? status
+            : 'approved';
+
+        if (sourceField) {
+            sourceField.value = normalizedSource;
+        }
+
+        if (sourceLabel) {
+            sourceLabel.textContent = normalizedSource === 'ai'
+                ? 'Створено ШІ'
+                : 'Ручний переклад';
+        }
+
+        if (statusField) {
+            statusField.value = normalizedStatus;
+        }
+
+        section.dataset.translationStatus = normalizedStatus;
+        section.classList.toggle(
+            'is-translation-outdated',
+            normalizedStatus === 'outdated'
+        );
+
+        if (resetOriginal) {
+            section.dataset.originalStatus = normalizedStatus;
+        }
+    }
+
+
+    window.setDeliveryTranslationWorkflow = function (
+        section,
+        source,
+        status
+    ) {
+        const scope = section
+            && section.classList.contains(
+                'delivery-option-input-translation-section'
+            )
+                ? 'option_input'
+                : 'entity';
+
+        setTranslationWorkflow(
+            section,
+            scope,
+            source,
+            status,
+            false
+        );
+    };
+
 
     function getTranslationFocusRequest(button)
     {
@@ -106,9 +193,31 @@
                 request.languageCode
             );
 
-            return section
-                ? section.querySelector('.delivery-translation-name')
-                : null;
+            if (!section) {
+                return null;
+            }
+
+            const nameInput = section.querySelector(
+                '.delivery-translation-name'
+            );
+            const descriptionInput = section.querySelector(
+                '.delivery-translation-description'
+            );
+
+            if (nameInput && nameInput.value.trim() === '') {
+                return nameInput;
+            }
+
+            if (
+                editDescription
+                && editDescription.value.trim() !== ''
+                && descriptionInput
+                && descriptionInput.value.trim() === ''
+            ) {
+                return descriptionInput;
+            }
+
+            return nameInput || descriptionInput;
         }
 
         const section = findLanguageSection(
@@ -203,6 +312,14 @@
             if (descriptionInput) {
                 descriptionInput.value = '';
             }
+
+            setTranslationWorkflow(
+                section,
+                'entity',
+                'manual',
+                'draft',
+                true
+            );
         });
     }
 
@@ -225,6 +342,14 @@
             if (placeholderInput) {
                 placeholderInput.value = '';
             }
+
+            setTranslationWorkflow(
+                section,
+                'option_input',
+                'manual',
+                'draft',
+                true
+            );
         });
     }
 
@@ -287,6 +412,18 @@
             if (descriptionInput) {
                 descriptionInput.value = translation.description || '';
             }
+
+            setTranslationWorkflow(
+                section,
+                'entity',
+                translation.source || 'manual',
+                translation.status || (
+                    (translation.name || translation.description)
+                        ? 'approved'
+                        : 'draft'
+                ),
+                true
+            );
         });
     }
 
@@ -348,6 +485,18 @@
             if (placeholderInput) {
                 placeholderInput.value = translation.placeholder || '';
             }
+
+            setTranslationWorkflow(
+                section,
+                'option_input',
+                translation.source || 'manual',
+                translation.status || (
+                    (translation.field_label || translation.placeholder)
+                        ? 'approved'
+                        : 'draft'
+                ),
+                true
+            );
         });
     }
 
@@ -371,12 +520,24 @@
                 '.delivery-translation-description'
             );
 
+            const sourceField = section.querySelector(
+                '.delivery-translation-source'
+            );
+
+            const statusField = section.querySelector(
+                '.delivery-translation-status'
+            );
+
             translations[code] = {
                 name: nameInput ? nameInput.value.trim() : '',
                 description:
                     descriptionInput
                         ? descriptionInput.value.trim()
-                        : ''
+                        : '',
+                source: sourceField ? sourceField.value : 'manual',
+                status: statusField ? statusField.value : 'approved',
+                original_status:
+                    section.dataset.originalStatus || 'approved'
             };
         });
 
@@ -403,13 +564,23 @@
                 '.delivery-option-input-translation-placeholder'
             );
 
+            const sourceField = section.querySelector(
+                '.delivery-option-input-translation-source'
+            );
+
+            const statusField = section.querySelector(
+                '.delivery-option-input-translation-status'
+            );
+
             translations[code] = {
                 field_label:
                     labelInput ? labelInput.value.trim() : '',
                 placeholder:
                     placeholderInput
                         ? placeholderInput.value.trim()
-                        : ''
+                        : '',
+                source: sourceField ? sourceField.value : 'manual',
+                status: statusField ? statusField.value : 'approved'
             };
         });
 
@@ -458,6 +629,79 @@
             updateOptionInputVisibility
         );
     }
+
+
+    function bindManualWorkflow(
+        sections,
+        scope,
+        fieldSelector,
+        statusSelector
+    ) {
+        sections.forEach((section) => {
+            const fields = Array.from(
+                section.querySelectorAll(fieldSelector)
+            );
+            const statusField = section.querySelector(statusSelector);
+
+            fields.forEach((field) => {
+                field.addEventListener('input', function () {
+                    const hasContent = fields.some((item) => {
+                        return item.value.trim() !== '';
+                    });
+                    const nextStatus = statusField
+                        && statusField.value === 'draft'
+                        && hasContent
+                            ? 'approved'
+                            : (
+                                statusField
+                                    ? statusField.value
+                                    : 'approved'
+                            );
+
+                    setTranslationWorkflow(
+                        section,
+                        scope,
+                        'manual',
+                        nextStatus,
+                        false
+                    );
+                });
+            });
+
+            if (statusField) {
+                statusField.addEventListener('change', function () {
+                    setTranslationWorkflow(
+                        section,
+                        scope,
+                        section.querySelector(
+                            scope === 'option_input'
+                                ? '.delivery-option-input-translation-source'
+                                : '.delivery-translation-source'
+                        ).value,
+                        statusField.value,
+                        false
+                    );
+                });
+            }
+        });
+    }
+
+
+    bindManualWorkflow(
+        translationSections,
+        'entity',
+        '.delivery-translation-name, '
+            + '.delivery-translation-description',
+        '.delivery-translation-status'
+    );
+
+    bindManualWorkflow(
+        optionInputTranslationSections,
+        'option_input',
+        '.delivery-option-input-translation-label, '
+            + '.delivery-option-input-translation-placeholder',
+        '.delivery-option-input-translation-status'
+    );
 
 
     document

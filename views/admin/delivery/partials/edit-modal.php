@@ -1,6 +1,8 @@
 <?php
 
 $deliveryEditLanguages = Language::active();
+$deliveryTranslationStatusOptions =
+    TranslationWorkflow::statusOptions();
 
 ?>
 
@@ -139,6 +141,29 @@ $deliveryEditLanguages = Language::active();
                         · <?= htmlspecialchars($language['short_name']) ?>
                     </div>
 
+                    <div class="delivery-translation-workflow">
+                        <input
+                            type="hidden"
+                            class="delivery-translation-source"
+                            value="manual"
+                        >
+
+                        <span class="delivery-translation-origin">
+                            Ручний переклад
+                        </span>
+
+                        <label class="delivery-translation-status-label">
+                            <span>Стан</span>
+                            <select class="delivery-translation-status">
+                                <?php foreach ($deliveryTranslationStatusOptions as $statusCode => $statusLabel): ?>
+                                    <option value="<?= htmlspecialchars($statusCode) ?>">
+                                        <?= htmlspecialchars($statusLabel) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                    </div>
+
                     <div class="delivery-form-group">
                         <label>
                             Название / Name
@@ -260,6 +285,29 @@ $deliveryEditLanguages = Language::active();
                             <div style="margin-bottom:10px;font-weight:700;">
                                 <?= htmlspecialchars($language['name']) ?>
                                 · <?= htmlspecialchars($language['short_name']) ?>
+                            </div>
+
+                            <div class="delivery-translation-workflow">
+                                <input
+                                    type="hidden"
+                                    class="delivery-option-input-translation-source"
+                                    value="manual"
+                                >
+
+                                <span class="delivery-option-input-translation-origin">
+                                    Ручний переклад
+                                </span>
+
+                                <label class="delivery-translation-status-label">
+                                    <span>Стан</span>
+                                    <select class="delivery-option-input-translation-status">
+                                        <?php foreach ($deliveryTranslationStatusOptions as $statusCode => $statusLabel): ?>
+                                            <option value="<?= htmlspecialchars($statusCode) ?>">
+                                                <?= htmlspecialchars($statusLabel) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
                             </div>
 
                             <div class="delivery-form-group">

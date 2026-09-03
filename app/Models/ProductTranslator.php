@@ -85,7 +85,8 @@ class ProductTranslator
         $languageCode,
         $name,
         $description,
-        $source = 'manual'
+        $source = 'manual',
+        $status = 'approved'
     ) {
         self::ensureTable();
 
@@ -131,6 +132,9 @@ class ProductTranslator
             );
         }
 
+        $source = TranslationWorkflow::normalizeSource($source);
+        $status = TranslationWorkflow::normalizeStatus($status, true);
+
         $stmt = $db->prepare("
             INSERT INTO product_translations
             (
@@ -148,13 +152,13 @@ class ProductTranslator
                 :name,
                 :description,
                 :source,
-                'approved'
+                :status
             )
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 description = VALUES(description),
                 source = VALUES(source),
-                status = 'approved'
+                status = VALUES(status)
         ");
 
         return $stmt->execute([
@@ -162,7 +166,26 @@ class ProductTranslator
             'language_code' => $languageCode,
             'name' => $name,
             'description' => $description !== '' ? $description : null,
-            'source' => trim((string) $source) ?: 'manual'
+            'source' => $source,
+            'status' => $status
+        ]);
+    }
+
+
+    public static function markOutdated($productId)
+    {
+        self::ensureTable();
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            UPDATE product_translations
+            SET status = 'outdated'
+            WHERE product_id = :product_id
+              AND TRIM(name) <> ''
+        ");
+
+        return $stmt->execute([
+            'product_id' => (int) $productId
         ]);
     }
 
@@ -191,7 +214,7 @@ class ProductTranslator
             FROM product_translations
             WHERE product_id = :product_id
               AND language_code = :language_code
-              AND status = 'approved'
+              AND status IN ('approved', 'outdated')
             LIMIT 1
         ");
 

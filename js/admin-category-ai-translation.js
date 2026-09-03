@@ -137,6 +137,17 @@
                         translation.description || '';
                 }
 
+                if (
+                    typeof window.setCategoryTranslationWorkflow
+                        === 'function'
+                ) {
+                    window.setCategoryTranslationWorkflow(
+                        section,
+                        'ai',
+                        'draft'
+                    );
+                }
+
                 showMessage(
                     'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
                 );

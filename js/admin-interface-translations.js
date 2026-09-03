@@ -20,6 +20,15 @@
     const message = document.getElementById('site-message');
     const saveButton = form.querySelector('.interface-editor-save');
 
+    const stateLabels = {
+        missing: 'Відсутній',
+        ai_draft: 'Чернетка ШІ',
+        manual_draft: 'Ручна чернетка',
+        review: 'Очікує перевірки',
+        approved: 'Схвалено',
+        outdated: 'Потрібне оновлення'
+    };
+
 
     function showMessage(text)
     {
@@ -104,6 +113,39 @@
     }
 
 
+    function setWorkflow(section, source, status)
+    {
+        if (!section) {
+            return;
+        }
+
+        const sourceField = section.querySelector(
+            '.translation-workflow-source'
+        );
+        const sourceLabel = section.querySelector(
+            '[data-translation-source-label]'
+        );
+        const statusField = section.querySelector(
+            '[data-translation-status]'
+        );
+        const normalizedSource = source === 'ai' ? 'ai' : 'manual';
+
+        if (sourceField) {
+            sourceField.value = normalizedSource;
+        }
+
+        if (sourceLabel) {
+            sourceLabel.textContent = normalizedSource === 'ai'
+                ? 'Створено ШІ'
+                : 'Ручний переклад';
+        }
+
+        if (statusField && status) {
+            statusField.value = status;
+        }
+    }
+
+
     function updateLanguageState(field)
     {
         const section = field.closest('[data-interface-language]');
@@ -112,20 +154,36 @@
             return;
         }
 
-        const isMissing = field.value.trim() === '';
+        const statusField = section.querySelector(
+            '[data-translation-status]'
+        );
+        const sourceField = section.querySelector(
+            '.translation-workflow-source'
+        );
+        const hasContent = field.value.trim() !== '';
+        const status = statusField ? statusField.value : 'approved';
+        const source = sourceField ? sourceField.value : 'manual';
+        const state = !hasContent
+            ? 'missing'
+            : (
+                status === 'draft'
+                    ? (source === 'ai' ? 'ai_draft' : 'manual_draft')
+                    : status
+            );
+        const needsAttention = state !== 'approved';
         let note = section.querySelector('.interface-missing-note');
 
-        section.classList.toggle('is-missing', isMissing);
+        section.classList.toggle('is-missing', needsAttention);
 
-        if (isMissing && !note) {
+        if (!note) {
             note = document.createElement('span');
             note.className = 'interface-missing-note';
-            note.textContent = 'Переклад відсутній';
             section.appendChild(note);
         }
 
         if (note) {
-            note.hidden = !isMissing;
+            note.textContent = stateLabels[state] || 'Чернетка';
+            note.hidden = !needsAttention;
         }
     }
 
@@ -134,7 +192,40 @@
         .querySelectorAll('.interface-translation-value')
         .forEach(function (field) {
             field.addEventListener('input', function () {
+                const section = field.closest(
+                    '[data-interface-language]'
+                );
+                const statusField = section
+                    ? section.querySelector('[data-translation-status]')
+                    : null;
+
+                setWorkflow(
+                    section,
+                    'manual',
+                    statusField
+                        && statusField.value === 'draft'
+                        && field.value.trim() !== ''
+                            ? 'approved'
+                            : ''
+                );
                 updateLanguageState(field);
+            });
+        });
+
+    document
+        .querySelectorAll('[data-translation-status]')
+        .forEach(function (statusField) {
+            statusField.addEventListener('change', function () {
+                const section = statusField.closest(
+                    '[data-interface-language]'
+                );
+                const field = section
+                    ? section.querySelector('.interface-translation-value')
+                    : null;
+
+                if (field) {
+                    updateLanguageState(field);
+                }
             });
         });
 
@@ -210,6 +301,7 @@
                     }
 
                     targetField.value = translatedValue;
+                    setWorkflow(section, 'ai', 'draft');
                     updateLanguageState(targetField);
 
                     targetField.focus();

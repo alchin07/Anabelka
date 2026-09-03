@@ -204,6 +204,43 @@
             box-sizing: border-box;
         }
 
+        .product-translation-workflow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .product-translation-origin {
+            color: #777;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .product-translation-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .product-translation-status select {
+            min-height: 38px;
+            padding: 0 9px;
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            background: #fff;
+            font: inherit;
+        }
+
+        .product-translation-section[data-translation-status="outdated"] {
+            border-radius: 12px;
+            background: #fff8ed;
+        }
+
         .product-modal-actions {
             display: flex;
             justify-content: flex-end;
@@ -228,6 +265,14 @@
             border: 1px solid #ddd;
             background: #fff;
         }
+
+        @media (max-width: 650px) {
+            .product-translation-workflow,
+            .product-translation-status {
+                align-items: stretch;
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -235,6 +280,7 @@
 <?php
 $pageTitle = 'Админ-панель — Товары';
 require __DIR__ . '/../../partials/header.php';
+$translationStatusOptions = TranslationWorkflow::statusOptions();
 ?>
 
 <main class="catalog">
@@ -395,6 +441,32 @@ require __DIR__ . '/../../partials/header.php';
                         </button>
                     </div>
 
+                    <div class="product-translation-workflow">
+                        <input
+                            type="hidden"
+                            name="translation_source[<?= htmlspecialchars($code) ?>]"
+                            class="product-translation-source"
+                            value="manual"
+                        >
+
+                        <span class="product-translation-origin">
+                            Ручний переклад
+                        </span>
+
+                        <label class="product-translation-status">
+                            <span>Стан</span>
+                            <select
+                                name="translation_status[<?= htmlspecialchars($code) ?>]"
+                            >
+                                <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
+                                    <option value="<?= htmlspecialchars($statusCode) ?>">
+                                        <?= htmlspecialchars($statusLabel) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                    </div>
+
                     <div class="product-form-group">
                         <label>Название / Name</label>
                         <input
@@ -470,9 +542,30 @@ require __DIR__ . '/../../partials/header.php';
             ).trim().toLowerCase() === languageCode;
         }) || null;
 
-        return section
-            ? section.querySelector('.product-translation-name')
-            : null;
+        if (!section) {
+            return null;
+        }
+
+        const targetName = section.querySelector(
+            '.product-translation-name'
+        );
+        const targetDescription = section.querySelector(
+            '.product-translation-description'
+        );
+
+        if (targetName && targetName.value.trim() === '') {
+            return targetName;
+        }
+
+        if (
+            String(button.dataset.productDescription || '').trim() !== ''
+            && targetDescription
+            && targetDescription.value.trim() === ''
+        ) {
+            return targetDescription;
+        }
+
+        return targetName || targetDescription;
     }
 
     function focusTranslationField(field) {
@@ -522,6 +615,45 @@ require __DIR__ . '/../../partials/header.php';
         return '';
     }
 
+    function setProductTranslationWorkflow(section, source, status) {
+        if (!section) {
+            return;
+        }
+
+        const sourceField = section.querySelector(
+            '.product-translation-source'
+        );
+        const sourceLabel = section.querySelector(
+            '.product-translation-origin'
+        );
+        const statusField = section.querySelector(
+            '.product-translation-status select'
+        );
+        const normalizedSource = source === 'ai' ? 'ai' : 'manual';
+        const normalizedStatus = [
+            'draft',
+            'review',
+            'approved',
+            'outdated'
+        ].includes(status) ? status : 'approved';
+
+        if (sourceField) {
+            sourceField.value = normalizedSource;
+        }
+
+        if (sourceLabel) {
+            sourceLabel.textContent = normalizedSource === 'ai'
+                ? 'Створено ШІ'
+                : 'Ручний переклад';
+        }
+
+        if (statusField) {
+            statusField.value = normalizedStatus;
+        }
+
+        section.dataset.translationStatus = normalizedStatus;
+    }
+
     function closeModal() {
         modal.hidden = true;
     }
@@ -565,6 +697,16 @@ require __DIR__ . '/../../partials/header.php';
 
                 section.querySelector('.product-translation-description').value =
                     translation.description || '';
+
+                setProductTranslationWorkflow(
+                    section,
+                    translation.source || 'manual',
+                    translation.status || (
+                        (translation.name || translation.description)
+                            ? 'approved'
+                            : 'draft'
+                    )
+                );
             });
 
             modal.hidden = false;
@@ -581,6 +723,56 @@ require __DIR__ . '/../../partials/header.php';
     document.querySelectorAll('[data-product-close]').forEach(function (button) {
         button.addEventListener('click', closeModal);
     });
+
+    document
+        .querySelectorAll(
+            '.product-translation-name, '
+            + '.product-translation-description'
+        )
+        .forEach(function (field) {
+            field.addEventListener('input', function () {
+                const section = field.closest(
+                    '[data-product-language]'
+                );
+                const statusField = section
+                    ? section.querySelector(
+                        '.product-translation-status select'
+                    )
+                    : null;
+                const hasContent = section && (
+                    section.querySelector(
+                        '.product-translation-name'
+                    ).value.trim() !== ''
+                    || section.querySelector(
+                        '.product-translation-description'
+                    ).value.trim() !== ''
+                );
+
+                setProductTranslationWorkflow(
+                    section,
+                    'manual',
+                    statusField
+                        && statusField.value === 'draft'
+                        && hasContent
+                            ? 'approved'
+                            : (statusField ? statusField.value : 'approved')
+                );
+            });
+        });
+
+    document
+        .querySelectorAll('.product-translation-status select')
+        .forEach(function (select) {
+            select.addEventListener('change', function () {
+                const section = select.closest(
+                    '[data-product-language]'
+                );
+
+                if (section) {
+                    section.dataset.translationStatus = select.value;
+                }
+            });
+        });
 
     document.querySelectorAll('[data-product-ai-translate]').forEach(function (button) {
         button.addEventListener('click', async function () {
@@ -626,6 +818,12 @@ require __DIR__ . '/../../partials/header.php';
                     translationDescription.value =
                         translation.description || '';
                 }
+
+                setProductTranslationWorkflow(
+                    section,
+                    'ai',
+                    'draft'
+                );
 
                 showMessage('ИИ-перевод получен. Проверьте его и нажмите «Сохранить».');
 

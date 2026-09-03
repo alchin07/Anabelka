@@ -164,6 +164,17 @@
                         translation.description || '';
                 }
 
+                if (
+                    typeof window.setDeliveryTranslationWorkflow
+                        === 'function'
+                ) {
+                    window.setDeliveryTranslationWorkflow(
+                        section,
+                        'ai',
+                        'draft'
+                    );
+                }
+
                 showMessage(
                     'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
                 );
@@ -256,6 +267,17 @@
                 if (translationPlaceholder) {
                     translationPlaceholder.value =
                         translation.description || '';
+                }
+
+                if (
+                    typeof window.setDeliveryTranslationWorkflow
+                        === 'function'
+                ) {
+                    window.setDeliveryTranslationWorkflow(
+                        section,
+                        'ai',
+                        'draft'
+                    );
                 }
 
                 showMessage(

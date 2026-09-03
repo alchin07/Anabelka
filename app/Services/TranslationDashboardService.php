@@ -16,30 +16,28 @@ class TranslationDashboardService
             )
         );
 
-        /*
-         * Гарантируем наличие таблиц переводов до подсчётов.
-         */
-        Translator::activeLanguages();
-        ProductInterfaceTranslator::seed();
-        PublicInterfaceTranslator::seed();
-        CategoryTranslator::getForCategory(0);
-        ProductTranslator::getForProduct(0);
-        DeliveryTranslator::getForEntity('method', 0);
-        DeliveryOptionInput::getForOption(0);
+        $this->prepareStorage();
+
+        $coverage = $this->buildCoverage($targetLanguages);
 
         return [
             'sourceLanguage' =>
                 Language::findByCode(Language::SOURCE_CODE),
             'languages' => $languages,
             'targetLanguages' => $targetLanguages,
-            'coverage' =>
-                $this->buildCoverage($targetLanguages)
+            'coverage' => $coverage,
+            'languageCoverage' => $this->buildLanguageCoverage(
+                $targetLanguages,
+                $coverage
+            )
         ];
     }
 
 
     public function getMissingTranslations($section, array $filters = [])
     {
+        $this->prepareStorage();
+
         $section = strtolower(trim((string) $section));
         $targetLanguages = array_values(
             array_filter(
@@ -110,6 +108,22 @@ class TranslationDashboardService
     }
 
 
+    private function prepareStorage()
+    {
+        /*
+         * Гарантуємо наявність таблиць і безпечних міграцій не лише
+         * на дашборді, а й під час прямого відкриття списку.
+         */
+        Translator::activeLanguages();
+        ProductInterfaceTranslator::seed();
+        PublicInterfaceTranslator::seed();
+        CategoryTranslator::getForCategory(0);
+        ProductTranslator::getForProduct(0);
+        DeliveryTranslator::getForEntity('method', 0);
+        DeliveryOptionInput::getForOption(0);
+    }
+
+
     private function missingProducts()
     {
         $db = Database::connect();
@@ -118,7 +132,19 @@ class TranslationDashboardService
             SELECT
                 p.id AS entity_id,
                 p.name AS entity_name,
-                l.code AS language_code
+                l.code AS language_code,
+                t.source AS translation_source,
+                t.status AS translation_status,
+                CASE
+                    WHEN t.product_id IS NOT NULL
+                     AND TRIM(COALESCE(t.name, '')) <> ''
+                     AND (
+                            TRIM(COALESCE(p.description, '')) = ''
+                            OR TRIM(COALESCE(t.description, '')) <> ''
+                         )
+                    THEN 1
+                    ELSE 0
+                END AS translation_has_content
             FROM products AS p
             INNER JOIN languages AS l
                 ON l.is_active = 1
@@ -126,9 +152,13 @@ class TranslationDashboardService
             LEFT JOIN product_translations AS t
                 ON t.product_id = p.id
                AND t.language_code = l.code
-               AND t.status = 'approved'
-               AND TRIM(t.name) <> ''
             WHERE t.product_id IS NULL
+               OR TRIM(COALESCE(t.name, '')) = ''
+               OR (
+                    TRIM(COALESCE(p.description, '')) <> ''
+                    AND TRIM(COALESCE(t.description, '')) = ''
+               )
+               OR COALESCE(t.status, '') <> 'approved'
             ORDER BY p.id ASC, l.sort_order ASC, l.id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -148,7 +178,19 @@ class TranslationDashboardService
             SELECT
                 c.id AS entity_id,
                 c.name AS entity_name,
-                l.code AS language_code
+                l.code AS language_code,
+                t.source AS translation_source,
+                t.status AS translation_status,
+                CASE
+                    WHEN t.category_id IS NOT NULL
+                     AND TRIM(COALESCE(t.name, '')) <> ''
+                     AND (
+                            TRIM(COALESCE(c.description, '')) = ''
+                            OR TRIM(COALESCE(t.description, '')) <> ''
+                         )
+                    THEN 1
+                    ELSE 0
+                END AS translation_has_content
             FROM categories AS c
             INNER JOIN languages AS l
                 ON l.is_active = 1
@@ -156,9 +198,13 @@ class TranslationDashboardService
             LEFT JOIN category_translations AS t
                 ON t.category_id = c.id
                AND t.language_code = l.code
-               AND t.status = 'approved'
-               AND TRIM(t.name) <> ''
             WHERE t.category_id IS NULL
+               OR TRIM(COALESCE(t.name, '')) = ''
+               OR (
+                    TRIM(COALESCE(c.description, '')) <> ''
+                    AND TRIM(COALESCE(t.description, '')) = ''
+               )
+               OR COALESCE(t.status, '') <> 'approved'
             ORDER BY c.id ASC, l.sort_order ASC, l.id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -179,12 +225,25 @@ class TranslationDashboardService
                 e.entity_type,
                 e.entity_id,
                 e.entity_name,
-                l.code AS language_code
+                l.code AS language_code,
+                t.source AS translation_source,
+                t.status AS translation_status,
+                CASE
+                    WHEN t.entity_id IS NOT NULL
+                     AND TRIM(COALESCE(t.name, '')) <> ''
+                     AND (
+                            TRIM(COALESCE(e.entity_description, '')) = ''
+                            OR TRIM(COALESCE(t.description, '')) <> ''
+                         )
+                    THEN 1
+                    ELSE 0
+                END AS translation_has_content
             FROM (
                 SELECT
                     'method' AS entity_type,
                     id AS entity_id,
-                    name AS entity_name
+                    name AS entity_name,
+                    description AS entity_description
                 FROM delivery_methods
 
                 UNION ALL
@@ -192,7 +251,8 @@ class TranslationDashboardService
                 SELECT
                     'service' AS entity_type,
                     s.id AS entity_id,
-                    s.name AS entity_name
+                    s.name AS entity_name,
+                    s.description AS entity_description
                 FROM delivery_services AS s
                 INNER JOIN delivery_methods AS m
                     ON m.id = s.delivery_method_id
@@ -202,7 +262,8 @@ class TranslationDashboardService
                 SELECT
                     'option' AS entity_type,
                     o.id AS entity_id,
-                    o.name AS entity_name
+                    o.name AS entity_name,
+                    o.description AS entity_description
                 FROM delivery_service_options AS o
                 INNER JOIN delivery_services AS s
                     ON s.id = o.delivery_service_id
@@ -216,9 +277,13 @@ class TranslationDashboardService
                 ON t.entity_type = e.entity_type
                AND t.entity_id = e.entity_id
                AND t.language_code = l.code
-               AND t.status = 'approved'
-               AND TRIM(t.name) <> ''
             WHERE t.entity_id IS NULL
+               OR TRIM(COALESCE(t.name, '')) = ''
+               OR (
+                    TRIM(COALESCE(e.entity_description, '')) <> ''
+                    AND TRIM(COALESCE(t.description, '')) = ''
+               )
+               OR COALESCE(t.status, '') <> 'approved'
             ORDER BY e.entity_type ASC, e.entity_id ASC,
                      l.sort_order ASC, l.id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
@@ -237,7 +302,22 @@ class TranslationDashboardService
                     o.name,
                     ' — поле покупателя'
                 ) AS entity_name,
-                l.code AS language_code
+                l.code AS language_code,
+                t.source AS translation_source,
+                t.status AS translation_status,
+                CASE
+                    WHEN t.option_id IS NOT NULL
+                     AND (
+                            TRIM(COALESCE(i.field_label, '')) = ''
+                            OR TRIM(COALESCE(t.field_label, '')) <> ''
+                         )
+                     AND (
+                            TRIM(COALESCE(i.placeholder, '')) = ''
+                            OR TRIM(COALESCE(t.placeholder, '')) <> ''
+                         )
+                    THEN 1
+                    ELSE 0
+                END AS translation_has_content
             FROM delivery_option_inputs AS i
             INNER JOIN delivery_service_options AS o
                 ON o.id = i.option_id
@@ -269,6 +349,7 @@ class TranslationDashboardService
                         TRIM(COALESCE(i.placeholder, '')) <> ''
                         AND TRIM(COALESCE(t.placeholder, '')) = ''
                     )
+                    OR COALESCE(t.status, '') <> 'approved'
               )
             ORDER BY i.option_id ASC, l.sort_order ASC, l.id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
@@ -299,7 +380,15 @@ class TranslationDashboardService
             SELECT
                 source.translation_key,
                 source.value AS source_value,
-                l.code AS language_code
+                l.code AS language_code,
+                t.source AS translation_source,
+                t.status AS translation_status,
+                CASE
+                    WHEN t.translation_key IS NOT NULL
+                     AND TRIM(COALESCE(t.value, '')) <> ''
+                    THEN 1
+                    ELSE 0
+                END AS translation_has_content
             FROM interface_translations AS source
             INNER JOIN languages AS l
                 ON l.is_active = 1
@@ -307,11 +396,13 @@ class TranslationDashboardService
             LEFT JOIN interface_translations AS t
                 ON t.translation_key = source.translation_key
                AND t.language_code = l.code
-               AND t.status = 'approved'
-               AND TRIM(t.value) <> ''
             WHERE source.language_code = 'uk'
               AND TRIM(source.value) <> ''
-              AND t.translation_key IS NULL
+              AND (
+                    t.translation_key IS NULL
+                    OR TRIM(COALESCE(t.value, '')) = ''
+                    OR COALESCE(t.status, '') <> 'approved'
+              )
             ORDER BY
                 source.translation_key ASC,
                 l.sort_order ASC,
@@ -336,6 +427,7 @@ class TranslationDashboardService
                     'key' => $key,
                     'name' => (string) ($row['source_value'] ?? ''),
                     'missing_languages' => [],
+                    'language_states' => [],
                     'url' => '/Anabelka/admin/translations/interface'
                 ];
             }
@@ -346,6 +438,12 @@ class TranslationDashboardService
 
             if ($code !== '') {
                 $items[$key]['missing_languages'][] = $code;
+                $items[$key]['language_states'][$code] =
+                    TranslationWorkflow::stateCode(
+                        $row['translation_status'] ?? '',
+                        $row['translation_source'] ?? '',
+                        !empty($row['translation_has_content'])
+                    );
             }
         }
 
@@ -375,6 +473,7 @@ class TranslationDashboardService
                     'id' => $id,
                     'name' => (string) ($row['entity_name'] ?? ''),
                     'missing_languages' => [],
+                    'language_states' => [],
                     'url' => $url
                 ];
             }
@@ -385,6 +484,12 @@ class TranslationDashboardService
 
             if ($code !== '') {
                 $items[$key]['missing_languages'][] = $code;
+                $items[$key]['language_states'][$code] =
+                    TranslationWorkflow::stateCode(
+                        $row['translation_status'] ?? '',
+                        $row['translation_source'] ?? '',
+                        !empty($row['translation_has_content'])
+                    );
             }
         }
 
@@ -659,20 +764,34 @@ class TranslationDashboardService
         $productTranslated = (int) $db
             ->query("
                 SELECT COUNT(*)
-                FROM product_translations
-                WHERE language_code IN ($languageList)
-                  AND status = 'approved'
-                  AND TRIM(name) <> ''
+                FROM product_translations AS t
+                INNER JOIN products AS p
+                    ON p.id = t.product_id
+                WHERE t.language_code IN ($languageList)
+                  AND t.status = 'approved'
+                  AND TRIM(t.name) <> ''
+                  AND (
+                        TRIM(COALESCE(p.description, '')) = ''
+                        OR
+                        TRIM(COALESCE(t.description, '')) <> ''
+                  )
             ")
             ->fetchColumn();
 
         $categoryTranslated = (int) $db
             ->query("
                 SELECT COUNT(*)
-                FROM category_translations
-                WHERE language_code IN ($languageList)
-                  AND status = 'approved'
-                  AND TRIM(name) <> ''
+                FROM category_translations AS t
+                INNER JOIN categories AS c
+                    ON c.id = t.category_id
+                WHERE t.language_code IN ($languageList)
+                  AND t.status = 'approved'
+                  AND TRIM(t.name) <> ''
+                  AND (
+                        TRIM(COALESCE(c.description, '')) = ''
+                        OR
+                        TRIM(COALESCE(t.description, '')) <> ''
+                  )
             ")
             ->fetchColumn();
 
@@ -683,14 +802,16 @@ class TranslationDashboardService
                 INNER JOIN (
                     SELECT
                         'method' AS entity_type,
-                        m.id AS entity_id
+                        m.id AS entity_id,
+                        m.description AS entity_description
                     FROM delivery_methods AS m
 
                     UNION ALL
 
                     SELECT
                         'service' AS entity_type,
-                        s.id AS entity_id
+                        s.id AS entity_id,
+                        s.description AS entity_description
                     FROM delivery_services AS s
                     INNER JOIN delivery_methods AS m
                         ON m.id = s.delivery_method_id
@@ -699,7 +820,8 @@ class TranslationDashboardService
 
                     SELECT
                         'option' AS entity_type,
-                        o.id AS entity_id
+                        o.id AS entity_id,
+                        o.description AS entity_description
                     FROM delivery_service_options AS o
                     INNER JOIN delivery_services AS s
                         ON s.id = o.delivery_service_id
@@ -711,6 +833,11 @@ class TranslationDashboardService
                 WHERE t.language_code IN ($languageList)
                   AND t.status = 'approved'
                   AND TRIM(t.name) <> ''
+                  AND (
+                        TRIM(COALESCE(e.entity_description, '')) = ''
+                        OR
+                        TRIM(COALESCE(t.description, '')) <> ''
+                  )
             ")
             ->fetchColumn();
 
@@ -728,6 +855,12 @@ class TranslationDashboardService
                     ON m.id = s.delivery_method_id
                 WHERE i.is_enabled = 1
                   AND t.language_code IN ($languageList)
+                  AND t.status = 'approved'
+                  AND (
+                        TRIM(COALESCE(i.field_label, '')) <> ''
+                        OR
+                        TRIM(COALESCE(i.placeholder, '')) <> ''
+                  )
                   AND (
                         TRIM(COALESCE(i.field_label, '')) = ''
                         OR
@@ -789,6 +922,99 @@ class TranslationDashboardService
                 null
             )
         ];
+    }
+
+
+    private function buildLanguageCoverage(
+        array $targetLanguages,
+        array $coverage
+    ) {
+        $requiredPerLanguage = 0;
+
+        foreach ($coverage as $coverageItem) {
+            $requiredPerLanguage += (int) (
+                $coverageItem['entity_count'] ?? 0
+            );
+        }
+
+        $attentionItems = array_merge(
+            $this->missingProducts(),
+            $this->missingCategories(),
+            $this->missingDelivery(),
+            $this->missingInterface()
+        );
+
+        $statesByLanguage = [];
+
+        foreach ($attentionItems as $item) {
+            foreach (($item['language_states'] ?? []) as $code => $state) {
+                $code = strtolower(trim((string) $code));
+                $state = (string) $state;
+
+                if ($code === '') {
+                    continue;
+                }
+
+                if (!isset($statesByLanguage[$code])) {
+                    $statesByLanguage[$code] = [];
+                }
+
+                $statesByLanguage[$code][$state] =
+                    (int) ($statesByLanguage[$code][$state] ?? 0) + 1;
+            }
+        }
+
+        $result = [];
+
+        foreach ($targetLanguages as $language) {
+            $code = strtolower(
+                trim((string) ($language['code'] ?? ''))
+            );
+
+            if ($code === '') {
+                continue;
+            }
+
+            $counts = [
+                'missing' => 0,
+                'ai_draft' => 0,
+                'manual_draft' => 0,
+                'review' => 0,
+                'outdated' => 0
+            ];
+
+            foreach ($counts as $state => $unused) {
+                $counts[$state] = (int) (
+                    $statesByLanguage[$code][$state] ?? 0
+                );
+            }
+
+            $attention = array_sum($counts);
+            $approved = max(
+                0,
+                $requiredPerLanguage - $attention
+            );
+            $percent = $requiredPerLanguage > 0
+                ? (int) round(
+                    ($approved / $requiredPerLanguage) * 100
+                )
+                : 100;
+
+            $result[] = [
+                'code' => $code,
+                'name' => (string) ($language['name'] ?? $code),
+                'short_name' => (string) (
+                    $language['short_name'] ?? strtoupper($code)
+                ),
+                'required' => $requiredPerLanguage,
+                'approved' => $approved,
+                'attention' => $attention,
+                'percent' => $percent,
+                'states' => $counts
+            ];
+        }
+
+        return $result;
     }
 
 

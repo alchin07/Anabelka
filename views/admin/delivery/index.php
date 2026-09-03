@@ -27,7 +27,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-delivery.css?v=9"
+        href="/Anabelka/css/admin-delivery.css?v=10"
     >
 
     <link
@@ -200,7 +200,7 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/edit.js?v=6"
+        src="/Anabelka/js/admin-delivery/edit.js?v=7"
     ></script>
 
     <script

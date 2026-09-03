@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=6"
+        href="/Anabelka/css/admin-translations.css?v=7"
     >
 </head>
 <body>
@@ -113,13 +113,13 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
         <div class="translations-head">
             <div>
                 <h2>
-                    Потребують перекладу ·
+                    Потребують уваги ·
                     <?= htmlspecialchars($displaySectionLabel) ?>
                 </h2>
 
                 <p class="translations-subtitle">
-                    Кожен елемент показано один раз. Позначки праворуч — мови,
-                    для яких переклад відсутній.
+                    Кожен елемент показано один раз. Позначки праворуч
+                    показують мову та стан перекладу.
                 </p>
             </div>
 
@@ -169,7 +169,7 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
 
                 <div class="translation-filter-grid<?= $isInterfaceSection ? '' : ' is-compact' ?>">
                     <label>
-                        <span>Відсутня мова</span>
+                        <span>Мова перекладу</span>
 
                         <select name="language">
                             <option value="">Усі мови</option>
@@ -245,7 +245,7 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
             <div class="translation-missing-empty">
                 <?= $hasActiveFilters
                     ? 'За заданими фільтрами нічого не знайдено.'
-                    : 'У цьому розділі немає відсутніх перекладів.' ?>
+                    : 'У цьому розділі всі переклади схвалено.' ?>
             </div>
         <?php else: ?>
             <div class="translation-missing-list">
@@ -260,6 +260,11 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
                     $missingLanguages = array_values(
                         $item['missing_languages'] ?? []
                     );
+                    $languageStates = is_array(
+                        $item['language_states'] ?? null
+                    )
+                        ? $item['language_states']
+                        : [];
 
                     $focusLanguage = strtolower(
                         trim(
@@ -379,13 +384,28 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
                                     'name' => strtoupper((string) $code),
                                     'short_name' => strtoupper((string) $code)
                                 ];
+                                $translationState = (string) (
+                                    $languageStates[$code] ?? 'missing'
+                                );
+                                $translationStateLabel =
+                                    TranslationWorkflow::stateLabel(
+                                        $translationState
+                                    );
                                 ?>
 
                                 <span
                                     class="translation-missing-language<?= $selectedLanguage === $code ? ' is-selected' : '' ?>"
-                                    title="<?= htmlspecialchars($language['name']) ?>"
+                                    title="<?= htmlspecialchars(
+                                        $language['name'] . ' — '
+                                        . $translationStateLabel
+                                    ) ?>"
                                 >
-                                    <?= htmlspecialchars($language['short_name']) ?>
+                                    <strong>
+                                        <?= htmlspecialchars($language['short_name']) ?>
+                                    </strong>
+                                    <small>
+                                        <?= htmlspecialchars($translationStateLabel) ?>
+                                    </small>
                                 </span>
                             <?php endforeach; ?>
                         </div>

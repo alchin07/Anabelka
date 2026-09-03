@@ -23,6 +23,7 @@ class AdminTranslationController extends Controller
                     'languages' => [],
                     'targetLanguages' => [],
                     'coverage' => [],
+                    'languageCoverage' => [],
                     'dashboardError' => $e->getMessage()
                 ]
             );
@@ -247,6 +248,10 @@ class AdminTranslationController extends Controller
         $sourceValue = $_POST['source_value'] ?? '';
         $translationValues =
             $_POST['translation_value'] ?? [];
+        $translationSources =
+            $_POST['translation_source'] ?? [];
+        $translationStatuses =
+            $_POST['translation_status'] ?? [];
 
         $returnUrl = $this->normalizeInterfaceReturnUrl(
             $_POST['return_url'] ?? ''
@@ -258,6 +263,14 @@ class AdminTranslationController extends Controller
 
         if (!is_array($translationValues)) {
             $translationValues = [];
+        }
+
+        if (!is_array($translationSources)) {
+            $translationSources = [];
+        }
+
+        if (!is_array($translationStatuses)) {
+            $translationStatuses = [];
         }
 
         $db = null;
@@ -283,12 +296,22 @@ class AdminTranslationController extends Controller
             $db = Database::connect();
             $db->beginTransaction();
 
+            $oldSourceValue = trim((string) (
+                $existing[Language::SOURCE_CODE]['value'] ?? ''
+            ));
+            $newSourceValue = trim((string) $sourceValue);
+            $sourceChanged = $oldSourceValue !== $newSourceValue;
+
             Translator::saveForKey(
                 $key,
                 Language::SOURCE_CODE,
                 $sourceValue,
                 'manual'
             );
+
+            if ($sourceChanged) {
+                Translator::markOutdatedForKey($key);
+            }
 
             foreach (Language::active() as $language) {
                 $code = strtolower(
@@ -308,6 +331,49 @@ class AdminTranslationController extends Controller
                     $value = '';
                 }
 
+                $value = trim((string) $value);
+                $storedTranslation = is_array(
+                    $existing[$code] ?? null
+                )
+                    ? $existing[$code]
+                    : [];
+
+                $translationSource =
+                    TranslationWorkflow::normalizeSource(
+                        $translationSources[$code]
+                        ?? ($storedTranslation['source'] ?? 'manual')
+                    );
+
+                $translationStatus =
+                    TranslationWorkflow::normalizeStatus(
+                        $translationStatuses[$code]
+                        ?? ($storedTranslation['status'] ?? 'approved'),
+                        $value !== ''
+                    );
+
+                $translationChanged = trim((string) (
+                    $storedTranslation['value'] ?? ''
+                )) !== $value;
+
+                $statusChanged = $translationStatus !==
+                    TranslationWorkflow::normalizeStatus(
+                        $storedTranslation['status'] ?? 'approved',
+                        trim((string) (
+                            $storedTranslation['value'] ?? ''
+                        )) !== ''
+                    );
+
+                if (
+                    $sourceChanged
+                    && trim((string) (
+                        $storedTranslation['value'] ?? ''
+                    )) !== ''
+                    && !$translationChanged
+                    && !$statusChanged
+                ) {
+                    continue;
+                }
+
                 $this->validatePlaceholders(
                     $sourceValue,
                     $value,
@@ -318,7 +384,8 @@ class AdminTranslationController extends Controller
                     $key,
                     $code,
                     $value,
-                    'manual'
+                    $translationSource,
+                    $translationStatus
                 );
             }
 

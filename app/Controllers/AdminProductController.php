@@ -49,7 +49,22 @@ class AdminProductController extends Controller
         $db = Database::connect();
 
         try {
+            $currentSource = $this->loadProductSource(
+                $db,
+                $productId
+            );
+            $storedBefore = ProductTranslator::getForProduct(
+                $productId
+            );
+
             $db->beginTransaction();
+
+            $sourceChanged = TranslationWorkflow::sourceChanged(
+                $currentSource['name'] ?? '',
+                $currentSource['description'] ?? '',
+                $name,
+                $description
+            );
 
             $updated = AdminProduct::updateText(
                 $productId,
@@ -63,11 +78,21 @@ class AdminProductController extends Controller
                 );
             }
 
+            if ($sourceChanged) {
+                ProductTranslator::markOutdated($productId);
+            }
+
             $translationNames =
                 $_POST['translation_name'] ?? [];
 
             $translationDescriptions =
                 $_POST['translation_description'] ?? [];
+
+            $translationSources =
+                $_POST['translation_source'] ?? [];
+
+            $translationStatuses =
+                $_POST['translation_status'] ?? [];
 
             if (!is_array($translationNames)) {
                 $translationNames = [];
@@ -75,6 +100,14 @@ class AdminProductController extends Controller
 
             if (!is_array($translationDescriptions)) {
                 $translationDescriptions = [];
+            }
+
+            if (!is_array($translationSources)) {
+                $translationSources = [];
+            }
+
+            if (!is_array($translationStatuses)) {
+                $translationStatuses = [];
             }
 
             $expectedTranslations = [];
@@ -99,17 +132,75 @@ class AdminProductController extends Controller
                     (string) ($translationDescriptions[$code] ?? '')
                 );
 
+                $storedTranslation = is_array(
+                    $storedBefore[$code] ?? null
+                )
+                    ? $storedBefore[$code]
+                    : [];
+
+                $translationSource =
+                    TranslationWorkflow::normalizeSource(
+                        $translationSources[$code]
+                        ?? ($storedTranslation['source'] ?? 'manual')
+                    );
+
+                $translationStatus =
+                    TranslationWorkflow::normalizeStatus(
+                        $translationStatuses[$code]
+                        ?? ($storedTranslation['status'] ?? 'approved'),
+                        $translationName !== ''
+                            || $translationDescription !== ''
+                    );
+
+                $translationChanged =
+                    TranslationWorkflow::translationChanged(
+                        $storedTranslation,
+                        $translationName,
+                        $translationDescription
+                    );
+
+                $statusChanged = $translationStatus !==
+                    TranslationWorkflow::normalizeStatus(
+                        $storedTranslation['status'] ?? 'approved',
+                        !empty($storedTranslation)
+                    );
+
+                if (
+                    $sourceChanged
+                    && !empty($storedTranslation)
+                    && !$translationChanged
+                    && !$statusChanged
+                ) {
+                    $expectedTranslations[$code] = [
+                        'name' => (string) (
+                            $storedTranslation['name'] ?? ''
+                        ),
+                        'description' => (string) (
+                            $storedTranslation['description'] ?? ''
+                        ),
+                        'source' => (string) (
+                            $storedTranslation['source'] ?? 'manual'
+                        ),
+                        'status' => 'outdated'
+                    ];
+
+                    continue;
+                }
+
                 ProductTranslator::saveForProduct(
                     $productId,
                     $code,
                     $translationName,
                     $translationDescription,
-                    'manual'
+                    $translationSource,
+                    $translationStatus
                 );
 
                 $expectedTranslations[$code] = [
                     'name' => $translationName,
-                    'description' => $translationDescription
+                    'description' => $translationDescription,
+                    'source' => $translationSource,
+                    'status' => $translationStatus
                 ];
             }
 
@@ -179,7 +270,10 @@ class AdminProductController extends Controller
                     !== $expectedName
                 || trim((string) ($stored['description'] ?? ''))
                     !== $expectedDescription
-                || (string) ($stored['status'] ?? '') !== 'approved'
+                || (string) ($stored['source'] ?? '')
+                    !== (string) ($expected['source'] ?? 'manual')
+                || (string) ($stored['status'] ?? '')
+                    !== (string) ($expected['status'] ?? 'approved')
             ) {
                 throw new RuntimeException(
                     'База даних не підтвердила збереження перекладу '
@@ -187,6 +281,26 @@ class AdminProductController extends Controller
                 );
             }
         }
+    }
+
+
+    private function loadProductSource(PDO $db, $productId)
+    {
+        $stmt = $db->prepare("
+            SELECT name, description
+            FROM products
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => (int) $productId]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            throw new RuntimeException('Товар не знайдено.');
+        }
+
+        return $row;
     }
 
 

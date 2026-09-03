@@ -48,6 +48,7 @@ class DeliveryOptionInput
                 field_label VARCHAR(120) NULL,
                 placeholder VARCHAR(160) NULL,
                 source VARCHAR(20) NOT NULL DEFAULT 'manual',
+                status VARCHAR(20) NOT NULL DEFAULT 'approved',
                 updated_at TIMESTAMP NOT NULL
                     DEFAULT CURRENT_TIMESTAMP
                     ON UPDATE CURRENT_TIMESTAMP,
@@ -57,6 +58,21 @@ class DeliveryOptionInput
               DEFAULT CHARSET=utf8mb4
               COLLATE=utf8mb4_unicode_ci
         ");
+
+        $statusColumn = $db->query("
+            SHOW COLUMNS
+            FROM delivery_option_input_translations
+            LIKE 'status'
+        ")->fetch(PDO::FETCH_ASSOC);
+
+        if (!$statusColumn) {
+            $db->exec("
+                ALTER TABLE delivery_option_input_translations
+                ADD COLUMN status VARCHAR(20) NOT NULL
+                    DEFAULT 'approved'
+                AFTER source
+            ");
+        }
 
         self::$schemaReady = true;
     }
@@ -118,7 +134,8 @@ class DeliveryOptionInput
                 language_code,
                 field_label,
                 placeholder,
-                source
+                source,
+                status
             FROM delivery_option_input_translations
             WHERE option_id = :option_id
         ");
@@ -142,7 +159,8 @@ class DeliveryOptionInput
         $languageCode,
         $fieldLabel,
         $placeholder,
-        $source = 'manual'
+        $source = 'manual',
+        $status = 'approved'
     ) {
         self::ensureTable();
 
@@ -182,6 +200,9 @@ class DeliveryOptionInput
             ]);
         }
 
+        $source = TranslationWorkflow::normalizeSource($source);
+        $status = TranslationWorkflow::normalizeStatus($status, true);
+
         $stmt = $db->prepare("
             INSERT INTO delivery_option_input_translations
             (
@@ -189,7 +210,8 @@ class DeliveryOptionInput
                 language_code,
                 field_label,
                 placeholder,
-                source
+                source,
+                status
             )
             VALUES
             (
@@ -197,12 +219,14 @@ class DeliveryOptionInput
                 :language_code,
                 :field_label,
                 :placeholder,
-                :source
+                :source,
+                :status
             )
             ON DUPLICATE KEY UPDATE
                 field_label = VALUES(field_label),
                 placeholder = VALUES(placeholder),
-                source = VALUES(source)
+                source = VALUES(source),
+                status = VALUES(status)
         ");
 
         return $stmt->execute([
@@ -212,7 +236,29 @@ class DeliveryOptionInput
                 $fieldLabel !== '' ? $fieldLabel : null,
             'placeholder' =>
                 $placeholder !== '' ? $placeholder : null,
-            'source' => trim((string) $source) ?: 'manual'
+            'source' => $source,
+            'status' => $status
+        ]);
+    }
+
+
+    public static function markTranslationsOutdated($optionId)
+    {
+        self::ensureTable();
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            UPDATE delivery_option_input_translations
+            SET status = 'outdated'
+            WHERE option_id = :option_id
+              AND (
+                    TRIM(COALESCE(field_label, '')) <> ''
+                    OR TRIM(COALESCE(placeholder, '')) <> ''
+              )
+        ");
+
+        return $stmt->execute([
+            'option_id' => (int) $optionId
         ]);
     }
 
@@ -239,6 +285,7 @@ class DeliveryOptionInput
             FROM delivery_option_input_translations
             WHERE option_id = :option_id
               AND language_code = :language_code
+              AND status IN ('approved', 'outdated')
             LIMIT 1
         ");
 

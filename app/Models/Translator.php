@@ -438,7 +438,8 @@ class Translator
         $key,
         $languageCode,
         $value,
-        $source = 'manual'
+        $source = 'manual',
+        $status = 'approved'
     ) {
         self::ensureTable();
 
@@ -447,7 +448,7 @@ class Translator
             trim((string) $languageCode)
         );
         $value = trim((string) $value);
-        $source = trim((string) $source) ?: 'manual';
+        $source = TranslationWorkflow::normalizeSource($source);
 
         if (
             $key === ''
@@ -481,9 +482,12 @@ class Translator
          * Інакше INSERT IGNORE базового словника відновить старе значення.
          * Draft не використовується на сайті, тому спрацює fallback на UK.
          */
-        $status = $value === ''
-            ? 'draft'
-            : 'approved';
+        $status = $languageCode === Language::SOURCE_CODE
+            ? TranslationWorkflow::STATUS_APPROVED
+            : TranslationWorkflow::normalizeStatus(
+                $status,
+                $value !== ''
+            );
 
         $db = Database::connect();
 
@@ -524,6 +528,36 @@ class Translator
     }
 
 
+    public static function markOutdatedForKey($key)
+    {
+        self::ensureTable();
+
+        $key = trim((string) $key);
+
+        if ($key === '' || strlen($key) > 190) {
+            return false;
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            UPDATE interface_translations
+            SET status = 'outdated'
+            WHERE translation_key = :translation_key
+              AND language_code <> :source_language
+              AND TRIM(value) <> ''
+        ");
+
+        $result = $stmt->execute([
+            'translation_key' => $key,
+            'source_language' => Language::SOURCE_CODE
+        ]);
+
+        self::$cache = [];
+
+        return $result;
+    }
+
+
     private static function findValue($key, $code)
     {
         $cacheKey = $code . ':' . $key;
@@ -539,7 +573,7 @@ class Translator
             FROM interface_translations
             WHERE translation_key = :translation_key
               AND language_code = :language_code
-              AND status = 'approved'
+              AND status IN ('approved', 'outdated')
             LIMIT 1
         ");
 

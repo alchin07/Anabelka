@@ -244,36 +244,79 @@ public function update()
     }
 
 
-    if ($type === 'method') {
-
-        Delivery::updateMethod(
-            $id,
-            $name,
-            $description
-        );
-
-    } elseif ($type === 'service') {
-
-        Delivery::updateService(
-            $id,
-            $name,
-            $description
-        );
-
-    } elseif ($type === 'option') {
-
-        Delivery::updateOption(
-            $id,
-            $name,
-            $description
-        );
-
-    } else {
+    if (!in_array($type, ['method', 'service', 'option'], true)) {
 
         http_response_code(400);
 
         echo 'Некорректный тип.';
 
+        exit;
+    }
+
+    /*
+     * Підготовка таблиці перекладів до транзакції: ensureTable()
+     * може виконати DDL під час першого запуску.
+     */
+    $currentSource = DeliveryTranslator::getSourceForEntity(
+        $type,
+        $id
+    );
+
+    if (!$currentSource) {
+        http_response_code(404);
+        echo 'Элемент доставки не найден.';
+        exit;
+    }
+
+    $db = Database::connect();
+
+    try {
+        $db->beginTransaction();
+
+        if ($type === 'method') {
+            $updated = Delivery::updateMethod(
+                $id,
+                $name,
+                $description
+            );
+        } elseif ($type === 'service') {
+            $updated = Delivery::updateService(
+                $id,
+                $name,
+                $description
+            );
+        } else {
+            $updated = Delivery::updateOption(
+                $id,
+                $name,
+                $description
+            );
+        }
+
+        if (!$updated) {
+            throw new RuntimeException(
+                'Не удалось сохранить изменения.'
+            );
+        }
+
+        if (TranslationWorkflow::sourceChanged(
+            $currentSource['name'] ?? '',
+            $currentSource['description'] ?? '',
+            $name,
+            $description
+        )) {
+            DeliveryTranslator::markOutdated($type, $id);
+        }
+
+        $db->commit();
+
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+
+        http_response_code(500);
+        echo $e->getMessage();
         exit;
     }
 
@@ -607,4 +650,4 @@ public function createMethod()
         exit;
     }
 }
-} 
+}

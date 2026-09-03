@@ -85,7 +85,8 @@ class CategoryTranslator
         $languageCode,
         $name,
         $description,
-        $source = 'manual'
+        $source = 'manual',
+        $status = 'approved'
     ) {
         self::ensureTable();
 
@@ -131,6 +132,9 @@ class CategoryTranslator
             );
         }
 
+        $source = TranslationWorkflow::normalizeSource($source);
+        $status = TranslationWorkflow::normalizeStatus($status, true);
+
         $stmt = $db->prepare("
             INSERT INTO category_translations
             (
@@ -148,13 +152,13 @@ class CategoryTranslator
                 :name,
                 :description,
                 :source,
-                'approved'
+                :status
             )
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 description = VALUES(description),
                 source = VALUES(source),
-                status = 'approved'
+                status = VALUES(status)
         ");
 
         return $stmt->execute([
@@ -162,7 +166,26 @@ class CategoryTranslator
             'language_code' => $languageCode,
             'name' => $name,
             'description' => $description !== '' ? $description : null,
-            'source' => trim((string) $source) ?: 'manual'
+            'source' => $source,
+            'status' => $status
+        ]);
+    }
+
+
+    public static function markOutdated($categoryId)
+    {
+        self::ensureTable();
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            UPDATE category_translations
+            SET status = 'outdated'
+            WHERE category_id = :category_id
+              AND TRIM(name) <> ''
+        ");
+
+        return $stmt->execute([
+            'category_id' => (int) $categoryId
         ]);
     }
 
@@ -191,7 +214,7 @@ class CategoryTranslator
             FROM category_translations
             WHERE category_id = :category_id
               AND language_code = :language_code
-              AND status = 'approved'
+              AND status IN ('approved', 'outdated')
             LIMIT 1
         ");
 

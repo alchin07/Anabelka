@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=6"
+        href="/Anabelka/css/admin-translations.css?v=7"
     >
 </head>
 <body>
@@ -47,6 +47,7 @@ $returnUrl = (string) (
     $returnUrl
     ?? '/Anabelka/admin/translations/missing?section=interface'
 );
+$translationStatusOptions = TranslationWorkflow::statusOptions();
 ?>
 
 <main class="catalog">
@@ -78,9 +79,9 @@ $returnUrl = (string) (
         <?php else: ?>
 
             <p class="interface-editor-help">
-                Українська — вихідна мова. Порожній переклад буде
-                позначено як відсутній, а на сайті тимчасово з’явиться
-                український текст.
+                Українська — вихідна мова. Чернетка та текст, що очікує
+                перевірки, не публікуються. Застарілий переклад лишається
+                на сайті, доки ви не оновите або не схвалите його.
             </p>
 
             <form
@@ -131,6 +132,21 @@ $returnUrl = (string) (
 
                     $translation = $translations[$code] ?? [];
                     $value = (string) ($translation['value'] ?? '');
+                    $translationSource =
+                        TranslationWorkflow::normalizeSource(
+                            $translation['source'] ?? 'manual'
+                        );
+                    $translationStatus =
+                        TranslationWorkflow::normalizeStatus(
+                            $translation['status'] ?? 'approved',
+                            trim($value) !== ''
+                        );
+                    $translationState =
+                        TranslationWorkflow::stateCode(
+                            $translationStatus,
+                            $translationSource,
+                            trim($value) !== ''
+                        );
                     $isMissing = in_array(
                         $code,
                         $missingLanguages,
@@ -178,11 +194,50 @@ $returnUrl = (string) (
                             autocomplete="off"
                         ><?= htmlspecialchars($value) ?></textarea>
 
-                        <?php if ($isMissing): ?>
-                            <span class="interface-missing-note">
-                                Переклад відсутній
+                        <div class="translation-workflow-row">
+                            <input
+                                type="hidden"
+                                class="translation-workflow-source"
+                                name="translation_source[<?= htmlspecialchars($code) ?>]"
+                                value="<?= htmlspecialchars($translationSource) ?>"
+                            >
+
+                            <span
+                                class="translation-workflow-origin"
+                                data-translation-source-label
+                            >
+                                <?= htmlspecialchars(
+                                    TranslationWorkflow::sourceLabel(
+                                        $translationSource
+                                    )
+                                ) ?>
                             </span>
-                        <?php endif; ?>
+
+                            <label class="translation-workflow-status">
+                                <span>Стан</span>
+                                <select
+                                    name="translation_status[<?= htmlspecialchars($code) ?>]"
+                                    data-translation-status
+                                >
+                                    <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
+                                        <option
+                                            value="<?= htmlspecialchars($statusCode) ?>"
+                                            <?= $translationStatus === $statusCode ? 'selected' : '' ?>
+                                        >
+                                            <?= htmlspecialchars($statusLabel) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                        </div>
+
+                        <span class="interface-missing-note"<?= $isMissing ? '' : ' hidden' ?>>
+                            <?= htmlspecialchars(
+                                TranslationWorkflow::stateLabel(
+                                    $translationState
+                                )
+                            ) ?>
+                        </span>
                     </section>
 
                 <?php endforeach; ?>
@@ -217,7 +272,7 @@ $returnUrl = (string) (
 ></div>
 
 <script
-    src="/Anabelka/js/admin-interface-translations.js?v=1"
+    src="/Anabelka/js/admin-interface-translations.js?v=2"
 ></script>
 
 </body>

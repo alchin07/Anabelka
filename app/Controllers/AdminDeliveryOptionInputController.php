@@ -97,7 +97,27 @@ class AdminDeliveryOptionInputController extends Controller
         }
 
 
+        $db = null;
+
         try {
+            $storedConfig = DeliveryOptionInput::getForOption(
+                $optionId
+            );
+            $storedTranslations =
+                DeliveryOptionInput::getTranslationsForOption(
+                    $optionId
+                );
+
+            $db = Database::connect();
+            $db->beginTransaction();
+
+            $sourceChanged = TranslationWorkflow::sourceChanged(
+                $storedConfig['field_label'] ?? '',
+                $storedConfig['placeholder'] ?? '',
+                $fieldLabel,
+                $placeholder
+            );
+
             DeliveryOptionInput::save(
                 $optionId,
                 $isEnabled,
@@ -105,19 +125,76 @@ class AdminDeliveryOptionInputController extends Controller
                 $placeholder
             );
 
+            if ($sourceChanged) {
+                DeliveryOptionInput::markTranslationsOutdated(
+                    $optionId
+                );
+            }
+
             foreach ($translations as $languageCode => $translation) {
                 if (!is_array($translation)) {
+                    continue;
+                }
+
+                $languageCode = strtolower(
+                    trim((string) $languageCode)
+                );
+
+                $stored = is_array(
+                    $storedTranslations[$languageCode] ?? null
+                )
+                    ? $storedTranslations[$languageCode]
+                    : [];
+
+                $translatedLabel = trim((string) (
+                    $translation['field_label'] ?? ''
+                ));
+                $translatedPlaceholder = trim((string) (
+                    $translation['placeholder'] ?? ''
+                ));
+                $source = TranslationWorkflow::normalizeSource(
+                    $translation['source']
+                    ?? ($stored['source'] ?? 'manual')
+                );
+                $status = TranslationWorkflow::normalizeStatus(
+                    $translation['status']
+                    ?? ($stored['status'] ?? 'approved'),
+                    $translatedLabel !== ''
+                        || $translatedPlaceholder !== ''
+                );
+
+                $translationChanged =
+                    trim((string) ($stored['field_label'] ?? ''))
+                        !== $translatedLabel
+                    || trim((string) ($stored['placeholder'] ?? ''))
+                        !== $translatedPlaceholder;
+
+                $statusChanged = $status !==
+                    TranslationWorkflow::normalizeStatus(
+                        $stored['status'] ?? 'approved',
+                        !empty($stored)
+                    );
+
+                if (
+                    $sourceChanged
+                    && !empty($stored)
+                    && !$translationChanged
+                    && !$statusChanged
+                ) {
                     continue;
                 }
 
                 DeliveryOptionInput::saveTranslation(
                     $optionId,
                     $languageCode,
-                    $translation['field_label'] ?? '',
-                    $translation['placeholder'] ?? '',
-                    'manual'
+                    $translatedLabel,
+                    $translatedPlaceholder,
+                    $source,
+                    $status
                 );
             }
+
+            $db->commit();
 
             header(
                 'Content-Type: application/json; charset=UTF-8'
@@ -137,6 +214,10 @@ class AdminDeliveryOptionInputController extends Controller
             exit;
 
         } catch (Throwable $e) {
+            if ($db instanceof PDO && $db->inTransaction()) {
+                $db->rollBack();
+            }
+
             http_response_code(500);
             echo $e->getMessage();
             exit;

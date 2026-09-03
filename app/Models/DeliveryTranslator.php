@@ -112,7 +112,8 @@ class DeliveryTranslator
         $languageCode,
         $name,
         $description,
-        $source = 'manual'
+        $source = 'manual',
+        $status = 'approved'
     ) {
         self::ensureTable();
 
@@ -165,6 +166,9 @@ class DeliveryTranslator
             );
         }
 
+        $source = TranslationWorkflow::normalizeSource($source);
+        $status = TranslationWorkflow::normalizeStatus($status, true);
+
         $stmt = $db->prepare("
             INSERT INTO delivery_translations
             (
@@ -184,13 +188,13 @@ class DeliveryTranslator
                 :name,
                 :description,
                 :source,
-                'approved'
+                :status
             )
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 description = VALUES(description),
                 source = VALUES(source),
-                status = 'approved'
+                status = VALUES(status)
         ");
 
         return $stmt->execute([
@@ -200,7 +204,59 @@ class DeliveryTranslator
             'name' => $name,
             'description' =>
                 $description !== '' ? $description : null,
-            'source' => trim((string) $source) ?: 'manual'
+            'source' => $source,
+            'status' => $status
+        ]);
+    }
+
+
+    public static function getSourceForEntity($entityType, $entityId)
+    {
+        self::ensureTable();
+
+        $entityType = trim((string) $entityType);
+        $entityId = (int) $entityId;
+        $table = self::tableForType($entityType);
+
+        if (!$table || $entityId <= 0) {
+            return null;
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            SELECT name, description
+            FROM {$table}
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $entityId]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+
+    public static function markOutdated($entityType, $entityId)
+    {
+        self::ensureTable();
+
+        if (!self::tableForType($entityType) || (int) $entityId <= 0) {
+            return false;
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            UPDATE delivery_translations
+            SET status = 'outdated'
+            WHERE entity_type = :entity_type
+              AND entity_id = :entity_id
+              AND TRIM(name) <> ''
+        ");
+
+        return $stmt->execute([
+            'entity_type' => (string) $entityType,
+            'entity_id' => (int) $entityId
         ]);
     }
 
@@ -236,7 +292,7 @@ class DeliveryTranslator
             WHERE entity_type = :entity_type
               AND entity_id = :entity_id
               AND language_code = :language_code
-              AND status = 'approved'
+              AND status IN ('approved', 'outdated')
             LIMIT 1
         ");
 

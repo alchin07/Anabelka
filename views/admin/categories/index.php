@@ -219,6 +219,43 @@
             box-sizing: border-box;
         }
 
+        .category-translation-workflow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .category-translation-origin {
+            color: #777;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .category-translation-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .category-translation-status select {
+            min-height: 38px;
+            padding: 0 9px;
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            background: #fff;
+            font: inherit;
+        }
+
+        .category-translation-section[data-translation-status="outdated"] {
+            border-radius: 12px;
+            background: #fff8ed;
+        }
+
         .category-modal-actions {
             display: flex;
             justify-content: flex-end;
@@ -267,6 +304,12 @@
             .category-edit-button {
                 width: 42px;
             }
+
+            .category-translation-workflow,
+            .category-translation-status {
+                align-items: stretch;
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -294,6 +337,7 @@ $depthFor = function ($category) use (&$categoryById) {
 
     return $depth;
 };
+$translationStatusOptions = TranslationWorkflow::statusOptions();
 ?>
 
 <main class="catalog">
@@ -440,6 +484,32 @@ $depthFor = function ($category) use (&$categoryById) {
                         · <?= htmlspecialchars($language['short_name']) ?>
                     </div>
 
+                    <div class="category-translation-workflow">
+                        <input
+                            type="hidden"
+                            name="translation_source[<?= htmlspecialchars($code) ?>]"
+                            class="category-translation-source"
+                            value="manual"
+                        >
+
+                        <span class="category-translation-origin">
+                            Ручний переклад
+                        </span>
+
+                        <label class="category-translation-status">
+                            <span>Стан</span>
+                            <select
+                                name="translation_status[<?= htmlspecialchars($code) ?>]"
+                            >
+                                <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
+                                    <option value="<?= htmlspecialchars($statusCode) ?>">
+                                        <?= htmlspecialchars($statusLabel) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                    </div>
+
                     <div class="category-form-group">
                         <label>Название / Name</label>
                         <input
@@ -515,9 +585,30 @@ $depthFor = function ($category) use (&$categoryById) {
             ).trim().toLowerCase() === languageCode;
         }) || null;
 
-        return section
-            ? section.querySelector('.category-translation-name')
-            : null;
+        if (!section) {
+            return null;
+        }
+
+        const targetName = section.querySelector(
+            '.category-translation-name'
+        );
+        const targetDescription = section.querySelector(
+            '.category-translation-description'
+        );
+
+        if (targetName && targetName.value.trim() === '') {
+            return targetName;
+        }
+
+        if (
+            String(button.dataset.categoryDescription || '').trim() !== ''
+            && targetDescription
+            && targetDescription.value.trim() === ''
+        ) {
+            return targetDescription;
+        }
+
+        return targetName || targetDescription;
     }
 
     function focusTranslationField(field) {
@@ -567,6 +658,48 @@ $depthFor = function ($category) use (&$categoryById) {
         return '';
     }
 
+    function setCategoryTranslationWorkflow(section, source, status) {
+        if (!section) {
+            return;
+        }
+
+        const sourceField = section.querySelector(
+            '.category-translation-source'
+        );
+        const sourceLabel = section.querySelector(
+            '.category-translation-origin'
+        );
+        const statusField = section.querySelector(
+            '.category-translation-status select'
+        );
+        const normalizedSource = source === 'ai' ? 'ai' : 'manual';
+        const normalizedStatus = [
+            'draft',
+            'review',
+            'approved',
+            'outdated'
+        ].includes(status) ? status : 'approved';
+
+        if (sourceField) {
+            sourceField.value = normalizedSource;
+        }
+
+        if (sourceLabel) {
+            sourceLabel.textContent = normalizedSource === 'ai'
+                ? 'Створено ШІ'
+                : 'Ручний переклад';
+        }
+
+        if (statusField) {
+            statusField.value = normalizedStatus;
+        }
+
+        section.dataset.translationStatus = normalizedStatus;
+    }
+
+    window.setCategoryTranslationWorkflow =
+        setCategoryTranslationWorkflow;
+
     function closeModal() {
         modal.hidden = true;
     }
@@ -610,6 +743,16 @@ $depthFor = function ($category) use (&$categoryById) {
 
                 section.querySelector('.category-translation-description').value =
                     translation.description || '';
+
+                setCategoryTranslationWorkflow(
+                    section,
+                    translation.source || 'manual',
+                    translation.status || (
+                        (translation.name || translation.description)
+                            ? 'approved'
+                            : 'draft'
+                    )
+                );
             });
 
             modal.hidden = false;
@@ -626,6 +769,56 @@ $depthFor = function ($category) use (&$categoryById) {
     document.querySelectorAll('[data-category-close]').forEach(function (button) {
         button.addEventListener('click', closeModal);
     });
+
+    document
+        .querySelectorAll(
+            '.category-translation-name, '
+            + '.category-translation-description'
+        )
+        .forEach(function (field) {
+            field.addEventListener('input', function () {
+                const section = field.closest(
+                    '[data-category-language]'
+                );
+                const statusField = section
+                    ? section.querySelector(
+                        '.category-translation-status select'
+                    )
+                    : null;
+                const hasContent = section && (
+                    section.querySelector(
+                        '.category-translation-name'
+                    ).value.trim() !== ''
+                    || section.querySelector(
+                        '.category-translation-description'
+                    ).value.trim() !== ''
+                );
+
+                setCategoryTranslationWorkflow(
+                    section,
+                    'manual',
+                    statusField
+                        && statusField.value === 'draft'
+                        && hasContent
+                            ? 'approved'
+                            : (statusField ? statusField.value : 'approved')
+                );
+            });
+        });
+
+    document
+        .querySelectorAll('.category-translation-status select')
+        .forEach(function (select) {
+            select.addEventListener('change', function () {
+                const section = select.closest(
+                    '[data-category-language]'
+                );
+
+                if (section) {
+                    section.dataset.translationStatus = select.value;
+                }
+            });
+        });
 
     form.addEventListener('submit', async function (event) {
         event.preventDefault();

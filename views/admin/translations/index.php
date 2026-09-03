@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-translations.css?v=6"
+        href="/Anabelka/css/admin-translations.css?v=7"
     >
 </head>
 <body>
@@ -109,6 +109,99 @@ $sectionLabels = [
 
         </div>
 
+        <?php if (!empty($languageCoverage)): ?>
+            <section class="translations-section">
+                <h3 class="translations-section-title">
+                    Готовність за мовами
+                </h3>
+
+                <p class="translations-section-help">
+                    Готовими вважаються лише схвалені переклади.
+                    Чернетки, перевірка та застарілі тексти потребують уваги.
+                </p>
+
+                <div class="translation-language-coverage-grid">
+                    <?php foreach ($languageCoverage as $languageItem): ?>
+                        <?php
+                        $languagePercent = max(
+                            0,
+                            min(
+                                100,
+                                (int) ($languageItem['percent'] ?? 0)
+                            )
+                        );
+                        $languageStates = is_array(
+                            $languageItem['states'] ?? null
+                        )
+                            ? $languageItem['states']
+                            : [];
+                        ?>
+
+                        <article class="translation-language-coverage-card">
+                            <div class="translation-coverage-head">
+                                <span class="translation-coverage-title">
+                                    <?= htmlspecialchars(
+                                        (string) ($languageItem['name'] ?? '')
+                                    ) ?>
+                                    ·
+                                    <?= htmlspecialchars(
+                                        (string) ($languageItem['short_name'] ?? '')
+                                    ) ?>
+                                </span>
+
+                                <span class="translation-coverage-percent">
+                                    <?= $languagePercent ?>%
+                                </span>
+                            </div>
+
+                            <div class="translation-coverage-meta">
+                                Схвалено:
+                                <?= (int) ($languageItem['approved'] ?? 0) ?>
+                                з
+                                <?= (int) ($languageItem['required'] ?? 0) ?>
+                            </div>
+
+                            <div
+                                class="translation-progress"
+                                aria-label="Готовність мови <?= $languagePercent ?>%"
+                            >
+                                <div
+                                    class="translation-progress-bar"
+                                    style="width: <?= $languagePercent ?>%;"
+                                ></div>
+                            </div>
+
+                            <div class="translation-language-states">
+                                <?php if (!empty($languageStates['missing'])): ?>
+                                    <span>Відсутні: <?= (int) $languageStates['missing'] ?></span>
+                                <?php endif; ?>
+
+                                <?php if (!empty($languageStates['outdated'])): ?>
+                                    <span>Оновити: <?= (int) $languageStates['outdated'] ?></span>
+                                <?php endif; ?>
+
+                                <?php if (!empty($languageStates['review'])): ?>
+                                    <span>Перевірити: <?= (int) $languageStates['review'] ?></span>
+                                <?php endif; ?>
+
+                                <?php if (!empty($languageStates['ai_draft'])): ?>
+                                    <span>Чернетки ШІ: <?= (int) $languageStates['ai_draft'] ?></span>
+                                <?php endif; ?>
+
+                                <?php if (!empty($languageStates['manual_draft'])): ?>
+                                    <span>Ручні чернетки: <?= (int) $languageStates['manual_draft'] ?></span>
+                                <?php endif; ?>
+
+                                <?php if (empty($languageItem['attention'])): ?>
+                                    <span class="is-complete">Усе готово</span>
+                                <?php endif; ?>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
         <section class="translations-section">
             <h3 class="translations-section-title">
                 Стан перекладів
@@ -175,11 +268,11 @@ $sectionLabels = [
                                     class="translation-missing translation-missing-link"
                                     href="/Anabelka/admin/translations/missing?section=<?= htmlspecialchars($section) ?>"
                                 >
-                                    Потребують перекладу: <?= $missing ?>
+                                    Потребують уваги: <?= $missing ?>
                                 </a>
                             <?php else: ?>
                                 <span class="translation-missing">
-                                    Потребують перекладу: <?= $missing ?>
+                                    Потребують уваги: <?= $missing ?>
                                 </span>
                             <?php endif; ?>
 

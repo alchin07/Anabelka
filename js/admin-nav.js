@@ -155,7 +155,7 @@
 
         if (path === '/Anabelka/admin/categories') {
             appendScript(
-                '/Anabelka/js/admin-category-ai-translation.js?v=2',
+                '/Anabelka/js/admin-category-ai-translation.js?v=3',
                 'data-admin-category-ai'
             );
 
@@ -177,7 +177,7 @@
 
         if (path === '/Anabelka/admin/delivery') {
             appendScript(
-                '/Anabelka/js/admin-delivery-ai-translation.js?v=2',
+                '/Anabelka/js/admin-delivery-ai-translation.js?v=3',
                 'data-admin-delivery-ai'
             );
 

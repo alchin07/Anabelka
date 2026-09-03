@@ -26,6 +26,7 @@ class App
         require_once __DIR__ . '/../Models/DeliveryRequirements.php';
         require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
         require_once __DIR__ . '/../Models/Language.php';
+        require_once __DIR__ . '/../Models/TranslationWorkflow.php';
         require_once __DIR__ . '/../Models/AppSetting.php';
         require_once __DIR__ . '/../Models/AITranslationUsage.php';
         require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
