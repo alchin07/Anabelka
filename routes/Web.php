@@ -91,7 +91,12 @@ $router->get(
 
 $router->get(
     '/admin/orders',
-    'AdminQuickOrderController@index'
+    'AdminOrderController@index'
+);
+
+$router->post(
+    '/admin/orders/status',
+    'AdminOrderController@updateStatus'
 );
 
 $router->get(

@@ -10,7 +10,7 @@ class QuickOrder
      * поэтому таблицы быстрого заказа создаются
      * безопасно при первом обращении.
      */
-    private static function ensureTables()
+    public static function ensureTables()
     {
         if (self::$schemaReady) {
             return;

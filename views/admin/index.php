@@ -124,7 +124,7 @@ $aiStateClass = !$aiAvailable
     >
         <a
             class="dashboard-order-alert"
-            href="#latest-orders"
+            href="/Anabelka/admin/orders?type=regular&amp;status=new"
         >
             <span class="dashboard-alert-dot" aria-hidden="true">З</span>
 
@@ -147,7 +147,7 @@ $aiStateClass = !$aiAvailable
 
         <a
             class="dashboard-order-alert is-quick"
-            href="/Anabelka/admin/orders"
+            href="/Anabelka/admin/orders?type=quick&amp;status=new"
         >
             <span class="dashboard-alert-dot" aria-hidden="true">Ш</span>
 
@@ -249,7 +249,7 @@ $aiStateClass = !$aiAvailable
                     class="dashboard-section-link"
                     href="/Anabelka/admin/orders"
                 >
-                    Усі швидкі
+                    Усі замовлення
                 </a>
             </div>
 

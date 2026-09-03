@@ -27,7 +27,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-delivery.css?v=10"
+        href="/Anabelka/css/admin-delivery.css?v=11"
     >
 
     <link

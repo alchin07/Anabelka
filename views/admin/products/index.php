@@ -229,11 +229,6 @@
             font: inherit;
         }
 
-        .product-translation-section[data-translation-status="outdated"] {
-            border-radius: 12px;
-            background: #fff8ed;
-        }
-
         .product-modal-actions {
             display: flex;
             justify-content: flex-end;

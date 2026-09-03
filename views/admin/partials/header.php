@@ -12,7 +12,8 @@ if ($adminPageLabel === '' || $adminPageLabel === null) {
 }
 
 $adminPageLabelMap = [
-    'Быстрые заказы' => 'Швидкі замовлення',
+    'Быстрые заказы' => 'Замовлення',
+    'Заказы' => 'Замовлення',
     'Языки' => 'Мови',
     'Переводы' => 'Переклади',
     'ИИ-перевод' => 'ШІ-переклад',
@@ -29,12 +30,28 @@ $adminNavBadges = is_array($navBadges ?? null)
     ? $navBadges
     : [];
 
-$regularOrderBadge = (int) (
-    $adminNavBadges['regular_orders'] ?? 0
-);
-$quickOrderBadge = (int) (
-    $adminNavBadges['quick_orders'] ?? 0
-);
+if (!array_key_exists('orders', $adminNavBadges)) {
+    if (
+        array_key_exists('regular_orders', $adminNavBadges)
+        || array_key_exists('quick_orders', $adminNavBadges)
+    ) {
+        $adminNavBadges['orders'] = (int) (
+            ($adminNavBadges['regular_orders'] ?? 0)
+            + ($adminNavBadges['quick_orders'] ?? 0)
+        );
+    } elseif (class_exists('AdminOrder')) {
+        try {
+            $orderSummary = AdminOrder::summary();
+            $adminNavBadges['orders'] = (int) (
+                $orderSummary['new'] ?? 0
+            );
+        } catch (Throwable $e) {
+            $adminNavBadges['orders'] = 0;
+        }
+    }
+}
+
+$orderBadge = (int) ($adminNavBadges['orders'] ?? 0);
 $translationBadge = (int) (
     $adminNavBadges['translations'] ?? 0
 );
@@ -124,23 +141,14 @@ $translationBadge = (int) (
             <span>Головна</span>
         </a>
 
-        <a href="/Anabelka/admin#latest-orders">
-            <span>Звичайні замовлення</span>
-            <?php if ($regularOrderBadge > 0): ?>
-                <span class="admin-nav-badge">
-                    <?= $regularOrderBadge ?>
-                </span>
-            <?php endif; ?>
-        </a>
-
         <a
             href="/Anabelka/admin/orders"
             data-admin-route="/Anabelka/admin/orders"
         >
-            <span>Швидкі замовлення</span>
-            <?php if ($quickOrderBadge > 0): ?>
+            <span>Замовлення</span>
+            <?php if ($orderBadge > 0): ?>
                 <span class="admin-nav-badge">
-                    <?= $quickOrderBadge ?>
+                    <?= $orderBadge ?>
                 </span>
             <?php endif; ?>
         </a>
@@ -209,4 +217,4 @@ $translationBadge = (int) (
     </a>
 </aside>
 
-<script src="/Anabelka/js/admin-nav.js?v=15"></script>
+<script src="/Anabelka/js/admin-nav.js?v=16"></script>

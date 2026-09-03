@@ -814,13 +814,6 @@
     font: inherit;
 }
 
-.delivery-translation-section.is-translation-outdated,
-.delivery-option-input-translation-section.is-translation-outdated {
-    border-radius: 12px;
-    background: #fff8ed;
-}
-
-
 /*
  * ========================================
  * КНОПКИ МОДАЛЬНОГО ОКНА

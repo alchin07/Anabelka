@@ -32,6 +32,10 @@ class AdminDashboardController extends Controller
                 'aiSummary' => $aiSummary,
                 'dashboardError' => $dashboardError,
                 'navBadges' => [
+                    'orders' => (int) (
+                        ($counts['regular_new'] ?? 0)
+                        + ($counts['quick_new'] ?? 0)
+                    ),
                     'regular_orders' => (int) ($counts['regular_new'] ?? 0),
                     'quick_orders' => (int) ($counts['quick_new'] ?? 0),
                     'translations' => (int) (
