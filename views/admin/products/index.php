@@ -74,13 +74,6 @@
             font-size: 14px;
         }
 
-        .product-admin-slug {
-            display: block;
-            margin-top: 6px;
-            color: #999;
-            font-size: 12px;
-        }
-
         .product-edit-button {
             border: 1px solid #eadcf7;
             border-radius: 12px;
@@ -320,9 +313,6 @@ $translationStatusOptions = TranslationWorkflow::statusOptions();
                             </span>
                         <?php endif; ?>
 
-                        <span class="product-admin-slug">
-                            slug: <?= htmlspecialchars($product['slug']) ?>
-                        </span>
                     </div>
 
                     <button
