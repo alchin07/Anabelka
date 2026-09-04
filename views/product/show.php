@@ -24,6 +24,11 @@
         href="/Anabelka/css/catalog.css?v=4"
     >
 
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/product-gallery.css?v=1"
+    >
+
 </head>
 
 <body>
@@ -55,26 +60,54 @@
         <section class="product-card">
 
 
-            <div class="product-image">
+            <?php
+            $galleryImages = is_array($images ?? null) ? $images : [];
 
-                <?php if (!empty($product['main_image'])): ?>
+            if (empty($galleryImages) && !empty($product['main_image'])) {
+                $galleryImages[] = [
+                    'id' => 0,
+                    'path' => $product['main_image'],
+                    'is_main' => 1
+                ];
+            }
 
-                    <img
-                        src="<?= htmlspecialchars($product['main_image']) ?>"
-                        alt="<?= htmlspecialchars($product['name']) ?>"
-                        style="
-                            width: 100%;
-                            height: 100%;
-                            object-fit: cover;
-                        "
-                    >
+            $mainGalleryImage = $galleryImages[0]['path']
+                ?? ($product['main_image'] ?? '');
+            ?>
 
-                <?php else: ?>
+            <div class="product-gallery" data-product-gallery>
+                <div class="product-image product-gallery-stage">
+                    <?php if ($mainGalleryImage !== ''): ?>
+                        <img
+                            src="<?= htmlspecialchars($mainGalleryImage) ?>"
+                            alt="<?= htmlspecialchars($product['name']) ?>"
+                            data-product-gallery-main
+                        >
+                    <?php else: ?>
+                        Фото товара
+                    <?php endif; ?>
+                </div>
 
-                    Фото товара
-
+                <?php if (count($galleryImages) > 1): ?>
+                    <div class="product-gallery-thumbs" aria-label="Фотографії товару">
+                        <?php foreach ($galleryImages as $index => $image): ?>
+                            <button
+                                type="button"
+                                class="product-gallery-thumb<?= $index === 0 ? ' is-active' : '' ?>"
+                                data-product-gallery-thumb
+                                data-image-src="<?= htmlspecialchars($image['path'], ENT_QUOTES, 'UTF-8') ?>"
+                                aria-label="Фотографія <?= $index + 1 ?>"
+                                aria-pressed="<?= $index === 0 ? 'true' : 'false' ?>"
+                            >
+                                <img
+                                    src="<?= htmlspecialchars($image['path']) ?>"
+                                    alt=""
+                                    loading="lazy"
+                                >
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
-
             </div>
 
             <?php
@@ -639,6 +672,8 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
     }
 
     </script>
+
+    <script src="/Anabelka/js/product-gallery.js?v=1"></script>
 
 </body>
 </html>

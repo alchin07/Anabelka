@@ -1,866 +1,595 @@
+<?php
+$products = is_array($products ?? null) ? $products : [];
+$categories = is_array($categories ?? null) ? $categories : [];
+$priceRanks = is_array($priceRanks ?? null) ? $priceRanks : [];
+$languages = is_array($languages ?? null) ? $languages : [];
+$summary = is_array($summary ?? null) ? $summary : [];
+$filters = AdminProduct::normalizeFilters(
+    is_array($filters ?? null) ? $filters : []
+);
+$csrfToken = (string) ($csrfToken ?? '');
+$translationStatusOptions = TranslationWorkflow::statusOptions();
+$escape = function ($value) {
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+};
+$formatMoney = function ($value) {
+    return number_format((float) $value, 2, ',', ' ') . ' €';
+};
+$categoryById = [];
+
+foreach ($categories as $category) {
+    $categoryById[(int) ($category['id'] ?? 0)] = $category;
+}
+
+$categoryDepth = function ($category) use (&$categoryById) {
+    $depth = 0;
+    $parentId = (int) ($category['parent_id'] ?? 0);
+    $guard = 0;
+
+    while ($parentId > 0 && isset($categoryById[$parentId]) && $guard < 20) {
+        $depth++;
+        $parentId = (int) ($categoryById[$parentId]['parent_id'] ?? 0);
+        $guard++;
+    }
+
+    return $depth;
+};
+$productsUrl = function (array $changes = []) use ($filters) {
+    $values = array_merge($filters, $changes);
+    $query = [];
+
+    if (($values['status'] ?? 'all') !== 'all') {
+        $query['status'] = $values['status'];
+    }
+    if ((int) ($values['category_id'] ?? 0) > 0) {
+        $query['category_id'] = (int) $values['category_id'];
+    }
+    if (trim((string) ($values['q'] ?? '')) !== '') {
+        $query['q'] = trim((string) $values['q']);
+    }
+
+    return '/Anabelka/admin/products'
+        . (empty($query) ? '' : '?' . http_build_query($query));
+};
+$statusTabs = [
+    'all' => 'Усі',
+    'active' => 'На сайті',
+    'out_of_stock' => 'Без залишку',
+    'hidden' => 'Приховані'
+];
+$productsJson = json_encode(
+    $products,
+    JSON_UNESCAPED_UNICODE
+        | JSON_UNESCAPED_SLASHES
+        | JSON_HEX_TAG
+        | JSON_HEX_AMP
+        | JSON_HEX_APOS
+        | JSON_HEX_QUOT
+);
+?>
 <!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Товари — Адмін-панель</title>
-
-    <link
-        rel="stylesheet"
-        href="/Anabelka/css/style.css?v=8"
-    >
-
-    <link
-        rel="stylesheet"
-        href="/Anabelka/css/catalog.css?v=4"
-    >
-
-    <style>
-        .product-admin {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 18px;
-        }
-
-        .product-admin-head {
-            margin-bottom: 18px;
-        }
-
-        .product-admin-head h2 {
-            margin: 0 0 5px;
-        }
-
-        .product-admin-subtitle {
-            margin: 0;
-            color: #777;
-        }
-
-        .product-admin-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .product-admin-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 44px;
-            gap: 10px;
-            align-items: stretch;
-        }
-
-        .product-admin-card {
-            min-width: 0;
-            padding: 14px;
-            border: 1px solid #eadcf7;
-            border-radius: 14px;
-            background: #faf7ff;
-        }
-
-        .product-admin-name {
-            display: block;
-            font-weight: 700;
-            font-size: 17px;
-        }
-
-        .product-admin-meta,
-        .product-admin-description {
-            display: block;
-            margin-top: 5px;
-            color: #777;
-            font-size: 14px;
-        }
-
-        .product-edit-button {
-            border: 1px solid #eadcf7;
-            border-radius: 12px;
-            background: #fff;
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-        .product-modal[hidden] {
-            display: none;
-        }
-
-        .product-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .product-modal-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.35);
-        }
-
-        .product-modal-window {
-            position: relative;
-            width: min(680px, 100%);
-            max-height: 88vh;
-            overflow-y: auto;
-            padding: 20px;
-            border-radius: 18px;
-            background: #fff;
-        }
-
-        .product-modal-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            margin-bottom: 16px;
-        }
-
-        .product-modal-head h3 {
-            margin: 0;
-        }
-
-        .product-modal-close {
-            border: 0;
-            background: transparent;
-            font-size: 28px;
-            cursor: pointer;
-        }
-
-        .product-source-head,
-        .product-language-head {
-            margin: 14px 0 10px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            background: #faf7ff;
-            font-weight: 700;
-        }
-
-        .product-language-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .product-ai-translate {
-            border: 1px solid var(--primary-color);
-            border-radius: 9px;
-            padding: 7px 10px;
-            background: #fff;
-            color: var(--primary-color);
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .product-ai-translate:disabled {
-            opacity: 0.55;
-            cursor: wait;
-        }
-
-        .product-translation-section {
-            margin-top: 18px;
-            padding-top: 16px;
-            border-top: 1px solid #eadcf7;
-            scroll-margin: 18px;
-        }
-
-        .product-translation-section.is-translation-focus {
-            margin-right: -8px;
-            margin-left: -8px;
-            padding-right: 8px;
-            padding-left: 8px;
-            border-radius: 12px;
-            background: #faf7ff;
-            box-shadow: 0 0 0 2px var(--primary-color);
-        }
-
-        .product-form-group {
-            margin-bottom: 14px;
-        }
-
-        .product-form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 700;
-        }
-
-        .product-form-group input,
-        .product-form-group textarea {
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .product-translation-workflow {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-
-        .product-translation-origin {
-            color: #777;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .product-translation-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .product-translation-status select {
-            min-height: 38px;
-            padding: 0 9px;
-            border: 1px solid var(--border-color);
-            border-radius: 9px;
-            background: #fff;
-            font: inherit;
-        }
-
-        .product-modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .product-modal-actions button {
-            padding: 11px 16px;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-
-        .product-save {
-            border: 0;
-            background: var(--primary-color);
-            color: #fff;
-            font-weight: 700;
-        }
-
-        .product-cancel {
-            border: 1px solid #ddd;
-            background: #fff;
-        }
-
-        @media (max-width: 650px) {
-            .product-translation-workflow,
-            .product-translation-status {
-                align-items: stretch;
-                flex-direction: column;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=1">
 </head>
 <body>
 
 <?php
 $pageTitle = 'Админ-панель — Товары';
 require __DIR__ . '/../../partials/header.php';
-$translationStatusOptions = TranslationWorkflow::statusOptions();
 ?>
 
-<main class="catalog">
-    <section class="product-card product-admin">
-        <div class="product-admin-head">
+<main class="admin-products">
+    <section class="admin-products-heading">
+        <div>
             <h2>Товари</h2>
-            <p class="product-admin-subtitle">
-                Редагування українського оригіналу та перекладів
-            </p>
+            <p>Ціни, залишки, розміри, фотографії та переклади</p>
         </div>
 
-        <div class="product-admin-list">
+        <button
+            type="button"
+            class="admin-product-add"
+            data-product-create
+            <?= empty($categories) ? 'disabled' : '' ?>
+        >
+            <span aria-hidden="true">＋</span>
+            Додати товар
+        </button>
+    </section>
+
+    <?php if (!empty($flash)): ?>
+        <div
+            class="admin-product-flash <?= ($flash['type'] ?? '') === 'error' ? 'is-error' : 'is-success' ?>"
+            role="status"
+        >
+            <?= $escape($flash['message'] ?? '') ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($productsError !== ''): ?>
+        <div class="admin-product-flash is-error" role="alert">
+            Дані товарів тимчасово недоступні:
+            <?= $escape($productsError) ?>
+        </div>
+    <?php endif; ?>
+
+    <nav class="admin-product-tabs" aria-label="Стан товарів">
+        <?php foreach ($statusTabs as $statusCode => $statusLabel): ?>
+            <a
+                href="<?= $escape($productsUrl(['status' => $statusCode])) ?>"
+                class="<?= $filters['status'] === $statusCode ? 'is-active' : '' ?>"
+            >
+                <span><?= $escape($statusLabel) ?></span>
+                <strong><?= (int) ($summary[$statusCode] ?? 0) ?></strong>
+            </a>
+        <?php endforeach; ?>
+    </nav>
+
+    <form class="admin-product-filters" method="GET" action="/Anabelka/admin/products">
+        <?php if ($filters['status'] !== 'all'): ?>
+            <input type="hidden" name="status" value="<?= $escape($filters['status']) ?>">
+        <?php endif; ?>
+
+        <label>
+            <span class="visually-hidden">Пошук товару</span>
+            <input
+                type="search"
+                name="q"
+                value="<?= $escape($filters['q']) ?>"
+                placeholder="Назва, SKU або адреса"
+            >
+        </label>
+
+        <label>
+            <span class="visually-hidden">Категорія</span>
+            <select name="category_id">
+                <option value="0">Усі категорії</option>
+                <?php foreach ($categories as $category): ?>
+                    <?php $depth = $categoryDepth($category); ?>
+                    <option
+                        value="<?= (int) $category['id'] ?>"
+                        <?= $filters['category_id'] === (int) $category['id'] ? 'selected' : '' ?>
+                    >
+                        <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
+                        <?= empty($category['is_active']) ? ' · прихована' : '' ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+
+        <button type="submit">Знайти</button>
+
+        <?php if ($filters['q'] !== '' || $filters['category_id'] > 0): ?>
+            <a href="<?= $escape($productsUrl(['q' => '', 'category_id' => 0])) ?>">
+                Скинути
+            </a>
+        <?php endif; ?>
+    </form>
+
+    <?php if (empty($products) && $productsError === ''): ?>
+        <section class="admin-product-empty">
+            <strong>Товарів за цим фільтром немає</strong>
+            <span>Змініть умови пошуку або додайте новий товар.</span>
+        </section>
+    <?php else: ?>
+        <section class="admin-product-list" aria-label="Список товарів">
             <?php foreach ($products as $product): ?>
                 <?php
-                $translationsJson = json_encode(
-                    $product['translations'] ?? [],
-                    JSON_UNESCAPED_UNICODE
-                );
+                $stock = ($product['stock_mode'] ?? 'total') === 'by_size'
+                    ? (int) ($product['size_stock'] ?? 0)
+                    : (int) ($product['stock'] ?? 0);
+                $isActive = !empty($product['is_active']);
                 ?>
-
-                <div class="product-admin-row">
-                    <div class="product-admin-card">
-                        <span class="product-admin-name">
-                            <?= htmlspecialchars($product['name']) ?>
-                        </span>
-
-                        <span class="product-admin-meta">
-                            <?= htmlspecialchars($product['category_name'] ?? 'Без категорії') ?>
-                            <?php if (!empty($product['sku'])): ?>
-                                · SKU: <?= htmlspecialchars($product['sku']) ?>
+                <div
+                    class="product-admin-row"
+                    data-product-id="<?= (int) $product['id'] ?>"
+                >
+                    <article class="product-admin-card<?= $isActive ? '' : ' is-hidden' ?>">
+                        <div class="admin-product-thumb">
+                            <?php if (!empty($product['main_image'])): ?>
+                                <img
+                                    src="<?= $escape($product['main_image']) ?>"
+                                    alt=""
+                                    loading="lazy"
+                                >
+                            <?php else: ?>
+                                <span aria-hidden="true">Фото</span>
                             <?php endif; ?>
-                        </span>
+                        </div>
 
-                        <?php if (!empty($product['description'])): ?>
-                            <span class="product-admin-description">
-                                <?= htmlspecialchars($product['description']) ?>
-                            </span>
-                        <?php endif; ?>
+                        <div class="admin-product-copy">
+                            <div class="admin-product-badges">
+                                <span class="<?= $isActive ? 'is-live' : 'is-muted' ?>">
+                                    <?= $isActive ? 'На сайті' : 'Прихований' ?>
+                                </span>
+                                <?php if ($stock <= 0): ?>
+                                    <span class="is-warning">Немає в наявності</span>
+                                <?php endif; ?>
+                            </div>
 
-                    </div>
+                            <h3 class="product-admin-name">
+                                <?= $escape($product['name']) ?>
+                            </h3>
 
-                    <button
-                        type="button"
-                        class="product-edit-button"
-                        aria-label="Редагувати товар"
-                        data-product-id="<?= (int) $product['id'] ?>"
-                        data-product-name="<?= htmlspecialchars(
-                            $product['name'],
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
-                        data-product-description="<?= htmlspecialchars(
-                            $product['description'] ?? '',
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
-                        data-product-translations="<?= htmlspecialchars(
-                            $translationsJson,
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
-                    >
-                        ✎
-                    </button>
+                            <p class="product-admin-meta">
+                                <?= $escape($product['category_name'] ?? 'Без категорії') ?>
+                                <?php if (!empty($product['sku'])): ?>
+                                    · <?= $escape($product['sku']) ?>
+                                <?php endif; ?>
+                            </p>
+
+                            <div class="admin-product-numbers">
+                                <strong><?= $formatMoney($product['price'] ?? 0) ?></strong>
+                                <span>
+                                    Залишок: <?= $stock ?>
+                                    <?= ($product['stock_mode'] ?? '') === 'by_size' ? 'за розмірами' : 'шт.' ?>
+                                </span>
+                                <span>Фото: <?= count($product['images'] ?? []) ?></span>
+                            </div>
+                        </div>
+
+                        <div class="admin-product-actions">
+                            <button
+                                type="button"
+                                class="product-edit-button"
+                                data-product-edit
+                                data-product-id="<?= (int) $product['id'] ?>"
+                            >
+                                Редагувати
+                            </button>
+
+                            <form
+                                method="POST"
+                                action="/Anabelka/admin/products/duplicate"
+                                data-product-duplicate-form
+                            >
+                                <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                                <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
+                                <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
+                                <input type="hidden" name="filter_category_id" value="<?= (int) $filters['category_id'] ?>">
+                                <input type="hidden" name="filter_q" value="<?= $escape($filters['q']) ?>">
+                                <button type="submit">Створити копію</button>
+                            </form>
+
+                            <form
+                                method="POST"
+                                action="/Anabelka/admin/products/toggle"
+                                data-product-toggle-form
+                                data-next-active="<?= $isActive ? '0' : '1' ?>"
+                            >
+                                <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                                <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
+                                <input type="hidden" name="is_active" value="<?= $isActive ? '0' : '1' ?>">
+                                <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
+                                <input type="hidden" name="filter_category_id" value="<?= (int) $filters['category_id'] ?>">
+                                <input type="hidden" name="filter_q" value="<?= $escape($filters['q']) ?>">
+                                <button type="submit" class="<?= $isActive ? 'is-danger' : 'is-restore' ?>">
+                                    <?= $isActive ? 'Приховати' : 'Повернути на сайт' ?>
+                                </button>
+                            </form>
+                        </div>
+                    </article>
                 </div>
             <?php endforeach; ?>
-        </div>
-    </section>
+        </section>
+    <?php endif; ?>
 </main>
 
-<div
-    id="product-edit-modal"
-    class="product-modal"
-    hidden
->
-    <div
-        class="product-modal-backdrop"
+<div id="product-editor" class="product-editor" hidden>
+    <button
+        type="button"
+        class="product-editor-backdrop"
         data-product-close
-    ></div>
+        aria-label="Закрити редактор"
+    ></button>
 
-    <div
-        class="product-modal-window"
+    <section
+        class="product-editor-window"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="product-edit-title"
+        aria-labelledby="product-editor-title"
     >
-        <div class="product-modal-head">
-            <h3 id="product-edit-title">Редагування товару</h3>
-            <button
-                type="button"
-                class="product-modal-close"
-                data-product-close
-            >×</button>
-        </div>
+        <header class="product-editor-head">
+            <div>
+                <span id="product-editor-kicker">Товар</span>
+                <h2 id="product-editor-title">Новий товар</h2>
+            </div>
+            <button type="button" class="product-editor-close" data-product-close>×</button>
+        </header>
 
         <form
-            id="product-edit-form"
-            action="/Anabelka/admin/products/update"
+            id="product-editor-form"
+            action="/Anabelka/admin/products/save"
             method="POST"
+            enctype="multipart/form-data"
         >
-            <input
-                type="hidden"
-                name="product_id"
-                id="product-edit-id"
-            >
+            <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="product_id" id="product-edit-id" value="0">
 
-            <div class="product-source-head">
-                Українська · вихідна мова
-            </div>
-
-            <div class="product-form-group">
-                <label for="product-edit-name">Назва *</label>
-                <input
-                    type="text"
-                    name="name"
-                    id="product-edit-name"
-                    required
-                >
-            </div>
-
-            <div class="product-form-group">
-                <label for="product-edit-description">Опис</label>
-                <textarea
-                    name="description"
-                    id="product-edit-description"
-                    rows="5"
-                ></textarea>
-            </div>
-
-            <?php foreach ($languages as $language): ?>
-                <?php
-                $code = strtolower(trim((string) ($language['code'] ?? '')));
-                if ($code === '' || $code === Language::SOURCE_CODE) {
-                    continue;
-                }
-                ?>
-
-                <section
-                    class="product-translation-section"
-                    data-product-language="<?= htmlspecialchars($code) ?>"
-                >
-                    <div class="product-language-head">
-                        <span>
-                            <?= htmlspecialchars($language['name']) ?>
-                            · <?= htmlspecialchars($language['short_name']) ?>
-                        </span>
-
-                        <button
-                            type="button"
-                            class="product-ai-translate"
-                            data-product-ai-translate
-                            data-target-language="<?= htmlspecialchars($code) ?>"
-                        >
-                            Перевести через ИИ
-                        </button>
+            <div class="product-editor-body">
+                <section class="product-form-section">
+                    <div class="product-section-heading">
+                        <span>Основне</span>
+                        <label class="product-active-switch">
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" id="product-edit-active" value="1">
+                            <span>Показувати на сайті</span>
+                        </label>
                     </div>
 
-                    <div class="product-translation-workflow">
-                        <input
-                            type="hidden"
-                            name="translation_source[<?= htmlspecialchars($code) ?>]"
-                            class="product-translation-source"
-                            value="manual"
-                        >
-
-                        <span class="product-translation-origin">
-                            Ручний переклад
-                        </span>
-
-                        <label class="product-translation-status">
-                            <span>Стан</span>
-                            <select
-                                name="translation_status[<?= htmlspecialchars($code) ?>]"
-                            >
-                                <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
-                                    <option value="<?= htmlspecialchars($statusCode) ?>">
-                                        <?= htmlspecialchars($statusLabel) ?>
+                    <div class="product-form-grid">
+                        <label class="product-form-field is-wide">
+                            <span>Категорія *</span>
+                            <select name="category_id" id="product-edit-category" required>
+                                <option value="">Оберіть категорію</option>
+                                <?php foreach ($categories as $category): ?>
+                                    <?php $depth = $categoryDepth($category); ?>
+                                    <option value="<?= (int) $category['id'] ?>">
+                                        <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
+                                        <?= empty($category['is_active']) ? ' · прихована' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                    </div>
 
-                    <div class="product-form-group">
-                        <label>Название / Name</label>
-                        <input
-                            type="text"
-                            name="translation_name[<?= htmlspecialchars($code) ?>]"
-                            class="product-translation-name"
-                            autocomplete="off"
-                        >
-                    </div>
+                        <label class="product-form-field is-wide">
+                            <span>Назва українською *</span>
+                            <input type="text" name="name" id="product-edit-name" maxlength="255" required>
+                        </label>
 
-                    <div class="product-form-group">
-                        <label>Описание / Description</label>
-                        <textarea
-                            name="translation_description[<?= htmlspecialchars($code) ?>]"
-                            class="product-translation-description"
-                            rows="4"
-                        ></textarea>
+                        <label class="product-form-field">
+                            <span>SKU / артикул</span>
+                            <input type="text" name="sku" id="product-edit-sku" maxlength="100" placeholder="Створиться автоматично">
+                        </label>
+
+                        <label class="product-form-field">
+                            <span>Адреса товару</span>
+                            <input type="text" name="slug" id="product-edit-slug" maxlength="180" placeholder="Створиться автоматично">
+                        </label>
+
+                        <label class="product-form-field is-wide">
+                            <span>Опис</span>
+                            <textarea name="description" id="product-edit-description" rows="5" maxlength="20000"></textarea>
+                        </label>
                     </div>
                 </section>
-            <?php endforeach; ?>
 
-            <div class="product-modal-actions">
-                <button
-                    type="button"
-                    class="product-cancel"
-                    data-product-close
-                >Отмена</button>
+                <details class="product-form-section" open>
+                    <summary>
+                        <span>Ціни</span>
+                        <small>Основна, стара та персональні</small>
+                    </summary>
 
-                <button
-                    type="submit"
-                    class="product-save"
-                >Сохранить</button>
+                    <div class="product-form-grid product-details-content">
+                        <label class="product-form-field">
+                            <span>Основна ціна, € *</span>
+                            <input type="number" name="price" id="product-edit-price" min="0" step="0.01" inputmode="decimal" required>
+                        </label>
+
+                        <label class="product-form-field">
+                            <span>Стара ціна, €</span>
+                            <input type="number" name="old_price" id="product-edit-old-price" min="0" step="0.01" inputmode="decimal">
+                        </label>
+
+                        <?php foreach ($priceRanks as $rank): ?>
+                            <?php if (strtolower((string) ($rank['slug'] ?? '')) === 'guest') { continue; } ?>
+                            <label class="product-form-field">
+                                <span><?= $escape($rank['name']) ?>, €</span>
+                                <input
+                                    type="number"
+                                    name="rank_price[<?= (int) $rank['id'] ?>]"
+                                    data-rank-price="<?= (int) $rank['id'] ?>"
+                                    data-rank-slug="<?= $escape($rank['slug'] ?? '') ?>"
+                                    min="0"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    placeholder="Не задано"
+                                >
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </details>
+
+                <details class="product-form-section" open>
+                    <summary>
+                        <span>Залишки та розміри</span>
+                        <small>Загальний склад або окремо за розмірами</small>
+                    </summary>
+
+                    <div class="product-details-content">
+                        <div class="product-form-grid">
+                            <label class="product-form-field">
+                                <span>Облік залишку</span>
+                                <select name="stock_mode" id="product-edit-stock-mode">
+                                    <option value="total">Один загальний залишок</option>
+                                    <option value="by_size">Окремо за кожним розміром</option>
+                                </select>
+                            </label>
+
+                            <label class="product-form-field" data-total-stock-field>
+                                <span>Загальний залишок, шт.</span>
+                                <input type="number" name="stock" id="product-edit-stock" min="0" step="1" inputmode="numeric" value="0">
+                            </label>
+                        </div>
+
+                        <label class="product-check-row">
+                            <input type="hidden" name="show_stock_quantity" value="0">
+                            <input type="checkbox" name="show_stock_quantity" id="product-edit-show-stock" value="1">
+                            <span>Показувати покупцям точну кількість</span>
+                        </label>
+
+                        <div class="product-sizes-head">
+                            <div>
+                                <strong>Розміри</strong>
+                                <span data-size-stock-hint>Для загального залишку кількість задається вище.</span>
+                            </div>
+                            <button type="button" data-size-add>＋ Додати розмір</button>
+                        </div>
+
+                        <div id="product-size-list" class="product-size-list"></div>
+                    </div>
+                </details>
+
+                <details class="product-form-section" open>
+                    <summary>
+                        <span>Фотографії</span>
+                        <small>Перша або позначена фотографія буде головною</small>
+                    </summary>
+
+                    <div class="product-details-content">
+                        <div id="product-image-list" class="product-image-list"></div>
+
+                        <label class="product-upload-field">
+                            <span>Додати фотографії</span>
+                            <input
+                                type="file"
+                                name="product_images[]"
+                                id="product-image-input"
+                                accept="image/jpeg,image/png,image/webp"
+                                multiple
+                            >
+                            <small>JPG, PNG або WebP · до 8 МБ кожна · до 8 за раз</small>
+                        </label>
+
+                        <div id="product-upload-preview" class="product-upload-preview"></div>
+                    </div>
+                </details>
+
+                <details class="product-form-section">
+                    <summary>
+                        <span>Виробник</span>
+                        <small>Необов’язкові дані</small>
+                    </summary>
+
+                    <div class="product-form-grid product-details-content">
+                        <label class="product-form-field">
+                            <span>Бренд</span>
+                            <input type="text" name="brand" id="product-edit-brand" maxlength="150">
+                        </label>
+
+                        <label class="product-form-field">
+                            <span>Країна</span>
+                            <input type="text" name="country" id="product-edit-country" maxlength="150">
+                        </label>
+                    </div>
+                </details>
+
+                <details class="product-form-section" data-translation-details>
+                    <summary>
+                        <span>Переклади</span>
+                        <small>ШІ-переклад і ручна перевірка</small>
+                    </summary>
+
+                    <div class="product-details-content">
+                        <div class="product-source-head">
+                            Українська · вихідна мова
+                        </div>
+
+                        <?php foreach ($languages as $language): ?>
+                            <?php
+                            $code = strtolower(trim((string) ($language['code'] ?? '')));
+                            if ($code === '' || $code === Language::SOURCE_CODE) {
+                                continue;
+                            }
+                            ?>
+                            <section
+                                class="product-translation-section"
+                                data-product-language="<?= $escape($code) ?>"
+                            >
+                                <div class="product-language-head">
+                                    <strong>
+                                        <?= $escape($language['name']) ?>
+                                        · <?= $escape($language['short_name']) ?>
+                                    </strong>
+                                    <button
+                                        type="button"
+                                        class="product-ai-translate"
+                                        data-product-ai-translate
+                                        data-target-language="<?= $escape($code) ?>"
+                                    >
+                                        Перекласти через ШІ
+                                    </button>
+                                </div>
+
+                                <div class="product-translation-workflow">
+                                    <input
+                                        type="hidden"
+                                        name="translation_source[<?= $escape($code) ?>]"
+                                        class="product-translation-source"
+                                        value="manual"
+                                    >
+                                    <span class="product-translation-origin">Ручний переклад</span>
+                                    <label class="product-translation-status">
+                                        <span>Стан</span>
+                                        <select name="translation_status[<?= $escape($code) ?>]">
+                                            <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
+                                                <option value="<?= $escape($statusCode) ?>">
+                                                    <?= $escape($statusLabel) ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </label>
+                                </div>
+
+                                <label class="product-form-field">
+                                    <span>Назва</span>
+                                    <input
+                                        type="text"
+                                        name="translation_name[<?= $escape($code) ?>]"
+                                        class="product-translation-name"
+                                        maxlength="255"
+                                        autocomplete="off"
+                                    >
+                                </label>
+
+                                <label class="product-form-field">
+                                    <span>Опис</span>
+                                    <textarea
+                                        name="translation_description[<?= $escape($code) ?>]"
+                                        class="product-translation-description"
+                                        rows="4"
+                                    ></textarea>
+                                </label>
+                            </section>
+                        <?php endforeach; ?>
+                    </div>
+                </details>
             </div>
+
+            <footer class="product-editor-actions">
+                <button type="button" class="product-editor-cancel" data-product-close>
+                    Скасувати
+                </button>
+                <button type="submit" class="product-editor-save">
+                    Зберегти товар
+                </button>
+            </footer>
         </form>
-    </div>
+    </section>
 </div>
 
-<div
-    id="site-message"
-    class="site-message"
-></div>
-
-<script>
-(function () {
-    const modal = document.getElementById('product-edit-modal');
-    const form = document.getElementById('product-edit-form');
-    const idField = document.getElementById('product-edit-id');
-    const nameField = document.getElementById('product-edit-name');
-    const descriptionField = document.getElementById('product-edit-description');
-
-    function getTranslationFocusField(button) {
-        const params = new URLSearchParams(window.location.search);
-        const languageCode = String(
-            params.get('focus_language') || ''
-        ).trim().toLowerCase();
-        const requestedId = String(
-            params.get('highlight') || ''
-        ).trim();
-
-        if (
-            languageCode === ''
-            || !/^\d+$/.test(requestedId)
-            || requestedId !== String(button.dataset.productId || '')
-        ) {
-            return null;
-        }
-
-        const section = Array.from(
-            document.querySelectorAll('[data-product-language]')
-        ).find(function (item) {
-            return String(
-                item.dataset.productLanguage || ''
-            ).trim().toLowerCase() === languageCode;
-        }) || null;
-
-        if (!section) {
-            return null;
-        }
-
-        const targetName = section.querySelector(
-            '.product-translation-name'
-        );
-        const targetDescription = section.querySelector(
-            '.product-translation-description'
-        );
-
-        if (targetName && targetName.value.trim() === '') {
-            return targetName;
-        }
-
-        if (
-            String(button.dataset.productDescription || '').trim() !== ''
-            && targetDescription
-            && targetDescription.value.trim() === ''
-        ) {
-            return targetDescription;
-        }
-
-        return targetName || targetDescription;
-    }
-
-    function focusTranslationField(field) {
-        document
-            .querySelectorAll('.product-translation-section.is-translation-focus')
-            .forEach(function (section) {
-                section.classList.remove('is-translation-focus');
-            });
-
-        if (!field) {
-            nameField.focus();
-            return;
-        }
-
-        const section = field.closest('.product-translation-section');
-
-        if (section) {
-            section.classList.add('is-translation-focus');
-        }
-
-        field.focus();
-
-        if (typeof field.select === 'function') {
-            field.select();
-        }
-
-        window.setTimeout(function () {
-            field.scrollIntoView({
-                block: 'center'
-            });
-        }, 50);
-    }
-
-    function getTranslationReturnUrl() {
-        const params = new URLSearchParams(window.location.search);
-        const requestedId = String(
-            params.get('highlight') || ''
-        ).trim();
-        const languageCode = String(
-            params.get('focus_language') || ''
-        ).trim();
-
-        if (/^\d+$/.test(requestedId) && languageCode !== '') {
-            return '/Anabelka/admin/translations/missing?section=products';
-        }
-
-        return '';
-    }
-
-    function setProductTranslationWorkflow(section, source, status) {
-        if (!section) {
-            return;
-        }
-
-        const sourceField = section.querySelector(
-            '.product-translation-source'
-        );
-        const sourceLabel = section.querySelector(
-            '.product-translation-origin'
-        );
-        const statusField = section.querySelector(
-            '.product-translation-status select'
-        );
-        const normalizedSource = source === 'ai' ? 'ai' : 'manual';
-        const normalizedStatus = [
-            'draft',
-            'review',
-            'approved',
-            'outdated'
-        ].includes(status) ? status : 'approved';
-
-        if (sourceField) {
-            sourceField.value = normalizedSource;
-        }
-
-        if (sourceLabel) {
-            sourceLabel.textContent = normalizedSource === 'ai'
-                ? 'Створено ШІ'
-                : 'Ручний переклад';
-        }
-
-        if (statusField) {
-            statusField.value = normalizedStatus;
-        }
-
-        section.dataset.translationStatus = normalizedStatus;
-    }
-
-    function closeModal() {
-        modal.hidden = true;
-    }
-
-    function showMessage(text) {
-        const message = document.getElementById('site-message');
-        if (!message) {
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-
-        clearTimeout(window.productMessageTimer);
-        window.productMessageTimer = setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
-    }
-
-    document.querySelectorAll('.product-edit-button').forEach(function (button) {
-        button.addEventListener('click', function () {
-            idField.value = button.dataset.productId || '';
-            nameField.value = button.dataset.productName || '';
-            descriptionField.value = button.dataset.productDescription || '';
-
-            let translations = {};
-            try {
-                translations = JSON.parse(
-                    button.dataset.productTranslations || '{}'
-                );
-            } catch (error) {
-                translations = {};
-            }
-
-            document.querySelectorAll('[data-product-language]').forEach(function (section) {
-                const code = section.dataset.productLanguage;
-                const translation = translations[code] || {};
-
-                section.querySelector('.product-translation-name').value =
-                    translation.name || '';
-
-                section.querySelector('.product-translation-description').value =
-                    translation.description || '';
-
-                setProductTranslationWorkflow(
-                    section,
-                    translation.source || 'manual',
-                    translation.status || (
-                        (translation.name || translation.description)
-                            ? 'approved'
-                            : 'draft'
-                    )
-                );
-            });
-
-            modal.hidden = false;
-
-            const translationFocusField =
-                getTranslationFocusField(button);
-
-            window.setTimeout(function () {
-                focusTranslationField(translationFocusField);
-            }, 50);
-        });
-    });
-
-    document.querySelectorAll('[data-product-close]').forEach(function (button) {
-        button.addEventListener('click', closeModal);
-    });
-
-    document
-        .querySelectorAll(
-            '.product-translation-name, '
-            + '.product-translation-description'
-        )
-        .forEach(function (field) {
-            field.addEventListener('input', function () {
-                const section = field.closest(
-                    '[data-product-language]'
-                );
-                const statusField = section
-                    ? section.querySelector(
-                        '.product-translation-status select'
-                    )
-                    : null;
-                const hasContent = section && (
-                    section.querySelector(
-                        '.product-translation-name'
-                    ).value.trim() !== ''
-                    || section.querySelector(
-                        '.product-translation-description'
-                    ).value.trim() !== ''
-                );
-
-                setProductTranslationWorkflow(
-                    section,
-                    'manual',
-                    statusField
-                        && statusField.value === 'draft'
-                        && hasContent
-                            ? 'approved'
-                            : (statusField ? statusField.value : 'approved')
-                );
-            });
-        });
-
-    document
-        .querySelectorAll('.product-translation-status select')
-        .forEach(function (select) {
-            select.addEventListener('change', function () {
-                const section = select.closest(
-                    '[data-product-language]'
-                );
-
-                if (section) {
-                    section.dataset.translationStatus = select.value;
-                }
-            });
-        });
-
-    document.querySelectorAll('[data-product-ai-translate]').forEach(function (button) {
-        button.addEventListener('click', async function () {
-            const section = button.closest('[data-product-language]');
-
-            if (!section) {
-                return;
-            }
-
-            if (
-                !window.AnabelkaAITranslation
-                || typeof window.AnabelkaAITranslation.suggest !== 'function'
-            ) {
-                showMessage('Система ИИ-перевода ещё загружается. Попробуйте ещё раз.');
-                return;
-            }
-
-            const targetLanguage = button.dataset.targetLanguage || '';
-            const translationName =
-                section.querySelector('.product-translation-name');
-            const translationDescription =
-                section.querySelector('.product-translation-description');
-
-            const originalText = button.textContent;
-
-            button.disabled = true;
-            button.textContent = 'Перевод…';
-
-            try {
-                const translation =
-                    await window.AnabelkaAITranslation.suggest({
-                        targetLanguage: targetLanguage,
-                        name: nameField.value,
-                        description: descriptionField.value,
-                        context: 'product'
-                    });
-
-                if (translationName) {
-                    translationName.value = translation.name || '';
-                }
-
-                if (translationDescription) {
-                    translationDescription.value =
-                        translation.description || '';
-                }
-
-                setProductTranslationWorkflow(
-                    section,
-                    'ai',
-                    'draft'
-                );
-
-                showMessage('ИИ-перевод получен. Проверьте его и нажмите «Сохранить».');
-
-            } catch (error) {
-                showMessage(
-                    error.message || 'Не удалось получить ИИ-перевод.'
-                );
-            } finally {
-                button.disabled = false;
-                button.textContent = originalText;
-            }
-        });
-    });
-
-    form.addEventListener('submit', async function (event) {
-        event.preventDefault();
-
-        try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: new FormData(form),
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Не удалось сохранить товар.');
-            }
-
-            showMessage(data.message || 'Сохранено.');
-            closeModal();
-
-            setTimeout(function () {
-                const returnUrl = getTranslationReturnUrl();
-
-                if (returnUrl) {
-                    window.location.replace(returnUrl);
-                    return;
-                }
-
-                window.location.reload();
-            }, 400);
-
-        } catch (error) {
-            showMessage(error.message || 'Не удалось сохранить товар.');
-        }
-    });
-})();
-</script>
-
+<template id="product-size-template">
+    <div class="product-size-row">
+        <input type="hidden" name="size_id[]" value="0" data-size-id>
+        <label>
+            <span>Розмір</span>
+            <input type="text" name="size_name[]" maxlength="80" placeholder="Наприклад, 75B" data-size-name>
+        </label>
+        <label>
+            <span>Залишок</span>
+            <input type="number" name="size_stock[]" min="0" step="1" inputmode="numeric" value="0" data-size-stock>
+        </label>
+        <button type="button" data-size-remove aria-label="Видалити розмір">×</button>
+    </div>
+</template>
+
+<script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
+<div id="site-message" class="site-message" role="status"></div>
+<script src="/Anabelka/js/admin-products.js?v=1"></script>
 </body>
 </html>

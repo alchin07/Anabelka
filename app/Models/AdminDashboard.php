@@ -48,7 +48,12 @@ class AdminDashboard
                                         (
                                             SELECT SUM(pa.stock)
                                             FROM product_attributes AS pa
+                                            JOIN attribute_values AS av
+                                                ON av.id = pa.attribute_value_id
+                                            JOIN attributes AS a
+                                                ON a.id = av.attribute_id
                                             WHERE pa.product_id = p.id
+                                              AND a.slug = 'size'
                                         ),
                                         0
                                     ) <= 0

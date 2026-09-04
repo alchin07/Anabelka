@@ -1,2 +1,4 @@
 Test.txt
 config/ai.local.php
+uploads/products/*
+!uploads/products/.gitkeep

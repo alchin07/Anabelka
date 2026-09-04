@@ -18,6 +18,10 @@ class ProductController extends Controller
             $product['id']
         );
 
+        $images = Product::images(
+            $product['id']
+        );
+
 
         /*
          * =========================================
@@ -214,6 +218,7 @@ class ProductController extends Controller
             [
                 'product' => $product,
                 'attributes' => $attributes,
+                'images' => $images,
                 'prices' => $prices,
                 'currentRankSlug' => $currentRankSlug,
                 'badges' => $badges

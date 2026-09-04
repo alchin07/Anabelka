@@ -199,6 +199,21 @@ $router->post(
     'AdminProductController@update'
 );
 
+$router->post(
+    '/admin/products/save',
+    'AdminProductController@save'
+);
+
+$router->post(
+    '/admin/products/toggle',
+    'AdminProductController@toggle'
+);
+
+$router->post(
+    '/admin/products/duplicate',
+    'AdminProductController@duplicate'
+);
+
 $router->get(
     '/admin/delivery',
     'AdminDeliveryController@index'

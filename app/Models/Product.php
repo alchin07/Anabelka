@@ -100,6 +100,15 @@ class Product
 
 
     /**
+     * Фотографії товару: головна першою, далі у заданому порядку.
+     */
+    public static function images($productId)
+    {
+        return ProductImage::forProduct((int) $productId);
+    }
+
+
+    /**
      * Получить атрибуты товара.
      *
      * Для размеров также возвращается

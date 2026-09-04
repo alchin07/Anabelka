@@ -180,7 +180,7 @@ $aiStateClass = !$aiAvailable
         <div class="dashboard-metrics">
             <a
                 class="dashboard-metric-card"
-                href="/Anabelka/admin/products"
+                href="/Anabelka/admin/products?status=active"
             >
                 <span class="dashboard-metric-label">Активні товари</span>
                 <span class="dashboard-metric-value">

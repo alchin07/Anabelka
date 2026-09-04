@@ -15,6 +15,7 @@ class App
 
         require_once __DIR__ . '/../Models/Category.php';
         require_once __DIR__ . '/../Models/CategoryTranslator.php';
+        require_once __DIR__ . '/../Models/ProductImage.php';
         require_once __DIR__ . '/../Models/Product.php';
         require_once __DIR__ . '/../Models/ProductTranslator.php';
         require_once __DIR__ . '/../Models/AdminProduct.php';
