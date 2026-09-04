@@ -35,6 +35,8 @@
         stock: document.getElementById('product-edit-stock'),
         stockMode: document.getElementById('product-edit-stock-mode'),
         showStock: document.getElementById('product-edit-show-stock'),
+        color: document.getElementById('product-edit-color'),
+        material: document.getElementById('product-edit-material'),
         brand: document.getElementById('product-edit-brand'),
         country: document.getElementById('product-edit-country'),
         active: document.getElementById('product-edit-active'),
@@ -505,6 +507,8 @@
             : 'total';
         fields.showStock.checked = isEdit
             && Number(product.show_stock_quantity || 0) === 1;
+        fields.color.value = isEdit ? valueOrEmpty(product.color) : '';
+        fields.material.value = isEdit ? valueOrEmpty(product.material) : '';
         fields.brand.value = isEdit ? valueOrEmpty(product.brand) : '';
         fields.country.value = isEdit ? valueOrEmpty(product.country) : '';
         fields.active.checked = !isEdit

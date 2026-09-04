@@ -9,6 +9,11 @@ class AdminProduct
         'hidden'
     ];
 
+    private const CHARACTERISTIC_ATTRIBUTES = [
+        'color' => 'Колір',
+        'material' => 'Матеріал'
+    ];
+
 
     public static function normalizeFilters(array $input)
     {
@@ -551,6 +556,147 @@ class AdminProduct
     }
 
 
+    public static function syncCharacteristics(
+        $productId,
+        array $characteristics
+    ) {
+        $productId = (int) $productId;
+
+        if ($productId <= 0) {
+            return;
+        }
+
+        foreach (self::CHARACTERISTIC_ATTRIBUTES as $slug => $name) {
+            self::syncCharacteristic(
+                $productId,
+                $slug,
+                $name,
+                $characteristics[$slug] ?? ''
+            );
+        }
+    }
+
+
+    private static function syncCharacteristic(
+        $productId,
+        $slug,
+        $attributeName,
+        $value
+    ) {
+        $db = Database::connect();
+        $slug = trim((string) $slug);
+        $value = trim((string) $value);
+
+        $db->prepare("
+            INSERT IGNORE INTO attributes
+            (
+                name,
+                slug
+            )
+            VALUES
+            (
+                :name,
+                :slug
+            )
+        ")->execute([
+            'name' => (string) $attributeName,
+            'slug' => $slug
+        ]);
+
+        $attributeStmt = $db->prepare("
+            SELECT id
+            FROM attributes
+            WHERE slug = :slug
+            LIMIT 1
+        ");
+        $attributeStmt->execute(['slug' => $slug]);
+        $attributeId = (int) $attributeStmt->fetchColumn();
+
+        if ($attributeId <= 0) {
+            throw new RuntimeException(
+                'Не вдалося підготувати характеристику товару.'
+            );
+        }
+
+        $db->prepare("
+            DELETE pa
+            FROM product_attributes AS pa
+            JOIN attribute_values AS av
+                ON av.id = pa.attribute_value_id
+            WHERE pa.product_id = :product_id
+              AND av.attribute_id = :attribute_id
+        ")->execute([
+            'product_id' => (int) $productId,
+            'attribute_id' => $attributeId
+        ]);
+
+        if ($value === '') {
+            return;
+        }
+
+        $valueStmt = $db->prepare("
+            SELECT id
+            FROM attribute_values
+            WHERE attribute_id = :attribute_id
+              AND LOWER(value) = LOWER(:value)
+            LIMIT 1
+        ");
+        $valueStmt->execute([
+            'attribute_id' => $attributeId,
+            'value' => $value
+        ]);
+        $valueId = (int) $valueStmt->fetchColumn();
+
+        if ($valueId <= 0) {
+            $insertValue = $db->prepare("
+                INSERT INTO attribute_values
+                (
+                    attribute_id,
+                    value,
+                    color_hex
+                )
+                VALUES
+                (
+                    :attribute_id,
+                    :value,
+                    NULL
+                )
+            ");
+            $insertValue->execute([
+                'attribute_id' => $attributeId,
+                'value' => $value
+            ]);
+            $valueId = (int) $db->lastInsertId();
+        }
+
+        if ($valueId <= 0) {
+            throw new RuntimeException(
+                'Не вдалося зберегти характеристику товару.'
+            );
+        }
+
+        $db->prepare("
+            INSERT INTO product_attributes
+            (
+                product_id,
+                attribute_value_id,
+                stock
+            )
+            VALUES
+            (
+                :product_id,
+                :attribute_value_id,
+                0
+            )
+            ON DUPLICATE KEY UPDATE
+                stock = 0
+        ")->execute([
+            'product_id' => (int) $productId,
+            'attribute_value_id' => $valueId
+        ]);
+    }
+
+
     public static function setActive($productId, $isActive)
     {
         $db = Database::connect();
@@ -709,31 +855,45 @@ class AdminProduct
                 = (float) $row['price'];
         }
 
-        $sizeStmt = $db->prepare("
+        $attributeStmt = $db->prepare("
             SELECT
                 pa.product_id,
                 av.id,
                 av.value,
-                pa.stock
+                pa.stock,
+                a.slug AS attribute_slug
             FROM product_attributes AS pa
             JOIN attribute_values AS av
                 ON av.id = pa.attribute_value_id
             JOIN attributes AS a
                 ON a.id = av.attribute_id
             WHERE pa.product_id IN ({$placeholders})
-              AND a.slug = 'size'
-            ORDER BY av.id ASC
+            ORDER BY a.id ASC, av.id ASC
         ");
-        $sizeStmt->execute($ids);
+        $attributeStmt->execute($ids);
         $sizeMap = [];
+        $characteristicMap = [];
 
-        foreach ($sizeStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        foreach ($attributeStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $productId = (int) $row['product_id'];
-            $sizeMap[$productId][] = [
-                'id' => (int) $row['id'],
-                'name' => (string) $row['value'],
-                'stock' => (int) $row['stock']
-            ];
+            $slug = strtolower(trim((string) $row['attribute_slug']));
+
+            if ($slug === 'size') {
+                $sizeMap[$productId][] = [
+                    'id' => (int) $row['id'],
+                    'name' => (string) $row['value'],
+                    'stock' => (int) $row['stock']
+                ];
+                continue;
+            }
+
+            if (
+                isset(self::CHARACTERISTIC_ATTRIBUTES[$slug])
+                && !isset($characteristicMap[$productId][$slug])
+            ) {
+                $characteristicMap[$productId][$slug] =
+                    (string) $row['value'];
+            }
         }
 
         foreach ($products as &$product) {
@@ -741,6 +901,10 @@ class AdminProduct
             $product['images'] = $imageMap[$productId] ?? [];
             $product['rank_prices'] = $priceMap[$productId] ?? [];
             $product['sizes'] = $sizeMap[$productId] ?? [];
+            $product['color'] =
+                $characteristicMap[$productId]['color'] ?? '';
+            $product['material'] =
+                $characteristicMap[$productId]['material'] ?? '';
         }
         unset($product);
     }

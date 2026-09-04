@@ -12,6 +12,8 @@ $productUi = [
     'old_price' => Translator::t('product.old_price', 'Стара ціна'),
     'brand' => Translator::t('product.brand', 'Бренд'),
     'country' => Translator::t('product.country', 'Країна'),
+    'color' => Translator::t('product.color', 'Колір'),
+    'material' => Translator::t('product.material', 'Матеріал'),
     'description' => Translator::t('product.description', 'Опис'),
     'choose_size' => Translator::t('product.choose_size', 'Оберіть розмір'),
     'in_stock' => Translator::t('product.in_stock', 'В наявності'),
@@ -151,6 +153,8 @@ window.addEventListener('load', function () {
         ['Старая цена:', t.old_price + ':'],
         ['Бренд:', t.brand + ':'],
         ['Страна:', t.country + ':'],
+        ['Цвет:', t.color + ':'],
+        ['Материал:', t.material + ':'],
         ['В наличии:', t.in_stock + ':']
     ];
 

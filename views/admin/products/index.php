@@ -435,6 +435,37 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
                 </details>
 
+                <details class="product-form-section">
+                    <summary>
+                        <span>Характеристики</span>
+                        <small>Колір і матеріал товару</small>
+                    </summary>
+
+                    <div class="product-form-grid product-details-content">
+                        <label class="product-form-field">
+                            <span>Колір</span>
+                            <input
+                                type="text"
+                                name="color"
+                                id="product-edit-color"
+                                maxlength="150"
+                                placeholder="Наприклад, білий"
+                            >
+                        </label>
+
+                        <label class="product-form-field">
+                            <span>Матеріал / склад</span>
+                            <input
+                                type="text"
+                                name="material"
+                                id="product-edit-material"
+                                maxlength="150"
+                                placeholder="Наприклад, 85% поліамід, 15% еластан"
+                            >
+                        </label>
+                    </div>
+                </details>
+
                 <details class="product-form-section" open>
                     <summary>
                         <span>Фотографії</span>
@@ -590,6 +621,6 @@ require __DIR__ . '/../../partials/header.php';
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=2"></script>
+<script src="/Anabelka/js/admin-products.js?v=3"></script>
 </body>
 </html>

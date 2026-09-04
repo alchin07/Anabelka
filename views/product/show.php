@@ -45,6 +45,24 @@
 
     <main class="catalog">
 
+        <?php
+        $productCharacteristics = [];
+
+        foreach ($attributes ?? [] as $attribute) {
+            $attributeSlug = strtolower(trim((string) (
+                $attribute['attribute_slug'] ?? ''
+            )));
+
+            if (
+                in_array($attributeSlug, ['color', 'material'], true)
+                && !isset($productCharacteristics[$attributeSlug])
+            ) {
+                $productCharacteristics[$attributeSlug] =
+                    (string) ($attribute['value'] ?? '');
+            }
+        }
+        ?>
+
         <p style="margin-bottom: 25px;">
 
             <a
@@ -339,6 +357,20 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
             <?php if (!empty($product['country'])): ?>
                 <p style="padding: 0 15px 10px;">
                     Страна: <?= htmlspecialchars($product['country']) ?>
+                </p>
+            <?php endif; ?>
+
+
+            <?php if (!empty($productCharacteristics['color'])): ?>
+                <p style="padding: 0 15px 10px;">
+                    Цвет: <?= htmlspecialchars($productCharacteristics['color']) ?>
+                </p>
+            <?php endif; ?>
+
+
+            <?php if (!empty($productCharacteristics['material'])): ?>
+                <p style="padding: 0 15px 10px;">
+                    Материал: <?= htmlspecialchars($productCharacteristics['material']) ?>
                 </p>
             <?php endif; ?>
 

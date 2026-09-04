@@ -113,6 +113,13 @@ class AdminProductController extends Controller
                 $data['sizes'],
                 $data['stock_mode']
             );
+            AdminProduct::syncCharacteristics(
+                $productId,
+                [
+                    'color' => $data['color'],
+                    'material' => $data['material']
+                ]
+            );
 
             $this->saveTranslations(
                 $productId,
@@ -377,6 +384,16 @@ class AdminProductController extends Controller
             'show_stock_quantity' =>
                 (int) ($_POST['show_stock_quantity'] ?? 0) === 1,
             'sizes' => $sizes,
+            'color' => $this->limitedOptionalText(
+                $_POST['color'] ?? '',
+                150,
+                'Назва кольору надто довга.'
+            ),
+            'material' => $this->limitedOptionalText(
+                $_POST['material'] ?? '',
+                150,
+                'Опис матеріалу надто довгий.'
+            ),
             'brand' => $this->limitedOptionalText(
                 $_POST['brand'] ?? '',
                 150,
