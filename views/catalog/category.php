@@ -10,7 +10,7 @@ $pageTitle = $category['name'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($category['name']) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=5">
 </head>
 <body>
 
@@ -69,6 +69,28 @@ $pageTitle = $category['name'];
                         </div>
 
                         <h3><?= htmlspecialchars($product['name']) ?></h3>
+
+                        <?php if (!empty($product['color']) || !empty($product['material'])): ?>
+                            <div class="product-card-characteristics">
+                                <?php if (!empty($product['color'])): ?>
+                                    <span>
+                                        <strong><?= htmlspecialchars(
+                                            Translator::t('public.catalog.color', 'Колір')
+                                        ) ?>:</strong>
+                                        <?= htmlspecialchars($product['color']) ?>
+                                    </span>
+                                <?php endif; ?>
+
+                                <?php if (!empty($product['material'])): ?>
+                                    <span>
+                                        <strong><?= htmlspecialchars(
+                                            Translator::t('public.catalog.material', 'Матеріал')
+                                        ) ?>:</strong>
+                                        <?= htmlspecialchars($product['material']) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
 
                         <p class="product-price">
                             <?= number_format(
