@@ -425,7 +425,7 @@ require __DIR__ . '/../../partials/header.php';
 
                         <div class="product-sizes-head">
                             <div>
-                                <strong>Розміри</strong>
+                                <strong>Розміри товару *</strong>
                                 <span data-size-stock-hint>Для загального залишку кількість задається вище.</span>
                             </div>
                             <button type="button" data-size-add>＋ Додати розмір</button>
@@ -578,7 +578,7 @@ require __DIR__ . '/../../partials/header.php';
         <input type="hidden" name="size_id[]" value="0" data-size-id>
         <label>
             <span>Розмір</span>
-            <input type="text" name="size_name[]" maxlength="80" placeholder="Наприклад, 75B" data-size-name>
+            <input type="text" name="size_name[]" maxlength="80" placeholder="75B, M або Універсальний" data-size-name>
         </label>
         <label>
             <span>Залишок</span>
@@ -590,6 +590,6 @@ require __DIR__ . '/../../partials/header.php';
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=1"></script>
+<script src="/Anabelka/js/admin-products.js?v=2"></script>
 </body>
 </html>

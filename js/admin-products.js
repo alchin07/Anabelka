@@ -121,6 +121,55 @@
     }
 
 
+    function hasEnteredSize()
+    {
+        return Array.from(
+            fields.sizeList.querySelectorAll('[data-size-name]')
+        ).some(function (input) {
+            return input.value.trim() !== '';
+        });
+    }
+
+
+    function focusSizeEditor(message)
+    {
+        let input = Array.from(
+            fields.sizeList.querySelectorAll('[data-size-name]')
+        ).find(function (item) {
+            return item.value.trim() === '';
+        });
+
+        if (!input) {
+            addSizeRow(null);
+            input = fields.sizeList.querySelector(
+                '.product-size-row:last-child [data-size-name]'
+            );
+        }
+
+        const details = fields.sizeList.closest(
+            'details.product-form-section'
+        );
+
+        if (details) {
+            details.open = true;
+        }
+
+        showMessage(
+            message
+            || 'Вкажіть розмір товару, наприклад 75B. Для товару без розміру — «Універсальний».'
+        );
+
+        window.setTimeout(function () {
+            if (!input) {
+                return;
+            }
+
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            input.focus();
+        }, 30);
+    }
+
+
     function chooseAnotherMainImage()
     {
         const selected = fields.imageList.querySelector(
@@ -486,7 +535,7 @@
             input.value = valueOrEmpty(rankValue);
         });
 
-        renderSizes(isEdit ? product.sizes : [], !isEdit);
+        renderSizes(isEdit ? product.sizes : [], true);
         renderImages(isEdit ? product.images : []);
         renderTranslations(isEdit ? product.translations : {});
         updateStockMode();
@@ -680,6 +729,11 @@
             return;
         }
 
+        if (!hasEnteredSize()) {
+            focusSizeEditor();
+            return;
+        }
+
         const originalText = fields.save.textContent;
         fields.save.disabled = true;
         fields.save.textContent = 'Збереження…';
@@ -730,7 +784,14 @@
                 window.location.reload();
             }, 450);
         } catch (error) {
-            showMessage(error.message || 'Не вдалося зберегти товар.');
+            const message = error.message || 'Не вдалося зберегти товар.';
+
+            if (message.indexOf('Додайте хоча б один розмір') !== -1) {
+                focusSizeEditor(message);
+            } else {
+                showMessage(message);
+            }
+
             fields.save.disabled = false;
             fields.save.textContent = originalText;
         }
