@@ -14,7 +14,7 @@ class ProductImage
         $db = Database::connect();
 
         $db->exec("
-            CREATE TABLE IF NOT EXISTS product_images
+            CREATE TABLE IF NOT EXISTS product_gallery_images
             (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 product_id INT UNSIGNED NOT NULL,
@@ -27,7 +27,7 @@ class ProductImage
                     product_id,
                     path(180)
                 ),
-                KEY idx_product_images_order (
+                KEY idx_product_gallery_images_order (
                     product_id,
                     is_main,
                     sort_order,
@@ -39,11 +39,13 @@ class ProductImage
         ");
 
         /*
-         * Раніше в товару було лише products.main_image.
-         * Додаємо такі фотографії до нової галереї автоматично.
+         * У старих базах вже може існувати product_images з іншою
+         * структурою. Тому галерея використовує окрему таблицю і не
+         * змінює успадковані дані. Поточні products.main_image додаємо
+         * до нової галереї автоматично.
          */
         $db->exec("
-            INSERT IGNORE INTO product_images
+            INSERT IGNORE INTO product_gallery_images
             (
                 product_id,
                 path,
@@ -96,7 +98,7 @@ class ProductImage
                 path,
                 is_main,
                 sort_order
-            FROM product_images
+            FROM product_gallery_images
             WHERE product_id IN ({$placeholders})
             ORDER BY
                 product_id ASC,
@@ -134,14 +136,14 @@ class ProductImage
         $db = Database::connect();
         $maxStmt = $db->prepare("
             SELECT COALESCE(MAX(sort_order), 0)
-            FROM product_images
+            FROM product_gallery_images
             WHERE product_id = :product_id
         ");
         $maxStmt->execute(['product_id' => $productId]);
         $sortOrder = (int) $maxStmt->fetchColumn();
 
         $stmt = $db->prepare("
-            INSERT INTO product_images
+            INSERT INTO product_gallery_images
             (
                 product_id,
                 path,
@@ -177,7 +179,7 @@ class ProductImage
 
             $idStmt = $db->prepare("
                 SELECT id
-                FROM product_images
+                FROM product_gallery_images
                 WHERE product_id = :product_id
                   AND path = :path
                 LIMIT 1
@@ -218,7 +220,7 @@ class ProductImage
         $params = array_merge([$productId], $imageIds);
         $select = $db->prepare("
             SELECT path
-            FROM product_images
+            FROM product_gallery_images
             WHERE product_id = ?
               AND id IN ({$placeholders})
         ");
@@ -226,7 +228,7 @@ class ProductImage
         $paths = $select->fetchAll(PDO::FETCH_COLUMN);
 
         $delete = $db->prepare("
-            DELETE FROM product_images
+            DELETE FROM product_gallery_images
             WHERE product_id = ?
               AND id IN ({$placeholders})
         ");
@@ -254,7 +256,7 @@ class ProductImage
 
         $db = Database::connect();
         $update = $db->prepare("
-            UPDATE product_images
+            UPDATE product_gallery_images
             SET sort_order = :sort_order
             WHERE product_id = :product_id
               AND id = :id
@@ -272,7 +274,7 @@ class ProductImage
 
         $remaining = $db->prepare("
             SELECT id
-            FROM product_images
+            FROM product_gallery_images
             WHERE product_id = :product_id
             ORDER BY sort_order ASC, id ASC
         ");
@@ -312,7 +314,7 @@ class ProductImage
         if ($requestedImageId > 0) {
             $stmt = $db->prepare("
                 SELECT id, path
-                FROM product_images
+                FROM product_gallery_images
                 WHERE product_id = :product_id
                   AND id = :id
                 LIMIT 1
@@ -327,7 +329,7 @@ class ProductImage
         if (!$selected) {
             $stmt = $db->prepare("
                 SELECT id, path
-                FROM product_images
+                FROM product_gallery_images
                 WHERE product_id = :product_id
                 ORDER BY is_main DESC, sort_order ASC, id ASC
                 LIMIT 1
@@ -337,7 +339,7 @@ class ProductImage
         }
 
         $db->prepare("
-            UPDATE product_images
+            UPDATE product_gallery_images
             SET is_main = 0
             WHERE product_id = :product_id
         ")->execute(['product_id' => $productId]);
@@ -346,7 +348,7 @@ class ProductImage
 
         if ($selected) {
             $db->prepare("
-                UPDATE product_images
+                UPDATE product_gallery_images
                 SET is_main = 1
                 WHERE product_id = :product_id
                   AND id = :id
@@ -383,7 +385,7 @@ class ProductImage
 
         $db = Database::connect();
         $stmt = $db->prepare("
-            INSERT INTO product_images
+            INSERT INTO product_gallery_images
             (
                 product_id,
                 path,
@@ -395,7 +397,7 @@ class ProductImage
                 path,
                 is_main,
                 sort_order
-            FROM product_images
+            FROM product_gallery_images
             WHERE product_id = :source_id
         ");
         $stmt->execute([
@@ -421,7 +423,7 @@ class ProductImage
             SELECT
                 (
                     SELECT COUNT(*)
-                    FROM product_images
+                    FROM product_gallery_images
                     WHERE path = :gallery_path
                 )
                 +
