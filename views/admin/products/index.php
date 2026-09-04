@@ -75,7 +75,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=3">
 </head>
 <body>
 
@@ -463,9 +463,8 @@ require __DIR__ . '/../../partials/header.php';
 
                     <div class="product-details-content">
                         <p class="product-image-color-help">
-                            Для кольорового кружка в каталозі вкажіть назву
-                            і колір біля потрібної фотографії. Натискання на
-                            кружок показуватиме саме цю фотографію.
+                            Натисніть «Вибрати колір» біля потрібної фотографії.
+                            Можна обрати готовий колір або взяти його прямо з фото.
                         </p>
 
                         <div id="product-image-list" class="product-image-list"></div>
@@ -599,6 +598,120 @@ require __DIR__ . '/../../partials/header.php';
     </section>
 </div>
 
+<div id="product-color-picker" class="product-color-picker" hidden>
+    <button
+        type="button"
+        class="product-color-picker-backdrop"
+        data-color-picker-cancel
+        aria-label="Закрити вибір кольору"
+    ></button>
+
+    <section
+        class="product-color-picker-window"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-color-picker-title"
+    >
+        <header class="product-color-picker-head">
+            <div>
+                <span>Фотографія товару</span>
+                <h3 id="product-color-picker-title">Колір товару</h3>
+            </div>
+            <button
+                type="button"
+                class="product-color-picker-close"
+                data-color-picker-cancel
+                aria-label="Закрити"
+            >×</button>
+        </header>
+
+        <div class="product-color-picker-body">
+            <div data-color-picker-options>
+                <div class="product-color-selected">
+                    <span
+                        class="product-color-selected-dot"
+                        data-color-picker-preview
+                        aria-hidden="true"
+                    ></span>
+                    <label>
+                        <span>Назва кольору</span>
+                        <input
+                            type="text"
+                            maxlength="100"
+                            autocomplete="off"
+                            placeholder="Наприклад, білий"
+                            data-color-picker-name
+                        >
+                    </label>
+                </div>
+
+                <p class="product-color-picker-label">Швидкий вибір</p>
+                <div
+                    class="product-color-presets"
+                    data-color-picker-presets
+                    aria-label="Готові кольори"
+                ></div>
+
+                <div class="product-color-picker-methods">
+                    <button type="button" data-color-picker-photo>
+                        Взяти колір з фото
+                    </button>
+                    <button type="button" data-color-picker-system>
+                        Інший відтінок
+                    </button>
+                </div>
+            </div>
+
+            <div class="product-color-photo-panel" data-color-photo-panel hidden>
+                <p>
+                    <strong>Торкніться кольору товару</strong>
+                    <span>Краще обрати рівну ділянку без відблиску або тіні.</span>
+                </p>
+
+                <div class="product-color-photo-stage">
+                    <img
+                        alt="Фотографія для вибору кольору"
+                        data-color-photo-image
+                    >
+                    <span
+                        class="product-color-photo-marker"
+                        data-color-photo-marker
+                        hidden
+                        aria-hidden="true"
+                    ></span>
+                </div>
+
+                <button
+                    type="button"
+                    class="product-color-photo-back"
+                    data-color-photo-back
+                >← Назад до кольорів</button>
+            </div>
+        </div>
+
+        <footer class="product-color-picker-actions">
+            <button type="button" class="is-clear" data-color-picker-clear>
+                Без кольору
+            </button>
+            <button type="button" data-color-picker-cancel>
+                Скасувати
+            </button>
+            <button type="button" class="is-primary" data-color-picker-apply>
+                Готово
+            </button>
+        </footer>
+
+        <input
+            type="color"
+            class="product-color-system-input"
+            data-color-system-input
+            value="#b8b0bd"
+            tabindex="-1"
+            aria-hidden="true"
+        >
+    </section>
+</div>
+
 <template id="product-size-template">
     <div class="product-size-row">
         <input type="hidden" name="size_id[]" value="0" data-size-id>
@@ -616,6 +729,7 @@ require __DIR__ . '/../../partials/header.php';
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=4"></script>
+<script src="/Anabelka/js/admin-products.js?v=5"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=1"></script>
 </body>
 </html>

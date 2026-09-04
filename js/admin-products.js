@@ -94,24 +94,49 @@
         const group = document.createElement('div');
         group.className = 'product-image-color-fields';
 
-        const picker = document.createElement('input');
-        picker.type = 'color';
-        picker.name = names.hex;
-        picker.value = colorPickerValue(colorHex);
-        picker.setAttribute('aria-label', 'Колір кружка');
-        picker.title = 'Колір кружка';
-
+        const hex = document.createElement('input');
+        hex.type = 'hidden';
+        hex.name = names.hex;
+        hex.value = colorPickerValue(colorHex);
+        hex.dataset.imageColorHex = '';
         const name = document.createElement('input');
-        name.type = 'text';
+        name.type = 'hidden';
         name.name = names.name;
         name.value = valueOrEmpty(colorName);
-        name.maxLength = 100;
-        name.placeholder = 'Назва кольору';
-        name.autocomplete = 'off';
-        name.setAttribute('aria-label', 'Назва кольору фотографії');
+        name.dataset.imageColorName = '';
 
-        group.appendChild(picker);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'product-image-color-open';
+        button.dataset.imageColorOpen = '';
+
+        const dot = document.createElement('span');
+        dot.className = 'product-image-color-dot';
+        dot.dataset.imageColorDot = '';
+        dot.setAttribute('aria-hidden', 'true');
+
+        const label = document.createElement('span');
+        label.className = 'product-image-color-label';
+        label.dataset.imageColorLabel = '';
+
+        button.appendChild(dot);
+        button.appendChild(label);
+        group.appendChild(hex);
         group.appendChild(name);
+        group.appendChild(button);
+
+        if (name.value.trim() !== '') {
+            group.classList.add('has-color');
+            dot.style.setProperty('--image-color', hex.value);
+            label.textContent = name.value;
+            button.setAttribute(
+                'aria-label',
+                'Змінити колір: ' + name.value
+            );
+        } else {
+            label.textContent = 'Вибрати колір';
+            button.setAttribute('aria-label', 'Вибрати колір фотографії');
+        }
 
         return group;
     }
@@ -654,6 +679,16 @@
     });
 
     document.addEventListener('keydown', function (event) {
+        const colorPicker = document.getElementById('product-color-picker');
+
+        if (
+            event.key === 'Escape'
+            && colorPicker
+            && !colorPicker.hidden
+        ) {
+            return;
+        }
+
         if (event.key === 'Escape' && !editor.hidden) {
             closeEditor();
         }
