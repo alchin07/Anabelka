@@ -26,31 +26,7 @@ class Product
                 show_stock_quantity,
                 brand,
                 country,
-                main_image,
-                (
-                    SELECT av.value
-                    FROM product_attributes AS pa
-                    JOIN attribute_values AS av
-                        ON av.id = pa.attribute_value_id
-                    JOIN attributes AS a
-                        ON a.id = av.attribute_id
-                    WHERE pa.product_id = products.id
-                      AND a.slug = 'color'
-                    ORDER BY av.id ASC
-                    LIMIT 1
-                ) AS color,
-                (
-                    SELECT av.value
-                    FROM product_attributes AS pa
-                    JOIN attribute_values AS av
-                        ON av.id = pa.attribute_value_id
-                    JOIN attributes AS a
-                        ON a.id = av.attribute_id
-                    WHERE pa.product_id = products.id
-                      AND a.slug = 'material'
-                    ORDER BY av.id ASC
-                    LIMIT 1
-                ) AS material
+                main_image
             FROM products
             WHERE category_id = :category_id
               AND is_active = 1
@@ -63,9 +39,28 @@ class Product
             'category_id' => $categoryId
         ]);
 
-        return $stmt->fetchAll(
+        $products = $stmt->fetchAll(
             PDO::FETCH_ASSOC
         );
+
+        $productIds = array_map(
+            function ($product) {
+                return (int) ($product['id'] ?? 0);
+            },
+            $products
+        );
+        $colorVariants = ProductImage::colorVariantsForProducts(
+            $productIds
+        );
+
+        foreach ($products as &$product) {
+            $productId = (int) ($product['id'] ?? 0);
+            $product['color_variants'] =
+                $colorVariants[$productId] ?? [];
+        }
+        unset($product);
+
+        return $products;
     }
 
 

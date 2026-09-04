@@ -35,7 +35,6 @@
         stock: document.getElementById('product-edit-stock'),
         stockMode: document.getElementById('product-edit-stock-mode'),
         showStock: document.getElementById('product-edit-show-stock'),
-        color: document.getElementById('product-edit-color'),
         material: document.getElementById('product-edit-material'),
         brand: document.getElementById('product-edit-brand'),
         country: document.getElementById('product-edit-country'),
@@ -77,6 +76,44 @@
         return value === null || typeof value === 'undefined'
             ? ''
             : String(value);
+    }
+
+
+    function colorPickerValue(value)
+    {
+        const normalized = valueOrEmpty(value).trim().toLowerCase();
+
+        return /^#[0-9a-f]{6}$/.test(normalized)
+            ? normalized
+            : '#b8b0bd';
+    }
+
+
+    function imageColorFields(colorName, colorHex, names)
+    {
+        const group = document.createElement('div');
+        group.className = 'product-image-color-fields';
+
+        const picker = document.createElement('input');
+        picker.type = 'color';
+        picker.name = names.hex;
+        picker.value = colorPickerValue(colorHex);
+        picker.setAttribute('aria-label', 'Колір кружка');
+        picker.title = 'Колір кружка';
+
+        const name = document.createElement('input');
+        name.type = 'text';
+        name.name = names.name;
+        name.value = valueOrEmpty(colorName);
+        name.maxLength = 100;
+        name.placeholder = 'Назва кольору';
+        name.autocomplete = 'off';
+        name.setAttribute('aria-label', 'Назва кольору фотографії');
+
+        group.appendChild(picker);
+        group.appendChild(name);
+
+        return group;
     }
 
 
@@ -285,6 +322,14 @@
         item.appendChild(order);
         item.appendChild(preview);
         item.appendChild(mainLabel);
+        item.appendChild(imageColorFields(
+            image.color_name,
+            image.color_hex,
+            {
+                hex: 'image_color_hex[' + String(image.id || '') + ']',
+                name: 'image_color_name[' + String(image.id || '') + ']'
+            }
+        ));
         item.appendChild(tools);
 
         return item;
@@ -325,10 +370,17 @@
 
             const url = URL.createObjectURL(file);
             const image = document.createElement('img');
+            const item = document.createElement('div');
+            item.className = 'product-upload-preview-item';
             image.src = url;
             image.alt = '';
             uploadPreviewUrls.push(url);
-            fields.uploadPreview.appendChild(image);
+            item.appendChild(image);
+            item.appendChild(imageColorFields('', '#b8b0bd', {
+                hex: 'new_image_color_hex[]',
+                name: 'new_image_color_name[]'
+            }));
+            fields.uploadPreview.appendChild(item);
         });
     }
 
@@ -507,7 +559,6 @@
             : 'total';
         fields.showStock.checked = isEdit
             && Number(product.show_stock_quantity || 0) === 1;
-        fields.color.value = isEdit ? valueOrEmpty(product.color) : '';
         fields.material.value = isEdit ? valueOrEmpty(product.material) : '';
         fields.brand.value = isEdit ? valueOrEmpty(product.brand) : '';
         fields.country.value = isEdit ? valueOrEmpty(product.country) : '';

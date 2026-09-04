@@ -674,6 +674,16 @@ details.product-form-section > summary small {
     gap: 9px;
 }
 
+.product-image-color-help {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--product-admin-soft);
+    color: #625968;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 .product-image-list:empty::before {
     content: "Фотографій ще немає";
     grid-column: 1 / -1;
@@ -717,6 +727,34 @@ details.product-form-section > summary small {
 
 .product-image-choice input {
     accent-color: var(--product-admin-purple);
+}
+
+.product-image-color-fields {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 5px;
+}
+
+.product-image-color-fields input[type="color"] {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 2px;
+    border: 1px solid var(--product-admin-border);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.product-image-color-fields input[type="text"] {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    padding: 6px 7px;
+    border: 1px solid var(--product-admin-border);
+    border-radius: 8px;
+    background: #fff;
+    font-size: 11px;
 }
 
 .product-image-tools {
@@ -775,15 +813,25 @@ details.product-form-section > summary small {
     gap: 7px;
     overflow-x: auto;
     margin-top: 9px;
+    padding-bottom: 4px;
 }
 
-.product-upload-preview img {
-    width: 74px;
-    height: 74px;
-    flex: 0 0 auto;
-    object-fit: cover;
+.product-upload-preview-item {
+    display: grid;
+    flex: 0 0 150px;
+    gap: 6px;
+    padding: 6px;
     border: 1px solid var(--product-admin-border);
-    border-radius: 9px;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.product-upload-preview-item > img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 7px;
+    background: var(--product-admin-soft);
 }
 
 .product-source-head {

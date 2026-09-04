@@ -75,7 +75,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=2">
 </head>
 <body>
 
@@ -437,23 +437,12 @@ require __DIR__ . '/../../partials/header.php';
 
                 <details class="product-form-section">
                     <summary>
-                        <span>Характеристики</span>
-                        <small>Колір і матеріал товару</small>
+                        <span>Матеріал</span>
+                        <small>Склад для сторінки товару</small>
                     </summary>
 
                     <div class="product-form-grid product-details-content">
-                        <label class="product-form-field">
-                            <span>Колір</span>
-                            <input
-                                type="text"
-                                name="color"
-                                id="product-edit-color"
-                                maxlength="150"
-                                placeholder="Наприклад, білий"
-                            >
-                        </label>
-
-                        <label class="product-form-field">
+                        <label class="product-form-field is-wide">
                             <span>Матеріал / склад</span>
                             <input
                                 type="text"
@@ -469,10 +458,16 @@ require __DIR__ . '/../../partials/header.php';
                 <details class="product-form-section" open>
                     <summary>
                         <span>Фотографії</span>
-                        <small>Перша або позначена фотографія буде головною</small>
+                        <small>Головне фото та перемикання кольорів</small>
                     </summary>
 
                     <div class="product-details-content">
+                        <p class="product-image-color-help">
+                            Для кольорового кружка в каталозі вкажіть назву
+                            і колір біля потрібної фотографії. Натискання на
+                            кружок показуватиме саме цю фотографію.
+                        </p>
+
                         <div id="product-image-list" class="product-image-list"></div>
 
                         <label class="product-upload-field">
@@ -621,6 +616,6 @@ require __DIR__ . '/../../partials/header.php';
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=3"></script>
+<script src="/Anabelka/js/admin-products.js?v=4"></script>
 </body>
 </html>

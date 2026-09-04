@@ -10,7 +10,6 @@ class AdminProduct
     ];
 
     private const CHARACTERISTIC_ATTRIBUTES = [
-        'color' => 'Колір',
         'material' => 'Матеріал'
     ];
 
@@ -566,6 +565,9 @@ class AdminProduct
             return;
         }
 
+        /* Колір тепер зберігається біля конкретної фотографії. */
+        self::removeCharacteristic($productId, 'color');
+
         foreach (self::CHARACTERISTIC_ATTRIBUTES as $slug => $name) {
             self::syncCharacteristic(
                 $productId,
@@ -574,6 +576,36 @@ class AdminProduct
                 $characteristics[$slug] ?? ''
             );
         }
+    }
+
+
+    private static function removeCharacteristic($productId, $slug)
+    {
+        $db = Database::connect();
+        $attributeStmt = $db->prepare("
+            SELECT id
+            FROM attributes
+            WHERE slug = :slug
+            LIMIT 1
+        ");
+        $attributeStmt->execute(['slug' => trim((string) $slug)]);
+        $attributeId = (int) $attributeStmt->fetchColumn();
+
+        if ($attributeId <= 0) {
+            return;
+        }
+
+        $db->prepare("
+            DELETE pa
+            FROM product_attributes AS pa
+            JOIN attribute_values AS av
+                ON av.id = pa.attribute_value_id
+            WHERE pa.product_id = :product_id
+              AND av.attribute_id = :attribute_id
+        ")->execute([
+            'product_id' => (int) $productId,
+            'attribute_id' => $attributeId
+        ]);
     }
 
 
@@ -901,8 +933,6 @@ class AdminProduct
             $product['images'] = $imageMap[$productId] ?? [];
             $product['rank_prices'] = $priceMap[$productId] ?? [];
             $product['sizes'] = $sizeMap[$productId] ?? [];
-            $product['color'] =
-                $characteristicMap[$productId]['color'] ?? '';
             $product['material'] =
                 $characteristicMap[$productId]['material'] ?? '';
         }

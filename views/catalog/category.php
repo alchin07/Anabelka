@@ -10,7 +10,7 @@ $pageTitle = $category['name'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($category['name']) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=5">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=6">
 </head>
 <body>
 
@@ -51,56 +51,76 @@ $pageTitle = $category['name'];
 
             <div class="product-grid">
                 <?php foreach ($products as $product): ?>
-                    <a
-                        href="/Anabelka/product/<?= htmlspecialchars($product['slug']) ?>"
+                    <?php
+                    $productUrl = '/Anabelka/product/'
+                        . rawurlencode((string) $product['slug']);
+                    $colorVariants = is_array(
+                        $product['color_variants'] ?? null
+                    ) ? $product['color_variants'] : [];
+                    ?>
+                    <article
                         class="product-card"
+                        data-product-color-card
                     >
-                        <div class="product-image">
-                            <?php if (!empty($product['main_image'])): ?>
-                                <img
-                                    src="<?= htmlspecialchars($product['main_image']) ?>"
-                                    alt="<?= htmlspecialchars($product['name']) ?>"
-                                >
-                            <?php else: ?>
-                                <?= htmlspecialchars(
-                                    Translator::t('public.catalog.product_photo', 'Фото товару')
-                                ) ?>
-                            <?php endif; ?>
-                        </div>
-
-                        <h3><?= htmlspecialchars($product['name']) ?></h3>
-
-                        <?php if (!empty($product['color']) || !empty($product['material'])): ?>
-                            <div class="product-card-characteristics">
-                                <?php if (!empty($product['color'])): ?>
-                                    <span>
-                                        <strong><?= htmlspecialchars(
-                                            Translator::t('public.catalog.color', 'Колір')
-                                        ) ?>:</strong>
-                                        <?= htmlspecialchars($product['color']) ?>
-                                    </span>
+                        <a href="<?= htmlspecialchars($productUrl) ?>" class="product-card-main">
+                            <div class="product-image">
+                                <?php if (!empty($product['main_image'])): ?>
+                                    <img
+                                        src="<?= htmlspecialchars($product['main_image']) ?>"
+                                        alt="<?= htmlspecialchars($product['name']) ?>"
+                                        data-product-card-image
+                                    >
+                                <?php else: ?>
+                                    <?= htmlspecialchars(
+                                        Translator::t('public.catalog.product_photo', 'Фото товару')
+                                    ) ?>
                                 <?php endif; ?>
+                            </div>
 
-                                <?php if (!empty($product['material'])): ?>
-                                    <span>
-                                        <strong><?= htmlspecialchars(
-                                            Translator::t('public.catalog.material', 'Матеріал')
-                                        ) ?>:</strong>
-                                        <?= htmlspecialchars($product['material']) ?>
-                                    </span>
-                                <?php endif; ?>
+                            <h3><?= htmlspecialchars($product['name']) ?></h3>
+                        </a>
+
+                        <?php if (!empty($colorVariants)): ?>
+                            <div
+                                class="product-color-swatches"
+                                aria-label="<?= htmlspecialchars(
+                                    Translator::t('public.catalog.color', 'Колір')
+                                ) ?>"
+                            >
+                                <?php foreach ($colorVariants as $variant): ?>
+                                    <?php
+                                    $isSelected = (string) ($variant['path'] ?? '')
+                                        === (string) ($product['main_image'] ?? '');
+                                    $colorLabel = Translator::t(
+                                        'public.catalog.color',
+                                        'Колір'
+                                    ) . ': ' . (string) ($variant['name'] ?? '');
+                                    ?>
+                                    <button
+                                        type="button"
+                                        class="product-color-swatch<?= $isSelected ? ' is-active' : '' ?>"
+                                        style="--product-color: <?= htmlspecialchars($variant['hex'] ?? '#b8b0bd', ENT_QUOTES, 'UTF-8') ?>"
+                                        data-product-color-swatch
+                                        data-image-src="<?= htmlspecialchars($variant['path'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                        aria-label="<?= htmlspecialchars($colorLabel, ENT_QUOTES, 'UTF-8') ?>"
+                                        aria-pressed="<?= $isSelected ? 'true' : 'false' ?>"
+                                        title="<?= htmlspecialchars($variant['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                    ></button>
+                                <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
 
-                        <p class="product-price">
-                            <?= number_format(
-                                Product::getCurrentPrice($product),
-                                2,
-                                ',',
-                                ' '
-                            ) ?> €
-                        </p>
-                    </a>
+                        <a href="<?= htmlspecialchars($productUrl) ?>" class="product-card-price-link">
+                            <p class="product-price">
+                                <?= number_format(
+                                    Product::getCurrentPrice($product),
+                                    2,
+                                    ',',
+                                    ' '
+                                ) ?> €
+                            </p>
+                        </a>
+                    </article>
                 <?php endforeach; ?>
             </div>
         </section>
@@ -115,5 +135,6 @@ $pageTitle = $category['name'];
     <?php endif; ?>
 </main>
 
+<script src="/Anabelka/js/catalog-product-colors.js?v=1"></script>
 </body>
 </html>

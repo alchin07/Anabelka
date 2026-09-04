@@ -74,6 +74,8 @@ class AdminProductController extends Controller
                 $productId,
                 $priceRanks
             );
+            $existingImageColors = $this->existingImageColorsFromRequest();
+            $newImageColors = $this->newImageColorsFromRequest();
 
             /* DDL має виконатися до початку транзакції. */
             ProductTranslator::getForProduct(0);
@@ -116,7 +118,6 @@ class AdminProductController extends Controller
             AdminProduct::syncCharacteristics(
                 $productId,
                 [
-                    'color' => $data['color'],
                     'material' => $data['material']
                 ]
             );
@@ -137,7 +138,21 @@ class AdminProductController extends Controller
             );
 
             $this->storeUploadedImages($uploadedPaths);
-            ProductImage::addPaths($productId, $uploadedPaths);
+            $newImageIds = ProductImage::addPaths(
+                $productId,
+                $uploadedPaths
+            );
+            $imageColors = $existingImageColors;
+
+            foreach ($newImageIds as $index => $imageId) {
+                if (!isset($newImageColors[$index])) {
+                    continue;
+                }
+
+                $imageColors[(int) $imageId] = $newImageColors[$index];
+            }
+
+            ProductImage::syncColors($productId, $imageColors);
             ProductImage::selectMain(
                 $productId,
                 (int) ($_POST['main_image_id'] ?? 0)
@@ -384,11 +399,6 @@ class AdminProductController extends Controller
             'show_stock_quantity' =>
                 (int) ($_POST['show_stock_quantity'] ?? 0) === 1,
             'sizes' => $sizes,
-            'color' => $this->limitedOptionalText(
-                $_POST['color'] ?? '',
-                150,
-                'Назва кольору надто довга.'
-            ),
             'material' => $this->limitedOptionalText(
                 $_POST['material'] ?? '',
                 150,
@@ -461,6 +471,103 @@ class AdminProductController extends Controller
         }
 
         return $sizes;
+    }
+
+
+    private function existingImageColorsFromRequest()
+    {
+        $names = is_array($_POST['image_color_name'] ?? null)
+            ? $_POST['image_color_name']
+            : [];
+        $hexes = is_array($_POST['image_color_hex'] ?? null)
+            ? $_POST['image_color_hex']
+            : [];
+
+        if (count($names) > 200) {
+            throw new InvalidArgumentException(
+                'Надто багато кольорових позначок.'
+            );
+        }
+
+        $colors = [];
+
+        foreach ($names as $rawImageId => $rawName) {
+            $imageId = (int) $rawImageId;
+            $name = $this->limitedOptionalText(
+                $rawName,
+                100,
+                'Назва кольору надто довга.'
+            );
+
+            if ($imageId <= 0 || $name === '') {
+                continue;
+            }
+
+            $colors[$imageId] = [
+                'name' => $name,
+                'hex' => $this->colorHex(
+                    $hexes[$rawImageId] ?? ''
+                )
+            ];
+        }
+
+        return $colors;
+    }
+
+
+    private function newImageColorsFromRequest()
+    {
+        $names = is_array($_POST['new_image_color_name'] ?? null)
+            ? $_POST['new_image_color_name']
+            : [];
+        $hexes = is_array($_POST['new_image_color_hex'] ?? null)
+            ? $_POST['new_image_color_hex']
+            : [];
+
+        if (count($names) > self::MAX_IMAGE_COUNT) {
+            throw new InvalidArgumentException(
+                'За один раз можна додати до 8 кольорових позначок.'
+            );
+        }
+
+        $colors = [];
+
+        foreach ($names as $index => $rawName) {
+            $name = $this->limitedOptionalText(
+                $rawName,
+                100,
+                'Назва кольору надто довга.'
+            );
+
+            if ($name === '') {
+                continue;
+            }
+
+            $colors[(int) $index] = [
+                'name' => $name,
+                'hex' => $this->colorHex($hexes[$index] ?? '')
+            ];
+        }
+
+        return $colors;
+    }
+
+
+    private function colorHex($value)
+    {
+        $hex = strtolower(trim((string) $value));
+
+        if ($hex === '') {
+            return '#b8b0bd';
+        }
+
+        if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
+            throw new InvalidArgumentException(
+                'Оберіть коректний колір кружка.'
+            );
+        }
+
+        return $hex;
     }
 
 
