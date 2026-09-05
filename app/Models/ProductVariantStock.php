@@ -90,6 +90,151 @@ class ProductVariantStock
     }
 
 
+    public static function forProduct($productId)
+    {
+        $productId = (int) $productId;
+
+        if ($productId <= 0) {
+            return [];
+        }
+
+        $map = self::forProducts([$productId]);
+
+        return $map[$productId] ?? [];
+    }
+
+
+    public static function hasMatrix($productId)
+    {
+        self::ensureTable();
+        $productId = (int) $productId;
+
+        if ($productId <= 0) {
+            return false;
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            SELECT 1
+            FROM product_variant_stock
+            WHERE product_id = :product_id
+            LIMIT 1
+        ");
+        $stmt->execute(['product_id' => $productId]);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+
+    public static function stockFor($productId, $sizeValueId, $colorKey)
+    {
+        self::ensureTable();
+        $productId = (int) $productId;
+        $sizeValueId = (int) $sizeValueId;
+        $colorKey = trim((string) $colorKey);
+
+        if ($productId <= 0 || $sizeValueId <= 0 || $colorKey === '') {
+            return 0;
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            SELECT stock
+            FROM product_variant_stock
+            WHERE product_id = :product_id
+              AND size_value_id = :size_value_id
+              AND color_key = :color_key
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'product_id' => $productId,
+            'size_value_id' => $sizeValueId,
+            'color_key' => $colorKey
+        ]);
+
+        return max(0, (int) $stmt->fetchColumn());
+    }
+
+
+    public static function colorInfo($productId, $colorKey)
+    {
+        self::ensureTable();
+        $productId = (int) $productId;
+        $colorKey = trim((string) $colorKey);
+
+        if ($productId <= 0 || $colorKey === '') {
+            return null;
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            SELECT
+                color_key,
+                color_name,
+                color_hex,
+                SUM(stock) AS stock
+            FROM product_variant_stock
+            WHERE product_id = :product_id
+              AND color_key = :color_key
+            GROUP BY color_key, color_name, color_hex
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'product_id' => $productId,
+            'color_key' => $colorKey
+        ]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return null;
+        }
+
+        return [
+            'color_key' => (string) $row['color_key'],
+            'color_name' => (string) $row['color_name'],
+            'color_hex' => (string) ($row['color_hex'] ?? ''),
+            'stock' => (int) ($row['stock'] ?? 0)
+        ];
+    }
+
+
+    public static function colors($productId)
+    {
+        self::ensureTable();
+        $productId = (int) $productId;
+
+        if ($productId <= 0) {
+            return [];
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            SELECT
+                color_key,
+                color_name,
+                color_hex,
+                SUM(stock) AS stock
+            FROM product_variant_stock
+            WHERE product_id = :product_id
+            GROUP BY color_key, color_name, color_hex
+            ORDER BY MIN(id) ASC
+        ");
+        $stmt->execute(['product_id' => $productId]);
+
+        return array_map(
+            function ($row) {
+                return [
+                    'color_key' => (string) $row['color_key'],
+                    'color_name' => (string) $row['color_name'],
+                    'color_hex' => (string) ($row['color_hex'] ?? ''),
+                    'stock' => (int) ($row['stock'] ?? 0)
+                ];
+            },
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+
     public static function syncFromMatrix($productId, array $matrix)
     {
         self::ensureTable();
