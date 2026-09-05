@@ -730,6 +730,6 @@ require __DIR__ . '/../../partials/header.php';
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
 <script src="/Anabelka/js/admin-products.js?v=5"></script>
-<script src="/Anabelka/js/admin-product-color-picker.js?v=1"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=2"></script>
 </body>
 </html>
