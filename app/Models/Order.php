@@ -165,12 +165,40 @@ class Order
                     )
             ");
 
+            $sessionCartItems = !$userId
+                ? array_values($_SESSION['cart'] ?? [])
+                : [];
+            $itemPosition = 0;
+
             foreach ($items as $item) {
                 $product = $item['product'];
                 $quantity = (int) $item['quantity'];
                 $unitPrice = Product::getCurrentPrice($product);
                 $lineTotal = $unitPrice * $quantity;
+                $colorKey = trim((string) ($item['color_key'] ?? ''));
+                $colorName = trim((string) ($item['color_name'] ?? ''));
                 $colorHex = strtolower(trim((string) ($item['color_hex'] ?? '')));
+
+                if (
+                    !$userId
+                    && $colorKey === ''
+                    && isset($sessionCartItems[$itemPosition])
+                ) {
+                    $sessionItem = $sessionCartItems[$itemPosition];
+
+                    if (
+                        (int) ($sessionItem['product_id'] ?? 0)
+                            === (int) ($product['id'] ?? 0)
+                        && (int) ($sessionItem['size_id'] ?? 0)
+                            === (int) ($item['size_id'] ?? 0)
+                    ) {
+                        $colorKey = trim((string) ($sessionItem['color_key'] ?? ''));
+                        $colorName = trim((string) ($sessionItem['color_name'] ?? ''));
+                        $colorHex = strtolower(trim((string) ($sessionItem['color_hex'] ?? '')));
+                    }
+                }
+
+                $itemPosition++;
 
                 if (!preg_match('/^#[0-9a-f]{6}$/', $colorHex)) {
                     $colorHex = null;
@@ -183,8 +211,8 @@ class Order
                     'sku' => $product['sku'] ?? null,
                     'size_id' => $item['size_id'],
                     'size_name' => $item['size']['value'] ?? null,
-                    'color_key' => trim((string) ($item['color_key'] ?? '')),
-                    'color_name' => trim((string) ($item['color_name'] ?? '')),
+                    'color_key' => $colorKey,
+                    'color_name' => $colorName,
                     'color_hex' => $colorHex,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
