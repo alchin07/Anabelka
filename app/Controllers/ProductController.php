@@ -12,6 +12,30 @@ class ProductController extends Controller
             die('Товар не найден');
         }
 
+        /*
+         * Служебный переход из админ-панели:
+         * открываем не карточку товара, а его категорию
+         * и просим каталог подсветить нужный товар.
+         */
+        if (($_GET['view'] ?? '') === 'category') {
+            $category = Category::findById(
+                (int) ($product['category_id'] ?? 0)
+            );
+
+            if (!$category || empty($category['slug'])) {
+                http_response_code(404);
+                die('Категория товара не найдена');
+            }
+
+            $url = '/Anabelka/catalog/'
+                . rawurlencode((string) $category['slug'])
+                . '?highlight_product='
+                . rawurlencode((string) $product['slug']);
+
+            header('Location: ' . $url);
+            exit;
+        }
+
 
         // Получаем характеристики товара.
         $attributes = Product::attributes(
