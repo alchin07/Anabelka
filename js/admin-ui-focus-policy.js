@@ -1,21 +1,24 @@
 /*
  * Загальна політика фокусу для адмін-панелі «Анабельки».
  *
- * Програмні переходи, підсвічування та прокрутка до карток/форм
- * не повинні відкривати мобільну клавіатуру. Клавіатура має
- * з'являтися тільки після явного натискання користувача на поле.
+ * Програмні переходи, підсвічування та відкриття редакторів не повинні
+ * відкривати мобільну клавіатуру. Клавіатура з'являється тільки після
+ * явного натискання користувача безпосередньо на поле вводу.
  */
 (function () {
     'use strict';
 
+    let suppressEditableFocusUntil = 0;
+
     function isEditableElement(element)
     {
-        if (!element || element === document.body) {
+        if (!element || element === document.body || !element.matches) {
             return false;
         }
 
         return element.matches(
-            'input, textarea, select, [contenteditable="true"], [contenteditable=""]'
+            'input:not([type="hidden"]), textarea, select, '
+            + '[contenteditable="true"], [contenteditable=""]'
         );
     }
 
@@ -28,29 +31,64 @@
         }
     }
 
+    function suppressProgrammaticFocus(duration)
+    {
+        const milliseconds = Number(duration || 500);
+        suppressEditableFocusUntil = Math.max(
+            suppressEditableFocusUntil,
+            Date.now() + milliseconds
+        );
+
+        blurActiveField();
+        window.setTimeout(blurActiveField, 0);
+        window.setTimeout(blurActiveField, 40);
+        window.setTimeout(blurActiveField, 90);
+        window.setTimeout(blurActiveField, 180);
+        window.setTimeout(blurActiveField, 360);
+    }
+
     function prepareProgrammaticNavigation()
     {
-        blurActiveField();
-
-        /*
-         * На Android клавіатура іноді відкривається із затримкою,
-         * тому повторно прибираємо фокус після перебудови DOM/scroll.
-         */
-        window.setTimeout(blurActiveField, 0);
-        window.setTimeout(blurActiveField, 120);
-        window.setTimeout(blurActiveField, 320);
+        suppressProgrammaticFocus(650);
     }
 
     window.AdminUiFocusPolicy = {
         blurActiveField: blurActiveField,
+        suppressProgrammaticFocus: suppressProgrammaticFocus,
         prepareProgrammaticNavigation: prepareProgrammaticNavigation
     };
 
     /*
-     * Поточні переходи з центру перекладів використовують query
-     * highlight/highlight_type. При такому вході жодне поле не повинно
-     * залишатися сфокусованим автоматично.
+     * Якщо натискання було по звичайній кнопці/посиланню, а скрипт після
+     * цього намагається поставити курсор у input/textarea/select, такий
+     * фокус скасовуємо. Якщо користувач натиснув саме на поле — дозволяємо.
      */
+    document.addEventListener('pointerdown', function (event) {
+        if (isEditableElement(event.target)) {
+            suppressEditableFocusUntil = 0;
+            return;
+        }
+
+        const control = event.target.closest(
+            'button, a, [role="button"], '
+            + '[data-product-edit], .edit-button, .category-edit-button, '
+            + '[data-edit], [data-open], [data-modal-open]'
+        );
+
+        if (control) {
+            suppressProgrammaticFocus(650);
+        }
+    }, true);
+
+    document.addEventListener('focusin', function (event) {
+        if (
+            Date.now() < suppressEditableFocusUntil
+            && isEditableElement(event.target)
+        ) {
+            event.target.blur();
+        }
+    }, true);
+
     function init()
     {
         const params = new URLSearchParams(window.location.search);
