@@ -8,6 +8,28 @@
 (function () {
     'use strict';
 
+    function prepareProgrammaticNavigation()
+    {
+        if (
+            window.AdminUiFocusPolicy
+            && typeof window.AdminUiFocusPolicy.prepareProgrammaticNavigation === 'function'
+        ) {
+            window.AdminUiFocusPolicy.prepareProgrammaticNavigation();
+            return;
+        }
+
+        const active = document.activeElement;
+
+        if (
+            active
+            && active !== document.body
+            && typeof active.blur === 'function'
+        ) {
+            active.blur();
+        }
+    }
+
+
     function expandDeliveryParents(row)
     {
         let current = row;
@@ -143,6 +165,8 @@
             return;
         }
 
+        prepareProgrammaticNavigation();
+
         document
             .querySelectorAll('.is-translation-target')
             .forEach(function (element) {
@@ -152,10 +176,14 @@
         target.classList.add('is-translation-target');
 
         window.setTimeout(function () {
+            prepareProgrammaticNavigation();
+
             target.scrollIntoView({
                 behavior: 'smooth',
                 block: 'center'
             });
+
+            window.setTimeout(prepareProgrammaticNavigation, 220);
         }, 180);
     }
 
