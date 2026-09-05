@@ -293,6 +293,11 @@ echo $cartCount;
 
     <?php require __DIR__ . '/product-i18n.php'; ?>
 
+    <script
+        src="/Anabelka/js/product-color-variants.js?v=1"
+        defer
+    ></script>
+
 <?php endif; ?>
 
 <?php if (
