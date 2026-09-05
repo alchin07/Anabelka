@@ -2,13 +2,8 @@
 $router->get('/cart', 'CartController@index');
 
 $router->post('/cart/add', 'CartController@add');
-// Увеличить количество товара
 $router->post('/cart/increase', 'CartController@increase');
-
-// Уменьшить количество товара
 $router->post('/cart/decrease', 'CartController@decrease');
-
-// Удалить позицию из корзины
 $router->post('/cart/remove', 'CartController@remove');
 
 $router->post(
@@ -22,6 +17,7 @@ $router->get('/catalog', 'CatalogController@index');
 
 $router->get('/catalog/{slug}', 'CatalogController@category');
 
+$router->get('/product/{slug}/variants', 'ProductController@variants');
 $router->get('/product/{slug}', 'ProductController@show');
 
 $router->get(
