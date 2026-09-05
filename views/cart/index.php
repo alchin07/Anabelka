@@ -79,6 +79,11 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                             $currentLanguage['code']
                             ?? Language::SOURCE_CODE
                         );
+                    $colorName = trim((string) ($item['color_name'] ?? ''));
+                    $colorHex = trim((string) ($item['color_hex'] ?? ''));
+                    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $colorHex)) {
+                        $colorHex = '#b8b0bd';
+                    }
                     ?>
 
                     <section
@@ -120,6 +125,30 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                                 $item['size']['value'] ?? '—'
                             ) ?>
                         </p>
+
+                        <?php if ($colorName !== ''): ?>
+                            <p
+                                style="
+                                    display:flex;
+                                    align-items:center;
+                                    gap:7px;
+                                "
+                            >
+                                <span>Колір:</span>
+                                <span
+                                    aria-hidden="true"
+                                    style="
+                                        width:18px;
+                                        height:18px;
+                                        flex:0 0 18px;
+                                        border:1px solid rgba(50,43,55,.28);
+                                        border-radius:50%;
+                                        background:<?= htmlspecialchars($colorHex, ENT_QUOTES, 'UTF-8') ?>;
+                                    "
+                                ></span>
+                                <strong><?= htmlspecialchars($colorName) ?></strong>
+                            </p>
+                        <?php endif; ?>
 
 
                         <div
