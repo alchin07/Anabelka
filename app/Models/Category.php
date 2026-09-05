@@ -56,6 +56,29 @@ class Category
 
 
     /**
+     * Найти активную категорию по ID.
+     */
+    public static function findById($id)
+    {
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            SELECT *
+            FROM categories
+            WHERE id = :id
+              AND is_active = 1
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            'id' => (int) $id
+        ]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+
+    /**
      * Получить дочерние категории.
      */
     public static function children($parentId)
