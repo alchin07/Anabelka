@@ -105,6 +105,34 @@
     function closestColorName(hex)
     {
         const selected = hexToRgb(hex);
+        const maximum = Math.max(selected.red, selected.green, selected.blue);
+        const minimum = Math.min(selected.red, selected.green, selected.blue);
+        const chroma = maximum - minimum;
+        const brightness = (
+            selected.red * 0.299
+            + selected.green * 0.587
+            + selected.blue * 0.114
+        );
+
+        // Neutral and almost-neutral colors need special handling. Without it,
+        // dark gray pixels can be numerically closer to the brown preset.
+        if (chroma <= 18) {
+            if (brightness >= 245) {
+                return 'Білий';
+            }
+
+            if (brightness <= 48) {
+                return 'Чорний';
+            }
+
+            return 'Сірий';
+        }
+
+        // Very dark, only slightly tinted pixels should still be perceived as black.
+        if (brightness <= 42 && chroma <= 32) {
+            return 'Чорний';
+        }
+
         let closest = colorPresets[0];
         let closestDistance = Number.POSITIVE_INFINITY;
 
