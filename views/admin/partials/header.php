@@ -219,4 +219,5 @@ $translationBadge = (int) (
 
 <script src="/Anabelka/js/admin-ui-focus-policy.js?v=2"></script>
 <script src="/Anabelka/js/admin-product-preview.js?v=1"></script>
+<script defer src="/Anabelka/js/admin-product-variant-stock.js?v=2"></script>
 <script src="/Anabelka/js/admin-nav.js?v=16"></script>
