@@ -61,8 +61,9 @@ $pageTitle = $category['name'];
                     <article
                         class="product-card"
                         data-product-color-card
+                        data-product-url="<?= htmlspecialchars($productUrl, ENT_QUOTES, 'UTF-8') ?>"
                     >
-                        <a href="<?= htmlspecialchars($productUrl) ?>" class="product-card-main">
+                        <a href="<?= htmlspecialchars($productUrl) ?>" class="product-card-main" data-product-color-link>
                             <div class="product-image">
                                 <?php if (!empty($product['main_image'])): ?>
                                     <img
@@ -89,28 +90,37 @@ $pageTitle = $category['name'];
                             >
                                 <?php foreach ($colorVariants as $variant): ?>
                                     <?php
+                                    $variantName = trim((string) ($variant['name'] ?? ''));
+                                    $variantHex = trim((string) ($variant['hex'] ?? ''));
+                                    $variantColorKey = ProductVariantStock::colorKey(
+                                        $variantName,
+                                        $variantHex
+                                    );
                                     $isSelected = (string) ($variant['path'] ?? '')
                                         === (string) ($product['main_image'] ?? '');
                                     $colorLabel = Translator::t(
                                         'public.catalog.color',
                                         'Колір'
-                                    ) . ': ' . (string) ($variant['name'] ?? '');
+                                    ) . ': ' . $variantName;
                                     ?>
                                     <button
                                         type="button"
                                         class="product-color-swatch<?= $isSelected ? ' is-active' : '' ?>"
-                                        style="--product-color: <?= htmlspecialchars($variant['hex'] ?? '#b8b0bd', ENT_QUOTES, 'UTF-8') ?>"
+                                        style="--product-color: <?= htmlspecialchars($variantHex ?: '#b8b0bd', ENT_QUOTES, 'UTF-8') ?>"
                                         data-product-color-swatch
                                         data-image-src="<?= htmlspecialchars($variant['path'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                        data-color-key="<?= htmlspecialchars($variantColorKey, ENT_QUOTES, 'UTF-8') ?>"
+                                        data-color-name="<?= htmlspecialchars($variantName, ENT_QUOTES, 'UTF-8') ?>"
+                                        data-color-hex="<?= htmlspecialchars($variantHex, ENT_QUOTES, 'UTF-8') ?>"
                                         aria-label="<?= htmlspecialchars($colorLabel, ENT_QUOTES, 'UTF-8') ?>"
                                         aria-pressed="<?= $isSelected ? 'true' : 'false' ?>"
-                                        title="<?= htmlspecialchars($variant['name'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                        title="<?= htmlspecialchars($variantName, ENT_QUOTES, 'UTF-8') ?>"
                                     ></button>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
 
-                        <a href="<?= htmlspecialchars($productUrl) ?>" class="product-card-price-link">
+                        <a href="<?= htmlspecialchars($productUrl) ?>" class="product-card-price-link" data-product-color-link>
                             <p class="product-price">
                                 <?= number_format(
                                     Product::getCurrentPrice($product),
@@ -135,6 +145,6 @@ $pageTitle = $category['name'];
     <?php endif; ?>
 </main>
 
-<script src="/Anabelka/js/catalog-product-colors.js?v=2"></script>
+<script src="/Anabelka/js/catalog-product-colors.js?v=3"></script>
 </body>
 </html>
