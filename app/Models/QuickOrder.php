@@ -5,11 +5,6 @@ class QuickOrder
     private static $schemaReady = false;
 
 
-    /**
-     * В проекте пока нет общей системы миграций,
-     * поэтому таблицы быстрого заказа создаются
-     * безопасно при первом обращении.
-     */
     public static function ensureTables()
     {
         if (self::$schemaReady) {
@@ -51,6 +46,9 @@ class QuickOrder
                 sku VARCHAR(100) NULL,
                 size_id INT NULL,
                 size_name VARCHAR(100) NULL,
+                color_key VARCHAR(220) NOT NULL DEFAULT '',
+                color_name VARCHAR(100) NOT NULL DEFAULT '',
+                color_hex VARCHAR(7) NULL DEFAULT NULL,
                 quantity INT UNSIGNED NOT NULL DEFAULT 1,
                 unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                 line_total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -60,6 +58,36 @@ class QuickOrder
               DEFAULT CHARSET=utf8mb4
               COLLATE=utf8mb4_unicode_ci
         ");
+
+        $columns = $db->query("SHOW COLUMNS FROM quick_order_items")
+            ->fetchAll(PDO::FETCH_ASSOC);
+        $names = array_map(
+            function ($column) {
+                return strtolower((string) ($column['Field'] ?? ''));
+            },
+            $columns
+        );
+
+        if (!in_array('color_key', $names, true)) {
+            $db->exec("
+                ALTER TABLE quick_order_items
+                ADD COLUMN color_key VARCHAR(220) NOT NULL DEFAULT '' AFTER size_name
+            ");
+        }
+
+        if (!in_array('color_name', $names, true)) {
+            $db->exec("
+                ALTER TABLE quick_order_items
+                ADD COLUMN color_name VARCHAR(100) NOT NULL DEFAULT '' AFTER color_key
+            ");
+        }
+
+        if (!in_array('color_hex', $names, true)) {
+            $db->exec("
+                ALTER TABLE quick_order_items
+                ADD COLUMN color_hex VARCHAR(7) NULL DEFAULT NULL AFTER color_name
+            ");
+        }
 
         self::$schemaReady = true;
     }
@@ -129,6 +157,9 @@ class QuickOrder
                     sku,
                     size_id,
                     size_name,
+                    color_key,
+                    color_name,
+                    color_hex,
                     quantity,
                     unit_price,
                     line_total
@@ -141,6 +172,9 @@ class QuickOrder
                     :sku,
                     :size_id,
                     :size_name,
+                    :color_key,
+                    :color_name,
+                    :color_hex,
                     :quantity,
                     :unit_price,
                     :line_total
@@ -152,6 +186,11 @@ class QuickOrder
                 $quantity = (int) $item['quantity'];
                 $unitPrice = Product::getCurrentPrice($product);
                 $lineTotal = $unitPrice * $quantity;
+                $colorHex = strtolower(trim((string) ($item['color_hex'] ?? '')));
+
+                if (!preg_match('/^#[0-9a-f]{6}$/', $colorHex)) {
+                    $colorHex = null;
+                }
 
                 $itemStmt->execute([
                     'quick_order_id' => $orderId,
@@ -160,6 +199,9 @@ class QuickOrder
                     'sku' => !empty($product['sku']) ? $product['sku'] : null,
                     'size_id' => !empty($item['size_id']) ? (int) $item['size_id'] : null,
                     'size_name' => $item['size']['value'] ?? null,
+                    'color_key' => trim((string) ($item['color_key'] ?? '')),
+                    'color_name' => trim((string) ($item['color_name'] ?? '')),
+                    'color_hex' => $colorHex,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'line_total' => $lineTotal
@@ -185,14 +227,12 @@ class QuickOrder
         self::ensureTables();
 
         $db = Database::connect();
-
         $stmt = $db->prepare("
             SELECT *
             FROM quick_orders
             WHERE order_token = :token
             LIMIT 1
         ");
-
         $stmt->execute([
             'token' => trim((string) $token)
         ]);
@@ -206,7 +246,6 @@ class QuickOrder
         self::ensureTables();
 
         $db = Database::connect();
-
         $orders = $db->query("
             SELECT *
             FROM quick_orders
@@ -229,8 +268,7 @@ class QuickOrder
                 'quick_order_id' => (int) $order['id']
             ]);
 
-            $order['items'] =
-                $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+            $order['items'] = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
         }
         unset($order);
 
