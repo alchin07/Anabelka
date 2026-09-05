@@ -40,6 +40,8 @@
     const cache = new Map();
     let loadedProductId = 0;
     let loadedRows = [];
+    let hasStoredMatrix = false;
+    let matrixTouched = false;
 
     const style = document.createElement('style');
     style.textContent = [
@@ -61,18 +63,15 @@
     ].join('\n');
     document.head.appendChild(style);
 
-
     function textKey(value)
     {
         return String(value || '').trim().toLocaleLowerCase();
     }
 
-
     function colorKey(name, hex)
     {
         return textKey(name) + '|' + String(hex || '').trim().toLowerCase();
     }
-
 
     function currentSizes()
     {
@@ -88,7 +87,6 @@
                 }) === index;
             });
     }
-
 
     function currentColors()
     {
@@ -121,14 +119,12 @@
         return result;
     }
 
-
     function cacheCurrentInputs()
     {
         tableWrap.querySelectorAll('[data-variant-stock-input]').forEach(function (input) {
             cache.set(String(input.dataset.variantKey || ''), Math.max(0, Number(input.value || 0)));
         });
     }
-
 
     function seedLoadedRows()
     {
@@ -140,7 +136,6 @@
             }
         });
     }
-
 
     function render()
     {
@@ -164,7 +159,10 @@
             return;
         }
 
-        note.textContent = 'Заповніть кількість для кожного розміру в кожному кольорі.';
+        note.textContent = hasStoredMatrix
+            ? 'Заповніть кількість для кожного розміру в кожному кольорі.'
+            : 'Старі залишки ще не розподілені за кольорами. Введіть кількість у матриці, щоб перейти на новий облік.';
+
         const table = document.createElement('table');
         table.className = 'product-variant-stock-table';
         const thead = document.createElement('thead');
@@ -214,7 +212,10 @@
                 input.dataset.colorName = color.name;
                 input.dataset.colorHex = color.hex;
                 input.value = String(Math.max(0, Number(cache.get(key) || 0)));
-                input.addEventListener('input', updateTotal);
+                input.addEventListener('input', function () {
+                    matrixTouched = true;
+                    updateTotal();
+                });
                 td.appendChild(input);
                 row.appendChild(td);
             });
@@ -228,7 +229,6 @@
         updateTotal();
     }
 
-
     function updateTotal()
     {
         const total = Array.from(
@@ -239,7 +239,6 @@
 
         totalLabel.textContent = total + ' шт.';
     }
-
 
     function matrixRows()
     {
@@ -255,7 +254,6 @@
         });
     }
 
-
     async function loadForProduct(productId)
     {
         productId = Number(productId || 0);
@@ -263,6 +261,8 @@
         if (productId <= 0) {
             loadedProductId = 0;
             loadedRows = [];
+            hasStoredMatrix = false;
+            matrixTouched = false;
             cache.clear();
             render();
             return;
@@ -275,6 +275,8 @@
 
         loadedProductId = productId;
         loadedRows = [];
+        hasStoredMatrix = false;
+        matrixTouched = false;
         cache.clear();
 
         try {
@@ -286,6 +288,7 @@
 
             if (response.ok && data.success && Array.isArray(data.rows)) {
                 loadedRows = data.rows;
+                hasStoredMatrix = loadedRows.length > 0;
             }
         } catch (error) {
             loadedRows = [];
@@ -293,7 +296,6 @@
 
         render();
     }
-
 
     document.addEventListener('click', function (event) {
         const edit = event.target.closest('[data-product-edit]');
@@ -345,8 +347,9 @@
                 const productId = Number(data.product_id || productIdField.value || 0);
                 const csrf = form.querySelector('input[name="csrf_token"]');
                 const rows = matrixRows();
+                const shouldSaveMatrix = hasStoredMatrix || matrixTouched;
 
-                if (data.success && productId > 0 && csrf && rows.length > 0) {
+                if (data.success && productId > 0 && csrf && rows.length > 0 && shouldSaveMatrix) {
                     const payload = new FormData();
                     payload.append('csrf_token', csrf.value);
                     payload.append('product_id', String(productId));
@@ -367,6 +370,9 @@
                         });
                         throw new Error(variantData.message || 'Не вдалося зберегти залишки за кольорами.');
                     }
+
+                    hasStoredMatrix = true;
+                    matrixTouched = false;
                 }
             } catch (error) {
                 const message = document.getElementById('site-message');
