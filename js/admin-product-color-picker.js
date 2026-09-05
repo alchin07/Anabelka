@@ -44,6 +44,7 @@
         return;
     }
 
+    // Visible quick-selection palette. These names are exact and are never guessed.
     const colorPresets = [
         { name: 'Білий', hex: '#ffffff' },
         { name: 'Молочний', hex: '#f5efe3' },
@@ -58,6 +59,39 @@
         { name: 'Блакитний', hex: '#79b9e1' },
         { name: 'Синій', hex: '#376bc2' },
         { name: 'Зелений', hex: '#438c5d' },
+        { name: 'Фіолетовий', hex: '#7d4ab1' },
+        { name: 'Жовтий', hex: '#e3c340' },
+        { name: 'Помаранчевий', hex: '#e58a36' }
+    ];
+
+    // Wider palette used only for automatic recognition from a photo/system picker.
+    // It stays separate so the quick-selection grid remains simple on a phone.
+    const colorRecognitionPalette = [
+        { name: 'Білий', hex: '#ffffff' },
+        { name: 'Молочний', hex: '#f5efe3' },
+        { name: 'Кремовий', hex: '#eee0c6' },
+        { name: 'Бежевий', hex: '#d9c2a3' },
+        { name: 'Тілесний', hex: '#d5a485' },
+        { name: 'Пудровий', hex: '#d6a6a3' },
+        { name: 'Рожевий', hex: '#f2a6b8' },
+        { name: 'Темно-рожевий', hex: '#b96f83' },
+        { name: 'Червоний', hex: '#d83d4d' },
+        { name: 'Бордовий', hex: '#7f233a' },
+        { name: 'Тауп', hex: '#9a7f7b' },
+        { name: 'Кавовий', hex: '#6f5148' },
+        { name: 'Коричневий', hex: '#765044' },
+        { name: 'Світло-сірий', hex: '#b8b8bc' },
+        { name: 'Сірий', hex: '#8c8c91' },
+        { name: 'Темно-сірий', hex: '#626368' },
+        { name: 'Графітовий', hex: '#45474d' },
+        { name: 'Чорний', hex: '#171717' },
+        { name: 'Блакитний', hex: '#79b9e1' },
+        { name: 'Синій', hex: '#376bc2' },
+        { name: 'Темно-синій', hex: '#29456f' },
+        { name: 'Бірюзовий', hex: '#4aa6a4' },
+        { name: 'Зелений', hex: '#438c5d' },
+        { name: 'Хакі', hex: '#77794f' },
+        { name: 'Ліловий', hex: '#a684b5' },
         { name: 'Фіолетовий', hex: '#7d4ab1' },
         { name: 'Жовтий', hex: '#e3c340' },
         { name: 'Помаранчевий', hex: '#e58a36' }
@@ -102,48 +136,103 @@
     }
 
 
+    function rgbToLab(rgb)
+    {
+        function linearize(channel)
+        {
+            const value = channel / 255;
+            return value <= 0.04045
+                ? value / 12.92
+                : Math.pow((value + 0.055) / 1.055, 2.4);
+        }
+
+        const red = linearize(rgb.red);
+        const green = linearize(rgb.green);
+        const blue = linearize(rgb.blue);
+
+        const x = (red * 0.4124564 + green * 0.3575761 + blue * 0.1804375) / 0.95047;
+        const y = (red * 0.2126729 + green * 0.7151522 + blue * 0.0721750);
+        const z = (red * 0.0193339 + green * 0.1191920 + blue * 0.9503041) / 1.08883;
+
+        function labTransform(value)
+        {
+            return value > 0.008856
+                ? Math.cbrt(value)
+                : (7.787 * value) + (16 / 116);
+        }
+
+        const fx = labTransform(x);
+        const fy = labTransform(y);
+        const fz = labTransform(z);
+
+        return {
+            lightness: (116 * fy) - 16,
+            a: 500 * (fx - fy),
+            b: 200 * (fy - fz)
+        };
+    }
+
+
+    function labDistance(first, second)
+    {
+        const lightness = first.lightness - second.lightness;
+        const a = first.a - second.a;
+        const b = first.b - second.b;
+
+        return Math.sqrt(
+            (lightness * lightness)
+            + (a * a)
+            + (b * b)
+        );
+    }
+
+
     function closestColorName(hex)
     {
-        const selected = hexToRgb(hex);
-        const maximum = Math.max(selected.red, selected.green, selected.blue);
-        const minimum = Math.min(selected.red, selected.green, selected.blue);
-        const chroma = maximum - minimum;
-        const brightness = (
-            selected.red * 0.299
-            + selected.green * 0.587
-            + selected.blue * 0.114
+        const selectedLab = rgbToLab(hexToRgb(hex));
+        const neutralChroma = Math.sqrt(
+            (selectedLab.a * selectedLab.a)
+            + (selectedLab.b * selectedLab.b)
         );
 
-        // Neutral and almost-neutral colors need special handling. Without it,
-        // dark gray pixels can be numerically closer to the brown preset.
-        if (chroma <= 18) {
-            if (brightness >= 245) {
+        // Only genuinely neutral shades are forced into the gray family.
+        // Warm gray, taupe and powder shades are left for perceptual LAB matching.
+        if (neutralChroma <= 5.5) {
+            if (selectedLab.lightness >= 96) {
                 return 'Білий';
             }
 
-            if (brightness <= 48) {
+            if (selectedLab.lightness <= 18) {
                 return 'Чорний';
+            }
+
+            if (selectedLab.lightness <= 42) {
+                return 'Графітовий';
+            }
+
+            if (selectedLab.lightness <= 63) {
+                return 'Темно-сірий';
+            }
+
+            if (selectedLab.lightness >= 80) {
+                return 'Світло-сірий';
             }
 
             return 'Сірий';
         }
 
-        // Very dark, only slightly tinted pixels should still be perceived as black.
-        if (brightness <= 42 && chroma <= 32) {
+        if (selectedLab.lightness <= 15 && neutralChroma <= 12) {
             return 'Чорний';
         }
 
-        let closest = colorPresets[0];
+        let closest = colorRecognitionPalette[0];
         let closestDistance = Number.POSITIVE_INFINITY;
 
-        colorPresets.forEach(function (preset) {
-            const color = hexToRgb(preset.hex);
-            const red = selected.red - color.red;
-            const green = selected.green - color.green;
-            const blue = selected.blue - color.blue;
-            const distance = (red * red * 0.3)
-                + (green * green * 0.59)
-                + (blue * blue * 0.11);
+        colorRecognitionPalette.forEach(function (preset) {
+            const distance = labDistance(
+                selectedLab,
+                rgbToLab(hexToRgb(preset.hex))
+            );
 
             if (distance < closestDistance) {
                 closestDistance = distance;
