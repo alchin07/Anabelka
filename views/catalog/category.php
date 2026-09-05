@@ -135,6 +135,6 @@ $pageTitle = $category['name'];
     <?php endif; ?>
 </main>
 
-<script src="/Anabelka/js/catalog-product-colors.js?v=1"></script>
+<script src="/Anabelka/js/catalog-product-colors.js?v=2"></script>
 </body>
 </html>
