@@ -16,6 +16,7 @@ class App
         require_once __DIR__ . '/../Models/Category.php';
         require_once __DIR__ . '/../Models/CategoryTranslator.php';
         require_once __DIR__ . '/../Models/ProductImage.php';
+        require_once __DIR__ . '/../Models/ProductVariantStock.php';
         require_once __DIR__ . '/../Models/Product.php';
         require_once __DIR__ . '/../Models/ProductTranslator.php';
         require_once __DIR__ . '/../Models/AdminProduct.php';
@@ -63,6 +64,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminLanguageController.php';
         require_once __DIR__ . '/../Controllers/AdminCategoryController.php';
         require_once __DIR__ . '/../Controllers/AdminProductController.php';
+        require_once __DIR__ . '/../Controllers/AdminProductVariantController.php';
         require_once __DIR__ . '/../Controllers/AdminAITranslationController.php';
         require_once __DIR__ . '/../Controllers/AdminTranslationController.php';
 
