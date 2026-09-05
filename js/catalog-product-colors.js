@@ -1,38 +1,74 @@
 (function () {
     'use strict';
 
+    function updateProductLinks(card, colorKey)
+    {
+        const baseUrl = String(card.dataset.productUrl || '').trim();
+
+        if (baseUrl === '') {
+            return;
+        }
+
+        let nextUrl = baseUrl;
+
+        if (colorKey) {
+            nextUrl += '?color_key=' + encodeURIComponent(colorKey);
+        }
+
+        card.querySelectorAll('[data-product-color-link]').forEach(function (link) {
+            link.href = nextUrl;
+        });
+    }
+
+
     document.querySelectorAll('[data-product-color-card]').forEach(function (card) {
         const image = card.querySelector('[data-product-card-image]');
         const swatches = Array.from(
             card.querySelectorAll('[data-product-color-swatch]')
         );
 
-        if (!image || swatches.length === 0) {
+        if (swatches.length === 0) {
             return;
+        }
+
+        function selectSwatch(swatch)
+        {
+            const nextImage = String(
+                swatch.dataset.imageSrc || ''
+            ).trim();
+            const colorKey = String(
+                swatch.dataset.colorKey || ''
+            ).trim();
+
+            if (image && nextImage !== '') {
+                image.src = nextImage;
+            }
+
+            swatches.forEach(function (item) {
+                const isSelected = item === swatch;
+                item.classList.toggle('is-active', isSelected);
+                item.setAttribute(
+                    'aria-pressed',
+                    isSelected ? 'true' : 'false'
+                );
+            });
+
+            updateProductLinks(card, colorKey);
         }
 
         swatches.forEach(function (swatch) {
             swatch.addEventListener('click', function () {
-                const nextImage = String(
-                    swatch.dataset.imageSrc || ''
-                ).trim();
-
-                if (nextImage === '') {
-                    return;
-                }
-
-                image.src = nextImage;
-
-                swatches.forEach(function (item) {
-                    const isSelected = item === swatch;
-                    item.classList.toggle('is-active', isSelected);
-                    item.setAttribute(
-                        'aria-pressed',
-                        isSelected ? 'true' : 'false'
-                    );
-                });
+                selectSwatch(swatch);
             });
         });
+
+        const initiallySelected = card.querySelector(
+            '[data-product-color-swatch].is-active'
+        );
+
+        if (initiallySelected) {
+            selectSwatch(initiallySelected);
+        }
     });
 
 
