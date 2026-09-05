@@ -204,6 +204,16 @@ $router->post(
     'AdminProductController@save'
 );
 
+$router->get(
+    '/admin/products/variant-stock',
+    'AdminProductVariantController@index'
+);
+
+$router->post(
+    '/admin/products/variant-stock/save',
+    'AdminProductVariantController@save'
+);
+
 $router->post(
     '/admin/products/toggle',
     'AdminProductController@toggle'
