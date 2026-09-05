@@ -2,983 +2,519 @@
 
 class CartController extends Controller
 {
-    /**
-     * Страница корзины.
-     */
     public function index()
     {
-        /*
-         * Авторизованный пользователь:
-         * читаем корзину из MySQL.
-         *
-         * Гость:
-         * читаем корзину из сессии.
-         */
         if (!empty($_SESSION['user_id'])) {
-
-            $dbItems = Cart::getItemsByUserId(
-                $_SESSION['user_id']
-            );
-
             $cart = [];
 
-            foreach ($dbItems as $item) {
-
-                $cartKey =
-                    $item['product_id']
-                    . '_'
-                    . $item['size_id'];
-
+            foreach (Cart::getItemsByUserId($_SESSION['user_id']) as $item) {
+                $cartKey = $this->buildCartKey(
+                    $item['product_id'],
+                    $item['size_id'],
+                    $item['color_key'] ?? ''
+                );
                 $cart[$cartKey] = [
-                    'product_id' => $item['product_id'],
-                    'size_id' => $item['size_id'],
-                    'quantity' => $item['quantity']
+                    'product_id' => (int) $item['product_id'],
+                    'size_id' => (int) $item['size_id'],
+                    'color_key' => (string) ($item['color_key'] ?? ''),
+                    'color_name' => (string) ($item['color_name'] ?? ''),
+                    'color_hex' => (string) ($item['color_hex'] ?? ''),
+                    'quantity' => (int) $item['quantity']
                 ];
             }
-
         } else {
-
-            $cart =
-                $_SESSION['cart'] ?? [];
+            $cart = $_SESSION['cart'] ?? [];
         }
-
 
         $items = [];
         $total = 0;
 
-
         foreach ($cart as $cartKey => $cartItem) {
-
-            $product =
-                Product::findById(
-                    $cartItem['product_id']
-                );
-
-            $size =
-                Product::getAttributeValueById(
-                    $cartItem['size_id']
-                );
-
+            $product = Product::findById($cartItem['product_id'] ?? 0);
 
             if (!$product) {
                 continue;
             }
 
+            $size = Product::getAttributeValueById(
+                (int) ($cartItem['size_id'] ?? 0)
+            );
+            $quantity = max(0, (int) ($cartItem['quantity'] ?? 0));
 
-            $quantity =
-                (int) $cartItem['quantity'];
+            if ($quantity <= 0) {
+                continue;
+            }
 
-            $price =
-                Product::getCurrentPrice(
-                    $product
-                );
-
-            $sum =
-                $price * $quantity;
-
+            $price = Product::getCurrentPrice($product);
+            $sum = $price * $quantity;
             $total += $sum;
-
-
             $items[] = [
                 'cart_key' => $cartKey,
                 'product' => $product,
-                'size_id' => $cartItem['size_id'],
+                'size_id' => (int) ($cartItem['size_id'] ?? 0),
+                'size' => $size,
+                'color_key' => (string) ($cartItem['color_key'] ?? ''),
+                'color_name' => (string) ($cartItem['color_name'] ?? ''),
+                'color_hex' => (string) ($cartItem['color_hex'] ?? ''),
                 'quantity' => $quantity,
-                'sum' => $sum,
-                'size' => $size
+                'sum' => $sum
             ];
         }
 
-
-        $this->view(
-            'cart/index',
-            [
-                'items' => $items,
-                'total' => $total
-            ]
-        );
+        $this->view('cart/index', [
+            'items' => $items,
+            'total' => $total
+        ]);
     }
 
 
-    /**
-     * Добавление товара в корзину.
-     */
     public function add()
     {
-      
-        $productId =
-            (int) ($_POST['product_id'] ?? 0);
-
-        $sizes =
-            $_POST['sizes'] ?? [];
-
+        $productId = (int) ($_POST['product_id'] ?? 0);
+        $sizes = $_POST['sizes'] ?? [];
+        $colorKey = trim((string) ($_POST['color_key'] ?? ''));
+        $colorName = trim((string) ($_POST['color_name'] ?? ''));
+        $colorHex = strtolower(trim((string) ($_POST['color_hex'] ?? '')));
 
         if ($productId <= 0) {
-
-            $this->jsonError(
-                'Товар не выбран'
-            );
+            $this->jsonError('Товар не выбран');
         }
 
-
-        if (
-            !is_array($sizes) ||
-            empty($sizes)
-        ) {
-
-            $this->jsonError(
-                'Выберите хотя бы один размер'
-            );
+        if (!is_array($sizes) || empty($sizes)) {
+            $this->jsonError('Выберите хотя бы один размер');
         }
 
-
-        /*
-         * Получаем товар.
-         */
-        $product =
-            Product::findById(
-                $productId
-            );
+        $product = Product::findById($productId);
 
         if (!$product) {
-
-            $this->jsonError(
-                'Товар не найден'
-            );
+            $this->jsonError('Товар не найден');
         }
 
-
-        /*
-         * Остаток товара.
-         */
-        $stock =
-            (int) $product['stock'];
-
-
-        /*
-         * Очищаем список размеров.
-         * Убираем нули и возможные дубли.
-         */
         $cleanSizes = [];
 
         foreach ($sizes as $sizeId) {
-
-            $sizeId =
-                (int) $sizeId;
+            $sizeId = (int) $sizeId;
 
             if ($sizeId > 0) {
-
-                $cleanSizes[$sizeId] =
-                    $sizeId;
+                $cleanSizes[$sizeId] = $sizeId;
             }
         }
 
-      /*
- * =========================================
- * КОНТРОЛЬ ОСТАТКОВ
- * =========================================
- */
+        $cleanSizes = array_values($cleanSizes);
 
-$stockMode =
-    $product['stock_mode']
-    ?? 'total';
+        if (empty($cleanSizes)) {
+            $this->jsonError('Выберите хотя бы один размер');
+        }
 
+        $usesVariantStock = ProductVariantStock::hasMatrix($productId);
+        $colorInfo = null;
 
-/*
- * РЕЖИМ 1:
- * Общий остаток товара.
- *
- * Все размеры используют один общий stock.
- */
-if ($stockMode === 'total') {
+        if ($usesVariantStock) {
+            if ($colorKey === '') {
+                $this->jsonError('Выберите цвет');
+            }
 
-    $stockLimit =
-        (int) ($product['stock'] ?? 0);
+            $colorInfo = ProductVariantStock::colorInfo($productId, $colorKey);
 
+            if (!$colorInfo) {
+                $this->jsonError('Выбранный цвет недоступен');
+            }
 
-    /*
-     * Сколько всего этого товара
-     * уже находится в корзине.
-     */
-    $currentQuantity = 0;
+            $colorName = (string) $colorInfo['color_name'];
+            $colorHex = (string) $colorInfo['color_hex'];
 
+            foreach ($cleanSizes as $sizeId) {
+                $stockLimit = ProductVariantStock::stockFor(
+                    $productId,
+                    $sizeId,
+                    $colorKey
+                );
+                $currentQuantity = $this->currentVariantQuantity(
+                    $productId,
+                    $sizeId,
+                    $colorKey
+                );
 
-    if (!empty($_SESSION['user_id'])) {
-
-        $currentQuantity =
-            Cart::getProductQuantity(
-                $_SESSION['user_id'],
-                $productId
-            );
-
-    } else {
-
-        foreach (
-            $_SESSION['cart'] ?? []
-            as $cartItem
-        ) {
-
-            if (
-                (int) (
-                    $cartItem['product_id']
-                    ?? 0
-                ) === $productId
-            ) {
-
-                $currentQuantity +=
-                    (int) (
-                        $cartItem['quantity']
-                        ?? 0
+                if ($currentQuantity + 1 > $stockLimit) {
+                    $size = Product::getAttributeValueById($sizeId);
+                    $sizeName = $size['value'] ?? '—';
+                    $this->jsonError(
+                        'Размер ' . $sizeName . ' в цвете '
+                        . $colorName . ' закончился.'
                     );
+                }
             }
+        } else {
+            $this->validateLegacyAdd($product, $cleanSizes);
+            $colorKey = '';
+            $colorName = '';
+            $colorHex = '';
         }
-    }
 
-
-    /*
-     * Каждый выбранный размер =
-     * одна добавляемая штука.
-     */
-    $addingQuantity =
-        count($sizes);
-
-
-    /*
-     * Проверяем сразу ВСЮ операцию.
-     *
-     * Например:
-     * в корзине 9,
-     * выбрано 2 размера,
-     * 9 + 2 = 11 → запрещаем.
-     */
-    if (
-        $currentQuantity
-        + $addingQuantity
-        > $stockLimit
-    ) {
-
-        $available =
-            max(
-                0,
-                $stockLimit
-                - $currentQuantity
-            );
-
-
-        $this->jsonError(
-            'Недостаточно товара на складе. '
-            . 'Доступно: '
-            . $available
-            . ' шт.'
-        );
-    }
-
-
-/*
- * РЕЖИМ 2:
- * Остаток отдельно по размерам.
- */
-} else {
-
-    foreach ($sizes as $sizeId) {
-
-        $sizeId =
-            (int) $sizeId;
-
-
-        $stockLimit =
-            Product::getStockLimit(
-                $product,
-                $sizeId
-            );
-
-
-        /*
-         * Сколько конкретного размера
-         * уже находится в корзине.
-         */
-        $currentQuantity = 0;
-
-
-        if (!empty($_SESSION['user_id'])) {
-
-            $currentQuantity =
-                Cart::getSizeQuantity(
+        foreach ($cleanSizes as $sizeId) {
+            if (!empty($_SESSION['user_id'])) {
+                $added = Cart::addItem(
                     $_SESSION['user_id'],
                     $productId,
-                    $sizeId
+                    $sizeId,
+                    1,
+                    $colorKey,
+                    $colorName,
+                    $colorHex
                 );
 
-        } else {
+                if (!$added) {
+                    $this->jsonError('Недостаточно товара на складе.');
+                }
 
-            $cartKey =
-                $productId
-                . '_'
-                . $sizeId;
-
-            $currentQuantity =
-                (int) (
-                    $_SESSION['cart']
-                        [$cartKey]
-                        ['quantity']
-                    ?? 0
-                );
-        }
-
-
-        if (
-            $currentQuantity + 1
-            > $stockLimit
-        ) {
-
-            $size =
-                Product::getAttributeValueById(
-                    $sizeId
-                );
-
-            $sizeName =
-                $size['value'] ?? '—';
-
-
-            $this->jsonError(
-                'Размер '
-                . $sizeName
-                . ' закончился.'
-            );
-        }
-    }
-
-
-
-    if (
-        $currentQuantity + 1
-        > $stockLimit
-    ) {
-
-        $size =
-            Product::getAttributeValueById(
-                $sizeId
-            );
-
-        $sizeName =
-            $size['value'] ?? '—';
-
-
-        $this->jsonError(
-            'Размер '
-            . $sizeName
-            . ' закончился.'
-        );
-    }
-}
-
-
-        /*
-         * Добавляем выбранные размеры.
-         */
-        foreach ($sizes as $sizeId) {
-
-            $sizeId =
-                (int) $sizeId;
-
-
-            /*
-             * Авторизованный пользователь:
-             * корзина хранится в MySQL.
-             */
-            if (!empty($_SESSION['user_id'])) {
-
-                $added =
-    Cart::addItem(
-        $_SESSION['user_id'],
-        $productId,
-        $sizeId,
-        1
-    );
-
-
-if (!$added) {
-
-    $size =
-        Product::getAttributeValueById(
-            $sizeId
-        );
-
-    $sizeName =
-        $size['value'] ?? '—';
-
-
-    $this->jsonError(
-        'Размер '
-        . $sizeName
-        . ' закончился.'
-    );
-}
-
-
-continue;
+                continue;
             }
 
-
-            /*
-             * Гость:
-             * корзина хранится в сессии.
-             */
             if (!isset($_SESSION['cart'])) {
-
                 $_SESSION['cart'] = [];
             }
 
+            $cartKey = $this->buildCartKey(
+                $productId,
+                $sizeId,
+                $colorKey
+            );
 
-            $cartKey =
-                $productId
-                . '_'
-                . $sizeId;
-
-
-            if (
-                isset(
-                    $_SESSION['cart'][$cartKey]
-                )
-            ) {
-
-                $_SESSION['cart']
-                    [$cartKey]
-                    ['quantity']++;
-
+            if (isset($_SESSION['cart'][$cartKey])) {
+                $_SESSION['cart'][$cartKey]['quantity']++;
             } else {
-
                 $_SESSION['cart'][$cartKey] = [
                     'product_id' => $productId,
                     'size_id' => $sizeId,
+                    'color_key' => $colorKey,
+                    'color_name' => $colorName,
+                    'color_hex' => $colorHex,
                     'quantity' => 1
                 ];
             }
         }
 
-
-        /*
-         * AJAX-запрос со страницы товара.
-         */
         if ($this->isAjax()) {
-
-            header(
-                'Content-Type: application/json; charset=utf-8'
-            );
-
-
-            $cartCount =
-                $this->getCartCount();
-
-
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'success' => true,
-                'cart_count' => $cartCount
+                'cart_count' => $this->getCartCount()
             ]);
-
             exit;
         }
 
-
-        /*
-         * Запасной вариант без JavaScript.
-         */
-        header(
-            'Location: /Anabelka/cart'
-        );
-
+        header('Location: /Anabelka/cart');
         exit;
     }
 
 
-    /**
-     * Увеличить количество позиции на 1.
-     */
     public function increase()
-{
-    $cartKey =
-        $_POST['cart_key'] ?? '';
+    {
+        $cartKey = (string) ($_POST['cart_key'] ?? '');
+        [$productId, $sizeId, $colorKey] = $this->parseCartKey($cartKey);
 
+        if ($productId <= 0 || $sizeId <= 0) {
+            $this->plainError('ERROR', 400);
+        }
 
-    if ($cartKey === '') {
+        $product = Product::findById($productId);
 
-        http_response_code(400);
+        if (!$product) {
+            $this->plainError('Товар не найден', 404);
+        }
 
-        echo 'ERROR';
+        if (ProductVariantStock::hasMatrix($productId)) {
+            $colorInfo = ProductVariantStock::colorInfo($productId, $colorKey);
 
+            if (!$colorInfo) {
+                $this->plainError('Цвет недоступен', 409);
+            }
+
+            $stockLimit = ProductVariantStock::stockFor(
+                $productId,
+                $sizeId,
+                $colorKey
+            );
+            $currentQuantity = $this->currentVariantQuantity(
+                $productId,
+                $sizeId,
+                $colorKey
+            );
+
+            if ($currentQuantity >= $stockLimit) {
+                $this->plainError('Этот размер в выбранном цвете закончился', 409);
+            }
+        } else {
+            $stockLimit = Product::getStockLimit($product, $sizeId);
+            $currentQuantity = $this->currentLegacyQuantity(
+                $product,
+                $sizeId,
+                $cartKey
+            );
+
+            if ($currentQuantity >= $stockLimit) {
+                $this->plainError('Товар закончился', 409);
+            }
+        }
+
+        if (!empty($_SESSION['user_id'])) {
+            if (!Cart::increaseItem(
+                $_SESSION['user_id'],
+                $productId,
+                $sizeId,
+                $colorKey
+            )) {
+                $this->plainError('Товар закончился', 409);
+            }
+        } elseif (isset($_SESSION['cart'][$cartKey])) {
+            $_SESSION['cart'][$cartKey]['quantity']++;
+        }
+
+        echo 'OK';
         exit;
     }
 
 
-    [$productId, $sizeId] =
-        $this->parseCartKey(
-            $cartKey
-        );
+    public function decrease()
+    {
+        $cartKey = (string) ($_POST['cart_key'] ?? '');
+        [$productId, $sizeId, $colorKey] = $this->parseCartKey($cartKey);
 
+        if ($productId <= 0 || $sizeId <= 0) {
+            $this->plainError('ERROR', 400);
+        }
 
-    if (
-        $productId <= 0 ||
-        $sizeId <= 0
-    ) {
+        if (!empty($_SESSION['user_id'])) {
+            Cart::decreaseItem(
+                $_SESSION['user_id'],
+                $productId,
+                $sizeId,
+                $colorKey
+            );
+        } elseif (isset($_SESSION['cart'][$cartKey])) {
+            $_SESSION['cart'][$cartKey]['quantity']--;
 
-        http_response_code(400);
+            if ((int) $_SESSION['cart'][$cartKey]['quantity'] <= 0) {
+                unset($_SESSION['cart'][$cartKey]);
+            }
+        }
 
-        echo 'ERROR';
-
+        echo 'OK';
         exit;
     }
 
 
-    /*
-     * Получаем товар.
-     */
-    $product =
-        Product::findById(
-            $productId
-        );
+    public function remove()
+    {
+        $cartKey = (string) ($_POST['cart_key'] ?? '');
+        [$productId, $sizeId, $colorKey] = $this->parseCartKey($cartKey);
 
+        if ($productId <= 0 || $sizeId <= 0) {
+            $this->plainError('ERROR', 400);
+        }
 
-    if (!$product) {
+        if (!empty($_SESSION['user_id'])) {
+            Cart::removeItem(
+                $_SESSION['user_id'],
+                $productId,
+                $sizeId,
+                $colorKey
+            );
+        } elseif (isset($_SESSION['cart'][$cartKey])) {
+            unset($_SESSION['cart'][$cartKey]);
+        }
 
-        http_response_code(404);
-
-        echo 'Товар не найден';
-
+        echo 'OK';
         exit;
     }
 
 
-    /*
-     * Получаем лимит остатка
-     * с учётом stock_mode.
-     */
-    $stockLimit =
-        Product::getStockLimit(
-            $product,
-            $sizeId
+    private function validateLegacyAdd(array $product, array $sizes)
+    {
+        $productId = (int) $product['id'];
+        $stockMode = $product['stock_mode'] ?? 'total';
+
+        if ($stockMode === 'total') {
+            $stockLimit = (int) ($product['stock'] ?? 0);
+            $currentQuantity = 0;
+
+            if (!empty($_SESSION['user_id'])) {
+                $currentQuantity = Cart::getProductQuantity(
+                    $_SESSION['user_id'],
+                    $productId
+                );
+            } else {
+                foreach ($_SESSION['cart'] ?? [] as $item) {
+                    if ((int) ($item['product_id'] ?? 0) === $productId) {
+                        $currentQuantity += (int) ($item['quantity'] ?? 0);
+                    }
+                }
+            }
+
+            if ($currentQuantity + count($sizes) > $stockLimit) {
+                $this->jsonError('Недостаточно товара на складе.');
+            }
+
+            return;
+        }
+
+        foreach ($sizes as $sizeId) {
+            $stockLimit = Product::getStockLimit($product, $sizeId);
+            $currentQuantity = $this->currentLegacyQuantity(
+                $product,
+                $sizeId,
+                $this->buildCartKey($productId, $sizeId, '')
+            );
+
+            if ($currentQuantity + 1 > $stockLimit) {
+                $size = Product::getAttributeValueById($sizeId);
+                $this->jsonError(
+                    'Размер ' . ($size['value'] ?? '—') . ' закончился.'
+                );
+            }
+        }
+    }
+
+
+    private function currentVariantQuantity($productId, $sizeId, $colorKey)
+    {
+        if (!empty($_SESSION['user_id'])) {
+            return Cart::getVariantQuantity(
+                $_SESSION['user_id'],
+                $productId,
+                $sizeId,
+                $colorKey
+            );
+        }
+
+        $cartKey = $this->buildCartKey($productId, $sizeId, $colorKey);
+
+        return (int) (
+            $_SESSION['cart'][$cartKey]['quantity'] ?? 0
         );
+    }
 
 
-    /*
-     * Сколько товара уже находится
-     * в корзине.
-     */
-    $currentQuantity = 0;
+    private function currentLegacyQuantity(array $product, $sizeId, $cartKey)
+    {
+        $productId = (int) $product['id'];
 
-
-    if (!empty($_SESSION['user_id'])) {
-
-        $currentQuantity =
-            Cart::getCurrentQuantityForMode(
+        if (!empty($_SESSION['user_id'])) {
+            return Cart::getCurrentQuantityForMode(
                 $_SESSION['user_id'],
                 $product,
                 $sizeId
             );
+        }
 
-    } else {
+        if (($product['stock_mode'] ?? 'total') === 'by_size') {
+            return (int) (
+                $_SESSION['cart'][$cartKey]['quantity'] ?? 0
+            );
+        }
 
-        /*
-         * Гость.
-         */
-        if (
-            ($product['stock_mode'] ?? 'total')
-            === 'by_size'
-        ) {
+        $total = 0;
 
-            $currentQuantity =
-                (int) (
-                    $_SESSION['cart']
-                        [$cartKey]
-                        ['quantity']
-                    ?? 0
-                );
-
-        } else {
-
-            /*
-             * Режим total:
-             * считаем все размеры
-             * этого товара.
-             */
-            foreach (
-                $_SESSION['cart'] ?? []
-                as $cartItem
-            ) {
-
-                if (
-                    (int) (
-                        $cartItem['product_id']
-                        ?? 0
-                    ) === $productId
-                ) {
-
-                    $currentQuantity +=
-                        (int) (
-                            $cartItem['quantity']
-                            ?? 0
-                        );
-                }
+        foreach ($_SESSION['cart'] ?? [] as $item) {
+            if ((int) ($item['product_id'] ?? 0) === $productId) {
+                $total += (int) ($item['quantity'] ?? 0);
             }
         }
+
+        return $total;
     }
 
 
-    /*
-     * Достигнут предел остатка.
-     */
-    if (
-        $currentQuantity >= $stockLimit
-    ) {
-
-        http_response_code(409);
-
-        if (
-            ($product['stock_mode'] ?? 'total')
-            === 'by_size'
-        ) {
-
-            $size =
-    Product::getAttributeValueById(
-        $sizeId
-    );
-
-$sizeName =
-    $size['value'] ?? '—';
-
-echo
-    'Размер '
-    . $sizeName
-    . ' закончился';
-
-        } else {
-
-            echo 'Товар закончился';
-        }
-
-        exit;
-    }
-
-
-    /*
-     * Авторизованный пользователь.
-     */
-    if (!empty($_SESSION['user_id'])) {
-
-        $increased =
-            Cart::increaseItem(
-                $_SESSION['user_id'],
-                $productId,
-                $sizeId
-            );
-
-
-        if (!$increased) {
-
-            http_response_code(409);
-
-            echo 'Размер закончился';
-
-            exit;
-        }
-
-    } else {
-
-        /*
-         * Гость.
-         */
-        if (
-            isset(
-                $_SESSION['cart'][$cartKey]
-            )
-        ) {
-
-            $_SESSION['cart']
-                [$cartKey]
-                ['quantity']++;
-        }
-    }
-
-
-    http_response_code(200);
-
-    echo 'OK';
-
-    exit;
-}
-
-
-    /**
-     * Уменьшить количество позиции на 1.
-     */
-    public function decrease()
+    private function buildCartKey($productId, $sizeId, $colorKey)
     {
-        $cartKey =
-            $_POST['cart_key'] ?? '';
+        $key = (int) $productId . '_' . (int) $sizeId;
+        $colorKey = trim((string) $colorKey);
 
-
-        if ($cartKey === '') {
-
-            http_response_code(400);
-
-            echo 'ERROR';
-
-            exit;
+        if ($colorKey === '') {
+            return $key;
         }
 
+        $encoded = rtrim(
+            strtr(base64_encode($colorKey), '+/', '-_'),
+            '='
+        );
 
-        [$productId, $sizeId] =
-            $this->parseCartKey(
-                $cartKey
-            );
-
-
-        if (
-            $productId <= 0 ||
-            $sizeId <= 0
-        ) {
-
-            http_response_code(400);
-
-            echo 'ERROR';
-
-            exit;
-        }
-
-
-        /*
-         * Авторизованный пользователь.
-         */
-        if (!empty($_SESSION['user_id'])) {
-
-            Cart::decreaseItem(
-                $_SESSION['user_id'],
-                $productId,
-                $sizeId
-            );
-
-        } else {
-
-            /*
-             * Гость.
-             */
-            if (
-                isset(
-                    $_SESSION['cart'][$cartKey]
-                )
-            ) {
-
-                $_SESSION['cart']
-                    [$cartKey]
-                    ['quantity']--;
-
-
-                if (
-                    $_SESSION['cart']
-                        [$cartKey]
-                        ['quantity']
-                    <= 0
-                ) {
-
-                    unset(
-                        $_SESSION['cart'][$cartKey]
-                    );
-                }
-            }
-        }
-
-
-        http_response_code(200);
-
-        echo 'OK';
-
-        exit;
+        return $key . '_' . $encoded;
     }
 
 
-    /**
-     * Полностью удалить позицию.
-     */
-    public function remove()
+    private function parseCartKey($cartKey)
     {
-        $cartKey =
-            $_POST['cart_key'] ?? '';
+        $parts = explode('_', (string) $cartKey, 3);
+        $colorKey = '';
 
+        if (!empty($parts[2])) {
+            $encoded = strtr((string) $parts[2], '-_', '+/');
+            $padding = strlen($encoded) % 4;
 
-        if ($cartKey === '') {
+            if ($padding > 0) {
+                $encoded .= str_repeat('=', 4 - $padding);
+            }
 
-            http_response_code(400);
+            $decoded = base64_decode($encoded, true);
 
-            echo 'ERROR';
-
-            exit;
-        }
-
-
-        [$productId, $sizeId] =
-            $this->parseCartKey(
-                $cartKey
-            );
-
-
-        if (
-            $productId <= 0 ||
-            $sizeId <= 0
-        ) {
-
-            http_response_code(400);
-
-            echo 'ERROR';
-
-            exit;
-        }
-
-
-        /*
-         * Авторизованный пользователь.
-         */
-        if (!empty($_SESSION['user_id'])) {
-
-            Cart::removeItem(
-                $_SESSION['user_id'],
-                $productId,
-                $sizeId
-            );
-
-        } else {
-
-            /*
-             * Гость.
-             */
-            if (
-                isset(
-                    $_SESSION['cart'][$cartKey]
-                )
-            ) {
-
-                unset(
-                    $_SESSION['cart'][$cartKey]
-                );
+            if ($decoded !== false) {
+                $colorKey = (string) $decoded;
             }
         }
 
-
-        http_response_code(200);
-
-        echo 'OK';
-
-        exit;
+        return [
+            (int) ($parts[0] ?? 0),
+            (int) ($parts[1] ?? 0),
+            $colorKey
+        ];
     }
 
 
-    /**
-     * Проверяем AJAX-запрос.
-     */
     private function isAjax()
     {
-        return
-            isset(
-                $_SERVER[
-                    'HTTP_X_REQUESTED_WITH'
-                ]
-            )
-            &&
-            $_SERVER[
-                'HTTP_X_REQUESTED_WITH'
-            ] === 'XMLHttpRequest';
+        return isset($_SERVER['HTTP_X_REQUESTED_WITH'])
+            && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
     }
 
 
-    /**
-     * Вернуть ошибку.
-     *
-     * Для AJAX — JSON.
-     * Для обычного запроса — текст.
-     */
     private function jsonError($message)
     {
         if ($this->isAjax()) {
-
-            header(
-                'Content-Type: application/json; charset=utf-8'
-            );
-
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'success' => false,
                 'message' => $message
             ]);
-
             exit;
         }
-
 
         die($message);
     }
 
 
-    /**
-     * Общее количество товаров
-     * для счётчика в шапке.
-     */
+    private function plainError($message, $status)
+    {
+        http_response_code((int) $status);
+        echo $message;
+        exit;
+    }
+
+
     private function getCartCount()
     {
         $cartCount = 0;
 
-
         if (!empty($_SESSION['user_id'])) {
-
-            $items =
-                Cart::getItemsByUserId(
-                    $_SESSION['user_id']
-                );
-
-
-            foreach ($items as $item) {
-
-                $cartCount +=
-                    (int) $item['quantity'];
+            foreach (Cart::getItemsByUserId($_SESSION['user_id']) as $item) {
+                $cartCount += (int) $item['quantity'];
             }
-
         } else {
-
-            foreach (
-                $_SESSION['cart'] ?? []
-                as $item
-            ) {
-
-                $cartCount +=
-                    (int) (
-                        $item['quantity']
-                        ?? 0
-                    );
+            foreach ($_SESSION['cart'] ?? [] as $item) {
+                $cartCount += (int) ($item['quantity'] ?? 0);
             }
         }
 
-
         return $cartCount;
-    }
-
-
-    /**
-     * Разобрать ключ корзины:
-     *
-     * 1_5
-     *
-     * product_id = 1
-     * size_id = 5
-     */
-    private function parseCartKey($cartKey)
-    {
-        $parts =
-            explode(
-                '_',
-                $cartKey,
-                2
-            );
-
-
-        return [
-            (int) ($parts[0] ?? 0),
-            (int) ($parts[1] ?? 0)
-        ];
     }
 }
