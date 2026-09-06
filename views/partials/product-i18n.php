@@ -178,13 +178,6 @@ document.addEventListener('DOMContentLoaded', function () {
             : t.badge_sale;
     });
 
-    /*
-     * После AJAX старый JS карточки обновляет остатки русскими
-     * строками. MutationObserver здесь не используем: изменение
-     * текста внутри observer может зациклить страницу.
-     * Вместо этого делаем несколько одноразовых проверок после
-     * отправки формы — достаточно для ответа локального AJAX.
-     */
     const cartForm = document.getElementById('cart-form');
 
     if (cartForm) {
@@ -197,35 +190,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const message = document.getElementById('site-message');
 
-    window.showMessage = function (text) {
-        let translated = text;
+    function translateMessageText(text) {
+        const normalized = String(text || '').trim();
 
         const fixed = {
             'Выберите хотя бы один размер.': t.select_size,
             '✓ Товар добавлен в корзину': t.added,
+            'Товар добавлен в корзину': t.added.replace(/^✓\s*/, ''),
             'Не удалось добавить товар в корзину.': t.add_error,
             'Не удалось добавить товар.': t.add_error,
             'Ошибка PHP. Смотри текст ниже.': t.php_error
         };
 
-        if (fixed[text]) {
-            translated = fixed[text];
+        if (fixed[normalized]) {
+            return fixed[normalized];
         }
 
-        const sizeMatch = text.match(/^Размер\s+(.+?)\s+закончился\.?$/);
+        const sizeMatch = normalized.match(/^Размер\s+(.+?)\s+закончился\.?$/);
         if (sizeMatch) {
-            translated = t.size_sold_out.replace('{size}', sizeMatch[1]);
+            return t.size_sold_out.replace('{size}', sizeMatch[1]);
         }
 
-        if (text.indexOf('Недостаточно товара на складе') === 0) {
-            translated = t.stock_error;
+        if (normalized.indexOf('Недостаточно товара на складе') === 0) {
+            return t.stock_error;
         }
 
+        return text;
+    }
+
+    window.showMessage = function (text) {
         if (!message) {
             return;
         }
 
-        message.textContent = translated;
+        message.textContent = translateMessageText(text);
         message.classList.add('show');
 
         clearTimeout(window.siteMessageTimer);
@@ -233,5 +231,22 @@ document.addEventListener('DOMContentLoaded', function () {
             message.classList.remove('show');
         }, 2200);
     };
+
+    if (message) {
+        const messageObserver = new MutationObserver(function () {
+            const current = message.textContent;
+            const translated = translateMessageText(current);
+
+            if (translated !== current) {
+                message.textContent = translated;
+            }
+        });
+
+        messageObserver.observe(message, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+    }
 });
 </script>
