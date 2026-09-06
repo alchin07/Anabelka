@@ -1,5 +1,6 @@
 <?php
 
+PublicInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
 $orderItems = !empty($order['id'])
