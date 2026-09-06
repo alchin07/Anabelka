@@ -89,23 +89,43 @@
         ].join(';');
 
         const options = Array.isArray(data.options) ? data.options : [];
+        const availableCount = options.filter(function (option) {
+            return Boolean(option.available);
+        }).length;
         let html = '<strong style="display:block;margin-bottom:8px;color:#69358b">Оберіть колір для цієї позиції</strong>';
 
         if (options.length === 0) {
-            html += '<span style="color:#8a4452">Немає доступного кольору для цього розміру. Видаліть позицію або додайте товар заново.</span>';
+            html += '<span style="color:#8a4452">Для цього розміру кольорових варіантів немає. Видаліть позицію або додайте товар заново.</span>';
         } else {
+            if (availableCount === 0) {
+                html += '<span style="display:block;margin-bottom:8px;color:#8a4452">Зараз немає достатнього залишку жодного кольору для цієї кількості.</span>';
+            }
+
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
 
             options.forEach(function (option) {
+                const available = Boolean(option.available);
+                const availableQuantity = Number(option.available_quantity || 0);
+                const disabled = available ? '' : ' disabled aria-disabled="true" ';
+                const style = available
+                    ? 'display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #cda9e4;border-radius:999px;background:#fff;color:#4e3e58;font-weight:700;cursor:pointer'
+                    : 'display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #ded7e2;border-radius:999px;background:#f5f2f6;color:#9a929d;font-weight:700;opacity:.58;cursor:not-allowed;text-decoration:line-through';
+                const title = available
+                    ? 'Доступно: ' + availableQuantity
+                    : 'Недостатньо залишку для цієї позиції';
+
                 html += [
                     '<button type="button" data-cart-color-option ',
                     'data-product-id="', escapeHtml(data.product_id), '" ',
                     'data-size-id="', escapeHtml(data.size_id), '" ',
                     'data-color-key="', escapeHtml(option.color_key), '" ',
-                    'style="display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #cda9e4;border-radius:999px;background:#fff;color:#4e3e58;font-weight:700">',
+                    disabled,
+                    'title="', escapeHtml(title), '" ',
+                    'style="', style, '">',
                     '<span aria-hidden="true" style="width:18px;height:18px;border-radius:50%;border:1px solid rgba(40,35,45,.25);background:',
                     escapeHtml(validHex(option.color_hex)), '"></span>',
                     escapeHtml(option.color_name),
+                    available ? '' : ' · немає',
                     '</button>'
                 ].join('');
             });
@@ -116,7 +136,7 @@
         block.innerHTML = html;
         item.appendChild(block);
 
-        block.querySelectorAll('[data-cart-color-option]').forEach(function (button) {
+        block.querySelectorAll('[data-cart-color-option]:not([disabled])').forEach(function (button) {
             button.addEventListener('click', async function () {
                 button.disabled = true;
 
