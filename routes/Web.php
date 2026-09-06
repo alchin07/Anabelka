@@ -81,6 +81,11 @@ $router->get(
 );
 
 $router->get(
+    '/orders',
+    'CustomerOrderController@index'
+);
+
+$router->get(
     '/admin',
     'AdminDashboardController@index'
 );
