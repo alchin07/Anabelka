@@ -329,6 +329,11 @@ echo $cartCount;
         src="/Anabelka/js/cart-quick-order.js?v=2"
     ></script>
 
+    <script
+        src="/Anabelka/js/cart-legacy-color.js?v=1"
+        defer
+    ></script>
+
     <?php require __DIR__ . '/cart-server-i18n.php'; ?>
 
 <?php endif; ?>
