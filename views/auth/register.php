@@ -11,12 +11,26 @@ $pageTitle = Translator::t('public.auth.register_title', 'Реєстрація')
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
+    <style>
+        .auth-page {
+            min-height: 100dvh;
+            padding-bottom: 45vh;
+            scroll-padding-bottom: 45vh;
+        }
+
+        @media (min-width: 901px) {
+            .auth-page {
+                padding-bottom: 40px;
+                scroll-padding-bottom: 40px;
+            }
+        }
+    </style>
 </head>
 <body>
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
-<main class="catalog">
+<main class="catalog auth-page">
     <section
         style="
             max-width: 500px;
@@ -123,6 +137,8 @@ $pageTitle = Translator::t('public.auth.register_title', 'Реєстрація')
         </p>
     </section>
 </main>
+
+<script src="/Anabelka/js/public-ui-focus-policy.js?v=1"></script>
 
 </body>
 </html>
