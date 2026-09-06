@@ -291,6 +291,9 @@ class OrderController extends Controller
                     'product' => $product,
                     'size_id' => $sizeId,
                     'size' => $size,
+                    'color_key' => (string) ($cartItem['color_key'] ?? ''),
+                    'color_name' => (string) ($cartItem['color_name'] ?? ''),
+                    'color_hex' => (string) ($cartItem['color_hex'] ?? ''),
                     'quantity' => $quantity
                 ];
             }
