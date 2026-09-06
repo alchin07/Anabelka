@@ -31,7 +31,7 @@ $productUi = [
 ];
 ?>
 <script>
-window.addEventListener('load', function () {
+document.addEventListener('DOMContentLoaded', function () {
     const t = <?= json_encode(
         $productUi,
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
