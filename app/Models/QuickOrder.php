@@ -25,6 +25,7 @@ class QuickOrder
                 total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                 currency VARCHAR(3) NOT NULL DEFAULT 'EUR',
                 status VARCHAR(30) NOT NULL DEFAULT 'new',
+                inventory_reserved TINYINT(1) NOT NULL DEFAULT 0,
                 order_token CHAR(64) NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
@@ -58,6 +59,22 @@ class QuickOrder
               DEFAULT CHARSET=utf8mb4
               COLLATE=utf8mb4_unicode_ci
         ");
+
+        $orderColumns = $db->query("SHOW COLUMNS FROM quick_orders")
+            ->fetchAll(PDO::FETCH_ASSOC);
+        $orderNames = array_map(
+            function ($column) {
+                return strtolower((string) ($column['Field'] ?? ''));
+            },
+            $orderColumns
+        );
+
+        if (!in_array('inventory_reserved', $orderNames, true)) {
+            $db->exec("
+                ALTER TABLE quick_orders
+                ADD COLUMN inventory_reserved TINYINT(1) NOT NULL DEFAULT 0 AFTER status
+            ");
+        }
 
         $columns = $db->query("SHOW COLUMNS FROM quick_order_items")
             ->fetchAll(PDO::FETCH_ASSOC);
@@ -120,6 +137,7 @@ class QuickOrder
                     total,
                     currency,
                     status,
+                    inventory_reserved,
                     order_token
                 )
                 VALUES
@@ -132,6 +150,7 @@ class QuickOrder
                     :total,
                     'EUR',
                     'new',
+                    0,
                     :order_token
                 )
             ");
@@ -181,11 +200,15 @@ class QuickOrder
                 )
             ");
 
+            $inventoryItems = [];
+
             foreach ($items as $item) {
                 $product = $item['product'];
                 $quantity = (int) $item['quantity'];
                 $unitPrice = Product::getCurrentPrice($product);
                 $lineTotal = $unitPrice * $quantity;
+                $colorKey = trim((string) ($item['color_key'] ?? ''));
+                $colorName = trim((string) ($item['color_name'] ?? ''));
                 $colorHex = strtolower(trim((string) ($item['color_hex'] ?? '')));
 
                 if (!preg_match('/^#[0-9a-f]{6}$/', $colorHex)) {
@@ -199,14 +222,32 @@ class QuickOrder
                     'sku' => !empty($product['sku']) ? $product['sku'] : null,
                     'size_id' => !empty($item['size_id']) ? (int) $item['size_id'] : null,
                     'size_name' => $item['size']['value'] ?? null,
-                    'color_key' => trim((string) ($item['color_key'] ?? '')),
-                    'color_name' => trim((string) ($item['color_name'] ?? '')),
+                    'color_key' => $colorKey,
+                    'color_name' => $colorName,
                     'color_hex' => $colorHex,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'line_total' => $lineTotal
                 ]);
+
+                $inventoryItems[] = [
+                    'product' => $product,
+                    'product_id' => (int) ($product['id'] ?? 0),
+                    'size_id' => (int) ($item['size_id'] ?? 0),
+                    'color_key' => $colorKey,
+                    'color_name' => $colorName,
+                    'color_hex' => $colorHex,
+                    'quantity' => $quantity
+                ];
             }
+
+            Inventory::reserveItems($inventoryItems);
+
+            $db->prepare("
+                UPDATE quick_orders
+                SET inventory_reserved = 1
+                WHERE id = :id
+            ")->execute(['id' => $orderId]);
 
             $db->commit();
 
@@ -216,7 +257,9 @@ class QuickOrder
             ];
 
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
