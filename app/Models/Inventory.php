@@ -49,14 +49,15 @@ class Inventory
                 if ($direction < 0) {
                     $stmt = $db->prepare("
                         UPDATE product_variant_stock
-                        SET stock = stock - :quantity
+                        SET stock = stock - :quantity_change
                         WHERE product_id = :product_id
                           AND size_value_id = :size_id
                           AND color_key = :color_key
-                          AND stock >= :quantity
+                          AND stock >= :quantity_limit
                     ");
                     $stmt->execute([
-                        'quantity' => $quantity,
+                        'quantity_change' => $quantity,
+                        'quantity_limit' => $quantity,
                         'product_id' => $productId,
                         'size_id' => $sizeId,
                         'color_key' => $colorKey
@@ -140,13 +141,14 @@ class Inventory
                 if ($direction < 0) {
                     $stmt = $db->prepare("
                         UPDATE product_attributes
-                        SET stock = stock - :quantity
+                        SET stock = stock - :quantity_change
                         WHERE product_id = :product_id
                           AND attribute_value_id = :size_id
-                          AND stock >= :quantity
+                          AND stock >= :quantity_limit
                     ");
                     $stmt->execute([
-                        'quantity' => $quantity,
+                        'quantity_change' => $quantity,
+                        'quantity_limit' => $quantity,
                         'product_id' => $productId,
                         'size_id' => $sizeId
                     ]);
@@ -177,12 +179,13 @@ class Inventory
             if ($direction < 0) {
                 $stmt = $db->prepare("
                     UPDATE products
-                    SET stock = stock - :quantity
+                    SET stock = stock - :quantity_change
                     WHERE id = :product_id
-                      AND stock >= :quantity
+                      AND stock >= :quantity_limit
                 ");
                 $stmt->execute([
-                    'quantity' => $quantity,
+                    'quantity_change' => $quantity,
+                    'quantity_limit' => $quantity,
                     'product_id' => $productId
                 ]);
 
