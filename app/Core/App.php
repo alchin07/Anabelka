@@ -22,6 +22,7 @@ class App
         require_once __DIR__ . '/../Models/AdminProduct.php';
         require_once __DIR__ . '/../Models/Inventory.php';
         require_once __DIR__ . '/../Models/Cart.php';
+        require_once __DIR__ . '/../Models/CartColorMigration.php';
         require_once __DIR__ . '/../Models/User.php';
         require_once __DIR__ . '/../Models/Order.php';
         require_once __DIR__ . '/../Models/QuickOrder.php';
@@ -56,6 +57,7 @@ class App
         require_once __DIR__ . '/../Controllers/CatalogController.php';
         require_once __DIR__ . '/../Controllers/ProductController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
+        require_once __DIR__ . '/../Controllers/CartColorController.php';
         require_once __DIR__ . '/../Controllers/AuthController.php';
         require_once __DIR__ . '/../Controllers/OrderController.php';
         require_once __DIR__ . '/../Controllers/QuickOrderController.php';
@@ -77,6 +79,7 @@ class App
         $router = new Router();
 
         require __DIR__ . '/../../routes/Web.php';
+        require __DIR__ . '/../../routes/CartColor.php';
 
         $router->dispatch(
             $_SERVER['REQUEST_URI'],
