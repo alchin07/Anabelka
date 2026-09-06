@@ -330,7 +330,7 @@ echo $cartCount;
     ></script>
 
     <script
-        src="/Anabelka/js/cart-legacy-color.js?v=1"
+        src="/Anabelka/js/cart-legacy-color.js?v=2"
         defer
     ></script>
 
