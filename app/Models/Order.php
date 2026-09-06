@@ -2,47 +2,63 @@
 
 class Order
 {
-    private static $colorSchemaReady = false;
+    private static $schemaReady = false;
 
 
-    private static function ensureColorSupport()
+    public static function ensureSchema()
     {
-        if (self::$colorSchemaReady) {
+        if (self::$schemaReady) {
             return;
         }
 
         $db = Database::connect();
-        $columns = $db->query("SHOW COLUMNS FROM order_items")
+        $itemColumns = $db->query("SHOW COLUMNS FROM order_items")
             ->fetchAll(PDO::FETCH_ASSOC);
-        $names = array_map(
+        $itemNames = array_map(
             function ($column) {
                 return strtolower((string) ($column['Field'] ?? ''));
             },
-            $columns
+            $itemColumns
         );
 
-        if (!in_array('color_key', $names, true)) {
+        if (!in_array('color_key', $itemNames, true)) {
             $db->exec("
                 ALTER TABLE order_items
                 ADD COLUMN color_key VARCHAR(220) NOT NULL DEFAULT '' AFTER size_name
             ");
         }
 
-        if (!in_array('color_name', $names, true)) {
+        if (!in_array('color_name', $itemNames, true)) {
             $db->exec("
                 ALTER TABLE order_items
                 ADD COLUMN color_name VARCHAR(100) NOT NULL DEFAULT '' AFTER color_key
             ");
         }
 
-        if (!in_array('color_hex', $names, true)) {
+        if (!in_array('color_hex', $itemNames, true)) {
             $db->exec("
                 ALTER TABLE order_items
                 ADD COLUMN color_hex VARCHAR(7) NULL DEFAULT NULL AFTER color_name
             ");
         }
 
-        self::$colorSchemaReady = true;
+        $orderColumns = $db->query("SHOW COLUMNS FROM orders")
+            ->fetchAll(PDO::FETCH_ASSOC);
+        $orderNames = array_map(
+            function ($column) {
+                return strtolower((string) ($column['Field'] ?? ''));
+            },
+            $orderColumns
+        );
+
+        if (!in_array('inventory_reserved', $orderNames, true)) {
+            $db->exec("
+                ALTER TABLE orders
+                ADD COLUMN inventory_reserved TINYINT(1) NOT NULL DEFAULT 0 AFTER payment_status
+            ");
+        }
+
+        self::$schemaReady = true;
     }
 
 
@@ -62,7 +78,7 @@ class Order
         $items,
         $total
     ) {
-        self::ensureColorSupport();
+        self::ensureSchema();
         $db = Database::connect();
         $db->beginTransaction();
 
@@ -84,6 +100,7 @@ class Order
                         delivery_postcode,
                         status,
                         payment_status,
+                        inventory_reserved,
                         subtotal,
                         total,
                         currency,
@@ -105,6 +122,7 @@ class Order
                         :delivery_postcode,
                         'new',
                         'pending',
+                        0,
                         :subtotal,
                         :total,
                         'EUR',
@@ -169,6 +187,7 @@ class Order
                 ? array_values($_SESSION['cart'] ?? [])
                 : [];
             $itemPosition = 0;
+            $inventoryItems = [];
 
             foreach ($items as $item) {
                 $product = $item['product'];
@@ -218,7 +237,25 @@ class Order
                     'unit_price' => $unitPrice,
                     'line_total' => $lineTotal
                 ]);
+
+                $inventoryItems[] = [
+                    'product' => $product,
+                    'product_id' => (int) ($product['id'] ?? 0),
+                    'size_id' => (int) ($item['size_id'] ?? 0),
+                    'color_key' => $colorKey,
+                    'color_name' => $colorName,
+                    'color_hex' => $colorHex,
+                    'quantity' => $quantity
+                ];
             }
+
+            Inventory::reserveItems($inventoryItems);
+
+            $db->prepare("
+                UPDATE orders
+                SET inventory_reserved = 1
+                WHERE id = :id
+            ")->execute(['id' => $orderId]);
 
             $db->commit();
 
@@ -227,7 +264,9 @@ class Order
                 'token' => $orderToken
             ];
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -235,6 +274,7 @@ class Order
 
     public static function findById($orderId)
     {
+        self::ensureSchema();
         $db = Database::connect();
         $stmt = $db->prepare("
             SELECT *
@@ -250,6 +290,7 @@ class Order
 
     public static function findByToken($token)
     {
+        self::ensureSchema();
         $db = Database::connect();
         $stmt = $db->prepare("
             SELECT *
