@@ -20,6 +20,7 @@ class App
         require_once __DIR__ . '/../Models/Product.php';
         require_once __DIR__ . '/../Models/ProductTranslator.php';
         require_once __DIR__ . '/../Models/AdminProduct.php';
+        require_once __DIR__ . '/../Models/Inventory.php';
         require_once __DIR__ . '/../Models/Cart.php';
         require_once __DIR__ . '/../Models/User.php';
         require_once __DIR__ . '/../Models/Order.php';
