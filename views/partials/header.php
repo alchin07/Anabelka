@@ -165,6 +165,26 @@ echo $cartCount;
                 ) ?>
             </span>
 
+            <span>·</span>
+
+            <a
+                href="/Anabelka/orders"
+                style="
+                    color: var(--primary-color);
+                    font-weight: bold;
+                    text-decoration: none;
+                "
+            >
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'header.orders',
+                        'Мої замовлення'
+                    )
+                ) ?>
+            </a>
+
+            <span>·</span>
+
             <a
                 href="/Anabelka/logout"
                 style="
