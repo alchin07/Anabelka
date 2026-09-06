@@ -56,6 +56,12 @@ class AdminOrder
     public static function getAll(array $filters = [])
     {
         $filters = self::normalizeFilters($filters);
+        Order::ensureSchema();
+
+        if ($filters['type'] !== 'regular') {
+            QuickOrder::ensureTables();
+        }
+
         $db = Database::connect();
         $orders = [];
 
@@ -67,8 +73,6 @@ class AdminOrder
         }
 
         if ($filters['type'] !== 'regular') {
-            QuickOrder::ensureTables();
-
             $orders = array_merge(
                 $orders,
                 self::fetchQuickOrders($db, $filters)
@@ -102,7 +106,6 @@ class AdminOrder
         );
 
         $orders = array_slice($orders, 0, 200);
-
         self::attachItems($db, $orders);
 
         return $orders;
@@ -115,6 +118,12 @@ class AdminOrder
 
         if (!in_array($type, self::TYPES, true)) {
             $type = 'all';
+        }
+
+        Order::ensureSchema();
+
+        if ($type !== 'regular') {
+            QuickOrder::ensureTables();
         }
 
         $summary = [
@@ -141,8 +150,6 @@ class AdminOrder
         }
 
         if ($type !== 'regular') {
-            QuickOrder::ensureTables();
-
             self::addTableSummary(
                 $db,
                 'quick_orders',
@@ -179,6 +186,8 @@ class AdminOrder
             );
         }
 
+        Order::ensureSchema();
+
         if ($type === 'quick') {
             QuickOrder::ensureTables();
         }
@@ -186,32 +195,84 @@ class AdminOrder
         $table = $type === 'regular'
             ? 'orders'
             : 'quick_orders';
+        $itemTable = $type === 'regular'
+            ? 'order_items'
+            : 'quick_order_items';
+        $parentColumn = $type === 'regular'
+            ? 'order_id'
+            : 'quick_order_id';
 
         $db = Database::connect();
+        $db->beginTransaction();
 
-        $exists = $db->prepare("
-            SELECT id
-            FROM {$table}
-            WHERE id = :id
-            LIMIT 1
-        ");
-        $exists->execute(['id' => $orderId]);
+        try {
+            $exists = $db->prepare("
+                SELECT
+                    id,
+                    status,
+                    inventory_reserved
+                FROM {$table}
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $exists->execute(['id' => $orderId]);
+            $order = $exists->fetch(PDO::FETCH_ASSOC);
 
-        if (!$exists->fetchColumn()) {
-            throw new RuntimeException(
-                'Замовлення не знайдено.'
+            if (!$order) {
+                throw new RuntimeException(
+                    'Замовлення не знайдено.'
+                );
+            }
+
+            $currentStatus = strtolower(
+                trim((string) ($order['status'] ?? 'new'))
             );
-        }
+            $inventoryReserved = !empty($order['inventory_reserved']);
 
-        $stmt = $db->prepare("
-            UPDATE {$table}
-            SET status = :status
-            WHERE id = :id
-        ");
-        $stmt->execute([
-            'status' => $status,
-            'id' => $orderId
-        ]);
+            if ($status !== $currentStatus) {
+                $items = self::loadInventoryItems(
+                    $db,
+                    $itemTable,
+                    $parentColumn,
+                    $orderId
+                );
+
+                if (
+                    $status === 'cancelled'
+                    && $currentStatus !== 'cancelled'
+                    && $inventoryReserved
+                ) {
+                    Inventory::releaseItems($items);
+                    $inventoryReserved = false;
+                } elseif (
+                    $status !== 'cancelled'
+                    && !$inventoryReserved
+                ) {
+                    Inventory::reserveItems($items);
+                    $inventoryReserved = true;
+                }
+            }
+
+            $stmt = $db->prepare("
+                UPDATE {$table}
+                SET status = :status,
+                    inventory_reserved = :inventory_reserved
+                WHERE id = :id
+            ");
+            $stmt->execute([
+                'status' => $status,
+                'inventory_reserved' => $inventoryReserved ? 1 : 0,
+                'id' => $orderId
+            ]);
+
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 
 
@@ -250,6 +311,7 @@ class AdminOrder
                 o.currency,
                 o.status,
                 o.payment_status,
+                o.inventory_reserved,
                 o.created_at
             FROM orders AS o
             LEFT JOIN delivery_methods AS dm
@@ -302,6 +364,7 @@ class AdminOrder
                 q.currency,
                 q.status,
                 NULL AS payment_status,
+                q.inventory_reserved,
                 q.created_at
             FROM quick_orders AS q
             {$where}
@@ -422,7 +485,18 @@ class AdminOrder
                 product_name,
                 sku,
                 size_id,
-                size_name,
+                CASE
+                    WHEN COALESCE(color_name, '') <> ''
+                    THEN CONCAT(
+                        COALESCE(size_name, '—'),
+                        ' · Колір: ',
+                        color_name
+                    )
+                    ELSE size_name
+                END AS size_name,
+                color_key,
+                color_name,
+                color_hex,
                 quantity,
                 unit_price,
                 line_total
@@ -440,6 +514,30 @@ class AdminOrder
         }
 
         return $grouped;
+    }
+
+
+    private static function loadInventoryItems(
+        PDO $db,
+        $table,
+        $parentColumn,
+        $orderId
+    ) {
+        $stmt = $db->prepare("
+            SELECT
+                product_id,
+                size_id,
+                color_key,
+                color_name,
+                color_hex,
+                quantity
+            FROM {$table}
+            WHERE {$parentColumn} = :order_id
+            ORDER BY id ASC
+        ");
+        $stmt->execute(['order_id' => (int) $orderId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
 
