@@ -40,6 +40,9 @@ class App
         require_once __DIR__ . '/../Models/ProductInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/DeliveryTranslator.php';
 
+        // Готуємо таблицю варіантів до будь-яких транзакцій замовлення.
+        ProductVariantStock::ensureTable();
+
         require_once __DIR__ . '/../Services/AITranslationProviderInterface.php';
         require_once __DIR__ . '/../Services/OpenAITranslationProvider.php';
         require_once __DIR__ . '/../Services/GeminiTranslationProvider.php';
