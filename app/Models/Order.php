@@ -78,6 +78,18 @@ class Order
         $items,
         $total
     ) {
+        /*
+         * Старі позиції авторизованої корзини могли бути створені
+         * ще до появи кольору в cart_items. Якщо колір можна визначити
+         * однозначно — відновлюємо його. Якщо ні — повертаємо користувача
+         * в корзину, де він сам вибере правильний колір.
+         */
+        if (!CartColorMigration::prepareOrderItems($items)) {
+            $_SESSION['cart_color_required'] = true;
+            header('Location: /Anabelka/cart?color_required=1');
+            exit;
+        }
+
         self::ensureSchema();
         $db = Database::connect();
         $db->beginTransaction();
