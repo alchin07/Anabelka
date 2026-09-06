@@ -5,6 +5,9 @@ class CartColorMigration
     public static function prepareOrderItems(array &$items)
     {
         $allResolved = true;
+        $userId = !empty($_SESSION['user_id'])
+            ? (int) $_SESSION['user_id']
+            : 0;
 
         foreach ($items as &$item) {
             $product = is_array($item['product'] ?? null)
@@ -39,7 +42,8 @@ class CartColorMigration
             $options = self::availableOptions(
                 $productId,
                 $sizeId,
-                $quantity
+                $quantity,
+                $userId
             );
 
             if (count($options) !== 1) {
@@ -52,16 +56,17 @@ class CartColorMigration
             $item['color_name'] = (string) $color['color_name'];
             $item['color_hex'] = (string) ($color['color_hex'] ?? '');
 
-            if (!empty($_SESSION['user_id'])) {
+            if ($userId > 0) {
                 try {
                     self::assignUserVariantColor(
-                        (int) $_SESSION['user_id'],
+                        $userId,
                         $productId,
                         $sizeId,
                         (string) $color['color_key']
                     );
                 } catch (Throwable $e) {
-                    // Локальне відновлення достатнє для поточного замовлення.
+                    // Поточне замовлення ще раз перевірить залишок нижче.
+                    $allResolved = false;
                 }
             }
         }
@@ -97,18 +102,17 @@ class CartColorMigration
             ];
         }
 
-        $options = self::availableOptions(
-            $productId,
-            $sizeId,
-            $quantity
-        );
-
         return [
             'requires_color' => true,
             'product_id' => $productId,
             'size_id' => $sizeId,
             'quantity' => $quantity,
-            'options' => $options
+            'options' => self::allOptions(
+                $productId,
+                $sizeId,
+                $quantity,
+                (int) $userId
+            )
         ];
     }
 
@@ -167,10 +171,11 @@ class CartColorMigration
             }
 
             $quantity = max(1, (int) $legacy['quantity']);
-            $options = self::availableOptions(
+            $options = self::allOptions(
                 $productId,
                 $sizeId,
-                $quantity
+                $quantity,
+                $userId
             );
             $selected = null;
 
@@ -184,6 +189,12 @@ class CartColorMigration
             if (!$selected) {
                 throw new RuntimeException(
                     'Цей колір недоступний для вибраного розміру.'
+                );
+            }
+
+            if (empty($selected['available'])) {
+                throw new RuntimeException(
+                    'Недостатньо товару цього кольору та розміру.'
                 );
             }
 
@@ -265,22 +276,72 @@ class CartColorMigration
     }
 
 
-    private static function availableOptions($productId, $sizeId, $quantity)
-    {
+    private static function availableOptions(
+        $productId,
+        $sizeId,
+        $quantity,
+        $userId = 0
+    ) {
+        return array_values(array_filter(
+            self::allOptions(
+                $productId,
+                $sizeId,
+                $quantity,
+                $userId
+            ),
+            function ($option) {
+                return !empty($option['available']);
+            }
+        ));
+    }
+
+
+    private static function allOptions(
+        $productId,
+        $sizeId,
+        $quantity,
+        $userId = 0
+    ) {
         $productId = (int) $productId;
         $sizeId = (int) $sizeId;
         $quantity = max(1, (int) $quantity);
+        $userId = (int) $userId;
+        $cartQuantities = [];
+
+        if ($userId > 0) {
+            $cart = Cart::getOrCreateByUserId($userId);
+
+            if ($cart) {
+                $db = Database::connect();
+                $stmt = $db->prepare("
+                    SELECT
+                        color_key,
+                        COALESCE(SUM(quantity), 0) AS quantity
+                    FROM cart_items
+                    WHERE cart_id = :cart_id
+                      AND product_id = :product_id
+                      AND size_id = :size_id
+                      AND color_key <> ''
+                    GROUP BY color_key
+                ");
+                $stmt->execute([
+                    'cart_id' => (int) $cart['id'],
+                    'product_id' => $productId,
+                    'size_id' => $sizeId
+                ]);
+
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $cartQuantities[(string) $row['color_key']] =
+                        max(0, (int) $row['quantity']);
+                }
+            }
+        }
+
         $options = [];
         $seen = [];
 
         foreach (ProductVariantStock::forProduct($productId) as $row) {
             if ((int) ($row['size_value_id'] ?? 0) !== $sizeId) {
-                continue;
-            }
-
-            $stock = max(0, (int) ($row['stock'] ?? 0));
-
-            if ($stock < $quantity) {
                 continue;
             }
 
@@ -291,11 +352,18 @@ class CartColorMigration
             }
 
             $seen[$key] = true;
+            $stock = max(0, (int) ($row['stock'] ?? 0));
+            $alreadyInCart = max(0, (int) ($cartQuantities[$key] ?? 0));
+            $availableQuantity = max(0, $stock - $alreadyInCart);
+
             $options[] = [
                 'color_key' => $key,
                 'color_name' => (string) ($row['color_name'] ?? ''),
                 'color_hex' => (string) ($row['color_hex'] ?? ''),
-                'stock' => $stock
+                'stock' => $stock,
+                'cart_quantity' => $alreadyInCart,
+                'available_quantity' => $availableQuantity,
+                'available' => $availableQuantity >= $quantity
             ];
         }
 
