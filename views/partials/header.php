@@ -18,6 +18,7 @@ $isAdminPage =
 
 $currentLanguage = null;
 $activeLanguages = [];
+$headerSearchQuery = '';
 
 if (!$isAdminPage) {
     $currentLanguage =
@@ -25,6 +26,14 @@ if (!$isAdminPage) {
 
     $activeLanguages =
         Translator::activeLanguages();
+
+    SearchInterfaceTranslator::seed();
+
+    if ($requestPath === '/Anabelka/search') {
+        $headerSearchQuery = CatalogSearch::normalizeQuery(
+            $_GET['q'] ?? ''
+        );
+    }
 }
 
 $isCheckoutPage =
@@ -45,6 +54,11 @@ if ($isAdminPage) {
 
 <header class="catalog-header">
 
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/search.css?v=1"
+    >
+
     <a
         href="/Anabelka/"
         class="catalog-logo"
@@ -59,6 +73,37 @@ if ($isAdminPage) {
         </h1>
 
     <?php endif; ?>
+
+    <form
+        class="site-search-form"
+        action="/Anabelka/search"
+        method="get"
+        role="search"
+    >
+        <input
+            class="site-search-input"
+            type="search"
+            name="q"
+            maxlength="200"
+            autocomplete="off"
+            value="<?= htmlspecialchars($headerSearchQuery) ?>"
+            placeholder="<?= htmlspecialchars(
+                Translator::t(
+                    'search.placeholder',
+                    'Пошук товарів, категорій, SKU…'
+                )
+            ) ?>"
+            aria-label="<?= htmlspecialchars(
+                Translator::t('search.title', 'Пошук')
+            ) ?>"
+        >
+
+        <button class="site-search-button" type="submit">
+            <?= htmlspecialchars(
+                Translator::t('search.button', 'Знайти')
+            ) ?>
+        </button>
+    </form>
 
 
     <a
