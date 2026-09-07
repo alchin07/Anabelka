@@ -49,7 +49,7 @@ $assetUrl = function ($path) {
                     Translator::t('favorite.title', 'Обране')
                 ) ?></h2>
                 <p>
-                    <?= count($products) ?>
+                    <span id="favorite-page-count"><?= count($products) ?></span>
                     <?= $escape(
                         Translator::t('public.catalog.products', 'Товари')
                     ) ?>
