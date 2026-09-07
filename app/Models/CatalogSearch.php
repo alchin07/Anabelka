@@ -131,9 +131,9 @@ class CatalogSearch
                   ) > 0
             ORDER BY
                 CASE
-                    WHEN LOWER(COALESCE(p.sku, '')) = LOWER(:query_exact) THEN 0
-                    WHEN LOWER(COALESCE(p.name, '')) = LOWER(:query_exact) THEN 1
-                    WHEN LOWER(COALESCE(pt.name, '')) = LOWER(:query_exact) THEN 2
+                    WHEN LOWER(COALESCE(p.sku, '')) = LOWER(:exact_sku) THEN 0
+                    WHEN LOWER(COALESCE(p.name, '')) = LOWER(:exact_name) THEN 1
+                    WHEN LOWER(COALESCE(pt.name, '')) = LOWER(:exact_translation_name) THEN 2
                     ELSE 3
                 END,
                 p.id DESC
@@ -143,7 +143,9 @@ class CatalogSearch
         $stmt->execute([
             'language_code' => $languageCode,
             'query' => $query,
-            'query_exact' => $query
+            'exact_sku' => $query,
+            'exact_name' => $query,
+            'exact_translation_name' => $query
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -181,8 +183,8 @@ class CatalogSearch
                   ) > 0
             ORDER BY
                 CASE
-                    WHEN LOWER(COALESCE(c.name, '')) = LOWER(:query_exact) THEN 0
-                    WHEN LOWER(COALESCE(ct.name, '')) = LOWER(:query_exact) THEN 1
+                    WHEN LOWER(COALESCE(c.name, '')) = LOWER(:exact_name) THEN 0
+                    WHEN LOWER(COALESCE(ct.name, '')) = LOWER(:exact_translation_name) THEN 1
                     ELSE 2
                 END,
                 c.sort_order ASC,
@@ -193,7 +195,8 @@ class CatalogSearch
         $stmt->execute([
             'language_code' => $languageCode,
             'query' => $query,
-            'query_exact' => $query
+            'exact_name' => $query,
+            'exact_translation_name' => $query
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
