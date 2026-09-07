@@ -12,7 +12,7 @@ $escape = function ($value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Ранги') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=2">
 </head>
 <body>
 
@@ -52,22 +52,16 @@ $escape = function ($value) {
     </section>
 
     <form class="admin-rank-create" method="post" action="/Anabelka/admin/ranks/create">
-        <input
-            type="text"
-            name="name"
-            maxlength="100"
-            placeholder="Назва нового рангу"
-            required
-        >
-        <input
-            type="number"
-            name="level"
-            min="1"
-            step="1"
-            value="1"
-            aria-label="Рівень"
-            required
-        >
+        <div class="admin-rank-create-field">
+            <input
+                type="text"
+                name="name"
+                maxlength="100"
+                placeholder="Назва нового рангу"
+                required
+            >
+            <small>Рівень нового рангу визначається автоматично.</small>
+        </div>
         <button class="admin-rank-button is-primary" type="submit">
             Створити ранг
         </button>
@@ -88,6 +82,7 @@ $escape = function ($value) {
                         <strong><?= $escape($rank['name'] ?? '') ?></strong>
                         <div class="admin-rank-meta">
                             <span>slug: <?= $escape($rank['slug'] ?? '') ?></span>
+                            <span>Рівень: <?= (int) ($rank['level'] ?? 0) ?></span>
                             <span>Користувачів: <?= (int) ($rank['user_count'] ?? 0) ?></span>
                             <span>Товарів із ціною: <?= (int) ($rank['priced_product_count'] ?? 0) ?></span>
                             <?php if ($isDefault): ?>
