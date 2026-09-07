@@ -19,6 +19,8 @@ $isAdminPage =
 $currentLanguage = null;
 $activeLanguages = [];
 $headerSearchQuery = '';
+$favoriteProductIds = [];
+$favoriteLookup = [];
 
 if (!$isAdminPage) {
     $currentLanguage =
@@ -28,6 +30,10 @@ if (!$isAdminPage) {
         Translator::activeLanguages();
 
     SearchInterfaceTranslator::seed();
+    FavoriteInterfaceTranslator::seed();
+
+    $favoriteProductIds = Favorite::currentIds();
+    $favoriteLookup = array_fill_keys($favoriteProductIds, true);
 
     if ($requestPath === '/Anabelka/search') {
         $headerSearchQuery = CatalogSearch::normalizeQuery(
@@ -57,6 +63,11 @@ if ($isAdminPage) {
     <link
         rel="stylesheet"
         href="/Anabelka/css/search.css?v=2"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/favorites.css?v=1"
     >
 
     <a
@@ -139,6 +150,22 @@ if ($isAdminPage) {
         defer
     ></script>
 
+    <a
+        href="/Anabelka/favorites"
+        class="header-favorites"
+        aria-label="<?= htmlspecialchars(
+            Translator::t('favorite.title', 'Обране')
+        ) ?>"
+    >
+        <span class="header-favorites-icon" aria-hidden="true">♡</span>
+        <span><?= htmlspecialchars(
+            Translator::t('favorite.title', 'Обране')
+        ) ?></span>
+        <span
+            class="header-favorites-count"
+            id="favorite-count"
+        ><?= count($favoriteProductIds) ?></span>
+    </a>
 
     <a
         href="/Anabelka/cart"
@@ -416,5 +443,22 @@ echo $cartCount;
     <?php require __DIR__ . '/cart-server-i18n.php'; ?>
 
 <?php endif; ?>
+
+<script
+    id="favorites-script"
+    src="/Anabelka/js/favorites.js?v=1"
+    data-endpoint="/Anabelka/favorites/toggle"
+    data-add-label="<?= htmlspecialchars(
+        Translator::t('favorite.add', 'Додати до обраного'),
+        ENT_QUOTES,
+        'UTF-8'
+    ) ?>"
+    data-remove-label="<?= htmlspecialchars(
+        Translator::t('favorite.remove', 'Видалити з обраного'),
+        ENT_QUOTES,
+        'UTF-8'
+    ) ?>"
+    defer
+></script>
 
 </header>
