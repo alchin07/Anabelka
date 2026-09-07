@@ -40,6 +40,7 @@ class App
         require_once __DIR__ . '/../Models/Language.php';
         require_once __DIR__ . '/../Models/TranslationWorkflow.php';
         require_once __DIR__ . '/../Models/AppSetting.php';
+        require_once __DIR__ . '/../Models/UserRank.php';
         require_once __DIR__ . '/../Models/AITranslationUsage.php';
         require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
         require_once __DIR__ . '/../Models/Translator.php';
@@ -79,6 +80,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminOrderController.php';
         require_once __DIR__ . '/../Controllers/AdminSearchController.php';
         require_once __DIR__ . '/../Controllers/AdminUserController.php';
+        require_once __DIR__ . '/../Controllers/AdminUserRankController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';
