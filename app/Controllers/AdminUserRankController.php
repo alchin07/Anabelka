@@ -31,7 +31,7 @@ class AdminUserRankController extends Controller
     {
         try {
             UserRank::create(
-                $_POST['name'] ?? ''
+                $_POST['rank_name'] ?? ''
             );
 
             $this->redirect('message', 'Ранг створено. Рівень призначено автоматично.');
