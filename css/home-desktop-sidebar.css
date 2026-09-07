@@ -1,0 +1,194 @@
+.home-desktop-sidebar {
+    display: none;
+}
+
+@media (min-width: 1050px) {
+    .home-shell {
+        position: relative;
+    }
+
+    .home-desktop-sidebar {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 280px;
+        box-sizing: border-box;
+    }
+
+    .home-shell > :not(.home-desktop-sidebar) {
+        margin-left: 304px;
+    }
+
+    .home-department-nav {
+        display: none;
+    }
+
+    .home-sidebar-panel {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(74, 44, 92, .06);
+    }
+
+    .home-sidebar-title {
+        display: flex;
+        align-items: center;
+        min-height: 46px;
+        margin-bottom: 10px;
+        padding: 0 13px;
+        border-radius: 13px;
+        background: var(--primary-color);
+        color: #fff;
+        font-size: 17px;
+        font-weight: 800;
+    }
+
+    .home-sidebar-tree,
+    .home-sidebar-node,
+    .home-sidebar-children {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /*
+     * Важно: у дочерних уровней НЕТ дополнительного margin/padding слева.
+     * Все уровни дерева начинаются на одной вертикальной линии.
+     */
+    .home-sidebar-children {
+        margin: 0;
+        padding: 0;
+    }
+
+    .home-sidebar-children[hidden] {
+        display: none !important;
+    }
+
+    .home-sidebar-row {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: 9px;
+        align-items: center;
+        width: 100%;
+        margin: 0 0 8px;
+    }
+
+    .home-sidebar-toggle,
+    .home-sidebar-toggle-placeholder {
+        width: 36px;
+        height: 36px;
+        box-sizing: border-box;
+    }
+
+    .home-sidebar-toggle {
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: 1px solid #d9c7e9;
+        border-radius: 50%;
+        background: #fff;
+        color: var(--primary-color);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .home-sidebar-toggle:hover,
+    .home-sidebar-toggle:focus-visible {
+        border-color: var(--primary-color);
+        background: var(--primary-light-color);
+        outline: none;
+    }
+
+    .home-sidebar-chevron {
+        display: inline-block;
+        font-size: 17px;
+        font-weight: 900;
+        line-height: 1;
+        transition: transform .16s ease;
+    }
+
+    .home-sidebar-toggle.is-collapsed .home-sidebar-chevron {
+        transform: rotate(-90deg);
+    }
+
+    .home-sidebar-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        min-height: 52px;
+        box-sizing: border-box;
+        padding: 9px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        color: var(--text-color);
+        background: #faf7ff;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .home-sidebar-row[data-level="2"] .home-sidebar-link {
+        background: #f2e8fc;
+    }
+
+    .home-sidebar-row[data-level="3"] .home-sidebar-link {
+        background: #e4cef8;
+    }
+
+    .home-sidebar-row[data-level="4"] .home-sidebar-link,
+    .home-sidebar-row[data-level="5"] .home-sidebar-link {
+        background: #dcc4f2;
+    }
+
+    .home-sidebar-link:hover,
+    .home-sidebar-link:focus-visible {
+        border-color: rgba(138, 43, 226, .55);
+        color: var(--primary-color);
+        outline: none;
+    }
+
+    .home-sidebar-name {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .home-sidebar-node.is-adult-root {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid #ddd4e0;
+    }
+
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link {
+        border-color: #4a414e;
+        background: #2a232d;
+        color: #fff;
+    }
+
+    .home-sidebar-adult-badge {
+        flex: 0 0 auto;
+        display: inline-grid;
+        min-width: 31px;
+        height: 24px;
+        place-items: center;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #fff;
+        color: #2a232d;
+        font-size: 11px;
+        font-weight: 900;
+    }
+}
+
+@media (min-width: 1250px) {
+    .home-desktop-sidebar {
+        width: 300px;
+    }
+
+    .home-shell > :not(.home-desktop-sidebar) {
+        margin-left: 326px;
+    }
+}
