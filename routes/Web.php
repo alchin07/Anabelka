@@ -15,6 +15,8 @@ $router->get('/', 'HomeController@index');
 
 $router->get('/catalog', 'CatalogController@index');
 
+$router->get('/search', 'SearchController@index');
+
 $router->get('/catalog/{slug}', 'CatalogController@category');
 
 $router->get('/product/{slug}/variants', 'ProductController@variants');
@@ -98,6 +100,11 @@ $router->get(
 $router->post(
     '/admin/orders/status',
     'AdminOrderController@updateStatus'
+);
+
+$router->get(
+    '/admin/search',
+    'AdminSearchController@index'
 );
 
 $router->get(
