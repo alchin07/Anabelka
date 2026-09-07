@@ -124,7 +124,7 @@ $assetUrl = function ($path) {
                                     <div class="search-product-colors" aria-hidden="true">
                                         <?php foreach (array_slice($variants, 0, 6) as $variant): ?>
                                             <?php
-                                            $hex = strtolower(trim((string) ($variant['color_hex'] ?? '')));
+                                            $hex = strtolower(trim((string) ($variant['hex'] ?? ($variant['color_hex'] ?? ''))));
                                             if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
                                                 $hex = '#b8b0bd';
                                             }
