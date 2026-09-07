@@ -18,6 +18,7 @@ class App
         require_once __DIR__ . '/../Models/ProductImage.php';
         require_once __DIR__ . '/../Models/ProductVariantStock.php';
         require_once __DIR__ . '/../Models/Product.php';
+        require_once __DIR__ . '/../Models/ProductDepartmentSync.php';
         require_once __DIR__ . '/../Models/ProductTranslator.php';
         require_once __DIR__ . '/../Models/HomePage.php';
         require_once __DIR__ . '/../Models/HomeInterfaceTranslator.php';
@@ -52,6 +53,9 @@ class App
         require_once __DIR__ . '/../Models/FavoriteInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CatalogSearch.php';
         require_once __DIR__ . '/../Models/SearchQueryLog.php';
+
+        // Підтримуємо відділ товару синхронним із вибраною категорією.
+        ProductDepartmentSync::ensure();
 
         // Готуємо таблицю варіантів до будь-яких транзакцій замовлення.
         ProductVariantStock::ensureTable();
