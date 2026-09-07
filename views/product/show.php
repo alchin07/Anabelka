@@ -479,7 +479,7 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                 <?php endif; ?>
 
 
-                <p style="padding: 0 15px 15px;">
+                <p data-product-stock-summary style="padding: 0 15px 15px;">
                     В наличии:
                     <?= (int) $product['stock'] ?> шт.
                 </p>
@@ -568,25 +568,27 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
     });
 
 
-    cartForm.addEventListener(
-        'submit',
-        async function (event) {
-            event.preventDefault();
+    if (cartForm) {
 
-            const selectedSizes =
-                document.querySelectorAll(
-                    '.size-checkbox:checked'
-                );
+        cartForm.addEventListener(
+            'submit',
+            function (event) {
 
-            if (selectedSizes.length === 0) {
-                showMessage('Выберите хотя бы один размер.');
-                return;
-            }
+                event.preventDefault();
 
-            const formData = new FormData(cartForm);
+                const formData =
+                    new FormData(cartForm);
 
-            try {
-                const response = await fetch(
+                const selectedSizes =
+                    formData.getAll('sizes[]');
+
+                if (selectedSizes.length === 0) {
+                    alert('Выберите хотя бы один размер.');
+                    return;
+                }
+
+
+                fetch(
                     cartForm.action,
                     {
                         method: 'POST',
@@ -595,117 +597,76 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                             'X-Requested-With': 'XMLHttpRequest'
                         }
                     }
-                );
+                )
+                .then(response => response.json())
+                .then(data => {
 
-                const responseText = await response.text();
-                let data;
-
-                try {
-                    data = JSON.parse(responseText);
-                } catch (error) {
-                    showMessage('Ошибка PHP. Смотри текст ниже.');
-
-                    document.body.insertAdjacentHTML(
-                        'beforeend',
-                        '<pre style="padding:15px;background:#fff;color:#b00020;white-space:pre-wrap;position:relative;z-index:9999;">'
-                        + responseText
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                        + '</pre>'
-                    );
-                    return;
-                }
-
-                if (!data.success) {
-                    showMessage(
-                        data.message
-                        || 'Не удалось добавить товар в корзину.'
-                    );
-                    return;
-                }
-
-                showMessage('✓ Товар добавлен в корзину');
-
-                selectedSizes.forEach((checkbox) => {
-                    const button = checkbox.nextElementSibling;
-                    const stockElement = button.querySelector('.size-stock');
-
-                    let stock = Number(button.dataset.stock);
-
-                    if (stock > 0) {
-                        stock--;
+                    if (!data.success) {
+                        alert(
+                            data.message
+                            || 'Ошибка при добавлении товара.'
+                        );
+                        return;
                     }
 
-                    button.dataset.stock = stock;
 
-                    if (stockElement) {
-                        const showQuantity =
-                            stockElement.dataset.showQuantity === '1';
+                    const cartCount =
+                        document.getElementById('cart-count');
 
-                        if (stock <= 0) {
-                            stockElement.textContent = 'Нет в наличии';
-                            stockElement.style.display = 'inline';
-                        } else if (showQuantity) {
-                            stockElement.textContent = stock + ' шт.';
+                    if (cartCount) {
+                        cartCount.textContent =
+                            data.cart_count;
+                    }
+
+
+                    showSiteMessage(
+                        '✓ Товар добавлен в корзину'
+                    );
+
+
+                    sizeCheckboxes.forEach(
+                        checkbox => {
+                            checkbox.checked = false;
+
+                            const button =
+                                checkbox.nextElementSibling;
+
+                            button.style.background = '#fff';
+                            button.style.color =
+                                'var(--primary-color)';
                         }
-                    }
-
-                    if (stock <= 0) {
-                        checkbox.disabled = true;
-                        button.style.background = '#f3f3f3';
-                        button.style.color = '#888888';
-                        button.style.borderColor = '#aaaaaa';
-                        checkbox.parentElement.style.cursor = 'not-allowed';
-                        checkbox.parentElement.style.opacity = '0.45';
-                    }
+                    );
+                })
+                .catch(() => {
+                    alert('Не удалось добавить товар.');
                 });
-
-                sizeCheckboxes.forEach(
-                    (checkbox) => {
-                        checkbox.checked = false;
-                        const button = checkbox.nextElementSibling;
-                        button.style.background = '#fff';
-                        button.style.color = 'var(--primary-color)';
-                    }
-                );
-
-                const cartCount =
-                    document.getElementById('cart-count');
-
-                if (cartCount) {
-                    cartCount.textContent = data.cart_count;
-                }
-
-            } catch (error) {
-                showMessage('Не удалось добавить товар.');
             }
-        }
-    );
+        );
+
+    }
 
 
-    function showMessage(text)
-    {
+    function showSiteMessage(text) {
         const message =
             document.getElementById('site-message');
+
+        if (!message) {
+            return;
+        }
 
         message.textContent = text;
         message.classList.add('show');
 
-        clearTimeout(window.siteMessageTimer);
-
-        window.siteMessageTimer =
-            setTimeout(
-                () => {
-                    message.classList.remove('show');
-                },
-                2200
-            );
+        setTimeout(
+            () => {
+                message.classList.remove('show');
+            },
+            2200
+        );
     }
 
     </script>
 
-    <script src="/Anabelka/js/product-gallery.js?v=1"></script>
 
 </body>
 </html>
