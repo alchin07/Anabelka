@@ -66,6 +66,10 @@ class AuthController extends Controller
             $_SESSION['cart'] ?? []
         );
 
+        Favorite::mergeSessionToUser(
+            $_SESSION['user_id']
+        );
+
         $_SESSION['cart'] = [];
 
         header('Location: /Anabelka/');
@@ -128,6 +132,10 @@ class AuthController extends Controller
         Cart::mergeSessionCart(
             $_SESSION['user_id'],
             $_SESSION['cart'] ?? []
+        );
+
+        Favorite::mergeSessionToUser(
+            $_SESSION['user_id']
         );
 
         $_SESSION['cart'] = [];
