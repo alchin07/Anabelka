@@ -38,8 +38,8 @@ class User
     /**
      * Создать нового пользователя.
      *
-     * Новый пользователь получает
-     * ранг "Зарегистрированный" — rank_id = 2.
+     * Ранг новой регистрации задаётся
+     * в админ-панели, а не жёстким ID.
      */
     public static function create($name, $email, $password)
     {
@@ -50,6 +50,8 @@ class User
                 $password,
                 PASSWORD_DEFAULT
             );
+
+        $rankId = UserRank::defaultRegistrationRankId();
 
         $sql = "
             INSERT INTO users
@@ -71,7 +73,7 @@ class User
         $stmt = $db->prepare($sql);
 
         $stmt->execute([
-            'rank_id' => 2,
+            'rank_id' => $rankId,
             'name' => $name,
             'email' => $email,
             'password' => $passwordHash
