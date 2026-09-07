@@ -16,6 +16,11 @@ class HomeController extends Controller
             $languageCode
         );
 
+        $navigationTree = $this->localizeCategoryTree(
+            HomePage::navigationTree(),
+            $languageCode
+        );
+
         $latestProducts = ProductTranslator::localizeList(
             HomePage::latestProducts(8),
             $languageCode
@@ -26,8 +31,34 @@ class HomeController extends Controller
             [
                 'currentLanguage' => $currentLanguage,
                 'directions' => $directions,
+                'navigationTree' => $navigationTree,
                 'latestProducts' => $latestProducts
             ]
         );
+    }
+
+
+    private function localizeCategoryTree(array $nodes, $languageCode)
+    {
+        foreach ($nodes as &$node) {
+            $children = is_array($node['children'] ?? null)
+                ? $node['children']
+                : [];
+
+            unset($node['children']);
+
+            $node = CategoryTranslator::localize(
+                $node,
+                $languageCode
+            );
+
+            $node['children'] = $this->localizeCategoryTree(
+                $children,
+                $languageCode
+            );
+        }
+        unset($node);
+
+        return $nodes;
     }
 }
