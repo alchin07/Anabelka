@@ -125,6 +125,12 @@ class AuthController extends Controller
         $_SESSION['user_name'] = $user['name'];
         $_SESSION['user_rank_slug'] = $user['rank_slug'];
 
+        try {
+            UserInvitation::markAccepted((int) $user['id']);
+        } catch (Throwable $e) {
+            // Статус запрошення не повинен блокувати успішний вхід.
+        }
+
         Cart::getOrCreateByUserId(
             $_SESSION['user_id']
         );
