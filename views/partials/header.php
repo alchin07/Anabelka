@@ -56,7 +56,7 @@ if ($isAdminPage) {
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/search.css?v=1"
+        href="/Anabelka/css/search.css?v=2"
     >
 
     <a
@@ -79,6 +79,25 @@ if ($isAdminPage) {
         action="/Anabelka/search"
         method="get"
         role="search"
+        data-search-suggest-endpoint="/Anabelka/search/suggest"
+        data-search-products-label="<?= htmlspecialchars(
+            Translator::t('search.products', 'Товари')
+        ) ?>"
+        data-search-categories-label="<?= htmlspecialchars(
+            Translator::t('search.categories', 'Категорії')
+        ) ?>"
+        data-search-empty-label="<?= htmlspecialchars(
+            Translator::t(
+                'search.empty',
+                'Нічого не знайдено. Спробуйте інший запит.'
+            )
+        ) ?>"
+        data-search-all-label="<?= htmlspecialchars(
+            Translator::t(
+                'search.suggest_all',
+                'Показати всі результати'
+            )
+        ) ?>"
     >
         <input
             class="site-search-input"
@@ -96,6 +115,9 @@ if ($isAdminPage) {
             aria-label="<?= htmlspecialchars(
                 Translator::t('search.title', 'Пошук')
             ) ?>"
+            aria-autocomplete="list"
+            aria-controls="site-search-suggestions"
+            aria-expanded="false"
         >
 
         <button class="site-search-button" type="submit">
@@ -103,7 +125,19 @@ if ($isAdminPage) {
                 Translator::t('search.button', 'Знайти')
             ) ?>
         </button>
+
+        <div
+            id="site-search-suggestions"
+            class="site-search-suggestions"
+            role="listbox"
+            hidden
+        ></div>
     </form>
+
+    <script
+        src="/Anabelka/js/search-suggestions.js?v=1"
+        defer
+    ></script>
 
 
     <a
