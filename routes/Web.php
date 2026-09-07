@@ -49,6 +49,16 @@ $router->post(
 );
 
 $router->get(
+    '/invite',
+    'InvitationController@form'
+);
+
+$router->post(
+    '/invite',
+    'InvitationController@accept'
+);
+
+$router->get(
     '/logout',
     'AuthController@logout'
 );
