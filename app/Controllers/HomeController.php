@@ -1,12 +1,33 @@
 <?php
 
-// Контроллер главной страницы сайта
 class HomeController extends Controller
 {
-    // Метод отображает главную страницу
     public function index()
     {
-        // Загружаем представление views/home.php
-        $this->view('home');
+        PublicInterfaceTranslator::seed();
+        HomeInterfaceTranslator::seed();
+
+        $currentLanguage = Translator::currentLanguage();
+        $languageCode = $currentLanguage['code']
+            ?? Language::SOURCE_CODE;
+
+        $directions = CategoryTranslator::localizeList(
+            HomePage::directions(),
+            $languageCode
+        );
+
+        $latestProducts = ProductTranslator::localizeList(
+            HomePage::latestProducts(8),
+            $languageCode
+        );
+
+        $this->view(
+            'home',
+            [
+                'currentLanguage' => $currentLanguage,
+                'directions' => $directions,
+                'latestProducts' => $latestProducts
+            ]
+        );
     }
 }
