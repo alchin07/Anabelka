@@ -28,6 +28,75 @@ class HomePage
 
 
     /**
+     * Полное дерево активных категорий для навигации на широком экране.
+     * Уровни не получают дополнительных визуальных отступов — это решает UI.
+     */
+    public static function navigationTree()
+    {
+        $db = Database::connect();
+        $rows = $db->query("
+            SELECT
+                id,
+                department_id,
+                parent_id,
+                name,
+                slug,
+                description,
+                image,
+                sort_order
+            FROM categories
+            WHERE is_active = 1
+            ORDER BY
+                COALESCE(parent_id, 0) ASC,
+                sort_order ASC,
+                name ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($rows)) {
+            return [];
+        }
+
+        $childrenByParent = [];
+
+        foreach ($rows as $row) {
+            $row['id'] = (int) ($row['id'] ?? 0);
+            $row['parent_id'] = isset($row['parent_id'])
+                ? (int) $row['parent_id']
+                : 0;
+            $row['is_adult'] = self::isAdultCategoryId($row['id']);
+            $row['children'] = [];
+            $childrenByParent[$row['parent_id']][] = $row;
+        }
+
+        $build = function ($parentId) use (&$build, &$childrenByParent) {
+            $nodes = $childrenByParent[(int) $parentId] ?? [];
+
+            foreach ($nodes as &$node) {
+                $node['children'] = $build((int) $node['id']);
+            }
+            unset($node);
+
+            return $nodes;
+        };
+
+        $roots = $build(0);
+
+        usort($roots, function ($a, $b) {
+            $aAdult = !empty($a['is_adult']) ? 1 : 0;
+            $bAdult = !empty($b['is_adult']) ? 1 : 0;
+
+            if ($aAdult !== $bAdult) {
+                return $aAdult <=> $bAdult;
+            }
+
+            return 0;
+        });
+
+        return $roots;
+    }
+
+
+    /**
      * Последние активные товары для блока «Новинки».
      *
      * В обычную главную страницу намеренно не попадают товары из ветки 18+.
