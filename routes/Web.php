@@ -134,6 +134,11 @@ $router->post(
 );
 
 $router->post(
+    '/admin/ranks/move',
+    'AdminUserRankController@move'
+);
+
+$router->post(
     '/admin/ranks/toggle',
     'AdminUserRankController@toggle'
 );
