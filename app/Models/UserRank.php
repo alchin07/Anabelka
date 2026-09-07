@@ -53,19 +53,20 @@ class UserRank
     }
 
 
-    public static function create($name, $level)
+    public static function create($name)
     {
         $name = self::normalizeName($name);
-        $level = (int) $level;
-
-        if ($level < 1) {
-            throw new InvalidArgumentException(
-                'Рівень нового рангу має бути не менше 1.'
-            );
-        }
-
         $db = Database::connect();
         $slug = self::uniqueSlug($name);
+
+        $level = (int) $db->query("
+            SELECT COALESCE(MAX(level), 0) + 1
+            FROM user_ranks
+        ")->fetchColumn();
+
+        if ($level < 1) {
+            $level = 1;
+        }
 
         $stmt = $db->prepare("
             INSERT INTO user_ranks
