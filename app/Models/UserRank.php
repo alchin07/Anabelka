@@ -285,7 +285,11 @@ class UserRank
             throw new InvalidArgumentException('Вкажіть назву рангу.');
         }
 
-        if (mb_strlen($name, 'UTF-8') > 100) {
+        $length = function_exists('mb_strlen')
+            ? mb_strlen($name, 'UTF-8')
+            : strlen($name);
+
+        if ($length > 100) {
             throw new InvalidArgumentException(
                 'Назва рангу занадто довга.'
             );
@@ -323,7 +327,8 @@ class UserRank
 
     private static function makeSlug($value)
     {
-        $value = trim((string) $value);
+        $original = trim((string) $value);
+        $value = $original;
         $map = [
             'а'=>'a','б'=>'b','в'=>'v','г'=>'g','ґ'=>'g','д'=>'d','е'=>'e','ё'=>'e','є'=>'ie','ж'=>'zh','з'=>'z','и'=>'i','і'=>'i','ї'=>'i','й'=>'i','к'=>'k','л'=>'l','м'=>'m','н'=>'n','о'=>'o','п'=>'p','р'=>'r','с'=>'s','т'=>'t','у'=>'u','ф'=>'f','х'=>'kh','ц'=>'ts','ч'=>'ch','ш'=>'sh','щ'=>'shch','ъ'=>'','ы'=>'y','ь'=>'','э'=>'e','ю'=>'iu','я'=>'ia'
         ];
@@ -336,7 +341,7 @@ class UserRank
         $value = trim((string) $value, '-');
 
         if ($value === '') {
-            $value = 'rank-' . substr(sha1((string) $name ?? ''), 0, 8);
+            $value = 'rank-' . substr(sha1($original), 0, 8);
         }
 
         return substr($value, 0, 80);
