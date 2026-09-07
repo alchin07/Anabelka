@@ -41,6 +41,7 @@ class App
         require_once __DIR__ . '/../Models/TranslationWorkflow.php';
         require_once __DIR__ . '/../Models/AppSetting.php';
         require_once __DIR__ . '/../Models/UserRank.php';
+        require_once __DIR__ . '/../Models/UserInvitation.php';
         require_once __DIR__ . '/../Models/AITranslationUsage.php';
         require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
         require_once __DIR__ . '/../Models/Translator.php';
