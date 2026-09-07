@@ -1,10 +1,76 @@
 .home-page {
-    padding: 24px 0 46px;
+    padding: 16px 0 46px;
 }
 
 .home-shell {
     width: min(1180px, calc(100% - 28px));
     margin: 0 auto;
+}
+
+.home-department-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 10px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 6px 20px rgba(74, 44, 92, .05);
+    scrollbar-width: thin;
+}
+
+.home-department-nav a {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: #514958;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.home-department-nav a:hover {
+    background: var(--purple-soft);
+    color: var(--purple-dark);
+}
+
+.home-department-nav-main {
+    background: var(--purple);
+    color: #fff !important;
+}
+
+.home-department-nav-main:hover {
+    background: var(--purple-dark) !important;
+}
+
+.home-department-nav-adult {
+    margin-left: auto;
+    border: 1px solid #ded5e2;
+    background: #2a232d;
+    color: #fff !important;
+}
+
+.home-department-nav-adult:hover {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+.home-department-nav-adult span {
+    display: inline-grid;
+    place-items: center;
+    min-width: 30px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #fff;
+    color: #2a232d;
+    font-size: 11px;
+    font-weight: 900;
 }
 
 .home-hero {
@@ -217,6 +283,74 @@
     opacity: .9;
 }
 
+.home-adult-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    margin-top: 34px;
+    padding: 24px;
+    border: 1px solid #ddd5e0;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #2a232d, #171319);
+    color: #fff;
+    box-shadow: 0 12px 30px rgba(20, 16, 22, .12);
+}
+
+.home-adult-copy {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.home-adult-copy h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(24px, 3vw, 32px);
+}
+
+.home-adult-copy p {
+    max-width: 660px;
+    margin-top: 6px;
+    color: #d7cedb;
+}
+
+.home-adult-badge {
+    flex: 0 0 62px;
+    width: 62px;
+    height: 62px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #fff;
+    color: #241d27;
+    font-weight: 900;
+    font-size: 20px;
+}
+
+.home-adult-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.home-adult-links a {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 14px;
+    border: 1px solid rgba(255, 255, 255, .34);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+    font-weight: 800;
+}
+
+.home-adult-links a:hover {
+    background: #fff;
+    color: #241d27;
+}
+
 .home-product-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -330,15 +464,40 @@
     .home-product-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .home-adult-section {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .home-adult-links {
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 600px) {
     .home-page {
-        padding-top: 14px;
+        padding-top: 10px;
     }
 
     .home-shell {
         width: min(100% - 20px, 1180px);
+    }
+
+    .home-department-nav {
+        margin-bottom: 10px;
+        padding: 7px;
+        border-radius: 13px;
+    }
+
+    .home-department-nav a {
+        min-height: 35px;
+        padding: 0 10px;
+        font-size: 13px;
+    }
+
+    .home-department-nav-adult {
+        margin-left: 0;
     }
 
     .home-hero {
@@ -380,6 +539,32 @@
 
     .home-direction-overlay strong {
         font-size: 15px;
+    }
+
+    .home-adult-section {
+        margin-top: 28px;
+        padding: 18px;
+        border-radius: 17px;
+    }
+
+    .home-adult-copy {
+        align-items: flex-start;
+    }
+
+    .home-adult-badge {
+        flex-basis: 50px;
+        width: 50px;
+        height: 50px;
+        font-size: 16px;
+    }
+
+    .home-adult-copy p {
+        font-size: 14px;
+    }
+
+    .home-adult-links a {
+        width: 100%;
+        justify-content: center;
     }
 
     .home-product-card {
