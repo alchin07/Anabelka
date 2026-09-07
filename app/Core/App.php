@@ -26,6 +26,7 @@ class App
         require_once __DIR__ . '/../Models/Inventory.php';
         require_once __DIR__ . '/../Models/Cart.php';
         require_once __DIR__ . '/../Models/CartColorMigration.php';
+        require_once __DIR__ . '/../Models/Favorite.php';
         require_once __DIR__ . '/../Models/User.php';
         require_once __DIR__ . '/../Models/Order.php';
         require_once __DIR__ . '/../Models/QuickOrder.php';
@@ -45,6 +46,7 @@ class App
         require_once __DIR__ . '/../Models/ProductInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/DeliveryTranslator.php';
         require_once __DIR__ . '/../Models/SearchInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/FavoriteInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CatalogSearch.php';
         require_once __DIR__ . '/../Models/SearchQueryLog.php';
 
@@ -66,6 +68,7 @@ class App
         require_once __DIR__ . '/../Controllers/SearchController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
         require_once __DIR__ . '/../Controllers/CartColorController.php';
+        require_once __DIR__ . '/../Controllers/FavoriteController.php';
         require_once __DIR__ . '/../Controllers/AuthController.php';
         require_once __DIR__ . '/../Controllers/OrderController.php';
         require_once __DIR__ . '/../Controllers/QuickOrderController.php';
@@ -90,6 +93,7 @@ class App
         require __DIR__ . '/../../routes/Web.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
+        require __DIR__ . '/../../routes/Favorites.php';
 
         $router->dispatch(
             $_SERVER['REQUEST_URI'],
