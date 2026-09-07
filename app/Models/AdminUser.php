@@ -53,6 +53,20 @@ class AdminUser
     }
 
 
+    public static function assignableRanks()
+    {
+        $db = Database::connect();
+
+        return $db->query("
+            SELECT id, name, slug, level, is_active
+            FROM user_ranks
+            WHERE is_active = 1
+              AND slug <> 'guest'
+            ORDER BY level ASC, id ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
     public static function normalizeFilters(array $input)
     {
         return [
@@ -67,6 +81,8 @@ class AdminUser
 
     public static function page(array $filters, $page = 1, $perPage = 100)
     {
+        UserInvitation::ensureSchema();
+
         $db = Database::connect();
         [$where, $params] = self::buildWhere($filters);
         $offset = max(0, ((int) $page - 1) * (int) $perPage);
@@ -81,9 +97,16 @@ class AdminUser
                 u.is_active,
                 ur.name AS rank_name,
                 ur.slug AS rank_slug,
-                ur.level AS rank_level
+                ur.level AS rank_level,
+                ui.contact AS invitation_contact,
+                ui.channel AS invitation_channel,
+                ui.status AS invitation_status,
+                ui.sent_at AS invitation_sent_at,
+                ui.accepted_at AS invitation_accepted_at,
+                ui.created_at AS invitation_created_at
             FROM users u
             INNER JOIN user_ranks ur ON ur.id = u.rank_id
+            LEFT JOIN user_invitations ui ON ui.user_id = u.id
             {$where}
             ORDER BY u.id DESC
             LIMIT {$limit} OFFSET {$offset}
@@ -171,6 +194,7 @@ class AdminUser
                 FROM user_ranks
                 WHERE id = :id
                   AND is_active = 1
+                  AND slug <> 'guest'
                 LIMIT 1
             ");
             $rankStmt->execute(['id' => $newRankId]);
