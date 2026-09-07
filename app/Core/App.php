@@ -44,6 +44,9 @@ class App
         require_once __DIR__ . '/../Models/PublicInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/ProductInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/DeliveryTranslator.php';
+        require_once __DIR__ . '/../Models/SearchInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/CatalogSearch.php';
+        require_once __DIR__ . '/../Models/SearchQueryLog.php';
 
         // Готуємо таблицю варіантів до будь-яких транзакцій замовлення.
         ProductVariantStock::ensureTable();
@@ -60,6 +63,7 @@ class App
         require_once __DIR__ . '/../Controllers/CatalogController.php';
         require_once __DIR__ . '/../Controllers/ProductController.php';
         require_once __DIR__ . '/../Controllers/AdultController.php';
+        require_once __DIR__ . '/../Controllers/SearchController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
         require_once __DIR__ . '/../Controllers/CartColorController.php';
         require_once __DIR__ . '/../Controllers/AuthController.php';
@@ -69,6 +73,7 @@ class App
         require_once __DIR__ . '/../Controllers/LanguageController.php';
         require_once __DIR__ . '/../Controllers/AdminDashboardController.php';
         require_once __DIR__ . '/../Controllers/AdminOrderController.php';
+        require_once __DIR__ . '/../Controllers/AdminSearchController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';
