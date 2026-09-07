@@ -59,12 +59,182 @@
     color: #a55b00;
 }
 
+.admin-search-analytics {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee7f2;
+}
+
+.admin-search-analytics-head h3,
+.admin-search-top-head h3 {
+    margin: 0;
+}
+
+.admin-search-analytics-head p,
+.admin-search-top-head p {
+    margin: 5px 0 0;
+    color: #77717d;
+    font-size: 13px;
+}
+
+.admin-search-periods {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.admin-search-period-card {
+    padding: 16px;
+    border: 1px solid var(--border-color, #E8DFF0);
+    border-radius: 14px;
+    background: #faf7ff;
+}
+
+.admin-search-period-card > span,
+.admin-search-period-card > strong,
+.admin-search-period-card > small {
+    display: block;
+}
+
+.admin-search-period-title {
+    color: #5d5363;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.admin-search-period-card > strong {
+    margin-top: 8px;
+    color: var(--primary-color, #8A2BE2);
+    font-size: 30px;
+    line-height: 1;
+}
+
+.admin-search-period-card > strong + span {
+    margin-top: 4px;
+    color: #6c6570;
+    font-size: 13px;
+}
+
+.admin-search-period-card > small {
+    margin-top: 10px;
+    color: #77717d;
+    line-height: 1.45;
+}
+
+.admin-search-top-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.admin-search-top-card {
+    overflow: hidden;
+    border: 1px solid var(--border-color, #E8DFF0);
+    border-radius: 14px;
+    background: #fff;
+}
+
+.admin-search-top-card.is-missed {
+    border-color: #f1d6b7;
+}
+
+.admin-search-top-head {
+    padding: 14px 15px;
+    background: #faf7ff;
+}
+
+.admin-search-top-card.is-missed .admin-search-top-head {
+    background: #fff8ef;
+}
+
+.admin-search-top-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-search-top-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 54px;
+    padding: 8px 12px;
+    border-top: 1px solid #f0eaf3;
+    color: inherit;
+    text-decoration: none;
+}
+
+.admin-search-top-row:hover {
+    background: #fcfaff;
+}
+
+.admin-search-top-rank {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f0e8f7;
+    color: #6519b9;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-search-top-query {
+    min-width: 0;
+}
+
+.admin-search-top-query strong,
+.admin-search-top-query small {
+    display: block;
+}
+
+.admin-search-top-query strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-search-top-query small {
+    margin-top: 3px;
+    color: #8a818d;
+    font-size: 11px;
+}
+
+.admin-search-top-count {
+    display: inline-flex;
+    min-width: 34px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f0e8f7;
+    color: #6519b9;
+    font-weight: 800;
+}
+
+.admin-search-top-count.is-zero {
+    background: #fff0dc;
+    color: #a55b00;
+}
+
+.admin-search-top-empty {
+    padding: 18px 15px;
+    color: #77717d;
+}
+
 .admin-search-filters {
     display: grid;
     grid-template-columns: 1.5fr repeat(4, minmax(130px, .8fr)) auto;
     gap: 10px;
     align-items: end;
-    margin-top: 18px;
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid #eee7f2;
 }
 
 .admin-search-filters label {
@@ -218,6 +388,11 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .admin-search-periods,
+    .admin-search-top-grid {
+        grid-template-columns: 1fr;
+    }
+
     .admin-search-filters {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -231,6 +406,21 @@
     .admin-search-card {
         padding: 14px;
         border-radius: 15px;
+    }
+
+    .admin-search-summary {
+        gap: 8px;
+    }
+
+    .admin-search-summary > div,
+    .admin-search-period-card {
+        padding: 12px;
+    }
+
+    .admin-search-top-row {
+        grid-template-columns: 30px minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 8px 10px;
     }
 
     .admin-search-filters {
