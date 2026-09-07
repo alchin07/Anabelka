@@ -18,7 +18,8 @@ $adminPageLabelMap = [
     'Переводы' => 'Переклади',
     'ИИ-перевод' => 'ШІ-переклад',
     'Категории' => 'Категорії',
-    'Товары' => 'Товари'
+    'Товары' => 'Товари',
+    'Поиск' => 'Пошук'
 ];
 
 $adminPageLabel = $adminPageLabelMap[$adminPageLabel]
@@ -151,6 +152,13 @@ $translationBadge = (int) (
                     <?= $orderBadge ?>
                 </span>
             <?php endif; ?>
+        </a>
+
+        <a
+            href="/Anabelka/admin/search"
+            data-admin-route="/Anabelka/admin/search"
+        >
+            <span>Пошук</span>
         </a>
 
         <span class="admin-nav-group-title">Каталог</span>
