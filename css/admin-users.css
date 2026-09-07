@@ -69,13 +69,19 @@ body {
     color: #8e3748;
 }
 
-.admin-users-panel {
+.admin-users-panel,
+.admin-invite-result {
     margin-top: 16px;
     padding: 16px;
     border: 1px solid var(--admin-users-border);
     border-radius: 18px;
     background: #fff;
     box-shadow: 0 8px 26px rgba(82, 48, 100, .05);
+}
+
+.admin-invite-result {
+    border-color: #cdb4eb;
+    background: #fbf8ff;
 }
 
 .admin-users-panel-head {
@@ -105,6 +111,98 @@ body {
     color: var(--admin-users-primary-dark);
     font-size: 13px;
     font-weight: 800;
+}
+
+.admin-user-create-form {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(210px, 1.2fr) minmax(130px, .7fr) minmax(180px, 1fr) minmax(150px, .8fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.admin-user-create-form label,
+.admin-invite-message-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.admin-user-create-form label > span,
+.admin-invite-message-field > span {
+    color: var(--admin-users-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.admin-user-create-form input,
+.admin-user-create-form select {
+    box-sizing: border-box;
+    min-width: 0;
+    height: 40px;
+    padding: 0 10px;
+    border: 1px solid #d9cde3;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--admin-users-text);
+    font: inherit;
+}
+
+.admin-user-create-form button,
+.admin-user-invite-action button {
+    min-height: 40px;
+    padding: 0 13px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--admin-users-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.admin-invite-credentials {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.admin-invite-credentials > div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #e0d4ea;
+    border-radius: 11px;
+    background: #fff;
+}
+
+.admin-invite-credentials span,
+.admin-invite-credentials strong {
+    display: block;
+}
+
+.admin-invite-credentials span {
+    margin-bottom: 4px;
+    color: var(--admin-users-muted);
+    font-size: 11px;
+}
+
+.admin-invite-credentials strong {
+    overflow-wrap: anywhere;
+}
+
+.admin-invite-message-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #d9cde3;
+    border-radius: 11px;
+    background: #fff;
+    color: var(--admin-users-text);
+    font: inherit;
+    line-height: 1.45;
+    resize: vertical;
 }
 
 .admin-users-filters {
@@ -149,7 +247,10 @@ body {
 .admin-users-filters input:focus,
 .admin-users-filters select:focus,
 .admin-user-rank-form input:focus,
-.admin-user-rank-form select:focus {
+.admin-user-rank-form select:focus,
+.admin-user-create-form input:focus,
+.admin-user-create-form select:focus,
+.admin-invite-message-field textarea:focus {
     outline: 2px solid rgba(138, 43, 226, .13);
     border-color: var(--admin-users-primary);
 }
@@ -174,7 +275,9 @@ body {
 }
 
 .admin-users-filter-actions button:hover,
-.admin-user-rank-form button:hover {
+.admin-user-rank-form button:hover,
+.admin-user-create-form button:hover,
+.admin-user-invite-action button:hover {
     background: var(--admin-users-primary-dark);
 }
 
@@ -249,7 +352,8 @@ body {
 }
 
 .admin-user-rank,
-.admin-user-status {
+.admin-user-status,
+.admin-invite-status {
     display: inline-flex;
     min-height: 28px;
     align-items: center;
@@ -272,6 +376,36 @@ body {
 .admin-user-status.is-inactive {
     background: #f8e9ec;
     color: #9a4553;
+}
+
+.admin-invite-status.is-created {
+    background: #fff5db;
+    color: #87691d;
+}
+
+.admin-invite-status.is-sent {
+    background: #e9f2ff;
+    color: #35678f;
+}
+
+.admin-invite-status.is-accepted {
+    background: #e6f7ed;
+    color: #2f7448;
+}
+
+.admin-user-invite-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--admin-users-border);
+    background: #fffaf0;
+}
+
+.admin-user-invite-action span {
+    color: #7c6a45;
+    font-size: 13px;
 }
 
 .admin-user-rank-form {
@@ -366,6 +500,16 @@ body {
     gap: 3px;
 }
 
+@media (max-width: 1050px) {
+    .admin-user-create-form {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .admin-user-create-form button {
+        width: 100%;
+    }
+}
+
 @media (max-width: 820px) {
     .admin-users-filters {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -386,6 +530,10 @@ body {
     .admin-rank-history-item {
         grid-template-columns: 1fr;
         gap: 7px;
+    }
+
+    .admin-invite-credentials {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -413,7 +561,8 @@ body {
         font-size: 20px;
     }
 
-    .admin-users-panel {
+    .admin-users-panel,
+    .admin-invite-result {
         padding: 10px;
         border-radius: 14px;
     }
@@ -428,7 +577,8 @@ body {
     }
 
     .admin-users-filters,
-    .admin-user-rank-form {
+    .admin-user-rank-form,
+    .admin-user-create-form {
         grid-template-columns: 1fr;
     }
 
@@ -439,9 +589,11 @@ body {
 
     .admin-users-filter-actions button,
     .admin-users-filter-actions a,
-    .admin-user-rank-form button {
+    .admin-user-rank-form button,
+    .admin-user-create-form button {
         flex: 1;
         justify-content: center;
+        width: 100%;
     }
 
     .admin-user-main {
@@ -451,5 +603,14 @@ body {
 
     .admin-user-statuses {
         justify-content: flex-start;
+    }
+
+    .admin-user-invite-action {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-user-invite-action button {
+        width: 100%;
     }
 }
