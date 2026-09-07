@@ -28,6 +28,7 @@ class App
         require_once __DIR__ . '/../Models/CartColorMigration.php';
         require_once __DIR__ . '/../Models/Favorite.php';
         require_once __DIR__ . '/../Models/User.php';
+        require_once __DIR__ . '/../Models/AdminUser.php';
         require_once __DIR__ . '/../Models/Order.php';
         require_once __DIR__ . '/../Models/QuickOrder.php';
         require_once __DIR__ . '/../Models/CustomerOrderHistory.php';
@@ -77,6 +78,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminDashboardController.php';
         require_once __DIR__ . '/../Controllers/AdminOrderController.php';
         require_once __DIR__ . '/../Controllers/AdminSearchController.php';
+        require_once __DIR__ . '/../Controllers/AdminUserController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';
