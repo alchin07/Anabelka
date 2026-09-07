@@ -114,6 +114,16 @@ $router->get(
 );
 
 $router->post(
+    '/admin/users/invite/create',
+    'AdminUserController@createInvitation'
+);
+
+$router->post(
+    '/admin/users/invite/sent',
+    'AdminUserController@markInvitationSent'
+);
+
+$router->post(
     '/admin/users/rank',
     'AdminUserController@updateRank'
 );
