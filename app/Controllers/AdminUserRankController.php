@@ -34,7 +34,7 @@ class AdminUserRankController extends Controller
                 $_POST['rank_name'] ?? ''
             );
 
-            $this->redirect('message', 'Ранг створено. Рівень призначено автоматично.');
+            $this->redirect('message', 'Ранг створено та додано в кінець списку.');
         } catch (Throwable $e) {
             $this->redirect('error', $e->getMessage());
         }
@@ -46,11 +46,30 @@ class AdminUserRankController extends Controller
         try {
             UserRank::update(
                 $_POST['rank_id'] ?? 0,
-                $_POST['name'] ?? '',
-                $_POST['level'] ?? 0
+                $_POST['name'] ?? ''
             );
 
             $this->redirect('message', 'Ранг оновлено.');
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function move()
+    {
+        try {
+            $moved = UserRank::move(
+                $_POST['rank_id'] ?? 0,
+                $_POST['direction'] ?? ''
+            );
+
+            $this->redirect(
+                'message',
+                $moved
+                    ? 'Порядок рангів змінено.'
+                    : 'Ранг уже знаходиться на межі списку.'
+            );
         } catch (Throwable $e) {
             $this->redirect('error', $e->getMessage());
         }
