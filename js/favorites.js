@@ -292,48 +292,56 @@
         });
     };
 
-    fetch(stateEndpoint, {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json'
-        },
-        credentials: 'same-origin'
-    })
-        .then(function (response) {
-            if (!response.ok) {
-                throw new Error('Favorites state request failed');
-            }
-
-            return response.json();
+    const initialize = function () {
+        fetch(stateEndpoint, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
         })
-        .then(function (data) {
-            if (!data || data.success !== true) {
-                return;
-            }
-
-            const items = Array.isArray(data.items) ? data.items : [];
-            const activeIds = new Set();
-            const activeSlugs = new Set();
-
-            items.forEach(function (item) {
-                const id = Number(item.id || 0);
-                const slug = String(item.slug || '');
-
-                if (id > 0) {
-                    activeIds.add(id);
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Favorites state request failed');
                 }
 
-                if (slug !== '') {
-                    activeSlugs.add(slug);
+                return response.json();
+            })
+            .then(function (data) {
+                if (!data || data.success !== true) {
+                    return;
                 }
+
+                const items = Array.isArray(data.items) ? data.items : [];
+                const activeIds = new Set();
+                const activeSlugs = new Set();
+
+                items.forEach(function (item) {
+                    const id = Number(item.id || 0);
+                    const slug = String(item.slug || '');
+
+                    if (id > 0) {
+                        activeIds.add(id);
+                    }
+
+                    if (slug !== '') {
+                        activeSlugs.add(slug);
+                    }
+                });
+
+                updateCount(data.count);
+                syncExistingButtons(activeIds, activeSlugs);
+                addAutomaticCardButtons(activeSlugs);
+                addProductDetailButton(activeIds, activeSlugs);
+            })
+            .catch(function () {
+                currentButtons().forEach(bindButton);
             });
+    };
 
-            updateCount(data.count);
-            syncExistingButtons(activeIds, activeSlugs);
-            addAutomaticCardButtons(activeSlugs);
-            addProductDetailButton(activeIds, activeSlugs);
-        })
-        .catch(function () {
-            currentButtons().forEach(bindButton);
-        });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize, { once: true });
+    } else {
+        initialize();
+    }
 })();
