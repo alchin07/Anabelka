@@ -2,6 +2,35 @@
 PublicInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.order.order', 'Замовлення');
+$errorTitle = trim((string) ($errorTitle ?? ''));
+$errorMessage = trim((string) ($errorMessage ?? ''));
+$backUrl = trim((string) ($backUrl ?? ''));
+$backLabel = trim((string) ($backLabel ?? ''));
+
+if ($errorTitle === '') {
+    $errorTitle = Translator::t(
+        'public.order.not_found',
+        'Замовлення не знайдено'
+    );
+}
+
+if ($errorMessage === '') {
+    $errorMessage = Translator::t(
+        'public.order.not_found_text',
+        'Можливо, посилання застаріло або було змінено.'
+    );
+}
+
+if ($backUrl === '') {
+    $backUrl = '/Anabelka/catalog';
+}
+
+if ($backLabel === '') {
+    $backLabel = Translator::t(
+        'public.order.back_catalog',
+        'Повернутися до каталогу'
+    );
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -45,22 +74,15 @@ $pageTitle = Translator::t('public.order.order', 'Замовлення');
         >!</div>
 
         <h2 style="margin-bottom: 12px;">
-            <?= htmlspecialchars(
-                Translator::t('public.order.not_found', 'Замовлення не знайдено')
-            ) ?>
+            <?= htmlspecialchars($errorTitle) ?>
         </h2>
 
         <p style="margin-bottom: 25px; line-height: 1.5;">
-            <?= htmlspecialchars(
-                Translator::t(
-                    'public.order.not_found_text',
-                    'Можливо, посилання застаріло або було змінено.'
-                )
-            ) ?>
+            <?= htmlspecialchars($errorMessage) ?>
         </p>
 
         <a
-            href="/Anabelka/catalog"
+            href="<?= htmlspecialchars($backUrl) ?>"
             style="
                 display: inline-block;
                 padding: 12px 22px;
@@ -71,9 +93,7 @@ $pageTitle = Translator::t('public.order.order', 'Замовлення');
                 font-weight: bold;
             "
         >
-            <?= htmlspecialchars(
-                Translator::t('public.order.back_catalog', 'Повернутися до каталогу')
-            ) ?>
+            <?= htmlspecialchars($backLabel) ?>
         </a>
     </section>
 </main>
