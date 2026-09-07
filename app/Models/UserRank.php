@@ -62,6 +62,7 @@ class UserRank
         $level = (int) $db->query("
             SELECT COALESCE(MAX(level), 0) + 1
             FROM user_ranks
+            WHERE slug <> 'guest'
         ")->fetchColumn();
 
         if ($level < 1) {
@@ -80,11 +81,13 @@ class UserRank
             'level' => $level
         ]);
 
+        self::normalizeOrder();
+
         return (int) $db->lastInsertId();
     }
 
 
-    public static function update($rankId, $name, $level)
+    public static function update($rankId, $name)
     {
         $rankId = (int) $rankId;
         $rank = self::find($rankId);
@@ -94,29 +97,99 @@ class UserRank
         }
 
         $name = self::normalizeName($name);
-        $level = (int) $level;
-
-        if (($rank['slug'] ?? '') === 'guest') {
-            $level = (int) ($rank['level'] ?? 0);
-        } elseif ($level < 1) {
-            throw new InvalidArgumentException(
-                'Рівень рангу має бути не менше 1.'
-            );
-        }
-
         $db = Database::connect();
         $stmt = $db->prepare("
             UPDATE user_ranks
-            SET name = :name,
-                level = :level
+            SET name = :name
             WHERE id = :id
         ");
 
         return $stmt->execute([
             'name' => $name,
-            'level' => $level,
             'id' => $rankId
         ]);
+    }
+
+
+    public static function move($rankId, $direction)
+    {
+        $rankId = (int) $rankId;
+        $direction = (string) $direction;
+
+        if (!in_array($direction, ['up', 'down'], true)) {
+            throw new InvalidArgumentException('Некоректний напрямок переміщення.');
+        }
+
+        $rank = self::find($rankId);
+
+        if (!$rank) {
+            throw new RuntimeException('Ранг не знайдено.');
+        }
+
+        if (($rank['slug'] ?? '') === 'guest') {
+            throw new RuntimeException('Системний ранг guest не можна переміщувати.');
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $rows = $db->query("
+                SELECT id, slug, level
+                FROM user_ranks
+                WHERE slug <> 'guest'
+                ORDER BY level ASC, id ASC
+                FOR UPDATE
+            ")->fetchAll(PDO::FETCH_ASSOC);
+
+            $currentIndex = null;
+
+            foreach ($rows as $index => $row) {
+                if ((int) ($row['id'] ?? 0) === $rankId) {
+                    $currentIndex = $index;
+                    break;
+                }
+            }
+
+            if ($currentIndex === null) {
+                throw new RuntimeException('Ранг не знайдено в порядку сортування.');
+            }
+
+            $targetIndex = $direction === 'up'
+                ? $currentIndex - 1
+                : $currentIndex + 1;
+
+            if ($targetIndex < 0 || $targetIndex >= count($rows)) {
+                $db->commit();
+                return false;
+            }
+
+            $temp = $rows[$currentIndex];
+            $rows[$currentIndex] = $rows[$targetIndex];
+            $rows[$targetIndex] = $temp;
+
+            $stmt = $db->prepare("
+                UPDATE user_ranks
+                SET level = :level
+                WHERE id = :id
+            ");
+
+            foreach ($rows as $index => $row) {
+                $stmt->execute([
+                    'level' => $index + 1,
+                    'id' => (int) $row['id']
+                ]);
+            }
+
+            $db->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
     }
 
 
@@ -275,6 +348,31 @@ class UserRank
             'active' => (int) ($row['active_count'] ?? 0),
             'inactive' => (int) ($row['inactive_count'] ?? 0)
         ];
+    }
+
+
+    private static function normalizeOrder()
+    {
+        $db = Database::connect();
+        $rows = $db->query("
+            SELECT id
+            FROM user_ranks
+            WHERE slug <> 'guest'
+            ORDER BY level ASC, id ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmt = $db->prepare("
+            UPDATE user_ranks
+            SET level = :level
+            WHERE id = :id
+        ");
+
+        foreach ($rows as $index => $row) {
+            $stmt->execute([
+                'level' => $index + 1,
+                'id' => (int) $row['id']
+            ]);
+        }
     }
 
 
