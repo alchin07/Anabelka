@@ -1,5 +1,6 @@
 <?php
 PublicInterfaceTranslator::seed();
+FavoriteInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = $category['name'];
 ?>
@@ -52,17 +53,35 @@ $pageTitle = $category['name'];
             <div class="product-grid">
                 <?php foreach ($products as $product): ?>
                     <?php
+                    $productId = (int) ($product['id'] ?? 0);
                     $productUrl = '/Anabelka/product/'
                         . rawurlencode((string) $product['slug']);
                     $colorVariants = is_array(
                         $product['color_variants'] ?? null
                     ) ? $product['color_variants'] : [];
+                    $isFavorite = isset($favoriteLookup[$productId]);
+                    $favoriteLabel = Translator::t(
+                        $isFavorite ? 'favorite.remove' : 'favorite.add',
+                        $isFavorite
+                            ? 'Видалити з обраного'
+                            : 'Додати до обраного'
+                    );
                     ?>
                     <article
                         class="product-card"
                         data-product-color-card
                         data-product-url="<?= htmlspecialchars($productUrl, ENT_QUOTES, 'UTF-8') ?>"
                     >
+                        <button
+                            type="button"
+                            class="favorite-toggle<?= $isFavorite ? ' is-active' : '' ?>"
+                            data-favorite-toggle
+                            data-product-id="<?= $productId ?>"
+                            aria-pressed="<?= $isFavorite ? 'true' : 'false' ?>"
+                            aria-label="<?= htmlspecialchars($favoriteLabel, ENT_QUOTES, 'UTF-8') ?>"
+                            title="<?= htmlspecialchars($favoriteLabel, ENT_QUOTES, 'UTF-8') ?>"
+                        ></button>
+
                         <a href="<?= htmlspecialchars($productUrl) ?>" class="product-card-main" data-product-color-link>
                             <div class="product-image">
                                 <?php if (!empty($product['main_image'])): ?>
