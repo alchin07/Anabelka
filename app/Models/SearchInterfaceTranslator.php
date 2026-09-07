@@ -24,7 +24,8 @@ class SearchInterfaceTranslator
                 'search.products' => 'Товари',
                 'search.empty' => 'Нічого не знайдено. Спробуйте інший запит.',
                 'search.start' => 'Введіть назву товару, категорію або SKU.',
-                'search.found' => 'Знайдено'
+                'search.found' => 'Знайдено',
+                'search.suggest_all' => 'Показати всі результати'
             ],
             'ru' => [
                 'search.placeholder' => 'Поиск товаров, категорий, SKU…',
@@ -35,7 +36,8 @@ class SearchInterfaceTranslator
                 'search.products' => 'Товары',
                 'search.empty' => 'Ничего не найдено. Попробуйте другой запрос.',
                 'search.start' => 'Введите название товара, категорию или SKU.',
-                'search.found' => 'Найдено'
+                'search.found' => 'Найдено',
+                'search.suggest_all' => 'Показать все результаты'
             ],
             'en' => [
                 'search.placeholder' => 'Search products, categories, SKU…',
@@ -46,7 +48,8 @@ class SearchInterfaceTranslator
                 'search.products' => 'Products',
                 'search.empty' => 'Nothing found. Try a different query.',
                 'search.start' => 'Enter a product name, category or SKU.',
-                'search.found' => 'Found'
+                'search.found' => 'Found',
+                'search.suggest_all' => 'Show all results'
             ]
         ];
 
