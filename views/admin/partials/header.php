@@ -169,6 +169,13 @@ $translationBadge = (int) (
             <span>Користувачі</span>
         </a>
 
+        <a
+            href="/Anabelka/admin/ranks"
+            data-admin-route="/Anabelka/admin/ranks"
+        >
+            <span>Ранги</span>
+        </a>
+
         <span class="admin-nav-group-title">Каталог</span>
 
         <a
