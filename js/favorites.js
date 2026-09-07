@@ -1,53 +1,120 @@
 (function () {
     'use strict';
 
-    const buttons = Array.from(
-        document.querySelectorAll('[data-favorite-toggle]')
-    );
-
-    if (buttons.length === 0) {
-        return;
-    }
-
-    const headerCount = document.getElementById('favorite-count');
     const script = document.getElementById('favorites-script');
     const endpoint = script?.dataset.endpoint || '/Anabelka/favorites/toggle';
+    const stateEndpoint = script?.dataset.stateEndpoint || '/Anabelka/favorites/state';
     const addLabel = script?.dataset.addLabel || 'Добавить в избранное';
     const removeLabel = script?.dataset.removeLabel || 'Удалить из избранного';
+    const headerCount = document.getElementById('favorite-count');
 
-    const updateButtons = function (productId, active, label) {
-        buttons.forEach(function (button) {
-            if ((button.dataset.productId || '') !== String(productId)) {
+    const productSlugFromHref = function (href) {
+        try {
+            const url = new URL(href, window.location.origin);
+            const marker = '/Anabelka/product/';
+            const index = url.pathname.indexOf(marker);
+
+            if (index === -1) {
+                return '';
+            }
+
+            return decodeURIComponent(
+                url.pathname.slice(index + marker.length).split('/')[0] || ''
+            );
+        } catch (error) {
+            return '';
+        }
+    };
+
+    const currentButtons = function () {
+        return Array.from(
+            document.querySelectorAll('[data-favorite-toggle]')
+        );
+    };
+
+    const applyButtonState = function (button, active, label) {
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
+        button.dataset.label = label;
+    };
+
+    const updateButtons = function (productId, slug, active, label) {
+        currentButtons().forEach(function (button) {
+            const sameId = productId > 0
+                && Number(button.dataset.productId || 0) === productId;
+            const sameSlug = slug !== ''
+                && (button.dataset.productSlug || '') === slug;
+
+            if (!sameId && !sameSlug) {
                 return;
             }
 
-            button.classList.toggle('is-active', active);
-            button.setAttribute('aria-pressed', active ? 'true' : 'false');
-            button.setAttribute('aria-label', label);
-            button.setAttribute('title', label);
+            if (productId > 0) {
+                button.dataset.productId = String(productId);
+            }
+
+            if (slug !== '') {
+                button.dataset.productSlug = slug;
+            }
+
+            applyButtonState(button, active, label);
         });
     };
 
     const updateCount = function (count) {
-        if (!headerCount) {
+        if (headerCount) {
+            headerCount.textContent = String(
+                Math.max(0, Number(count) || 0)
+            );
+        }
+    };
+
+    const removeFavoritePageCard = function (button, active) {
+        if (active) {
             return;
         }
 
-        headerCount.textContent = String(Math.max(0, Number(count) || 0));
+        const card = button.closest('[data-favorite-page-card]');
+
+        if (!card) {
+            return;
+        }
+
+        card.remove();
+
+        const grid = document.querySelector('[data-favorite-page-grid]');
+        const empty = document.querySelector('[data-favorite-empty]');
+
+        if (grid && grid.children.length === 0 && empty) {
+            grid.hidden = true;
+            empty.hidden = false;
+        }
     };
 
-    buttons.forEach(function (button) {
+    const bindButton = function (button) {
+        if (button.dataset.favoriteBound === '1') {
+            return;
+        }
+
+        button.dataset.favoriteBound = '1';
+
         button.addEventListener('click', function (event) {
             event.preventDefault();
             event.stopPropagation();
 
-            if (button.disabled || button.classList.contains('is-loading')) {
+            if (
+                button.disabled
+                || button.classList.contains('is-loading')
+            ) {
                 return;
             }
 
             const productId = Number(button.dataset.productId || 0);
+            const slug = button.dataset.productSlug || '';
 
-            if (!productId) {
+            if (!productId && slug === '') {
                 return;
             }
 
@@ -55,7 +122,12 @@
             button.disabled = true;
 
             const body = new URLSearchParams();
-            body.set('product_id', String(productId));
+
+            if (productId > 0) {
+                body.set('product_id', String(productId));
+            } else {
+                body.set('slug', slug);
+            }
 
             fetch(endpoint, {
                 method: 'POST',
@@ -86,31 +158,182 @@
                     }
 
                     const active = data.active === true;
-                    const label = data.label || (active ? removeLabel : addLabel);
+                    const resultId = Number(data.product_id || productId || 0);
+                    const resultSlug = data.slug || slug;
+                    const label = data.label
+                        || (active ? removeLabel : addLabel);
 
-                    updateButtons(productId, active, label);
+                    updateButtons(
+                        resultId,
+                        resultSlug,
+                        active,
+                        label
+                    );
                     updateCount(data.count);
-
-                    const removableCard = button.closest('[data-favorite-page-card]');
-                    if (!active && removableCard) {
-                        removableCard.remove();
-
-                        const grid = document.querySelector('[data-favorite-page-grid]');
-                        const empty = document.querySelector('[data-favorite-empty]');
-
-                        if (grid && grid.children.length === 0 && empty) {
-                            grid.hidden = true;
-                            empty.hidden = false;
-                        }
-                    }
+                    removeFavoritePageCard(button, active);
                 })
                 .catch(function () {
-                    // Якщо мережевий запит не вдався, залишаємо поточний стан.
+                    // Залишаємо поточний стан, якщо мережа недоступна.
                 })
                 .finally(function () {
                     button.classList.remove('is-loading');
                     button.disabled = false;
                 });
         });
-    });
+    };
+
+    const makeButton = function (productId, slug, active, detail) {
+        const button = document.createElement('button');
+        const label = active ? removeLabel : addLabel;
+
+        button.type = 'button';
+        button.className = 'favorite-toggle' + (active ? ' is-active' : '');
+        button.dataset.favoriteToggle = '';
+
+        if (productId > 0) {
+            button.dataset.productId = String(productId);
+        }
+
+        if (slug !== '') {
+            button.dataset.productSlug = slug;
+        }
+
+        if (detail) {
+            button.classList.add('favorite-detail-toggle');
+        }
+
+        applyButtonState(button, active, label);
+        bindButton(button);
+
+        return button;
+    };
+
+    const wrapCardLink = function (link, activeSlugs) {
+        if (
+            !link.parentNode
+            || link.closest('.favorite-card-host')
+        ) {
+            return;
+        }
+
+        const slug = productSlugFromHref(link.href);
+
+        if (slug === '') {
+            return;
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'favorite-card-host';
+        link.parentNode.insertBefore(wrapper, link);
+        wrapper.appendChild(link);
+        wrapper.appendChild(
+            makeButton(0, slug, activeSlugs.has(slug), false)
+        );
+    };
+
+    const addAutomaticCardButtons = function (activeSlugs) {
+        document.querySelectorAll(
+            'a.home-product-card[href*="/Anabelka/product/"], '
+            + 'a.search-product-card[href*="/Anabelka/product/"]'
+        ).forEach(function (link) {
+            wrapCardLink(link, activeSlugs);
+        });
+    };
+
+    const addProductDetailButton = function (activeIds, activeSlugs) {
+        const cartForm = document.getElementById('cart-form');
+
+        if (!cartForm) {
+            return;
+        }
+
+        const card = cartForm.closest('.product-card');
+        const productIdInput = cartForm.querySelector('input[name="product_id"]');
+        const productId = Number(productIdInput?.value || 0);
+        const slug = productSlugFromHref(window.location.href);
+
+        if (!card || (!productId && slug === '')) {
+            return;
+        }
+
+        if (card.querySelector('[data-favorite-toggle]')) {
+            return;
+        }
+
+        card.classList.add('favorite-product-detail');
+        const title = card.querySelector('h2');
+        const row = document.createElement('div');
+        row.className = 'favorite-detail-row';
+        const active = productId > 0
+            ? activeIds.has(productId)
+            : activeSlugs.has(slug);
+        row.appendChild(makeButton(productId, slug, active, true));
+
+        if (title) {
+            title.insertAdjacentElement('afterend', row);
+        } else {
+            card.insertBefore(row, card.firstChild);
+        }
+    };
+
+    const syncExistingButtons = function (activeIds, activeSlugs) {
+        currentButtons().forEach(function (button) {
+            const id = Number(button.dataset.productId || 0);
+            const slug = button.dataset.productSlug || '';
+            const active = id > 0
+                ? activeIds.has(id)
+                : activeSlugs.has(slug);
+            applyButtonState(
+                button,
+                active,
+                active ? removeLabel : addLabel
+            );
+            bindButton(button);
+        });
+    };
+
+    fetch(stateEndpoint, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json'
+        },
+        credentials: 'same-origin'
+    })
+        .then(function (response) {
+            if (!response.ok) {
+                throw new Error('Favorites state request failed');
+            }
+
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data || data.success !== true) {
+                return;
+            }
+
+            const items = Array.isArray(data.items) ? data.items : [];
+            const activeIds = new Set();
+            const activeSlugs = new Set();
+
+            items.forEach(function (item) {
+                const id = Number(item.id || 0);
+                const slug = String(item.slug || '');
+
+                if (id > 0) {
+                    activeIds.add(id);
+                }
+
+                if (slug !== '') {
+                    activeSlugs.add(slug);
+                }
+            });
+
+            updateCount(data.count);
+            syncExistingButtons(activeIds, activeSlugs);
+            addAutomaticCardButtons(activeSlugs);
+            addProductDetailButton(activeIds, activeSlugs);
+        })
+        .catch(function () {
+            currentButtons().forEach(bindButton);
+        });
 })();
