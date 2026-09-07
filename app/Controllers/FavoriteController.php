@@ -20,6 +20,18 @@ class FavoriteController extends Controller
     }
 
 
+    public function state()
+    {
+        FavoriteInterfaceTranslator::seed();
+
+        $this->json([
+            'success' => true,
+            'count' => Favorite::countCurrent(),
+            'items' => Favorite::currentStateItems()
+        ]);
+    }
+
+
     public function toggle()
     {
         FavoriteInterfaceTranslator::seed();
@@ -35,7 +47,10 @@ class FavoriteController extends Controller
         }
 
         $productId = (int) ($_POST['product_id'] ?? 0);
-        $product = Product::findById($productId);
+        $slug = trim((string) ($_POST['slug'] ?? ''));
+        $product = $productId > 0
+            ? Product::findById($productId)
+            : Product::findBySlug($slug);
 
         if (!$product) {
             $this->json([
@@ -44,6 +59,7 @@ class FavoriteController extends Controller
             ], 404);
         }
 
+        $productId = (int) ($product['id'] ?? 0);
         $category = Category::findById(
             (int) ($product['category_id'] ?? 0)
         );
@@ -70,6 +86,8 @@ class FavoriteController extends Controller
 
             $this->json([
                 'success' => true,
+                'product_id' => $productId,
+                'slug' => (string) ($product['slug'] ?? ''),
                 'active' => $active,
                 'count' => (int) ($result['count'] ?? 0),
                 'label' => Translator::t(
