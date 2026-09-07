@@ -158,12 +158,9 @@
 
         function updateStockSummary()
         {
-            const summary = Array.from(cartForm.querySelectorAll('p')).find(function (p) {
-                return String(p.textContent || '')
-                    .trim()
-                    .toLowerCase()
-                    .startsWith('в наличии');
-            });
+            const summary = cartForm.querySelector(
+                '[data-product-stock-summary]'
+            );
 
             if (!summary || !state.usesVariantStock || !state.selectedColor) {
                 return;
@@ -173,11 +170,15 @@
                 return sum + stockForSize(Number(checkbox.value));
             }, 0);
 
-            summary.textContent = 'В наличии в цвете «'
-                + state.selectedColor.name
-                + '»: '
-                + total
-                + ' шт.';
+            const currentText = String(summary.textContent || '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const labelMatch = currentText.match(/^(.+?):\s*\d+/u);
+            const unitMatch = currentText.match(/\d+\s+(.+)$/u);
+            const label = labelMatch ? labelMatch[1].trim() : 'В наличии';
+            const unit = unitMatch ? unitMatch[1].trim() : 'шт.';
+
+            summary.textContent = label + ': ' + total + ' ' + unit;
         }
 
 
