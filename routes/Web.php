@@ -119,6 +119,31 @@ $router->post(
 );
 
 $router->get(
+    '/admin/ranks',
+    'AdminUserRankController@index'
+);
+
+$router->post(
+    '/admin/ranks/create',
+    'AdminUserRankController@create'
+);
+
+$router->post(
+    '/admin/ranks/update',
+    'AdminUserRankController@update'
+);
+
+$router->post(
+    '/admin/ranks/toggle',
+    'AdminUserRankController@toggle'
+);
+
+$router->post(
+    '/admin/ranks/default',
+    'AdminUserRankController@setDefault'
+);
+
+$router->get(
     '/admin/languages',
     'AdminLanguageController@index'
 );
