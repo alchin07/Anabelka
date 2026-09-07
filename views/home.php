@@ -5,6 +5,7 @@ $currentLanguage = $currentLanguage
     ?? Translator::currentLanguage();
 $pageTitle = '';
 $directions = is_array($directions ?? null) ? $directions : [];
+$navigationTree = is_array($navigationTree ?? null) ? $navigationTree : [];
 $latestProducts = is_array($latestProducts ?? null) ? $latestProducts : [];
 $standardDirections = [];
 $adultDirections = [];
@@ -42,6 +43,67 @@ $assetUrl = function ($path) {
 
     return '/Anabelka/' . ltrim($path, '/');
 };
+
+$renderSidebarNodes = null;
+$renderSidebarNodes = function (array $nodes, $level = 1) use (&$renderSidebarNodes, $escape) {
+    foreach ($nodes as $node) {
+        $id = (int) ($node['id'] ?? 0);
+        $children = is_array($node['children'] ?? null)
+            ? $node['children']
+            : [];
+        $hasChildren = !empty($children);
+        $isAdultRoot = !empty($node['is_adult'])
+            && (int) ($node['parent_id'] ?? 0) === 0;
+        $slug = (string) ($node['slug'] ?? '');
+        $href = $isAdultRoot
+            ? '/Anabelka/18-plus/' . rawurlencode($slug)
+            : '/Anabelka/catalog/' . rawurlencode($slug);
+        $childrenId = 'home-sidebar-children-' . $id;
+        ?>
+        <div
+            class="home-sidebar-node<?= $isAdultRoot ? ' is-adult-root' : '' ?>"
+            data-home-sidebar-node
+            data-level="<?= (int) $level ?>"
+        >
+            <div class="home-sidebar-row" data-level="<?= (int) $level ?>">
+                <?php if ($hasChildren): ?>
+                    <button
+                        type="button"
+                        class="home-sidebar-toggle"
+                        data-home-sidebar-toggle="<?= $id ?>"
+                        aria-expanded="true"
+                        aria-controls="<?= $escape($childrenId) ?>"
+                        aria-label="<?= $escape($node['name'] ?? '') ?>"
+                    >
+                        <span class="home-sidebar-chevron" aria-hidden="true">▾</span>
+                    </button>
+                <?php else: ?>
+                    <span class="home-sidebar-toggle-placeholder" aria-hidden="true"></span>
+                <?php endif; ?>
+
+                <a class="home-sidebar-link" href="<?= $escape($href) ?>">
+                    <?php if ($isAdultRoot): ?>
+                        <span class="home-sidebar-adult-badge">18+</span>
+                    <?php endif; ?>
+                    <span class="home-sidebar-name">
+                        <?= $escape($node['name'] ?? '') ?>
+                    </span>
+                </a>
+            </div>
+
+            <?php if ($hasChildren): ?>
+                <div
+                    class="home-sidebar-children"
+                    id="<?= $escape($childrenId) ?>"
+                    data-home-sidebar-children="<?= $id ?>"
+                >
+                    <?php $renderSidebarNodes($children, $level + 1); ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+};
 ?>
 <!DOCTYPE html>
 <html lang="<?= $escape($currentLanguage['code'] ?? 'uk') ?>">
@@ -52,6 +114,7 @@ $assetUrl = function ($path) {
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/home.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/home-desktop-sidebar.css?v=1">
 </head>
 <body>
 
@@ -59,6 +122,27 @@ $assetUrl = function ($path) {
 
 <main class="home-page">
     <div class="home-shell">
+        <aside
+            class="home-desktop-sidebar"
+            aria-label="<?= $escape(
+                Translator::t('home.nav_catalog', 'Каталог')
+            ) ?>"
+        >
+            <div class="home-sidebar-panel">
+                <a class="home-sidebar-title" href="/Anabelka/catalog">
+                    <?= $escape(
+                        Translator::t('home.nav_catalog', 'Каталог')
+                    ) ?>
+                </a>
+
+                <?php if (!empty($navigationTree)): ?>
+                    <div class="home-sidebar-tree">
+                        <?php $renderSidebarNodes($navigationTree); ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </aside>
+
         <nav class="home-department-nav" aria-label="Напрямки магазину">
             <a class="home-department-nav-main" href="/Anabelka/catalog">
                 <?= $escape(
@@ -397,5 +481,6 @@ $assetUrl = function ($path) {
     </div>
 </main>
 
+<script src="/Anabelka/js/home-desktop-sidebar.js?v=1" defer></script>
 </body>
 </html>
