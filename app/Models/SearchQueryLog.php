@@ -195,6 +195,124 @@ class SearchQueryLog
     }
 
 
+    public static function periodAnalytics()
+    {
+        self::ensureSchema();
+        $db = Database::connect();
+
+        $row = $db->query("
+            SELECT
+                SUM(created_at >= CURRENT_DATE()) AS today_count,
+                COUNT(DISTINCT CASE
+                    WHEN created_at >= CURRENT_DATE()
+                    THEN normalized_query
+                END) AS today_unique,
+                SUM(
+                    created_at >= CURRENT_DATE()
+                    AND total_results = 0
+                ) AS today_zero,
+
+                SUM(
+                    created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                ) AS week_count,
+                COUNT(DISTINCT CASE
+                    WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    THEN normalized_query
+                END) AS week_unique,
+                SUM(
+                    created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                    AND total_results = 0
+                ) AS week_zero,
+
+                SUM(
+                    created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                ) AS month_count,
+                COUNT(DISTINCT CASE
+                    WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    THEN normalized_query
+                END) AS month_unique,
+                SUM(
+                    created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    AND total_results = 0
+                ) AS month_zero
+            FROM search_queries
+        ")->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            'today' => [
+                'count' => (int) ($row['today_count'] ?? 0),
+                'unique' => (int) ($row['today_unique'] ?? 0),
+                'zero' => (int) ($row['today_zero'] ?? 0)
+            ],
+            'week' => [
+                'count' => (int) ($row['week_count'] ?? 0),
+                'unique' => (int) ($row['week_unique'] ?? 0),
+                'zero' => (int) ($row['week_zero'] ?? 0)
+            ],
+            'month' => [
+                'count' => (int) ($row['month_count'] ?? 0),
+                'unique' => (int) ($row['month_unique'] ?? 0),
+                'zero' => (int) ($row['month_zero'] ?? 0)
+            ]
+        ];
+    }
+
+
+    public static function popularQueries($days = 30, $limit = 10)
+    {
+        return self::topQueries($days, $limit, false);
+    }
+
+
+    public static function popularZeroQueries($days = 30, $limit = 10)
+    {
+        return self::topQueries($days, $limit, true);
+    }
+
+
+    private static function topQueries($days, $limit, $zeroOnly)
+    {
+        self::ensureSchema();
+
+        $days = max(1, min(3650, (int) $days));
+        $limit = max(1, min(50, (int) $limit));
+        $zeroCondition = $zeroOnly
+            ? ' AND total_results = 0'
+            : '';
+        $db = Database::connect();
+
+        $sql = "
+            SELECT
+                latest.query_text,
+                stats.normalized_query,
+                stats.search_count,
+                stats.last_searched_at,
+                stats.average_results
+            FROM
+            (
+                SELECT
+                    normalized_query,
+                    COUNT(*) AS search_count,
+                    MAX(id) AS latest_id,
+                    MAX(created_at) AS last_searched_at,
+                    ROUND(AVG(total_results), 1) AS average_results
+                FROM search_queries
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY)
+                {$zeroCondition}
+                GROUP BY normalized_query
+            ) stats
+            INNER JOIN search_queries latest
+                ON latest.id = stats.latest_id
+            ORDER BY
+                stats.search_count DESC,
+                stats.last_searched_at DESC
+            LIMIT {$limit}
+        ";
+
+        return $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
     private static function buildWhere(array $filters)
     {
         $conditions = [];
