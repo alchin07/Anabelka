@@ -12,7 +12,7 @@ $escape = function ($value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Ранги') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=3">
 </head>
 <body>
 
@@ -46,7 +46,7 @@ $escape = function ($value) {
         <strong>Ранг для нової реєстрації</strong>
         <span>
             <?= $defaultRank
-                ? $escape(($defaultRank['name'] ?? '') . ' · рівень ' . ($defaultRank['level'] ?? ''))
+                ? $escape($defaultRank['name'] ?? '')
                 : 'Не визначено' ?>
         </span>
     </section>
