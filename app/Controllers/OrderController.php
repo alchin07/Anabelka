@@ -320,22 +320,52 @@ class OrderController extends Controller
                 * (int) $item['quantity'];
         }
 
-        $result = Order::create(
-            $userId,
-            $customerName,
-            $customerEmail,
-            $customerPhone,
-            $deliveryMethod,
-            $deliveryService,
-            $deliveryServiceOption,
-            $deliveryCountry,
-            $deliveryCity,
-            $deliveryAddress,
-            $deliveryPostcode,
-            $comment,
-            $items,
-            $total
-        );
+        try {
+            $result = Order::create(
+                $userId,
+                $customerName,
+                $customerEmail,
+                $customerPhone,
+                $deliveryMethod,
+                $deliveryService,
+                $deliveryServiceOption,
+                $deliveryCountry,
+                $deliveryCity,
+                $deliveryAddress,
+                $deliveryPostcode,
+                $comment,
+                $items,
+                $total
+            );
+        } catch (RuntimeException $e) {
+            $message = trim((string) $e->getMessage());
+            $isInventoryError =
+                strpos($message, 'Недостатньо товару') === 0
+                || strpos($message, 'Не вдалося визначити розмір') === 0;
+
+            if (!$isInventoryError) {
+                throw $e;
+            }
+
+            http_response_code(409);
+
+            $this->view(
+                'order/error',
+                [
+                    'errorTitle' => Translator::t(
+                        'public.order.stock_changed_title',
+                        'Залишок товару змінився'
+                    ),
+                    'errorMessage' => $message,
+                    'backUrl' => '/Anabelka/cart',
+                    'backLabel' => Translator::t(
+                        'public.order.back_cart',
+                        'Повернутися до кошика'
+                    )
+                ]
+            );
+            return;
+        }
 
         $orderToken = $result['token'];
 
