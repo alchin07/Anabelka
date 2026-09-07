@@ -6,6 +6,16 @@ $currentLanguage = $currentLanguage
 $pageTitle = '';
 $directions = is_array($directions ?? null) ? $directions : [];
 $latestProducts = is_array($latestProducts ?? null) ? $latestProducts : [];
+$standardDirections = [];
+$adultDirections = [];
+
+foreach ($directions as $direction) {
+    if (!empty($direction['is_adult'])) {
+        $adultDirections[] = $direction;
+    } else {
+        $standardDirections[] = $direction;
+    }
+}
 
 $escape = function ($value) {
     return htmlspecialchars(
@@ -41,7 +51,7 @@ $assetUrl = function ($path) {
     <title>Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/home.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/home.css?v=2">
 </head>
 <body>
 
@@ -49,6 +59,32 @@ $assetUrl = function ($path) {
 
 <main class="home-page">
     <div class="home-shell">
+        <nav class="home-department-nav" aria-label="Напрямки магазину">
+            <a class="home-department-nav-main" href="/Anabelka/catalog">
+                <?= $escape(
+                    Translator::t('home.nav_catalog', 'Каталог')
+                ) ?>
+            </a>
+
+            <?php foreach ($standardDirections as $direction): ?>
+                <a
+                    href="/Anabelka/catalog/<?= $escape($direction['slug'] ?? '') ?>"
+                >
+                    <?= $escape($direction['name'] ?? '') ?>
+                </a>
+            <?php endforeach; ?>
+
+            <?php foreach ($adultDirections as $direction): ?>
+                <a
+                    class="home-department-nav-adult"
+                    href="/Anabelka/18-plus/<?= $escape($direction['slug'] ?? '') ?>"
+                >
+                    <span>18+</span>
+                    <?= $escape($direction['name'] ?? '') ?>
+                </a>
+            <?php endforeach; ?>
+        </nav>
+
         <section class="home-hero">
             <div class="home-hero-content">
                 <div class="home-eyebrow">
@@ -120,7 +156,7 @@ $assetUrl = function ($path) {
                 </a>
             </div>
 
-            <?php if (empty($directions)): ?>
+            <?php if (empty($standardDirections)): ?>
                 <div class="home-empty">
                     <?= $escape(
                         Translator::t(
@@ -131,7 +167,7 @@ $assetUrl = function ($path) {
                 </div>
             <?php else: ?>
                 <div class="home-direction-grid">
-                    <?php foreach ($directions as $direction): ?>
+                    <?php foreach ($standardDirections as $direction): ?>
                         <?php
                         $directionImage = $assetUrl($direction['image'] ?? '');
                         $directionName = trim((string) ($direction['name'] ?? ''));
@@ -174,6 +210,49 @@ $assetUrl = function ($path) {
                 </div>
             <?php endif; ?>
         </section>
+
+        <?php if (!empty($adultDirections)): ?>
+            <section class="home-adult-section" aria-label="18+">
+                <div class="home-adult-copy">
+                    <span class="home-adult-badge">18+</span>
+
+                    <div>
+                        <h2>
+                            <?= $escape(
+                                Translator::t(
+                                    'home.adult_entry_title',
+                                    'Інтимні товари'
+                                )
+                            ) ?>
+                        </h2>
+
+                        <p>
+                            <?= $escape(
+                                Translator::t(
+                                    'home.adult_entry_text',
+                                    'Окремий приватний розділ для повнолітніх.'
+                                )
+                            ) ?>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="home-adult-links">
+                    <?php foreach ($adultDirections as $direction): ?>
+                        <a
+                            href="/Anabelka/18-plus/<?= $escape($direction['slug'] ?? '') ?>"
+                        >
+                            <?= $escape(
+                                Translator::t(
+                                    'home.adult_open',
+                                    'Перейти до розділу 18+'
+                                )
+                            ) ?> →
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <section class="home-section">
             <div class="home-section-head">
