@@ -21,6 +21,7 @@ class App
         require_once __DIR__ . '/../Models/ProductTranslator.php';
         require_once __DIR__ . '/../Models/HomePage.php';
         require_once __DIR__ . '/../Models/HomeInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/AdultAccess.php';
         require_once __DIR__ . '/../Models/AdminProduct.php';
         require_once __DIR__ . '/../Models/Inventory.php';
         require_once __DIR__ . '/../Models/Cart.php';
@@ -58,6 +59,7 @@ class App
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
         require_once __DIR__ . '/../Controllers/ProductController.php';
+        require_once __DIR__ . '/../Controllers/AdultController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
         require_once __DIR__ . '/../Controllers/CartColorController.php';
         require_once __DIR__ . '/../Controllers/AuthController.php';
@@ -81,6 +83,7 @@ class App
         $router = new Router();
 
         require __DIR__ . '/../../routes/Web.php';
+        require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
 
         $router->dispatch(
