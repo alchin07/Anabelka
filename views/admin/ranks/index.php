@@ -5,6 +5,19 @@ $defaultRank = is_array($defaultRank ?? null) ? $defaultRank : null;
 $escape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
+
+$orderableRankIds = [];
+foreach ($ranks as $rankItem) {
+    if (($rankItem['slug'] ?? '') === 'guest') {
+        continue;
+    }
+    $orderableRankIds[] = (int) ($rankItem['id'] ?? 0);
+}
+
+$firstOrderableId = $orderableRankIds[0] ?? 0;
+$lastOrderableId = !empty($orderableRankIds)
+    ? $orderableRankIds[count($orderableRankIds) - 1]
+    : 0;
 ?>
 <!DOCTYPE html>
 <html lang="uk">
@@ -12,7 +25,7 @@ $escape = function ($value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Ранги') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=5">
 </head>
 <body>
 
@@ -68,7 +81,7 @@ $escape = function ($value) {
                 spellcheck="false"
                 required
             >
-            <small>Рівень нового рангу визначається автоматично.</small>
+            <small>Новий ранг додається в кінець списку. Порядок змінюється стрілками ↑ ↓.</small>
         </div>
         <button class="admin-rank-button is-primary" type="submit">
             Створити ранг
@@ -83,6 +96,8 @@ $escape = function ($value) {
             $isGuest = ($rank['slug'] ?? '') === 'guest';
             $isDefault = $defaultRank
                 && (int) ($defaultRank['id'] ?? 0) === $rankId;
+            $canMoveUp = !$isGuest && $rankId !== $firstOrderableId;
+            $canMoveDown = !$isGuest && $rankId !== $lastOrderableId;
             ?>
             <article class="admin-rank-card">
                 <div class="admin-rank-card-head">
@@ -90,9 +105,11 @@ $escape = function ($value) {
                         <strong><?= $escape($rank['name'] ?? '') ?></strong>
                         <div class="admin-rank-meta">
                             <span>slug: <?= $escape($rank['slug'] ?? '') ?></span>
-                            <span>Рівень: <?= (int) ($rank['level'] ?? 0) ?></span>
                             <span>Користувачів: <?= (int) ($rank['user_count'] ?? 0) ?></span>
                             <span>Товарів із ціною: <?= (int) ($rank['priced_product_count'] ?? 0) ?></span>
+                            <?php if ($isGuest): ?>
+                                <span>Системний ранг</span>
+                            <?php endif; ?>
                             <?php if ($isDefault): ?>
                                 <span>За замовчуванням для реєстрації</span>
                             <?php endif; ?>
@@ -113,33 +130,39 @@ $escape = function ($value) {
                         value="<?= $escape($rank['name'] ?? '') ?>"
                         required
                     >
-
-                    <?php if ($isGuest): ?>
-                        <input type="hidden" name="level" value="<?= (int) ($rank['level'] ?? 0) ?>">
-                        <input
-                            type="number"
-                            value="<?= (int) ($rank['level'] ?? 0) ?>"
-                            aria-label="Рівень системного рангу"
-                            disabled
-                        >
-                    <?php else: ?>
-                        <input
-                            type="number"
-                            name="level"
-                            min="1"
-                            step="1"
-                            value="<?= (int) ($rank['level'] ?? 1) ?>"
-                            aria-label="Рівень"
-                            required
-                        >
-                    <?php endif; ?>
-
                     <button class="admin-rank-button" type="submit">
                         Зберегти
                     </button>
                 </form>
 
                 <div class="admin-rank-actions">
+                    <?php if (!$isGuest): ?>
+                        <div class="admin-rank-order-actions" aria-label="Змінити порядок рангу">
+                            <form method="post" action="/Anabelka/admin/ranks/move">
+                                <input type="hidden" name="rank_id" value="<?= $rankId ?>">
+                                <input type="hidden" name="direction" value="up">
+                                <button
+                                    class="admin-rank-order-button"
+                                    type="submit"
+                                    aria-label="Перемістити ранг вище"
+                                    title="Перемістити вище"
+                                    <?= $canMoveUp ? '' : 'disabled' ?>
+                                >↑</button>
+                            </form>
+                            <form method="post" action="/Anabelka/admin/ranks/move">
+                                <input type="hidden" name="rank_id" value="<?= $rankId ?>">
+                                <input type="hidden" name="direction" value="down">
+                                <button
+                                    class="admin-rank-order-button"
+                                    type="submit"
+                                    aria-label="Перемістити ранг нижче"
+                                    title="Перемістити нижче"
+                                    <?= $canMoveDown ? '' : 'disabled' ?>
+                                >↓</button>
+                            </form>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if ($isActive && !$isGuest && !$isDefault): ?>
                         <form method="post" action="/Anabelka/admin/ranks/default">
                             <input type="hidden" name="rank_id" value="<?= $rankId ?>">
