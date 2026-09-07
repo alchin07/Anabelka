@@ -51,13 +51,21 @@ $escape = function ($value) {
         </span>
     </section>
 
-    <form class="admin-rank-create" method="post" action="/Anabelka/admin/ranks/create">
+    <form
+        class="admin-rank-create"
+        method="post"
+        action="/Anabelka/admin/ranks/create"
+        autocomplete="off"
+    >
         <div class="admin-rank-create-field">
             <input
                 type="text"
-                name="name"
+                name="rank_name"
                 maxlength="100"
                 placeholder="Назва нового рангу"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
                 required
             >
             <small>Рівень нового рангу визначається автоматично.</small>
