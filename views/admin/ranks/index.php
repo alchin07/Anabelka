@@ -12,7 +12,7 @@ $escape = function ($value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Ранги') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=4">
 </head>
 <body>
 
