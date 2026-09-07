@@ -30,6 +30,23 @@ class CatalogController extends Controller
             die('Категория не найдена');
         }
 
+        if (
+            HomePage::isAdultCategoryId((int) ($category['id'] ?? 0))
+            && !AdultAccess::isConfirmed()
+        ) {
+            $returnUrl = $_SERVER['REQUEST_URI']
+                ?? '/Anabelka/catalog/' . rawurlencode((string) $slug);
+
+            header(
+                'Location: '
+                . AdultAccess::gateUrl(
+                    (string) $category['slug'],
+                    $returnUrl
+                )
+            );
+            exit;
+        }
+
         $children = Category::children($category['id']);
         $products = Product::byCategory($category['id']);
 
