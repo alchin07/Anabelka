@@ -11,10 +11,30 @@ class ProductController extends Controller
             die('Товар не найден');
         }
 
-        if (($_GET['view'] ?? '') === 'category') {
-            $category = Category::findById(
-                (int) ($product['category_id'] ?? 0)
+        $productCategory = Category::findById(
+            (int) ($product['category_id'] ?? 0)
+        );
+
+        if (
+            $productCategory
+            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            && !AdultAccess::isConfirmed()
+        ) {
+            $returnUrl = $_SERVER['REQUEST_URI']
+                ?? '/Anabelka/product/' . rawurlencode((string) $slug);
+
+            header(
+                'Location: '
+                . AdultAccess::gateUrl(
+                    (string) ($productCategory['slug'] ?? ''),
+                    $returnUrl
+                )
             );
+            exit;
+        }
+
+        if (($_GET['view'] ?? '') === 'category') {
+            $category = $productCategory;
 
             if (!$category || empty($category['slug'])) {
                 http_response_code(404);
@@ -137,6 +157,25 @@ class ProductController extends Controller
                 'success' => false,
                 'message' => 'Товар не найден'
             ], 404);
+        }
+
+        $productCategory = Category::findById(
+            (int) ($product['category_id'] ?? 0)
+        );
+
+        if (
+            $productCategory
+            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            && !AdultAccess::isConfirmed()
+        ) {
+            $this->json([
+                'success' => false,
+                'message' => 'Потрібне підтвердження віку.',
+                'gate_url' => AdultAccess::gateUrl(
+                    (string) ($productCategory['slug'] ?? ''),
+                    '/Anabelka/product/' . rawurlencode((string) $slug)
+                )
+            ], 403);
         }
 
         $productId = (int) $product['id'];
