@@ -16,6 +16,7 @@ $router->get('/', 'HomeController@index');
 $router->get('/catalog', 'CatalogController@index');
 
 $router->get('/search', 'SearchController@index');
+$router->get('/search/suggest', 'SearchController@suggest');
 
 $router->get('/catalog/{slug}', 'CatalogController@category');
 
