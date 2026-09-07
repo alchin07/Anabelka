@@ -420,7 +420,7 @@ echo $cartCount;
     <?php require __DIR__ . '/product-i18n.php'; ?>
 
     <script
-        src="/Anabelka/js/product-color-variants.js?v=1"
+        src="/Anabelka/js/product-color-variants.js?v=2"
         defer
     ></script>
 
