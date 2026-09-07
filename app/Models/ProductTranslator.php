@@ -39,6 +39,37 @@ class ProductTranslator
               COLLATE=utf8mb4_unicode_ci
         ");
 
+        /*
+         * У старій версії таблиці перекладів існувало поле
+         * department_id. Воно більше не використовується, але
+         * CREATE TABLE IF NOT EXISTS не змінює вже створену таблицю.
+         * Якщо старе поле залишилося NOT NULL без DEFAULT, будь-який
+         * INSERT нового перекладу завершується MySQL 1364.
+         * Робимо його сумісним зі старою базою без втрати даних.
+         */
+        $legacyColumnStmt = $db->query(
+            "SHOW COLUMNS FROM product_translations LIKE 'department_id'"
+        );
+        $legacyColumn = $legacyColumnStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($legacyColumn) {
+            $isNullable = strtoupper((string) ($legacyColumn['Null'] ?? 'NO')) === 'YES';
+            $hasDefault = $legacyColumn['Default'] !== null;
+
+            if (!$isNullable && !$hasDefault) {
+                $type = trim((string) ($legacyColumn['Type'] ?? 'INT UNSIGNED'));
+
+                if (!preg_match('/^[a-z]+(?:\([0-9,]+\))?(?: unsigned)?$/i', $type)) {
+                    $type = 'INT UNSIGNED';
+                }
+
+                $db->exec(
+                    "ALTER TABLE product_translations "
+                    . "MODIFY department_id {$type} NULL DEFAULT NULL"
+                );
+            }
+        }
+
         self::$schemaReady = true;
     }
 
