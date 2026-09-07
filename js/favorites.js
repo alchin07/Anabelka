@@ -7,6 +7,7 @@
     const addLabel = script?.dataset.addLabel || 'Добавить в избранное';
     const removeLabel = script?.dataset.removeLabel || 'Удалить из избранного';
     const headerCount = document.getElementById('favorite-count');
+    const pageCount = document.getElementById('favorite-page-count');
 
     const productSlugFromHref = function (href) {
         try {
@@ -64,10 +65,14 @@
     };
 
     const updateCount = function (count) {
+        const safeCount = Math.max(0, Number(count) || 0);
+
         if (headerCount) {
-            headerCount.textContent = String(
-                Math.max(0, Number(count) || 0)
-            );
+            headerCount.textContent = String(safeCount);
+        }
+
+        if (pageCount) {
+            pageCount.textContent = String(safeCount);
         }
     };
 
