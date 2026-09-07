@@ -19,6 +19,8 @@ class App
         require_once __DIR__ . '/../Models/ProductVariantStock.php';
         require_once __DIR__ . '/../Models/Product.php';
         require_once __DIR__ . '/../Models/ProductTranslator.php';
+        require_once __DIR__ . '/../Models/HomePage.php';
+        require_once __DIR__ . '/../Models/HomeInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/AdminProduct.php';
         require_once __DIR__ . '/../Models/Inventory.php';
         require_once __DIR__ . '/../Models/Cart.php';
