@@ -1,15 +1,30 @@
 <?php
 $users = is_array($users ?? null) ? $users : [];
 $ranks = is_array($ranks ?? null) ? $ranks : [];
+$assignableRanks = is_array($assignableRanks ?? null)
+    ? $assignableRanks
+    : [];
 $history = is_array($history ?? null) ? $history : [];
 $summary = is_array($summary ?? null) ? $summary : [];
 $filters = is_array($filters ?? null) ? $filters : [];
+$inviteFlash = is_array($inviteFlash ?? null) ? $inviteFlash : null;
 $returnQuery = http_build_query([
     'q' => $filters['q'] ?? '',
     'rank_id' => $filters['rank_id'] ?? 0,
     'status' => $filters['status'] ?? '',
     'page' => $page ?? 1
 ]);
+$inviteChannelLabels = [
+    'viber' => 'Viber',
+    'whatsapp' => 'WhatsApp',
+    'telegram' => 'Telegram',
+    'other' => 'Інший канал'
+];
+$inviteStatusLabels = [
+    'created' => 'Створено',
+    'sent' => 'Запрошення надіслано',
+    'accepted' => 'Увійшов'
+];
 ?>
 <!DOCTYPE html>
 <html lang="uk">
@@ -17,7 +32,7 @@ $returnQuery = http_build_query([
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Користувачі') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=2">
 </head>
 <body>
 
@@ -51,11 +66,122 @@ $returnQuery = http_build_query([
         </div>
     <?php endif; ?>
 
+    <?php if ($inviteFlash && !empty($inviteFlash['invite_token'])): ?>
+        <?php
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            ? 'https'
+            : 'http';
+        $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        $inviteUrl = ($host !== '' ? $scheme . '://' . $host : '')
+            . '/Anabelka/invite?token='
+            . rawurlencode((string) $inviteFlash['invite_token']);
+        $inviteText = "Вас запросили до магазину «Анабелька».\n"
+            . "Логін: " . (string) ($inviteFlash['email'] ?? '') . "\n"
+            . "Для активації акаунта відкрийте посилання:\n"
+            . $inviteUrl;
+        ?>
+        <section class="admin-invite-result">
+            <div class="admin-users-panel-head">
+                <div>
+                    <h2>Акаунт створено</h2>
+                    <p>Надішліть користувачу це одноразове посилання. Воно діє 7 днів.</p>
+                </div>
+                <span class="admin-users-total">
+                    <?= htmlspecialchars(
+                        $inviteChannelLabels[$inviteFlash['channel'] ?? 'other']
+                        ?? 'Інший канал'
+                    ) ?>
+                </span>
+            </div>
+
+            <div class="admin-invite-credentials">
+                <div>
+                    <span>Логін</span>
+                    <strong><?= htmlspecialchars($inviteFlash['email'] ?? '') ?></strong>
+                </div>
+                <div>
+                    <span>Контакт</span>
+                    <strong><?= htmlspecialchars($inviteFlash['contact'] ?? '') ?></strong>
+                </div>
+                <div>
+                    <span>Діє до</span>
+                    <strong><?= htmlspecialchars($inviteFlash['expires_at'] ?? '') ?></strong>
+                </div>
+            </div>
+
+            <label class="admin-invite-message-field">
+                <span>Готовий текст для повідомлення</span>
+                <textarea rows="6" readonly><?= htmlspecialchars($inviteText) ?></textarea>
+            </label>
+        </section>
+    <?php endif; ?>
+
+    <section class="admin-users-panel admin-user-create-panel">
+        <div class="admin-users-panel-head">
+            <div>
+                <h2>Створити акаунт для запрошення</h2>
+                <p>Для Viber, WhatsApp, Telegram або іншого каналу. Користувач сам встановить пароль.</p>
+            </div>
+        </div>
+
+        <form
+            class="admin-user-create-form"
+            method="post"
+            action="/Anabelka/admin/users/invite/create"
+            autocomplete="off"
+        >
+            <label>
+                <span>Ім’я</span>
+                <input type="text" name="invite_name" maxlength="120" autocomplete="off" required>
+            </label>
+
+            <label>
+                <span>Email / логін</span>
+                <input type="email" name="invite_email" maxlength="190" autocomplete="off" required>
+            </label>
+
+            <label>
+                <span>Канал</span>
+                <select name="invite_channel" required>
+                    <option value="viber">Viber</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="telegram">Telegram</option>
+                    <option value="other">Інший</option>
+                </select>
+            </label>
+
+            <label>
+                <span>Телефон / username</span>
+                <input
+                    type="text"
+                    name="invite_contact"
+                    maxlength="160"
+                    autocomplete="off"
+                    placeholder="+49… або @username"
+                    required
+                >
+            </label>
+
+            <label>
+                <span>Ранг</span>
+                <select name="invite_rank_id" required>
+                    <?php foreach ($assignableRanks as $rank): ?>
+                        <option value="<?= (int) ($rank['id'] ?? 0) ?>">
+                            <?= htmlspecialchars($rank['name'] ?? '') ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <button type="submit">Створити акаунт</button>
+        </form>
+    </section>
+
     <section class="admin-users-panel">
         <div class="admin-users-panel-head">
             <div>
                 <h2>Користувачі та ранги</h2>
-                <p>Пошук, поточний ранг і безпечна зміна рангу користувача.</p>
+                <p>Пошук, поточний ранг, статус запрошення і безпечна зміна рангу користувача.</p>
             </div>
             <span class="admin-users-total">
                 Знайдено: <?= (int) ($total ?? 0) ?>
@@ -111,12 +237,22 @@ $returnQuery = http_build_query([
                     <?php
                     $userId = (int) ($user['id'] ?? 0);
                     $isActive = !empty($user['is_active']);
+                    $inviteStatus = trim((string) ($user['invitation_status'] ?? ''));
+                    $inviteChannel = trim((string) ($user['invitation_channel'] ?? ''));
                     ?>
                     <article class="admin-user-card">
                         <div class="admin-user-main">
                             <div class="admin-user-identity">
                                 <strong><?= htmlspecialchars($user['name'] ?? '') ?></strong>
                                 <span><?= htmlspecialchars($user['email'] ?? '') ?></span>
+                                <?php if ($inviteStatus !== ''): ?>
+                                    <small>
+                                        <?= htmlspecialchars(
+                                            $inviteChannelLabels[$inviteChannel] ?? 'Запрошення'
+                                        ) ?>:
+                                        <?= htmlspecialchars($user['invitation_contact'] ?? '') ?>
+                                    </small>
+                                <?php endif; ?>
                                 <small>ID: <?= $userId ?></small>
                             </div>
 
@@ -127,8 +263,32 @@ $returnQuery = http_build_query([
                                 <span class="admin-user-status <?= $isActive ? 'is-active' : 'is-inactive' ?>">
                                     <?= $isActive ? 'Активний' : 'Неактивний' ?>
                                 </span>
+                                <?php if ($inviteStatus !== ''): ?>
+                                    <span class="admin-invite-status is-<?= htmlspecialchars($inviteStatus) ?>">
+                                        <?= htmlspecialchars(
+                                            $inviteStatusLabels[$inviteStatus] ?? $inviteStatus
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
                             </div>
                         </div>
+
+                        <?php if ($inviteStatus === 'created'): ?>
+                            <form
+                                class="admin-user-invite-action"
+                                method="post"
+                                action="/Anabelka/admin/users/invite/sent"
+                            >
+                                <input type="hidden" name="user_id" value="<?= $userId ?>">
+                                <input
+                                    type="hidden"
+                                    name="return_query"
+                                    value="<?= htmlspecialchars($returnQuery, ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                                <span>Запрошення ще не позначене як надіслане.</span>
+                                <button type="submit">Позначити як надіслане</button>
+                            </form>
+                        <?php endif; ?>
 
                         <form
                             class="admin-user-rank-form"
@@ -146,7 +306,7 @@ $returnQuery = http_build_query([
                             <label>
                                 <span>Новий ранг</span>
                                 <select name="rank_id" required>
-                                    <?php foreach ($ranks as $rank): ?>
+                                    <?php foreach ($assignableRanks as $rank): ?>
                                         <option
                                             value="<?= (int) ($rank['id'] ?? 0) ?>"
                                             <?= (int) ($user['rank_id'] ?? 0) === (int) ($rank['id'] ?? 0) ? 'selected' : '' ?>
