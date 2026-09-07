@@ -15,11 +15,31 @@ class ProductDepartmentSync
         $columnStmt = $db->query(
             "SHOW COLUMNS FROM products LIKE 'department_id'"
         );
+        $column = $columnStmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$columnStmt->fetch(PDO::FETCH_ASSOC)) {
+        if (!$column) {
             self::$ready = true;
             return;
         }
+
+        $fallbackDepartmentId = (int) $db->query("
+            SELECT MIN(department_id)
+            FROM categories
+            WHERE department_id IS NOT NULL
+              AND department_id > 0
+        ")->fetchColumn();
+
+        if ($fallbackDepartmentId <= 0) {
+            throw new RuntimeException(
+                'Не знайдено відділ для категорій товарів.'
+            );
+        }
+
+        self::ensureDefault(
+            $db,
+            $column,
+            $fallbackDepartmentId
+        );
 
         $db->exec("
             UPDATE products AS p
@@ -69,6 +89,35 @@ class ProductDepartmentSync
         );
 
         self::$ready = true;
+    }
+
+
+    private static function ensureDefault(
+        PDO $db,
+        array $column,
+        $fallbackDepartmentId
+    ) {
+        if ($column['Default'] !== null) {
+            return;
+        }
+
+        $type = strtolower(trim((string) ($column['Type'] ?? '')));
+
+        if (!preg_match('/^(tinyint|smallint|mediumint|int|bigint)(\([0-9]+\))?( unsigned)?$/', $type)) {
+            throw new RuntimeException(
+                'Непідтримуваний тип поля products.department_id.'
+            );
+        }
+
+        $nullSql = strtoupper((string) ($column['Null'] ?? 'NO')) === 'YES'
+            ? 'NULL'
+            : 'NOT NULL';
+        $default = (int) $fallbackDepartmentId;
+
+        $db->exec(
+            "ALTER TABLE products "
+            . "MODIFY department_id {$type} {$nullSql} DEFAULT {$default}"
+        );
     }
 
 
