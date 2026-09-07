@@ -14,14 +14,12 @@ class CatalogSearch
             ];
         }
 
-        // Гарантуємо існування таблиць перекладів до пошукових JOIN.
         ProductTranslator::getForProduct(0);
         CategoryTranslator::getForCategory(0);
 
         $products = self::searchProducts($query, $languageCode);
         $categories = self::searchCategories($query, $languageCode);
 
-        // Загальний пошук не змішується з приватною гілкою 18+.
         $products = array_values(array_filter(
             $products,
             function ($product) {
@@ -114,8 +112,14 @@ class CatalogSearch
             FROM products p
             LEFT JOIN product_translations pt
                 ON pt.product_id = p.id
-               AND pt.language_code = :language_code
+               AND pt.language_code = :product_language_code
                AND pt.status IN ('approved', 'outdated')
+            LEFT JOIN categories c
+                ON c.id = p.category_id
+            LEFT JOIN category_translations ct
+                ON ct.category_id = c.id
+               AND ct.language_code = :category_language_code
+               AND ct.status IN ('approved', 'outdated')
             WHERE p.is_active = 1
               AND LOCATE(
                     LOWER(:query),
@@ -126,7 +130,11 @@ class CatalogSearch
                         COALESCE(p.sku, ''),
                         COALESCE(p.brand, ''),
                         COALESCE(pt.name, ''),
-                        COALESCE(pt.description, '')
+                        COALESCE(pt.description, ''),
+                        COALESCE(c.name, ''),
+                        COALESCE(c.description, ''),
+                        COALESCE(ct.name, ''),
+                        COALESCE(ct.description, '')
                     ))
                   ) > 0
             ORDER BY
@@ -141,7 +149,8 @@ class CatalogSearch
         ");
 
         $stmt->execute([
-            'language_code' => $languageCode,
+            'product_language_code' => $languageCode,
+            'category_language_code' => $languageCode,
             'query' => $query,
             'exact_sku' => $query,
             'exact_name' => $query,
