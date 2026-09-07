@@ -42,6 +42,36 @@ class Favorite
     }
 
 
+    public static function currentStateItems()
+    {
+        $ids = self::currentIds();
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        $db = Database::connect();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $db->prepare("
+            SELECT id, slug
+            FROM products
+            WHERE is_active = 1
+              AND id IN ({$placeholders})
+        ");
+        $stmt->execute($ids);
+        $items = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $items[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'slug' => (string) ($row['slug'] ?? '')
+            ];
+        }
+
+        return $items;
+    }
+
+
     public static function countCurrent()
     {
         return count(self::currentIds());
