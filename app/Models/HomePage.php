@@ -171,15 +171,14 @@ class HomePage
 
     private static function looksAdult(array $category)
     {
-        $text = trim(
-            (string) ($category['slug'] ?? '')
-            . ' '
-            . (string) ($category['name'] ?? '')
-        );
+        $slug = trim((string) ($category['slug'] ?? ''));
+        $name = trim((string) ($category['name'] ?? ''));
+        $text = trim($slug . ' ' . $name);
 
         $text = function_exists('mb_strtolower')
             ? mb_strtolower($text, 'UTF-8')
             : strtolower($text);
+        $slugLower = strtolower($slug);
 
         $markers = [
             '18+',
@@ -190,9 +189,7 @@ class HomePage
             'інтим',
             'интим',
             'ерот',
-            'erot',
-            'sex',
-            'seks'
+            'erot'
         ];
 
         foreach ($markers as $marker) {
@@ -201,6 +198,9 @@ class HomePage
             }
         }
 
-        return false;
+        return (bool) preg_match(
+            '/(^|[-_])(sex|seks)([-_]|$)/',
+            $slugLower
+        );
     }
 }
