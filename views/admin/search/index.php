@@ -3,6 +3,15 @@ $pageTitle = $pageTitle ?? 'Адмін-панель · Пошук';
 $rows = is_array($rows ?? null) ? $rows : [];
 $filters = is_array($filters ?? null) ? $filters : [];
 $summary = is_array($summary ?? null) ? $summary : [];
+$periodAnalytics = is_array($periodAnalytics ?? null)
+    ? $periodAnalytics
+    : [];
+$popularQueries = is_array($popularQueries ?? null)
+    ? $popularQueries
+    : [];
+$popularZeroQueries = is_array($popularZeroQueries ?? null)
+    ? $popularZeroQueries
+    : [];
 $page = max(1, (int) ($page ?? 1));
 $pages = max(1, (int) ($pages ?? 1));
 $total = max(0, (int) ($total ?? 0));
@@ -22,7 +31,7 @@ unset($baseQuery['page']);
     <title><?= $escape($pageTitle) ?></title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-search.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-search.css?v=2">
 </head>
 <body>
 
@@ -44,6 +53,115 @@ unset($baseQuery['page']);
             <div><strong><?= (int) ($summary['users'] ?? 0) ?></strong><span>Користувачі</span></div>
             <div><strong><?= (int) ($summary['guests'] ?? 0) ?></strong><span>Гості</span></div>
         </div>
+
+        <section class="admin-search-analytics" aria-label="Аналітика пошуку">
+            <div class="admin-search-analytics-head">
+                <div>
+                    <h3>Аналітика пошуку</h3>
+                    <p>Коротка картина того, що шукають відвідувачі магазину.</p>
+                </div>
+            </div>
+
+            <div class="admin-search-periods">
+                <?php
+                $periodCards = [
+                    'today' => ['title' => 'Сьогодні'],
+                    'week' => ['title' => '7 днів'],
+                    'month' => ['title' => '30 днів']
+                ];
+                ?>
+
+                <?php foreach ($periodCards as $periodKey => $periodMeta): ?>
+                    <?php $period = $periodAnalytics[$periodKey] ?? []; ?>
+                    <div class="admin-search-period-card">
+                        <span class="admin-search-period-title">
+                            <?= $escape($periodMeta['title']) ?>
+                        </span>
+                        <strong><?= (int) ($period['count'] ?? 0) ?></strong>
+                        <span>пошукових запитів</span>
+                        <small>
+                            Унікальних: <?= (int) ($period['unique'] ?? 0) ?>
+                            · без результатів: <?= (int) ($period['zero'] ?? 0) ?>
+                        </small>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="admin-search-top-grid">
+                <section class="admin-search-top-card">
+                    <div class="admin-search-top-head">
+                        <div>
+                            <h3>Популярні запити</h3>
+                            <p>Топ за останні 30 днів</p>
+                        </div>
+                    </div>
+
+                    <?php if (empty($popularQueries)): ?>
+                        <div class="admin-search-top-empty">Поки недостатньо даних.</div>
+                    <?php else: ?>
+                        <div class="admin-search-top-list">
+                            <?php foreach ($popularQueries as $index => $item): ?>
+                                <?php
+                                $queryText = (string) ($item['query_text'] ?? '');
+                                $filterUrl = '/Anabelka/admin/search?'
+                                    . http_build_query(['q' => $queryText]);
+                                ?>
+                                <a class="admin-search-top-row" href="<?= $escape($filterUrl) ?>">
+                                    <span class="admin-search-top-rank"><?= $index + 1 ?></span>
+                                    <span class="admin-search-top-query">
+                                        <strong><?= $escape($queryText) ?></strong>
+                                        <small>
+                                            Востаннє: <?= $escape($item['last_searched_at'] ?? '') ?>
+                                        </small>
+                                    </span>
+                                    <span class="admin-search-top-count">
+                                        <?= (int) ($item['search_count'] ?? 0) ?>
+                                    </span>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
+
+                <section class="admin-search-top-card is-missed">
+                    <div class="admin-search-top-head">
+                        <div>
+                            <h3>Шукають, але не знаходять</h3>
+                            <p>Найчастіші запити з 0 результатів за 30 днів</p>
+                        </div>
+                    </div>
+
+                    <?php if (empty($popularZeroQueries)): ?>
+                        <div class="admin-search-top-empty">Запитів без результатів поки немає.</div>
+                    <?php else: ?>
+                        <div class="admin-search-top-list">
+                            <?php foreach ($popularZeroQueries as $index => $item): ?>
+                                <?php
+                                $queryText = (string) ($item['query_text'] ?? '');
+                                $filterUrl = '/Anabelka/admin/search?'
+                                    . http_build_query([
+                                        'q' => $queryText,
+                                        'results' => 'zero'
+                                    ]);
+                                ?>
+                                <a class="admin-search-top-row" href="<?= $escape($filterUrl) ?>">
+                                    <span class="admin-search-top-rank"><?= $index + 1 ?></span>
+                                    <span class="admin-search-top-query">
+                                        <strong><?= $escape($queryText) ?></strong>
+                                        <small>
+                                            Востаннє: <?= $escape($item['last_searched_at'] ?? '') ?>
+                                        </small>
+                                    </span>
+                                    <span class="admin-search-top-count is-zero">
+                                        <?= (int) ($item['search_count'] ?? 0) ?>
+                                    </span>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
+            </div>
+        </section>
 
         <form class="admin-search-filters" method="get" action="/Anabelka/admin/search">
             <label>
