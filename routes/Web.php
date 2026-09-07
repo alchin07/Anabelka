@@ -109,6 +109,16 @@ $router->get(
 );
 
 $router->get(
+    '/admin/users',
+    'AdminUserController@index'
+);
+
+$router->post(
+    '/admin/users/rank',
+    'AdminUserController@updateRank'
+);
+
+$router->get(
     '/admin/languages',
     'AdminLanguageController@index'
 );
