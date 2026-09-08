@@ -103,7 +103,12 @@ class AdminUser
                 ui.status AS invitation_status,
                 ui.sent_at AS invitation_sent_at,
                 ui.accepted_at AS invitation_accepted_at,
-                ui.created_at AS invitation_created_at
+                ui.created_at AS invitation_created_at,
+                (
+                    SELECT COUNT(*)
+                    FROM orders o
+                    WHERE o.user_id = u.id
+                ) AS order_count
             FROM users u
             INNER JOIN user_ranks ur ON ur.id = u.rank_id
             LEFT JOIN user_invitations ui ON ui.user_id = u.id
@@ -266,6 +271,174 @@ class AdminUser
 
             throw $e;
         }
+    }
+
+
+    public static function deleteAccount($userId)
+    {
+        self::ensureHistoryTable();
+        UserInvitation::ensureSchema();
+        Favorite::ensureSchema();
+
+        $userId = (int) $userId;
+
+        if ($userId <= 0) {
+            throw new InvalidArgumentException('Некоректний користувач.');
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT id, name, email, is_active
+                FROM users
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute(['id' => $userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                throw new RuntimeException('Користувача не знайдено.');
+            }
+
+            $orderStmt = $db->prepare("
+                SELECT COUNT(*)
+                FROM orders
+                WHERE user_id = :user_id
+            ");
+            $orderStmt->execute(['user_id' => $userId]);
+            $orderCount = (int) $orderStmt->fetchColumn();
+
+            if ($orderCount > 0) {
+                throw new RuntimeException(
+                    'Акаунт має замовлення. Видалення заборонено — деактивуйте його, щоб зберегти історію продажів.'
+                );
+            }
+
+            $clearInviteActor = $db->prepare("
+                UPDATE user_invitations
+                SET created_by_user_id = NULL
+                WHERE created_by_user_id = :user_id
+            ");
+            $clearInviteActor->execute(['user_id' => $userId]);
+
+            $deleteInvite = $db->prepare("
+                DELETE FROM user_invitations
+                WHERE user_id = :user_id
+            ");
+            $deleteInvite->execute(['user_id' => $userId]);
+
+            $deleteFavorites = $db->prepare("
+                DELETE FROM user_favorites
+                WHERE user_id = :user_id
+            ");
+            $deleteFavorites->execute(['user_id' => $userId]);
+
+            $clearRankActor = $db->prepare("
+                UPDATE user_rank_history
+                SET changed_by_user_id = NULL
+                WHERE changed_by_user_id = :user_id
+            ");
+            $clearRankActor->execute(['user_id' => $userId]);
+
+            $deleteRankHistory = $db->prepare("
+                DELETE FROM user_rank_history
+                WHERE user_id = :user_id
+            ");
+            $deleteRankHistory->execute(['user_id' => $userId]);
+
+            $cartStmt = $db->prepare("
+                SELECT id
+                FROM carts
+                WHERE user_id = :user_id
+                FOR UPDATE
+            ");
+            $cartStmt->execute(['user_id' => $userId]);
+            $cartIds = array_map(
+                'intval',
+                $cartStmt->fetchAll(PDO::FETCH_COLUMN)
+            );
+
+            if (!empty($cartIds)) {
+                $placeholders = implode(
+                    ',',
+                    array_fill(0, count($cartIds), '?')
+                );
+                $deleteCartItems = $db->prepare("
+                    DELETE FROM cart_items
+                    WHERE cart_id IN ({$placeholders})
+                ");
+                $deleteCartItems->execute($cartIds);
+            }
+
+            $deleteCarts = $db->prepare("
+                DELETE FROM carts
+                WHERE user_id = :user_id
+            ");
+            $deleteCarts->execute(['user_id' => $userId]);
+
+            $deleteUser = $db->prepare("
+                DELETE FROM users
+                WHERE id = :id
+            ");
+            $deleteUser->execute(['id' => $userId]);
+
+            $db->commit();
+
+            return $user;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    public static function deactivateAccount($userId)
+    {
+        $userId = (int) $userId;
+
+        if ($userId <= 0) {
+            throw new InvalidArgumentException('Некоректний користувач.');
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            SELECT id, name, email, is_active
+            FROM users
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            throw new RuntimeException('Користувача не знайдено.');
+        }
+
+        if (empty($user['is_active'])) {
+            return [
+                'changed' => false,
+                'user' => $user
+            ];
+        }
+
+        $update = $db->prepare("
+            UPDATE users
+            SET is_active = 0
+            WHERE id = :id
+        ");
+        $update->execute(['id' => $userId]);
+
+        return [
+            'changed' => true,
+            'user' => $user
+        ];
     }
 
 
