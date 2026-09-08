@@ -1,6 +1,21 @@
 <?php
 
 $router->get(
+    '/admin/profile',
+    'AdminAdministratorController@profile'
+);
+
+$router->post(
+    '/admin/profile',
+    'AdminAdministratorController@updateProfile'
+);
+
+$router->post(
+    '/admin/profile/password',
+    'AdminAdministratorController@changeOwnPassword'
+);
+
+$router->get(
     '/admin/administrators',
     'AdminAdministratorController@index'
 );
