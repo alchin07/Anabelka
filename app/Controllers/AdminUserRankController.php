@@ -62,10 +62,13 @@ class AdminUserRankController extends Controller
                 throw new RuntimeException('Ранг не знайдено.');
             }
 
+            $storedTranslations = UserRankTranslator::getForRank($rankId);
             $newName = trim((string) ($_POST['name'] ?? ''));
+            $sourceChanged = trim((string) ($before['name'] ?? '')) !== $newName;
+
             UserRank::update($rankId, $newName);
 
-            if (trim((string) ($before['name'] ?? '')) !== $newName) {
+            if ($sourceChanged) {
                 UserRankTranslator::markOutdated($rankId);
             }
 
@@ -90,12 +93,27 @@ class AdminUserRankController extends Controller
                     continue;
                 }
 
+                $translatedName = trim((string) ($translationNames[$code] ?? ''));
+                $oldTranslatedName = trim((string) (
+                    $storedTranslations[$code]['name'] ?? ''
+                ));
+                $translationChanged = $translatedName !== $oldTranslatedName;
+                $status = $translationStatuses[$code] ?? 'approved';
+
+                if (
+                    $sourceChanged
+                    && !$translationChanged
+                    && $translatedName !== ''
+                ) {
+                    $status = TranslationWorkflow::STATUS_OUTDATED;
+                }
+
                 UserRankTranslator::saveForRank(
                     $rankId,
                     $code,
-                    $translationNames[$code] ?? '',
+                    $translatedName,
                     $translationSources[$code] ?? 'manual',
-                    $translationStatuses[$code] ?? 'approved'
+                    $status
                 );
             }
 
