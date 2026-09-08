@@ -250,3 +250,4 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+<script src="/Anabelka/js/product-gallery-thumb-fix.js?v=1" defer></script>
