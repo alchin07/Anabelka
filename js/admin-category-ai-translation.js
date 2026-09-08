@@ -55,10 +55,35 @@
             '.category-ai-translate:disabled {',
             '  opacity:.55;',
             '  cursor:wait;',
+            '}',
+            '.category-translation-status.category-translation-status-below {',
+            '  margin-top:2px;',
+            '  margin-bottom:4px;',
             '}'
         ].join('\n');
 
         document.head.appendChild(style);
+    }
+
+
+    function moveStatusBelowFields(section)
+    {
+        const status = section.querySelector(
+            '.category-translation-status'
+        );
+        const description = section.querySelector(
+            '.category-translation-description'
+        );
+        const descriptionGroup = description
+            ? description.closest('.category-form-group')
+            : null;
+
+        if (!status || !descriptionGroup) {
+            return;
+        }
+
+        status.classList.add('category-translation-status-below');
+        descriptionGroup.insertAdjacentElement('afterend', status);
     }
 
 
@@ -176,7 +201,10 @@
         }
 
         ensureStyles();
-        sections.forEach(createButton);
+        sections.forEach(function (section) {
+            moveStatusBelowFields(section);
+            createButton(section);
+        });
     }
 
 
