@@ -57,8 +57,42 @@
             '  cursor:wait;',
             '}',
             '.category-translation-status.category-translation-status-below {',
-            '  margin-top:2px;',
-            '  margin-bottom:4px;',
+            '  display:grid;',
+            '  grid-template-columns:minmax(0,1fr) minmax(150px,46%);',
+            '  align-items:center;',
+            '  gap:12px;',
+            '  margin:2px 0 4px;',
+            '  padding:11px 12px;',
+            '  border:1px solid var(--border-color);',
+            '  border-radius:12px;',
+            '  background:#faf7ff;',
+            '  color:var(--primary-color);',
+            '  font-size:13px;',
+            '  font-weight:800;',
+            '}',
+            '.category-translation-status.category-translation-status-below > span {',
+            '  color:var(--primary-color);',
+            '  font-size:13px;',
+            '  font-weight:800;',
+            '}',
+            '.category-translation-status.category-translation-status-below select {',
+            '  width:100%;',
+            '  min-height:42px;',
+            '  box-sizing:border-box;',
+            '  padding:0 11px;',
+            '  border:1px solid var(--border-color);',
+            '  border-radius:10px;',
+            '  background:#fff;',
+            '  color:var(--text-color);',
+            '  font-size:13px;',
+            '  font-weight:800;',
+            '}',
+            '@media (max-width:380px) {',
+            '  .category-translation-status.category-translation-status-below {',
+            '    grid-template-columns:minmax(0,1fr) minmax(135px,48%);',
+            '    gap:8px;',
+            '    padding:10px;',
+            '  }',
             '}'
         ].join('\n');
 
@@ -80,6 +114,12 @@
 
         if (!status || !descriptionGroup) {
             return;
+        }
+
+        const statusTitle = status.querySelector('span');
+
+        if (statusTitle) {
+            statusTitle.textContent = 'Стан перекладу';
         }
 
         status.classList.add('category-translation-status-below');
