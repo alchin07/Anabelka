@@ -73,6 +73,10 @@ $adminCsrfToken = class_exists('AdminAccess')
 >
 <link
     rel="stylesheet"
+    href="/Anabelka/css/admin-access.css?v=1"
+>
+<link
+    rel="stylesheet"
     href="/Anabelka/css/admin-product-editor-fixes.css?v=1"
 >
 
