@@ -9,9 +9,9 @@
 <body class="admin-auth-page">
     <main class="admin-auth-card">
         <p class="admin-auth-brand">Анабелька</p>
-        <h1>Створення власника</h1>
+        <h1>Створення розробника</h1>
         <p class="admin-auth-intro">
-            Це виконується один раз. Власник матиме повний доступ до адмін-панелі
+            Це виконується один раз. Розробник матиме повний доступ до адмін-панелі
             та надалі зможе створювати інших адміністраторів і призначати їм ролі.
         </p>
 
@@ -25,7 +25,7 @@
             <input type="hidden" name="_csrf" value="<?= htmlspecialchars((string) $csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
             <label class="admin-auth-field">
-                <span>Ім’я власника</span>
+                <span>Ім’я розробника</span>
                 <input
                     type="text"
                     name="name"
@@ -62,12 +62,12 @@
             <p class="admin-auth-hint">Щонайменше 10 символів. Пароль зберігається лише як захищений хеш.</p>
 
             <button class="admin-auth-submit" type="submit">
-                Створити власника та увійти
+                Створити розробника та увійти
             </button>
         </form>
 
         <p class="admin-auth-note">
-            <strong>Важливо:</strong> це окремий обліковий запис адміністратора.
+            <strong>Важливо:</strong> це окремий технічний обліковий запис адміністратора.
             Він не є рангом покупця і не впливає на ціни магазину.
         </p>
     </main>
