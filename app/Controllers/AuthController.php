@@ -79,7 +79,10 @@ class AuthController extends Controller
 
     public function loginForm()
     {
-        $this->view('auth/login');
+        $this->view('auth/login', [
+            'error' => '',
+            'email' => ''
+        ]);
     }
 
 
@@ -91,41 +94,49 @@ class AuthController extends Controller
         $password = $_POST['password'] ?? '';
 
         if ($email === '' || $password === '') {
-            die(
+            $this->showLoginError(
                 Translator::t(
                     'public.auth.error_login_fields',
                     'Заповніть email і пароль.'
-                )
+                ),
+                $email
             );
+            return;
         }
 
         $user = User::findByEmailAnyStatus($email);
 
         if (!$user) {
-            die(
+            $this->showLoginError(
                 Translator::t(
                     'public.auth.error_user_not_found',
                     'Користувача не знайдено.'
-                )
+                ),
+                $email
             );
-        }
-
-        if (empty($user['is_active'])) {
-            die(
-                Translator::t(
-                    'public.auth.error_account_inactive',
-                    'Акаунт деактивовано. Зверніться до адміністратора магазину.'
-                )
-            );
+            return;
         }
 
         if (!password_verify($password, $user['password'])) {
-            die(
+            $this->showLoginError(
                 Translator::t(
                     'public.auth.error_password',
                     'Невірний пароль.'
-                )
+                ),
+                $email
             );
+            return;
+        }
+
+        if (empty($user['is_active'])) {
+            $this->showLoginError(
+                Translator::t(
+                    'public.auth.error_account_inactive',
+                    'Акаунт деактивовано. Зверніться до адміністратора магазину.'
+                ),
+                $email
+            );
+            return;
         }
 
         session_regenerate_id(true);
@@ -176,5 +187,16 @@ class AuthController extends Controller
 
         header('Location: /Anabelka/');
         exit;
+    }
+
+
+    private function showLoginError($message, $email)
+    {
+        http_response_code(422);
+
+        $this->view('auth/login', [
+            'error' => trim((string) $message),
+            'email' => trim((string) $email)
+        ]);
     }
 }
