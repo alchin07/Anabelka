@@ -17,6 +17,52 @@ class AdminAdministratorController extends Controller
     }
 
 
+    public function profile()
+    {
+        $this->view('admin/administrators/profile', [
+            'pageTitle' => 'Адмін-панель · Профіль',
+            'admin' => AdminProfile::current(),
+            'csrfToken' => AdminAccess::csrfToken(),
+            'message' => trim((string) ($_GET['message'] ?? '')),
+            'error' => trim((string) ($_GET['error'] ?? ''))
+        ]);
+    }
+
+
+    public function updateProfile()
+    {
+        try {
+            $this->verifyCsrf();
+            AdminProfile::updateIdentity(
+                $_POST['name'] ?? '',
+                $_POST['email'] ?? '',
+                $_POST['current_password'] ?? ''
+            );
+
+            $this->redirectProfile('message', 'Профіль оновлено.');
+        } catch (Throwable $e) {
+            $this->redirectProfile('error', $e->getMessage());
+        }
+    }
+
+
+    public function changeOwnPassword()
+    {
+        try {
+            $this->verifyCsrf();
+            AdminProfile::changePassword(
+                $_POST['current_password'] ?? '',
+                $_POST['new_password'] ?? '',
+                $_POST['new_password_confirmation'] ?? ''
+            );
+
+            $this->redirectProfile('message', 'Пароль успішно змінено.');
+        } catch (Throwable $e) {
+            $this->redirectProfile('error', $e->getMessage());
+        }
+    }
+
+
     public function create()
     {
         try {
@@ -210,6 +256,16 @@ class AdminAdministratorController extends Controller
     {
         header(
             'Location: /Anabelka/admin/administrators?'
+            . http_build_query([$key => (string) $message])
+        );
+        exit;
+    }
+
+
+    private function redirectProfile($key, $message)
+    {
+        header(
+            'Location: /Anabelka/admin/profile?'
             . http_build_query([$key => (string) $message])
         );
         exit;
