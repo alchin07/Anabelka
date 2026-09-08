@@ -44,6 +44,7 @@ class App
         require_once __DIR__ . '/../Models/UserRank.php';
         require_once __DIR__ . '/../Models/UserRankTranslator.php';
         require_once __DIR__ . '/../Models/UserInvitation.php';
+        require_once __DIR__ . '/../Models/AdminAccess.php';
         require_once __DIR__ . '/../Models/AITranslationUsage.php';
         require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
         require_once __DIR__ . '/../Models/Translator.php';
@@ -83,6 +84,7 @@ class App
         require_once __DIR__ . '/../Controllers/QuickOrderController.php';
         require_once __DIR__ . '/../Controllers/CustomerOrderController.php';
         require_once __DIR__ . '/../Controllers/LanguageController.php';
+        require_once __DIR__ . '/../Controllers/AdminAuthController.php';
         require_once __DIR__ . '/../Controllers/AdminDashboardController.php';
         require_once __DIR__ . '/../Controllers/AdminOrderController.php';
         require_once __DIR__ . '/../Controllers/AdminSearchController.php';
