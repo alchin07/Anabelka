@@ -63,10 +63,7 @@ class App
         require_once __DIR__ . '/../Models/CatalogSearch.php';
         require_once __DIR__ . '/../Models/SearchQueryLog.php';
 
-        // Підтримуємо відділ товару синхронним із вибраною категорією.
         ProductDepartmentSync::ensure();
-
-        // Готуємо таблицю варіантів до будь-яких транзакцій замовлення.
         ProductVariantStock::ensureTable();
 
         require_once __DIR__ . '/../Services/AITranslationProviderInterface.php';
@@ -114,6 +111,7 @@ class App
 
         require __DIR__ . '/../../routes/AdminAuth.php';
         require __DIR__ . '/../../routes/AdminSecurity.php';
+        require __DIR__ . '/../../routes/CustomerAccount.php';
         require __DIR__ . '/../../routes/Web.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
