@@ -53,6 +53,10 @@ class Router
 
         $this->guardAdminRoute($path, $method, $uri);
 
+        if (class_exists('AdminActionAudit')) {
+            AdminActionAudit::watch($path, $method);
+        }
+
         foreach ($this->routes[$method] ?? [] as $route => $action) {
             $pattern = preg_replace(
                 '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
