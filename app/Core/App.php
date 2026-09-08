@@ -48,6 +48,7 @@ class App
         require_once __DIR__ . '/../Models/AdminActionAudit.php';
         require_once __DIR__ . '/../Models/AdminManagement.php';
         require_once __DIR__ . '/../Models/AdminRolePermission.php';
+        require_once __DIR__ . '/../Models/AdminRoleCleanup.php';
         require_once __DIR__ . '/../Models/AdminProfile.php';
         require_once __DIR__ . '/../Models/AITranslationUsage.php';
         require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
