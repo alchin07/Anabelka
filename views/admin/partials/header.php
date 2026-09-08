@@ -94,7 +94,7 @@ $canAudit = $adminCan('audit.view');
 >
 <link
     rel="stylesheet"
-    href="/Anabelka/css/admin-access.css?v=1"
+    href="/Anabelka/css/admin-access.css?v=2"
 >
 <link
     rel="stylesheet"
@@ -329,14 +329,19 @@ $canAudit = $adminCan('audit.view');
                 <strong><?= htmlspecialchars((string) ($currentAdmin['name'] ?? 'Адміністратор')) ?></strong>
                 <span><?= htmlspecialchars((string) ($currentAdmin['role_name'] ?? '')) ?></span>
             </div>
-            <form method="post" action="/Anabelka/admin/logout">
-                <input
-                    type="hidden"
-                    name="_csrf"
-                    value="<?= htmlspecialchars($adminCsrfToken, ENT_QUOTES, 'UTF-8') ?>"
-                >
-                <button type="submit">Вийти</button>
-            </form>
+            <div class="admin-drawer-account-actions">
+                <a class="admin-drawer-profile-link" href="/Anabelka/admin/profile">
+                    Профіль
+                </a>
+                <form method="post" action="/Anabelka/admin/logout">
+                    <input
+                        type="hidden"
+                        name="_csrf"
+                        value="<?= htmlspecialchars($adminCsrfToken, ENT_QUOTES, 'UTF-8') ?>"
+                    >
+                    <button type="submit">Вийти</button>
+                </form>
+            </div>
         </div>
     <?php endif; ?>
 
