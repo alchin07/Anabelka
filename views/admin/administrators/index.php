@@ -44,7 +44,7 @@ foreach ($permissions as $permission) {
         <div>
             <span class="admin-security-kicker">Безпека</span>
             <h2>Адміністратори, ролі та права</h2>
-            <p>Акаунти працівників відокремлені від покупців. Власник має повний доступ і захищений від випадкового вимкнення.</p>
+            <p>Акаунти працівників відокремлені від покупців. Розробник має повний доступ і захищений від випадкового вимкнення.</p>
         </div>
         <?php if ($canAudit): ?>
             <a class="admin-security-audit-link" href="/Anabelka/admin/audit">Журнал дій</a>
@@ -138,7 +138,7 @@ foreach ($permissions as $permission) {
 
                     <?php if ($isOwner): ?>
                         <div class="admin-owner-protection">
-                            Власник має повний доступ. Його роль і доступ не можна змінити з цієї сторінки.
+                            Розробник має повний доступ. Його роль і доступ не можна змінити з цієї сторінки.
                         </div>
                     <?php elseif ($canManage): ?>
                         <div class="admin-staff-actions">
@@ -239,7 +239,7 @@ foreach ($permissions as $permission) {
                     <?php if ($isSystem): ?>
                         <div class="admin-system-role-note">
                             <?= $isOwnerRole
-                                ? 'Власник завжди має всі права.'
+                                ? 'Розробник завжди має всі права.'
                                 : 'Це готовий системний шаблон. Його набір прав не редагується; для іншої комбінації створіть власну роль.' ?>
                         </div>
                     <?php endif; ?>
