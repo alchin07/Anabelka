@@ -130,10 +130,22 @@ class Router
             return;
         }
 
-        $permission = AdminAccess::permissionForRequest(
-            $method,
-            $path
-        );
+        if ($path === '/admin/audit') {
+            $permission = 'audit.view';
+        } elseif (
+            $path === '/admin/administrators'
+            || strpos($path, '/admin/administrators/') === 0
+        ) {
+            $isWrite = $method !== 'GET' && $method !== 'HEAD';
+            $permission = $isWrite
+                ? 'administrators.manage'
+                : 'administrators.view';
+        } else {
+            $permission = AdminAccess::permissionForRequest(
+                $method,
+                $path
+            );
+        }
 
         if (AdminAccess::can($permission)) {
             return;
