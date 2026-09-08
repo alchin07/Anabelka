@@ -64,6 +64,10 @@ $translationBadge = (int) (
     rel="stylesheet"
     href="/Anabelka/css/admin-layout.css?v=2"
 >
+<link
+    rel="stylesheet"
+    href="/Anabelka/css/admin-product-editor-fixes.css?v=1"
+>
 
 <header class="admin-site-header">
     <div class="admin-topbar">
@@ -243,5 +247,6 @@ $translationBadge = (int) (
 <script src="/Anabelka/js/admin-ui-focus-policy.js?v=2"></script>
 <script src="/Anabelka/js/admin-product-preview.js?v=1"></script>
 <script defer src="/Anabelka/js/admin-product-variant-stock.js?v=2"></script>
+<script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=1"></script>
 <script defer src="/Anabelka/js/admin-order-variants.js?v=1"></script>
 <script src="/Anabelka/js/admin-nav.js?v=16"></script>
