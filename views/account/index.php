@@ -21,7 +21,7 @@ $rankName = UserRankTranslator::localizeName(
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/account.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/account.css?v=2">
 </head>
 <body>
 
@@ -36,11 +36,27 @@ $rankName = UserRankTranslator::localizeName(
             ) ?></h2>
             <p><?= htmlspecialchars((string) ($user['name'] ?? '')) ?></p>
         </div>
-        <span class="account-rank">
-            <?= htmlspecialchars(
-                Translator::t('public.account.rank', 'Мій ранг')
-            ) ?>: <strong><?= htmlspecialchars($rankName) ?></strong>
-        </span>
+
+        <div class="account-hero-actions">
+            <span class="account-rank">
+                <?= htmlspecialchars(
+                    Translator::t('public.account.rank', 'Мій ранг')
+                ) ?>: <strong><?= htmlspecialchars($rankName) ?></strong>
+            </span>
+
+            <form method="post" action="/Anabelka/logout">
+                <input
+                    type="hidden"
+                    name="_csrf"
+                    value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>"
+                >
+                <button class="account-logout" type="submit">
+                    <?= htmlspecialchars(
+                        Translator::t('header.logout', 'Вийти')
+                    ) ?>
+                </button>
+            </form>
+        </div>
     </section>
 
     <?php if ($message !== ''): ?>
