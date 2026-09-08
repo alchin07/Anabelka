@@ -60,10 +60,75 @@
             '.delivery-ai-translate:disabled {',
             '  opacity:.55;',
             '  cursor:wait;',
+            '}',
+            '.delivery-translation-status-label.delivery-translation-status-below {',
+            '  display:grid;',
+            '  grid-template-columns:minmax(0,1fr) minmax(150px,46%);',
+            '  align-items:center;',
+            '  gap:12px;',
+            '  margin:2px 0 4px;',
+            '  padding:11px 12px;',
+            '  border:1px solid var(--border-color);',
+            '  border-radius:12px;',
+            '  background:#faf7ff;',
+            '  color:var(--primary-color);',
+            '  font-size:13px;',
+            '  font-weight:800;',
+            '}',
+            '.delivery-translation-status-label.delivery-translation-status-below > span {',
+            '  color:var(--primary-color);',
+            '  font-size:13px;',
+            '  font-weight:800;',
+            '}',
+            '.delivery-translation-status-label.delivery-translation-status-below .delivery-translation-status {',
+            '  width:100%;',
+            '  min-height:42px;',
+            '  box-sizing:border-box;',
+            '  padding:0 11px;',
+            '  border:1px solid var(--border-color);',
+            '  border-radius:10px;',
+            '  background:#fff;',
+            '  color:var(--text-color);',
+            '  font-size:13px;',
+            '  font-weight:800;',
+            '}',
+            '@media (max-width:380px) {',
+            '  .delivery-translation-status-label.delivery-translation-status-below {',
+            '    grid-template-columns:minmax(0,1fr) minmax(135px,48%);',
+            '    gap:8px;',
+            '    padding:10px;',
+            '  }',
             '}'
         ].join('\n');
 
         document.head.appendChild(style);
+    }
+
+
+    function moveEntityStatusBelowFields(section)
+    {
+        const status = section.querySelector(
+            '.delivery-translation-status-label'
+        );
+        const description = section.querySelector(
+            '.delivery-translation-description'
+        );
+        const descriptionGroup = description
+            ? description.closest('.delivery-form-group')
+            : null;
+
+        if (!status || !descriptionGroup) {
+            return;
+        }
+
+        const statusTitle = status.querySelector('span');
+
+        if (statusTitle) {
+            statusTitle.textContent = 'Стан перекладу';
+        }
+
+        status.classList.add('delivery-translation-status-below');
+        descriptionGroup.insertAdjacentElement('afterend', status);
     }
 
 
@@ -314,7 +379,10 @@
         }
 
         ensureStyles();
-        entitySections.forEach(createEntityButton);
+        entitySections.forEach(function (section) {
+            moveEntityStatusBelowFields(section);
+            createEntityButton(section);
+        });
         optionInputSections.forEach(createOptionInputButton);
     }
 
