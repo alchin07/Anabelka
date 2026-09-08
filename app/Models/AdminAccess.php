@@ -115,6 +115,19 @@ class AdminAccess
         self::seedPermissions($db);
         self::seedRoles($db);
 
+        // Міграція вже створеної ролі: технічний slug не змінюємо,
+        // змінюється лише її назва в інтерфейсі та базі.
+        $db->exec("
+            UPDATE admin_roles
+            SET name = 'Розробник', is_system = 1
+            WHERE slug = 'owner'
+        ");
+        $db->exec("
+            UPDATE admin_roles
+            SET name = 'Власник', is_system = 1
+            WHERE slug = 'store_owner'
+        ");
+
         self::$schemaReady = true;
     }
 
@@ -147,7 +160,7 @@ class AdminAccess
         $roleId = self::roleIdBySlug($db, 'owner');
 
         if ($roleId <= 0) {
-            throw new RuntimeException('Не вдалося знайти роль власника.');
+            throw new RuntimeException('Не вдалося знайти роль розробника.');
         }
 
         $stmt = $db->prepare("
@@ -503,7 +516,8 @@ class AdminAccess
     private static function seedRoles(PDO $db)
     {
         $roles = [
-            ['Власник', 'owner'],
+            ['Розробник', 'owner'],
+            ['Власник', 'store_owner'],
             ['Адміністратор', 'administrator'],
             ['Менеджер замовлень', 'order_manager'],
             ['Контент-менеджер', 'content_manager']
@@ -529,18 +543,21 @@ class AdminAccess
             ORDER BY sort_order ASC, permission_key ASC
         ")->fetchAll(PDO::FETCH_COLUMN);
 
+        $administratorPermissions = array_values(array_filter(
+            $allPermissions,
+            function ($key) {
+                return !in_array(
+                    $key,
+                    ['administrators.manage'],
+                    true
+                );
+            }
+        ));
+
         $rolePermissions = [
             'owner' => $allPermissions,
-            'administrator' => array_values(array_filter(
-                $allPermissions,
-                function ($key) {
-                    return !in_array(
-                        $key,
-                        ['administrators.manage'],
-                        true
-                    );
-                }
-            )),
+            'store_owner' => $administratorPermissions,
+            'administrator' => $administratorPermissions,
             'order_manager' => [
                 'dashboard.view',
                 'orders.view',
