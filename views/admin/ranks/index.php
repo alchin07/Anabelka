@@ -2,6 +2,10 @@
 $ranks = is_array($ranks ?? null) ? $ranks : [];
 $summary = is_array($summary ?? null) ? $summary : [];
 $defaultRank = is_array($defaultRank ?? null) ? $defaultRank : null;
+$languages = is_array($languages ?? null) ? $languages : [];
+$translationStatusOptions = is_array($translationStatusOptions ?? null)
+    ? $translationStatusOptions
+    : TranslationWorkflow::statusOptions();
 $escape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
@@ -25,7 +29,7 @@ $lastOrderableId = !empty($orderableRankIds)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Ранги') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=5">
+    <link rel="stylesheet" href="/Anabelka/css/admin-ranks.css?v=6">
 </head>
 <body>
 
@@ -75,13 +79,13 @@ $lastOrderableId = !empty($orderableRankIds)
                 type="text"
                 name="rank_name"
                 maxlength="100"
-                placeholder="Назва нового рангу"
+                placeholder="Назва нового рангу українською"
                 autocomplete="off"
                 autocorrect="off"
                 spellcheck="false"
                 required
             >
-            <small>Новий ранг додається в кінець списку. Порядок змінюється стрілками ↑ ↓.</small>
+            <small>Українська — вихідна мова. Після створення переклади можна додати вручну або через ШІ.</small>
         </div>
         <button class="admin-rank-button is-primary" type="submit">
             Створити ранг
@@ -98,6 +102,9 @@ $lastOrderableId = !empty($orderableRankIds)
                 && (int) ($defaultRank['id'] ?? 0) === $rankId;
             $canMoveUp = !$isGuest && $rankId !== $firstOrderableId;
             $canMoveDown = !$isGuest && $rankId !== $lastOrderableId;
+            $translations = is_array($rank['translations'] ?? null)
+                ? $rank['translations']
+                : [];
             ?>
             <article class="admin-rank-card">
                 <div class="admin-rank-card-head">
@@ -123,14 +130,106 @@ $lastOrderableId = !empty($orderableRankIds)
 
                 <form class="admin-rank-edit" method="post" action="/Anabelka/admin/ranks/update">
                     <input type="hidden" name="rank_id" value="<?= $rankId ?>">
-                    <input
-                        type="text"
-                        name="name"
-                        maxlength="100"
-                        value="<?= $escape($rank['name'] ?? '') ?>"
-                        required
-                    >
-                    <button class="admin-rank-button" type="submit">
+
+                    <label class="admin-rank-source-field">
+                        <span>Назва українською</span>
+                        <input
+                            type="text"
+                            name="name"
+                            class="admin-rank-source-name"
+                            maxlength="100"
+                            value="<?= $escape($rank['name'] ?? '') ?>"
+                            required
+                        >
+                    </label>
+
+                    <?php if (!empty($languages)): ?>
+                        <details class="admin-rank-translations">
+                            <summary>
+                                <span>Переклади назви</span>
+                                <small>Вручну або через ШІ</small>
+                            </summary>
+
+                            <div class="admin-rank-translation-list">
+                                <?php foreach ($languages as $language): ?>
+                                    <?php
+                                    $code = strtolower(trim((string) ($language['code'] ?? '')));
+                                    if ($code === '' || $code === Language::SOURCE_CODE) {
+                                        continue;
+                                    }
+                                    $translation = is_array($translations[$code] ?? null)
+                                        ? $translations[$code]
+                                        : [];
+                                    $translationName = (string) ($translation['name'] ?? '');
+                                    $translationSource = TranslationWorkflow::normalizeSource(
+                                        $translation['source'] ?? 'manual'
+                                    );
+                                    $translationStatus = TranslationWorkflow::normalizeStatus(
+                                        $translation['status'] ?? 'draft',
+                                        trim($translationName) !== '',
+                                        TranslationWorkflow::STATUS_DRAFT
+                                    );
+                                    ?>
+                                    <section
+                                        class="admin-rank-translation"
+                                        data-rank-translation
+                                        data-language="<?= $escape($code) ?>"
+                                    >
+                                        <div class="admin-rank-translation-head">
+                                            <strong>
+                                                <?= $escape($language['name'] ?? $code) ?>
+                                                · <?= $escape($language['short_name'] ?? strtoupper($code)) ?>
+                                            </strong>
+                                            <button
+                                                type="button"
+                                                class="admin-rank-ai-button"
+                                                data-rank-ai-translate
+                                                data-target-language="<?= $escape($code) ?>"
+                                            >Перекласти через ШІ</button>
+                                        </div>
+
+                                        <input
+                                            type="text"
+                                            name="translation_name[<?= $escape($code) ?>]"
+                                            value="<?= $escape($translationName) ?>"
+                                            maxlength="100"
+                                            placeholder="Назва рангу"
+                                            autocomplete="off"
+                                            data-rank-translation-name
+                                        >
+
+                                        <div class="admin-rank-translation-workflow">
+                                            <input
+                                                type="hidden"
+                                                name="translation_source[<?= $escape($code) ?>]"
+                                                value="<?= $escape($translationSource) ?>"
+                                                data-rank-translation-source
+                                            >
+                                            <span data-rank-translation-origin>
+                                                <?= $escape(TranslationWorkflow::sourceLabel($translationSource)) ?>
+                                            </span>
+                                            <label>
+                                                <span>Стан</span>
+                                                <select
+                                                    name="translation_status[<?= $escape($code) ?>]"
+                                                    data-rank-translation-status
+                                                >
+                                                    <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
+                                                        <option
+                                                            value="<?= $escape($statusCode) ?>"
+                                                            <?= $translationStatus === $statusCode ? 'selected' : '' ?>
+                                                        ><?= $escape($statusLabel) ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </label>
+                                        </div>
+                                    </section>
+                                <?php endforeach; ?>
+                            </div>
+                        </details>
+                    <?php endif; ?>
+
+                    <button class="admin-rank-button admin-rank-save" type="submit">
                         Зберегти
                     </button>
                 </form>
@@ -189,5 +288,6 @@ $lastOrderableId = !empty($orderableRankIds)
     </section>
 </main>
 
+<script src="/Anabelka/js/admin-rank-translations.js?v=1"></script>
 </body>
 </html>
