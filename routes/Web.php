@@ -138,6 +138,16 @@ $router->post(
     'AdminUserController@updateRank'
 );
 
+$router->post(
+    '/admin/users/delete',
+    'AdminUserController@deleteAccount'
+);
+
+$router->post(
+    '/admin/users/deactivate',
+    'AdminUserController@deactivateAccount'
+);
+
 $router->get(
     '/admin/ranks',
     'AdminUserRankController@index'
