@@ -34,7 +34,7 @@ class AuthController extends Controller
             );
         }
 
-        $existingUser = User::findByEmail($email);
+        $existingUser = User::findByEmailAnyStatus($email);
 
         if ($existingUser) {
             die(
@@ -99,13 +99,22 @@ class AuthController extends Controller
             );
         }
 
-        $user = User::findByEmail($email);
+        $user = User::findByEmailAnyStatus($email);
 
         if (!$user) {
             die(
                 Translator::t(
                     'public.auth.error_user_not_found',
                     'Користувача не знайдено.'
+                )
+            );
+        }
+
+        if (empty($user['is_active'])) {
+            die(
+                Translator::t(
+                    'public.auth.error_account_inactive',
+                    'Акаунт деактивовано. Зверніться до адміністратора магазину.'
                 )
             );
         }
