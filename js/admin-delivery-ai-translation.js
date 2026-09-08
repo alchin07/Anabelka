@@ -80,7 +80,8 @@
             '  font-size:13px;',
             '  font-weight:800;',
             '}',
-            '.delivery-translation-status-label.delivery-translation-status-below .delivery-translation-status {',
+            '.delivery-translation-status-label.delivery-translation-status-below .delivery-translation-status,',
+            '.delivery-translation-status-label.delivery-translation-status-below .delivery-option-input-translation-status {',
             '  width:100%;',
             '  min-height:42px;',
             '  box-sizing:border-box;',
@@ -129,6 +130,33 @@
 
         status.classList.add('delivery-translation-status-below');
         descriptionGroup.insertAdjacentElement('afterend', status);
+    }
+
+
+    function moveOptionInputStatusBelowFields(section)
+    {
+        const status = section.querySelector(
+            '.delivery-translation-status-label'
+        );
+        const placeholder = section.querySelector(
+            '.delivery-option-input-translation-placeholder'
+        );
+        const placeholderGroup = placeholder
+            ? placeholder.closest('.delivery-form-group')
+            : null;
+
+        if (!status || !placeholderGroup) {
+            return;
+        }
+
+        const statusTitle = status.querySelector('span');
+
+        if (statusTitle) {
+            statusTitle.textContent = 'Стан перекладу';
+        }
+
+        status.classList.add('delivery-translation-status-below');
+        placeholderGroup.insertAdjacentElement('afterend', status);
     }
 
 
@@ -383,7 +411,10 @@
             moveEntityStatusBelowFields(section);
             createEntityButton(section);
         });
-        optionInputSections.forEach(createOptionInputButton);
+        optionInputSections.forEach(function (section) {
+            moveOptionInputStatusBelowFields(section);
+            createOptionInputButton(section);
+        });
     }
 
 
