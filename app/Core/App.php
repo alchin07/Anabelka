@@ -106,6 +106,7 @@ class App
         $router = new Router();
 
         require __DIR__ . '/../../routes/AdminAuth.php';
+        require __DIR__ . '/../../routes/AdminSecurity.php';
         require __DIR__ . '/../../routes/Web.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
