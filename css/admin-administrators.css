@@ -1,0 +1,556 @@
+:root {
+    --admin-security-primary: #8A2BE2;
+    --admin-security-primary-dark: #6519b9;
+    --admin-security-border: #eadcf7;
+    --admin-security-soft: #faf7ff;
+    --admin-security-text: #2d2731;
+    --admin-security-muted: #766f7b;
+    --admin-security-danger: #a83d55;
+}
+
+body {
+    margin: 0;
+    background: #f8f6fa;
+    color: var(--admin-security-text);
+    font-family: Arial, sans-serif;
+}
+
+.admin-security-page {
+    width: min(1180px, calc(100% - 24px));
+    margin: 0 auto;
+    padding: 18px 0 44px;
+}
+
+.admin-security-hero,
+.admin-security-panel {
+    border: 1px solid var(--admin-security-border);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 8px 26px rgba(82, 48, 100, .05);
+}
+
+.admin-security-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px;
+}
+
+.admin-security-kicker {
+    display: inline-block;
+    margin-bottom: 4px;
+    color: var(--admin-security-primary);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.admin-security-hero h2,
+.admin-security-panel h3 {
+    margin: 0;
+}
+
+.admin-security-hero p,
+.admin-security-panel-head p,
+.admin-role-base-note {
+    margin: 6px 0 0;
+    color: var(--admin-security-muted);
+    line-height: 1.45;
+}
+
+.admin-security-audit-link {
+    min-height: 40px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border: 1px solid var(--admin-security-primary);
+    border-radius: 11px;
+    color: var(--admin-security-primary);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.admin-security-message {
+    margin-top: 14px;
+    padding: 11px 13px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.admin-security-message.is-success {
+    border: 1px solid #b8ddc3;
+    background: #edf8f0;
+    color: #316440;
+}
+
+.admin-security-message.is-error {
+    border: 1px solid #e7b9c1;
+    background: #fff0f2;
+    color: #8e3748;
+}
+
+.admin-security-panel {
+    margin-top: 16px;
+    padding: 16px;
+}
+
+.admin-security-panel-head {
+    margin-bottom: 14px;
+}
+
+.admin-create-form {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(200px, 1.2fr) minmax(180px, 1fr) minmax(170px, .9fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.admin-create-form label,
+.admin-staff-actions label,
+.admin-role-name-field {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.admin-create-form label > span,
+.admin-staff-actions label > span,
+.admin-role-name-field > span {
+    color: var(--admin-security-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.admin-create-form small {
+    color: #918895;
+    font-size: 10px;
+}
+
+.admin-create-form input,
+.admin-create-form select,
+.admin-staff-actions input,
+.admin-staff-actions select,
+.admin-role-name-field input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 41px;
+    padding: 0 10px;
+    border: 1px solid #d9cde3;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--admin-security-text);
+    font: inherit;
+}
+
+.admin-create-form button,
+.admin-staff-actions button,
+.admin-role-save {
+    min-height: 41px;
+    padding: 0 13px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--admin-security-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+button:disabled,
+select:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.admin-staff-list,
+.admin-role-list,
+.admin-audit-list {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-staff-card,
+.admin-role-card,
+.admin-audit-item {
+    overflow: hidden;
+    border: 1px solid var(--admin-security-border);
+    border-radius: 14px;
+    background: #fff;
+}
+
+.admin-staff-card.is-owner {
+    border-color: #cfb6eb;
+    background: #fdfaff;
+}
+
+.admin-staff-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 13px 14px;
+}
+
+.admin-staff-identity {
+    min-width: 0;
+}
+
+.admin-staff-identity strong,
+.admin-staff-identity span,
+.admin-staff-identity small {
+    display: block;
+}
+
+.admin-staff-identity strong {
+    overflow: hidden;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-staff-identity span {
+    overflow: hidden;
+    margin-top: 3px;
+    color: #5e5662;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-staff-identity small {
+    margin-top: 4px;
+    color: #918695;
+}
+
+.admin-staff-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.admin-staff-role,
+.admin-staff-status,
+.admin-staff-current {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-staff-role {
+    background: #f1e5fb;
+    color: var(--admin-security-primary-dark);
+}
+
+.admin-staff-status.is-active {
+    background: #e8f5ec;
+    color: #397049;
+}
+
+.admin-staff-status.is-disabled {
+    background: #f8e9ec;
+    color: #9a4553;
+}
+
+.admin-staff-current {
+    background: #e9f2ff;
+    color: #35678f;
+}
+
+.admin-owner-protection,
+.admin-system-role-note {
+    padding: 11px 14px;
+    border-top: 1px solid var(--admin-security-border);
+    background: #faf6ff;
+    color: #6f5d7b;
+    font-size: 13px;
+}
+
+.admin-staff-actions {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.1fr) minmax(240px, 1.1fr) auto;
+    gap: 10px;
+    align-items: end;
+    padding: 12px 14px 14px;
+    border-top: 1px solid var(--admin-security-border);
+    background: var(--admin-security-soft);
+}
+
+.admin-staff-actions form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: end;
+}
+
+.admin-access-toggle-form {
+    display: block !important;
+}
+
+.admin-access-toggle-form button {
+    width: 100%;
+}
+
+.admin-access-toggle-form button.is-danger {
+    border: 1px solid #d8a8b4;
+    background: #fff;
+    color: var(--admin-security-danger);
+}
+
+.admin-access-toggle-form button.is-enable {
+    background: #34704a;
+}
+
+.admin-custom-role-create {
+    margin-bottom: 12px;
+    border: 1px dashed #ceb3e7;
+    border-radius: 13px;
+    background: #fcf9ff;
+}
+
+.admin-custom-role-create > summary,
+.admin-role-card > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.admin-custom-role-create > summary {
+    padding: 13px 14px;
+    color: var(--admin-security-primary-dark);
+    font-weight: 800;
+}
+
+.admin-custom-role-create > form {
+    padding: 0 14px 14px;
+}
+
+.admin-role-name-field {
+    max-width: 420px;
+}
+
+.admin-role-base-note {
+    font-size: 12px;
+}
+
+.admin-role-card > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 14px;
+}
+
+.admin-role-card > summary span strong,
+.admin-role-card > summary span small {
+    display: block;
+}
+
+.admin-role-card > summary span small {
+    margin-top: 3px;
+    color: var(--admin-security-muted);
+    font-size: 11px;
+}
+
+.admin-role-card > summary b {
+    color: var(--admin-security-muted);
+    font-size: 12px;
+}
+
+.admin-role-card > form {
+    padding: 12px 14px 14px;
+    border-top: 1px solid var(--admin-security-border);
+}
+
+.admin-permission-groups {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.admin-permission-groups fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 10px;
+    border: 1px solid #e5d9ed;
+    border-radius: 11px;
+}
+
+.admin-permission-groups legend {
+    padding: 0 5px;
+    color: var(--admin-security-primary-dark);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-permission-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 0;
+    color: #4f4854;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.admin-permission-option input {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    margin: 0;
+    accent-color: var(--admin-security-primary);
+}
+
+.admin-role-save {
+    margin-top: 12px;
+}
+
+.admin-audit-item {
+    padding: 12px 13px;
+}
+
+.admin-audit-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.admin-audit-head time,
+.admin-audit-actor small {
+    color: var(--admin-security-muted);
+    font-size: 11px;
+}
+
+.admin-audit-actor {
+    margin-top: 5px;
+}
+
+.admin-audit-actor span,
+.admin-audit-actor small {
+    display: block;
+}
+
+.admin-audit-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 9px;
+}
+
+.admin-audit-details span {
+    padding: 5px 7px;
+    border-radius: 8px;
+    background: #f5eef9;
+    color: #615768;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.admin-audit-empty {
+    padding: 22px;
+    border: 1px dashed #d9cde3;
+    border-radius: 13px;
+    background: #fcfaff;
+    color: var(--admin-security-muted);
+    text-align: center;
+}
+
+@media (max-width: 900px) {
+    .admin-create-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-create-form button {
+        width: 100%;
+    }
+
+    .admin-staff-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-permission-groups {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .admin-security-page {
+        width: calc(100% - 14px);
+        padding-top: 10px;
+    }
+
+    .admin-security-hero,
+    .admin-security-panel {
+        border-radius: 14px;
+    }
+
+    .admin-security-hero {
+        display: block;
+        padding: 12px;
+    }
+
+    .admin-security-audit-link {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 12px;
+    }
+
+    .admin-security-panel {
+        padding: 10px;
+    }
+
+    .admin-create-form,
+    .admin-permission-groups,
+    .admin-staff-actions,
+    .admin-staff-actions form {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-create-form button,
+    .admin-staff-actions button,
+    .admin-role-save {
+        width: 100%;
+    }
+
+    .admin-staff-main {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 11px;
+    }
+
+    .admin-staff-badges {
+        justify-content: flex-start;
+    }
+
+    .admin-staff-actions {
+        padding: 10px 11px 12px;
+    }
+
+    .admin-role-card > summary {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 11px;
+    }
+
+    .admin-role-card > form,
+    .admin-custom-role-create > form {
+        padding: 10px 11px 12px;
+    }
+
+    .admin-audit-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+    }
+}
