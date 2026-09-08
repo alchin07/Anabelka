@@ -102,6 +102,10 @@ class Router
 
         AdminAccess::ensureSchema();
 
+        if (class_exists('AdminRoleCleanup')) {
+            AdminRoleCleanup::run();
+        }
+
         if (class_exists('AdminRolePermission')) {
             AdminRolePermission::applySavedOverrides();
         }
