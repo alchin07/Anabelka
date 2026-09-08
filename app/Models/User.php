@@ -3,9 +3,26 @@
 class User
 {
     /**
-     * Найти пользователя по email.
+     * Найти активного пользователя по email.
      */
     public static function findByEmail($email)
+    {
+        $user = self::findByEmailAnyStatus($email);
+
+        if (!$user || empty($user['is_active'])) {
+            return false;
+        }
+
+        return $user;
+    }
+
+
+    /**
+     * Найти пользователя по email независимо от активности.
+     * Нужен для корректного различения отсутствующего и
+     * деактивированного аккаунта при входе/регистрации.
+     */
+    public static function findByEmailAnyStatus($email)
     {
         $db = Database::connect();
 
@@ -20,7 +37,6 @@ class User
                 ON ur.id = u.rank_id
 
             WHERE u.email = :email
-              AND u.is_active = 1
 
             LIMIT 1
         ";
@@ -28,7 +44,7 @@ class User
         $stmt = $db->prepare($sql);
 
         $stmt->execute([
-            'email' => $email
+            'email' => trim((string) $email)
         ]);
 
         return $stmt->fetch();
