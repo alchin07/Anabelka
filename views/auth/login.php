@@ -2,6 +2,8 @@
 PublicInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.auth.login_title', 'Вхід');
+$error = trim((string) ($error ?? ''));
+$email = trim((string) ($email ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -16,6 +18,17 @@ $pageTitle = Translator::t('public.auth.login_title', 'Вхід');
             min-height: 100dvh;
             padding-bottom: 45vh;
             scroll-padding-bottom: 45vh;
+        }
+
+        .auth-error {
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border: 1px solid #e7b9c1;
+            border-radius: 12px;
+            background: #fff0f2;
+            color: #8e3748;
+            font-weight: 700;
+            line-height: 1.4;
         }
 
         @media (min-width: 901px) {
@@ -47,12 +60,19 @@ $pageTitle = Translator::t('public.auth.login_title', 'Вхід');
             ) ?>
         </h2>
 
+        <?php if ($error !== ''): ?>
+            <div class="auth-error" role="alert">
+                <?= htmlspecialchars($error) ?>
+            </div>
+        <?php endif; ?>
+
         <form action="/Anabelka/login" method="POST">
             <div style="margin-bottom: 15px;">
                 <label>Email</label>
                 <input
                     type="email"
                     name="email"
+                    value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
                     required
                     style="
                         width: 100%;
