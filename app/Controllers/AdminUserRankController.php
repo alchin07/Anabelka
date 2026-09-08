@@ -16,11 +16,22 @@ class AdminUserRankController extends Controller
             }
         }
 
+        $ranks = UserRank::allWithUsage();
+
+        foreach ($ranks as &$rank) {
+            $rank['translations'] = UserRankTranslator::getForRank(
+                (int) ($rank['id'] ?? 0)
+            );
+        }
+        unset($rank);
+
         $this->view('admin/ranks/index', [
             'pageTitle' => 'Адмін-панель · Ранги',
-            'ranks' => UserRank::allWithUsage(),
+            'ranks' => $ranks,
             'summary' => UserRank::summary(),
             'defaultRank' => $defaultRank,
+            'languages' => Language::active(),
+            'translationStatusOptions' => TranslationWorkflow::statusOptions(),
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => $error
         ]);
@@ -44,12 +55,51 @@ class AdminUserRankController extends Controller
     public function update()
     {
         try {
-            UserRank::update(
-                $_POST['rank_id'] ?? 0,
-                $_POST['name'] ?? ''
-            );
+            $rankId = (int) ($_POST['rank_id'] ?? 0);
+            $before = UserRank::find($rankId);
 
-            $this->redirect('message', 'Ранг оновлено.');
+            if (!$before) {
+                throw new RuntimeException('Ранг не знайдено.');
+            }
+
+            $newName = trim((string) ($_POST['name'] ?? ''));
+            UserRank::update($rankId, $newName);
+
+            if (trim((string) ($before['name'] ?? '')) !== $newName) {
+                UserRankTranslator::markOutdated($rankId);
+            }
+
+            $translationNames = is_array($_POST['translation_name'] ?? null)
+                ? $_POST['translation_name']
+                : [];
+            $translationSources = is_array($_POST['translation_source'] ?? null)
+                ? $_POST['translation_source']
+                : [];
+            $translationStatuses = is_array($_POST['translation_status'] ?? null)
+                ? $_POST['translation_status']
+                : [];
+
+            foreach (Language::active() as $language) {
+                $code = strtolower(trim((string) ($language['code'] ?? '')));
+
+                if ($code === '' || $code === Language::SOURCE_CODE) {
+                    continue;
+                }
+
+                if (!array_key_exists($code, $translationNames)) {
+                    continue;
+                }
+
+                UserRankTranslator::saveForRank(
+                    $rankId,
+                    $code,
+                    $translationNames[$code] ?? '',
+                    $translationSources[$code] ?? 'manual',
+                    $translationStatuses[$code] ?? 'approved'
+                );
+            }
+
+            $this->redirect('message', 'Ранг і переклади оновлено.');
         } catch (Throwable $e) {
             $this->redirect('error', $e->getMessage());
         }
