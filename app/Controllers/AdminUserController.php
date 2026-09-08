@@ -136,6 +136,111 @@ class AdminUserController extends Controller
     }
 
 
+    public function deleteAccount()
+    {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        $returnQuery = trim((string) ($_POST['return_query'] ?? ''));
+
+        try {
+            $this->verifyCsrf();
+            $user = AdminUser::deleteAccount($userId);
+
+            if (
+                !empty($_SESSION['user_id'])
+                && (int) $_SESSION['user_id'] === $userId
+            ) {
+                unset(
+                    $_SESSION['user_id'],
+                    $_SESSION['user_name'],
+                    $_SESSION['user_rank_slug']
+                );
+            }
+
+            AdminAccess::audit(
+                'customer.account_deleted',
+                [
+                    'user_id' => $userId,
+                    'name' => (string) ($user['name'] ?? ''),
+                    'email' => (string) ($user['email'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirectBack(
+                $returnQuery,
+                'message',
+                'Акаунт користувача видалено.'
+            );
+        } catch (Throwable $e) {
+            $this->redirectBack(
+                $returnQuery,
+                'error',
+                $e->getMessage()
+            );
+        }
+    }
+
+
+    public function deactivateAccount()
+    {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+        $returnQuery = trim((string) ($_POST['return_query'] ?? ''));
+
+        try {
+            $this->verifyCsrf();
+            $result = AdminUser::deactivateAccount($userId);
+            $user = $result['user'] ?? [];
+
+            if (
+                !empty($_SESSION['user_id'])
+                && (int) $_SESSION['user_id'] === $userId
+            ) {
+                unset(
+                    $_SESSION['user_id'],
+                    $_SESSION['user_name'],
+                    $_SESSION['user_rank_slug']
+                );
+            }
+
+            if (!empty($result['changed'])) {
+                AdminAccess::audit(
+                    'customer.account_deactivated',
+                    [
+                        'user_id' => $userId,
+                        'name' => (string) ($user['name'] ?? ''),
+                        'email' => (string) ($user['email'] ?? '')
+                    ],
+                    AdminAccess::currentId()
+                );
+            }
+
+            $this->redirectBack(
+                $returnQuery,
+                'message',
+                !empty($result['changed'])
+                    ? 'Акаунт користувача деактивовано.'
+                    : 'Акаунт уже деактивований.'
+            );
+        } catch (Throwable $e) {
+            $this->redirectBack(
+                $returnQuery,
+                'error',
+                $e->getMessage()
+            );
+        }
+    }
+
+
+    private function verifyCsrf()
+    {
+        if (!AdminAccess::verifyCsrf($_POST['_csrf'] ?? '')) {
+            throw new RuntimeException(
+                'Сесію форми застаріло. Оновіть сторінку та спробуйте ще раз.'
+            );
+        }
+    }
+
+
     private function redirectBack($returnQuery, $key, $message)
     {
         $query = [];
