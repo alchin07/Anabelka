@@ -2,9 +2,6 @@
 
 class User
 {
-    /**
-     * Найти активного пользователя по email.
-     */
     public static function findByEmail($email)
     {
         $user = self::findByEmailAnyStatus($email);
@@ -17,14 +14,10 @@ class User
     }
 
 
-    /**
-     * Найти пользователя по email независимо от активности.
-     * Нужен для корректного различения отсутствующего и
-     * деактивированного аккаунта при входе/регистрации.
-     */
     public static function findByEmailAnyStatus($email)
     {
         $db = Database::connect();
+        $email = strtolower(trim((string) $email));
 
         $sql = "
             SELECT
@@ -32,62 +25,55 @@ class User
                 ur.slug AS rank_slug,
                 ur.name AS rank_name
             FROM users u
-
-            INNER JOIN user_ranks ur
-                ON ur.id = u.rank_id
-
+            INNER JOIN user_ranks ur ON ur.id = u.rank_id
             WHERE u.email = :email
-
             LIMIT 1
         ";
 
         $stmt = $db->prepare($sql);
+        $stmt->execute(['email' => $email]);
 
-        $stmt->execute([
-            'email' => trim((string) $email)
-        ]);
-
-        return $stmt->fetch();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
 
-    /**
-     * Создать нового пользователя.
-     *
-     * Ранг новой регистрации задаётся
-     * в админ-панели, а не жёстким ID.
-     */
+    public static function findById($userId)
+    {
+        $stmt = Database::connect()->prepare("
+            SELECT
+                u.*,
+                ur.slug AS rank_slug,
+                ur.name AS rank_name
+            FROM users u
+            INNER JOIN user_ranks ur ON ur.id = u.rank_id
+            WHERE u.id = :id
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => (int) $userId]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+
     public static function create($name, $email, $password)
     {
         $db = Database::connect();
-
-        $passwordHash =
-            password_hash(
-                $password,
-                PASSWORD_DEFAULT
-            );
-
+        $name = trim((string) $name);
+        $email = strtolower(trim((string) $email));
+        $passwordHash = password_hash(
+            (string) $password,
+            PASSWORD_DEFAULT
+        );
         $rankId = UserRank::defaultRegistrationRankId();
 
         $sql = "
             INSERT INTO users
-                (
-                    rank_id,
-                    name,
-                    email,
-                    password
-                )
+                (rank_id, name, email, password)
             VALUES
-                (
-                    :rank_id,
-                    :name,
-                    :email,
-                    :password
-                )
+                (:rank_id, :name, :email, :password)
         ";
 
         $stmt = $db->prepare($sql);
-
         $stmt->execute([
             'rank_id' => $rankId,
             'name' => $name,
@@ -96,5 +82,23 @@ class User
         ]);
 
         return (int) $db->lastInsertId();
+    }
+
+
+    public static function rehashPassword($userId, $plainPassword)
+    {
+        $stmt = Database::connect()->prepare("
+            UPDATE users
+            SET password = :password
+            WHERE id = :id
+        ");
+
+        return $stmt->execute([
+            'password' => password_hash(
+                (string) $plainPassword,
+                PASSWORD_DEFAULT
+            ),
+            'id' => (int) $userId
+        ]);
     }
 }
