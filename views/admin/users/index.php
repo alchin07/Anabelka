@@ -8,6 +8,9 @@ $history = is_array($history ?? null) ? $history : [];
 $summary = is_array($summary ?? null) ? $summary : [];
 $filters = is_array($filters ?? null) ? $filters : [];
 $inviteFlash = is_array($inviteFlash ?? null) ? $inviteFlash : null;
+$adminCsrfToken = class_exists('AdminAccess')
+    ? AdminAccess::csrfToken()
+    : '';
 $returnQuery = http_build_query([
     'q' => $filters['q'] ?? '',
     'rank_id' => $filters['rank_id'] ?? 0,
@@ -32,7 +35,7 @@ $inviteStatusLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Користувачі') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=3">
 </head>
 <body>
 
@@ -237,6 +240,7 @@ $inviteStatusLabels = [
                     <?php
                     $userId = (int) ($user['id'] ?? 0);
                     $isActive = !empty($user['is_active']);
+                    $orderCount = max(0, (int) ($user['order_count'] ?? 0));
                     $inviteStatus = trim((string) ($user['invitation_status'] ?? ''));
                     $inviteChannel = trim((string) ($user['invitation_channel'] ?? ''));
                     ?>
@@ -263,6 +267,11 @@ $inviteStatusLabels = [
                                 <span class="admin-user-status <?= $isActive ? 'is-active' : 'is-inactive' ?>">
                                     <?= $isActive ? 'Активний' : 'Неактивний' ?>
                                 </span>
+                                <?php if ($orderCount > 0): ?>
+                                    <span class="admin-user-orders-count">
+                                        Замовлень: <?= $orderCount ?>
+                                    </span>
+                                <?php endif; ?>
                                 <?php if ($inviteStatus !== ''): ?>
                                     <span class="admin-invite-status is-<?= htmlspecialchars($inviteStatus) ?>">
                                         <?= htmlspecialchars(
@@ -329,6 +338,48 @@ $inviteStatusLabels = [
 
                             <button type="submit">Змінити ранг</button>
                         </form>
+
+                        <div class="admin-user-account-actions">
+                            <?php if ($orderCount > 0): ?>
+                                <span>
+                                    Акаунт має історію замовлень, тому його не можна видалити повністю.
+                                </span>
+
+                                <?php if ($isActive): ?>
+                                    <form
+                                        method="post"
+                                        action="/Anabelka/admin/users/deactivate"
+                                        onsubmit="return confirm('Деактивувати цей акаунт? Користувач більше не зможе увійти.');"
+                                    >
+                                        <input type="hidden" name="_csrf" value="<?= htmlspecialchars($adminCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                        <input type="hidden" name="user_id" value="<?= $userId ?>">
+                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery, ENT_QUOTES, 'UTF-8') ?>">
+                                        <button class="admin-user-deactivate-button" type="submit">
+                                            Деактивувати
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <strong class="admin-user-account-note">Акаунт уже деактивований</strong>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span>
+                                    Замовлень немає. Акаунт і його службові дані можна видалити повністю.
+                                </span>
+
+                                <form
+                                    method="post"
+                                    action="/Anabelka/admin/users/delete"
+                                    onsubmit="return confirm('Видалити цей акаунт назавжди? Цю дію не можна скасувати.');"
+                                >
+                                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($adminCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="user_id" value="<?= $userId ?>">
+                                    <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery, ENT_QUOTES, 'UTF-8') ?>">
+                                    <button class="admin-user-delete-button" type="submit">
+                                        Видалити акаунт
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
                     </article>
                 <?php endforeach; ?>
             </div>
