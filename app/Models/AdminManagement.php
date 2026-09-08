@@ -36,7 +36,16 @@ class AdminManagement
             SELECT id, name, slug, is_system
             FROM admin_roles
             WHERE slug <> 'owner'
-            ORDER BY is_system DESC, id ASC
+            ORDER BY
+                CASE slug
+                    WHEN 'store_owner' THEN 0
+                    WHEN 'administrator' THEN 1
+                    WHEN 'order_manager' THEN 2
+                    WHEN 'content_manager' THEN 3
+                    ELSE 4
+                END,
+                is_system DESC,
+                id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -59,10 +68,11 @@ class AdminManagement
             ORDER BY
                 CASE ar.slug
                     WHEN 'owner' THEN 0
-                    WHEN 'administrator' THEN 1
-                    WHEN 'order_manager' THEN 2
-                    WHEN 'content_manager' THEN 3
-                    ELSE 4
+                    WHEN 'store_owner' THEN 1
+                    WHEN 'administrator' THEN 2
+                    WHEN 'order_manager' THEN 3
+                    WHEN 'content_manager' THEN 4
+                    ELSE 5
                 END,
                 ar.id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
@@ -174,7 +184,7 @@ class AdminManagement
         $admin = self::administratorById($adminId);
 
         if (($admin['role_slug'] ?? '') === 'owner') {
-            throw new RuntimeException('Роль власника змінювати не можна.');
+            throw new RuntimeException('Роль розробника змінювати не можна.');
         }
 
         $role = self::assignableRoleById($roleId);
@@ -223,7 +233,7 @@ class AdminManagement
         $admin = self::administratorById($adminId);
 
         if (($admin['role_slug'] ?? '') === 'owner') {
-            throw new RuntimeException('Доступ власника вимкнути не можна.');
+            throw new RuntimeException('Доступ розробника вимкнути не можна.');
         }
 
         $newState = empty($admin['is_active']) ? 1 : 0;
@@ -258,7 +268,7 @@ class AdminManagement
 
         if (($admin['role_slug'] ?? '') === 'owner') {
             throw new RuntimeException(
-                'Пароль власника змінюється окремо в налаштуваннях безпеки.'
+                'Пароль розробника змінюється окремо в налаштуваннях безпеки.'
             );
         }
 
@@ -430,7 +440,7 @@ class AdminManagement
 
         if (($role['slug'] ?? '') === 'owner') {
             throw new RuntimeException(
-                'Роль власника не можна призначати через цю форму.'
+                'Роль розробника не можна призначати через цю форму.'
             );
         }
 
