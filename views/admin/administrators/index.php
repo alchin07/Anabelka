@@ -187,7 +187,7 @@ foreach ($permissions as $permission) {
         <div class="admin-security-panel-head">
             <div>
                 <h3>Ролі та права</h3>
-                <p>Системні ролі — готові шаблони. Для іншого набору прав створіть власну роль.</p>
+                <p>Розробник має незмінний повний доступ. Права інших системних і власних ролей можна налаштовувати.</p>
             </div>
         </div>
 
@@ -240,7 +240,7 @@ foreach ($permissions as $permission) {
                         <div class="admin-system-role-note">
                             <?= $isOwnerRole
                                 ? 'Розробник завжди має всі права.'
-                                : 'Це готовий системний шаблон. Його набір прав не редагується; для іншої комбінації створіть власну роль.' ?>
+                                : 'Це готова системна роль. Її права можна змінювати; базовий доступ до адмін-панелі залишається обов’язковим.' ?>
                         </div>
                     <?php endif; ?>
 
@@ -260,7 +260,7 @@ foreach ($permissions as $permission) {
                                                 name="permissions[]"
                                                 value="<?= htmlspecialchars($permissionKey, ENT_QUOTES, 'UTF-8') ?>"
                                                 <?= isset($rolePermissions[$permissionKey]) ? 'checked' : '' ?>
-                                                <?= ($isSystem || !$canManage || in_array($permissionKey, ['admin.access', 'dashboard.view'], true)) ? 'disabled' : '' ?>
+                                                <?= ($isOwnerRole || !$canManage || in_array($permissionKey, ['admin.access', 'dashboard.view'], true)) ? 'disabled' : '' ?>
                                             >
                                             <span><?= htmlspecialchars($permission['name'] ?? '') ?></span>
                                         </label>
@@ -269,7 +269,7 @@ foreach ($permissions as $permission) {
                             <?php endforeach; ?>
                         </div>
 
-                        <?php if (!$isSystem && $canManage): ?>
+                        <?php if (!$isOwnerRole && $canManage): ?>
                             <button class="admin-role-save" type="submit">Зберегти права</button>
                         <?php endif; ?>
                     </form>
