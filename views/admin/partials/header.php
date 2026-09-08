@@ -58,11 +58,18 @@ $translationBadge = (int) (
     $adminNavBadges['translations'] ?? 0
 );
 
+$currentAdmin = class_exists('AdminAccess')
+    ? AdminAccess::current()
+    : null;
+$adminCsrfToken = class_exists('AdminAccess')
+    ? AdminAccess::csrfToken()
+    : '';
+
 ?>
 
 <link
     rel="stylesheet"
-    href="/Anabelka/css/admin-layout.css?v=2"
+    href="/Anabelka/css/admin-layout.css?v=3"
 >
 <link
     rel="stylesheet"
@@ -238,6 +245,23 @@ $translationBadge = (int) (
         </span>
         <div id="admin-ai-slot"></div>
     </div>
+
+    <?php if ($currentAdmin): ?>
+        <div class="admin-drawer-account">
+            <div class="admin-drawer-account-copy">
+                <strong><?= htmlspecialchars((string) ($currentAdmin['name'] ?? 'Адміністратор')) ?></strong>
+                <span><?= htmlspecialchars((string) ($currentAdmin['role_name'] ?? '')) ?></span>
+            </div>
+            <form method="post" action="/Anabelka/admin/logout">
+                <input
+                    type="hidden"
+                    name="_csrf"
+                    value="<?= htmlspecialchars($adminCsrfToken, ENT_QUOTES, 'UTF-8') ?>"
+                >
+                <button type="submit">Вийти</button>
+            </form>
+        </div>
+    <?php endif; ?>
 
     <a class="admin-drawer-store-link" href="/Anabelka/">
         Перейти до магазину
