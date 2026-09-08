@@ -102,6 +102,10 @@ class Router
 
         AdminAccess::ensureSchema();
 
+        if (class_exists('AdminRolePermission')) {
+            AdminRolePermission::applySavedOverrides();
+        }
+
         if ($path === '/admin/setup') {
             return;
         }
