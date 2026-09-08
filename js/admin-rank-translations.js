@@ -1,6 +1,14 @@
 (function () {
     'use strict';
 
+    if (!document.querySelector('link[data-admin-rank-translations]')) {
+        const stylesheet = document.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.href = '/Anabelka/css/admin-rank-translations.css?v=1';
+        stylesheet.dataset.adminRankTranslations = '1';
+        document.head.appendChild(stylesheet);
+    }
+
     function showMessage(text)
     {
         const existing = document.querySelector('.admin-rank-message');
