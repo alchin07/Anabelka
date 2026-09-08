@@ -353,7 +353,8 @@ body {
 
 .admin-user-rank,
 .admin-user-status,
-.admin-invite-status {
+.admin-invite-status,
+.admin-user-orders-count {
     display: inline-flex;
     min-height: 28px;
     align-items: center;
@@ -376,6 +377,11 @@ body {
 .admin-user-status.is-inactive {
     background: #f8e9ec;
     color: #9a4553;
+}
+
+.admin-user-orders-count {
+    background: #eef3fb;
+    color: #4d6480;
 }
 
 .admin-invite-status.is-created {
@@ -420,6 +426,61 @@ body {
 
 .admin-user-note {
     min-width: 0;
+}
+
+.admin-user-account-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px 12px;
+    border-top: 1px solid var(--admin-users-border);
+    background: #fff;
+}
+
+.admin-user-account-actions > span {
+    color: var(--admin-users-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.admin-user-account-actions form {
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.admin-user-account-actions button {
+    min-height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-user-delete-button {
+    border: 1px solid #c94f62;
+    color: #a6384a;
+}
+
+.admin-user-delete-button:hover {
+    background: #fff0f2;
+}
+
+.admin-user-deactivate-button {
+    border: 1px solid #c68a2a;
+    color: #8b641e;
+}
+
+.admin-user-deactivate-button:hover {
+    background: #fff8e8;
+}
+
+.admin-user-account-note {
+    color: #8f4451;
+    font-size: 12px;
 }
 
 .admin-users-empty {
@@ -605,12 +666,15 @@ body {
         justify-content: flex-start;
     }
 
-    .admin-user-invite-action {
+    .admin-user-invite-action,
+    .admin-user-account-actions {
         align-items: stretch;
         flex-direction: column;
     }
 
-    .admin-user-invite-action button {
+    .admin-user-invite-action button,
+    .admin-user-account-actions form,
+    .admin-user-account-actions button {
         width: 100%;
     }
 }
