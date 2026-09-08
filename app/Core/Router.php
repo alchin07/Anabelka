@@ -62,6 +62,8 @@ class Router
             $path = rtrim($path, '/');
         }
 
+        $this->guardAdminRoute($path, $method, $uri);
+
 
         /*
          * Перебираем маршруты.
@@ -107,6 +109,73 @@ class Router
             ENT_QUOTES,
             'UTF-8'
         );
+    }
+
+
+    private function guardAdminRoute($path, $method, $uri)
+    {
+        $isAdminPath = $path === '/admin'
+            || strpos($path, '/admin/') === 0;
+
+        if (!$isAdminPath || !class_exists('AdminAccess')) {
+            return;
+        }
+
+        AdminAccess::ensureSchema();
+
+        if ($path === '/admin/setup') {
+            return;
+        }
+
+        if (!AdminAccess::hasAdmins()) {
+            header('Location: /Anabelka/admin/setup');
+            exit;
+        }
+
+        if ($path === '/admin/login') {
+            return;
+        }
+
+        $admin = AdminAccess::current();
+
+        if (!$admin) {
+            $returnTo = '/Anabelka' . $path;
+            $query = parse_url((string) $uri, PHP_URL_QUERY);
+
+            if (is_string($query) && $query !== '') {
+                $returnTo .= '?' . $query;
+            }
+
+            $_SESSION['admin_return_to'] = $returnTo;
+            header('Location: /Anabelka/admin/login');
+            exit;
+        }
+
+        if ($path === '/admin/logout') {
+            return;
+        }
+
+        $permission = AdminAccess::permissionForRequest(
+            $method,
+            $path
+        );
+
+        if (AdminAccess::can($permission)) {
+            return;
+        }
+
+        http_response_code(403);
+        header('Content-Type: text/html; charset=UTF-8');
+
+        echo '<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8">'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<title>Доступ заборонено — Анабелька</title></head>'
+            . '<body style="font-family:Arial,sans-serif;padding:24px">'
+            . '<h1>403 — Недостатньо прав</h1>'
+            . '<p>Вашій ролі не дозволено виконувати цю дію.</p>'
+            . '<p><a href="/Anabelka/admin">Повернутися до адмін-панелі</a></p>'
+            . '</body></html>';
+        exit;
     }
 
 
