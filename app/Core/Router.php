@@ -130,6 +130,13 @@ class Router
             return;
         }
 
+        if (
+            $path === '/admin/profile'
+            || strpos($path, '/admin/profile/') === 0
+        ) {
+            return;
+        }
+
         if ($path === '/admin/audit') {
             $permission = 'audit.view';
         } elseif (
