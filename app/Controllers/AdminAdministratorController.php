@@ -210,7 +210,7 @@ class AdminAdministratorController extends Controller
     {
         try {
             $this->verifyCsrf();
-            $role = AdminManagement::updateCustomRolePermissions(
+            $role = AdminRolePermission::update(
                 $_POST['role_id'] ?? 0,
                 is_array($_POST['permissions'] ?? null)
                     ? $_POST['permissions']
