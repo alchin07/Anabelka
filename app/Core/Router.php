@@ -21,11 +21,6 @@ class Router
     {
         $method = strtoupper((string) $method);
 
-        /*
-         * Некоторые браузеры и режимы предварительной загрузки
-         * могут проверять страницу методом HEAD.
-         * Для маршрутизации он должен вести себя как обычный GET.
-         */
         if ($method === 'HEAD') {
             $method = 'GET';
         }
@@ -36,15 +31,9 @@ class Router
             $path = '/';
         }
 
-        /*
-         * Нормализуем URL перед поиском маршрута:
-         * - декодируем %XX;
-         * - убираем случайные двойные слеши.
-         */
         $path = rawurldecode((string) $path);
         $path = preg_replace('#/+#', '/', $path);
 
-        // Убираем имя папки проекта из URL.
         $projectFolder = '/' . basename(dirname(__DIR__, 2));
 
         if (
@@ -64,19 +53,7 @@ class Router
 
         $this->guardAdminRoute($path, $method, $uri);
 
-
-        /*
-         * Перебираем маршруты.
-         *
-         * Маршрут вида:
-         * /catalog/{slug}
-         *
-         * сможет принять:
-         * /catalog/bras
-         */
         foreach ($this->routes[$method] ?? [] as $route => $action) {
-
-            // Превращаем {slug} в параметр URL.
             $pattern = preg_replace(
                 '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
                 '([^/]+)',
@@ -86,7 +63,6 @@ class Router
             $pattern = '#^' . $pattern . '$#';
 
             if (preg_match($pattern, $path, $matches)) {
-
                 array_shift($matches);
 
                 return $this->callAction(
@@ -95,7 +71,6 @@ class Router
                 );
             }
         }
-
 
         http_response_code(404);
 
