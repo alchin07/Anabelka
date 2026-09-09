@@ -64,11 +64,16 @@
         });
     };
 
+    const formatHeaderCount = function (count) {
+        return count > 99 ? '99+' : String(count);
+    };
+
     const updateCount = function (count) {
         const safeCount = Math.max(0, Number(count) || 0);
 
         if (headerCount) {
-            headerCount.textContent = String(safeCount);
+            headerCount.textContent = formatHeaderCount(safeCount);
+            headerCount.hidden = safeCount <= 0;
         }
 
         if (pageCount) {
