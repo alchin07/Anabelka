@@ -1,3 +1,5 @@
+@import url('/Anabelka/css/public-header-notifications.css?v=1');
+
 .public-header {
     position: relative;
     z-index: 300;
