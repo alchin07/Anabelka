@@ -40,6 +40,21 @@ $translationSummary = is_array($translationSummary ?? null)
 $aiSummary = is_array($aiSummary ?? null)
     ? $aiSummary
     : [];
+$adminNotificationSummary = is_array($adminNotificationSummary ?? null)
+    ? $adminNotificationSummary
+    : ['total' => 0, 'items' => [], 'by_key' => []];
+$adminNotificationItems = array_values(array_filter(
+    is_array($adminNotificationSummary['items'] ?? null)
+        ? $adminNotificationSummary['items']
+        : [],
+    function ($item) {
+        return (int) ($item['count'] ?? 0) > 0;
+    }
+));
+$adminNotificationTotal = max(
+    0,
+    (int) ($adminNotificationSummary['total'] ?? 0)
+);
 
 $formatNumber = function ($value) {
     return number_format((int) $value, 0, ',', ' ');
@@ -326,6 +341,48 @@ $aiStateClass = !$aiAvailable
         </section>
 
         <div class="dashboard-side-column">
+            <section class="dashboard-panel">
+                <div class="dashboard-section-head">
+                    <div>
+                        <h2>Центр сповіщень</h2>
+                        <p>
+                            Лише події, доступні вашій ролі
+                            <?php if ($adminNotificationTotal > 0): ?>
+                                · усього <?= $formatNumber($adminNotificationTotal) ?>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
+
+                <?php if (empty($adminNotificationItems)): ?>
+                    <div class="dashboard-empty">
+                        Нових подій і завдань немає.
+                    </div>
+                <?php else: ?>
+                    <div class="dashboard-status-list">
+                        <?php foreach ($adminNotificationItems as $notificationItem): ?>
+                            <a
+                                class="dashboard-status-card"
+                                href="<?= htmlspecialchars((string) ($notificationItem['url'] ?? '/Anabelka/admin')) ?>"
+                            >
+                                <span>
+                                    <strong><?= htmlspecialchars((string) ($notificationItem['label'] ?? 'Сповіщення')) ?></strong>
+                                    <span>
+                                        <?= ($notificationItem['kind'] ?? '') === 'new'
+                                            ? 'Нове після останнього перегляду'
+                                            : 'Потребує дії' ?>
+                                    </span>
+                                </span>
+
+                                <span class="dashboard-status-value is-warning">
+                                    <?= $formatNumber($notificationItem['count'] ?? 0) ?>
+                                </span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
             <section class="dashboard-panel">
                 <div class="dashboard-section-head">
                     <div>
