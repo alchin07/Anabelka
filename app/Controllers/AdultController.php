@@ -42,7 +42,9 @@ class AdultController extends Controller
             [
                 'category' => $category,
                 'returnUrl' => $returnUrl,
-                'currentLanguage' => $currentLanguage
+                'currentLanguage' => $currentLanguage,
+                'accessDenied' => AdultAccess::isKnownUnderage(),
+                'csrfToken' => CustomerAccount::csrfToken()
             ]
         );
     }
@@ -60,8 +62,6 @@ class AdultController extends Controller
             die('Розділ не знайдено');
         }
 
-        AdultAccess::confirm();
-
         $defaultReturn = '/Anabelka/catalog/'
             . rawurlencode((string) $category['slug']);
         $returnUrl = AdultAccess::safeReturnUrl(
@@ -71,6 +71,25 @@ class AdultController extends Controller
         if ($returnUrl === '') {
             $returnUrl = $defaultReturn;
         }
+
+        if (!CustomerAccount::verifyCsrf($_POST['_csrf'] ?? '')) {
+            header(
+                'Location: '
+                . AdultAccess::gateUrl((string) $category['slug'], $returnUrl)
+            );
+            exit;
+        }
+
+        if (AdultAccess::isKnownUnderage()) {
+            AdultAccess::clearConfirmation();
+            header(
+                'Location: '
+                . AdultAccess::gateUrl((string) $category['slug'], $returnUrl)
+            );
+            exit;
+        }
+
+        AdultAccess::confirm();
 
         header('Location: ' . $returnUrl);
         exit;
