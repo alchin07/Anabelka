@@ -59,11 +59,6 @@ $router->post(
 );
 
 $router->get(
-    '/logout',
-    'AuthController@logout'
-);
-
-$router->get(
     '/checkout',
     'OrderController@checkout'
 );
