@@ -2,6 +2,7 @@
 PublicInterfaceTranslator::seed();
 CustomerAccountInterfaceTranslator::seed();
 CustomerRankRequestInterfaceTranslator::seed();
+CustomerNotificationInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.account.title', 'Мій акаунт');
 $user = is_array($user ?? null) ? $user : [];
@@ -12,6 +13,8 @@ $rankRequestState = is_array($rankRequestState ?? null)
 $latestRankRequest = is_array($rankRequestState['latest'] ?? null)
     ? $rankRequestState['latest']
     : null;
+$notifications = is_array($notifications ?? null) ? $notifications : [];
+$notificationUnreadCount = max(0, (int) ($notificationUnreadCount ?? 0));
 $csrfToken = (string) ($csrfToken ?? '');
 $message = trim((string) ($message ?? ''));
 $error = trim((string) ($error ?? ''));
@@ -37,6 +40,7 @@ $rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
     <link rel="stylesheet" href="/Anabelka/css/account.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/account-adult.css?v=1">
     <link rel="stylesheet" href="/Anabelka/css/account-rank-request.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/account-notifications.css?v=1">
 </head>
 <body>
 
@@ -85,6 +89,91 @@ $rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
             <?= htmlspecialchars($error) ?>
         </div>
     <?php endif; ?>
+
+    <section class="account-notifications" aria-label="Notifications">
+        <div class="account-notifications-head">
+            <h3><?= htmlspecialchars(
+                Translator::t('public.notifications.title', 'Сповіщення')
+            ) ?></h3>
+            <?php if ($notificationUnreadCount > 0): ?>
+                <span class="account-notifications-count">
+                    <?= htmlspecialchars(
+                        Translator::t('public.notifications.unread', 'Нових')
+                    ) ?>: <?= $notificationUnreadCount ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <?php if (empty($notifications)): ?>
+            <div class="account-notifications-empty">
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'public.notifications.empty',
+                        'Нових сповіщень поки немає.'
+                    )
+                ) ?>
+            </div>
+        <?php else: ?>
+            <div class="account-notifications-list">
+                <?php foreach ($notifications as $notification): ?>
+                    <?php
+                    $notificationType = (string) ($notification['type'] ?? '');
+                    $notificationData = is_array($notification['data'] ?? null)
+                        ? $notification['data']
+                        : [];
+                    $notificationTitle = $notificationType;
+                    $notificationText = '';
+
+                    if ($notificationType === 'rank_request_approved') {
+                        $notificationTitle = Translator::t(
+                            'public.notifications.rank_approved_title',
+                            'Ранг підвищено'
+                        );
+                        $notificationText = str_replace(
+                            '{rank}',
+                            (string) ($notificationData['rank_name'] ?? ''),
+                            Translator::t(
+                                'public.notifications.rank_approved_text',
+                                'Ваш запит схвалено. Новий ранг: {rank}.'
+                            )
+                        );
+                    } elseif ($notificationType === 'rank_request_rejected') {
+                        $notificationTitle = Translator::t(
+                            'public.notifications.rank_rejected_title',
+                            'Запит на підвищення відхилено'
+                        );
+                        $notificationText = Translator::t(
+                            'public.notifications.rank_rejected_text',
+                            'Адміністратор відхилив запит на підвищення рангу.'
+                        );
+                    }
+                    ?>
+                    <article class="account-notification <?= empty($notification['is_read']) ? 'is-unread' : '' ?>">
+                        <div class="account-notification-head">
+                            <strong><?= htmlspecialchars($notificationTitle) ?></strong>
+                            <time><?= htmlspecialchars((string) ($notification['created_at'] ?? '')) ?></time>
+                        </div>
+
+                        <?php if ($notificationText !== ''): ?>
+                            <p><?= htmlspecialchars($notificationText) ?></p>
+                        <?php endif; ?>
+
+                        <?php if (!empty($notificationData['admin_note'])): ?>
+                            <div class="account-notification-note">
+                                <strong><?= htmlspecialchars(
+                                    Translator::t(
+                                        'public.notifications.admin_note',
+                                        'Примітка адміністратора'
+                                    )
+                                ) ?>:</strong>
+                                <?= htmlspecialchars((string) $notificationData['admin_note']) ?>
+                            </div>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
 
     <section class="account-links" aria-label="Account shortcuts">
         <a href="/Anabelka/orders">
