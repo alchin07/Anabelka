@@ -1,10 +1,17 @@
 <?php
 PublicInterfaceTranslator::seed();
 CustomerAccountInterfaceTranslator::seed();
+CustomerRankRequestInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.account.title', 'Мій акаунт');
 $user = is_array($user ?? null) ? $user : [];
 $addresses = is_array($addresses ?? null) ? $addresses : [];
+$rankRequestState = is_array($rankRequestState ?? null)
+    ? $rankRequestState
+    : [];
+$latestRankRequest = is_array($rankRequestState['latest'] ?? null)
+    ? $rankRequestState['latest']
+    : null;
 $csrfToken = (string) ($csrfToken ?? '');
 $message = trim((string) ($message ?? ''));
 $error = trim((string) ($error ?? ''));
@@ -17,6 +24,7 @@ $rankName = UserRankTranslator::localizeName(
     (string) ($user['rank_name'] ?? ''),
     (string) ($currentLanguage['code'] ?? Language::SOURCE_CODE)
 );
+$rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -28,6 +36,7 @@ $rankName = UserRankTranslator::localizeName(
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/account.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/account-adult.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/account-rank-request.css?v=1">
 </head>
 <body>
 
@@ -90,6 +99,97 @@ $rankName = UserRankTranslator::localizeName(
             ) ?></strong>
             <span>→</span>
         </a>
+    </section>
+
+    <section class="account-rank-request">
+        <div class="account-rank-request-head">
+            <div>
+                <h3><?= htmlspecialchars(
+                    Translator::t('public.rank_request.title', 'Підвищення рангу')
+                ) ?></h3>
+                <p><?= htmlspecialchars(
+                    Translator::t(
+                        'public.rank_request.hint',
+                        'Надішліть запит адміністратору. Для розгляду мають бути заповнені телефон і хоча б одна адреса доставки.'
+                    )
+                ) ?></p>
+            </div>
+
+            <?php if ($rankRequestStatus === 'pending'): ?>
+                <span class="account-rank-request-status is-pending">
+                    <?= htmlspecialchars(Translator::t('public.rank_request.pending', 'Запит очікує на розгляд')) ?>
+                </span>
+            <?php elseif ($rankRequestStatus === 'approved'): ?>
+                <span class="account-rank-request-status is-approved">
+                    <?= htmlspecialchars(Translator::t('public.rank_request.approved', 'Запит схвалено')) ?>
+                </span>
+            <?php elseif ($rankRequestStatus === 'rejected'): ?>
+                <span class="account-rank-request-status is-rejected">
+                    <?= htmlspecialchars(Translator::t('public.rank_request.rejected', 'Запит відхилено')) ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <div class="account-rank-request-meta">
+            <span>
+                <?= htmlspecialchars(Translator::t('public.rank_request.current', 'Поточний ранг')) ?>:
+                <strong><?= htmlspecialchars($rankName) ?></strong>
+            </span>
+            <?php if ($rankRequestStatus === 'approved' && !empty($latestRankRequest['approved_rank_name'])): ?>
+                <span>
+                    <?= htmlspecialchars(Translator::t('public.rank_request.new_rank', 'Новий ранг')) ?>:
+                    <strong><?= htmlspecialchars((string) $latestRankRequest['approved_rank_name']) ?></strong>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <div class="account-rank-request-requirements">
+            <span class="<?= !empty($rankRequestState['has_phone']) ? 'is-ok' : 'is-missing' ?>">
+                <?= !empty($rankRequestState['has_phone']) ? '✓ ' : '• ' ?>
+                <?= htmlspecialchars(
+                    !empty($rankRequestState['has_phone'])
+                        ? Translator::t('public.account.phone', 'Телефон')
+                        : Translator::t('public.rank_request.phone_missing', 'Додайте номер телефону')
+                ) ?>
+            </span>
+            <span class="<?= !empty($rankRequestState['has_address']) ? 'is-ok' : 'is-missing' ?>">
+                <?= !empty($rankRequestState['has_address']) ? '✓ ' : '• ' ?>
+                <?= htmlspecialchars(
+                    !empty($rankRequestState['has_address'])
+                        ? Translator::t('public.account.addresses', 'Адреси доставки')
+                        : Translator::t('public.rank_request.address_missing', 'Додайте адресу доставки')
+                ) ?>
+            </span>
+        </div>
+
+        <?php if (empty($rankRequestState['has_higher_rank'])): ?>
+            <p class="account-rank-request-note">
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'public.rank_request.highest',
+                        'Ви вже маєте найвищий доступний ранг'
+                    )
+                ) ?>
+            </p>
+        <?php elseif ($rankRequestStatus === 'rejected' && !empty($latestRankRequest['admin_note'])): ?>
+            <p class="account-rank-request-note">
+                <?= htmlspecialchars((string) $latestRankRequest['admin_note']) ?>
+            </p>
+        <?php endif; ?>
+
+        <?php if (empty($rankRequestState['has_pending']) && !empty($rankRequestState['has_higher_rank'])): ?>
+            <form method="post" action="/Anabelka/account/rank-request">
+                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                <button
+                    type="submit"
+                    <?= !empty($rankRequestState['can_request']) ? '' : 'disabled' ?>
+                >
+                    <?= htmlspecialchars(
+                        Translator::t('public.rank_request.send', 'Надіслати запит на підвищення')
+                    ) ?>
+                </button>
+            </form>
+        <?php endif; ?>
     </section>
 
     <section class="account-grid">
