@@ -11,7 +11,8 @@ class CustomerNotification
             return;
         }
 
-        Database::connect()->exec("
+        $db = Database::connect();
+        $db->exec("
             CREATE TABLE IF NOT EXISTS customer_notifications
             (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -31,6 +32,13 @@ class CustomerNotification
             ) ENGINE=InnoDB
               DEFAULT CHARSET=utf8mb4
               COLLATE=utf8mb4_unicode_ci
+        ");
+
+        $db->exec("
+            DELETE n
+            FROM customer_notifications n
+            LEFT JOIN users u ON u.id = n.user_id
+            WHERE u.id IS NULL
         ");
 
         self::$schemaReady = true;
