@@ -40,11 +40,22 @@ class AdminUserController extends Controller
     {
         try {
             $this->verifyCsrf();
+            $note = trim((string) ($_POST['note'] ?? ''));
             $result = CustomerRankRequest::approve(
                 $_POST['request_id'] ?? 0,
                 $_POST['rank_id'] ?? 0,
                 AdminAccess::currentId(),
-                $_POST['note'] ?? ''
+                $note
+            );
+
+            $this->createRankDecisionNotification(
+                (int) ($result['user_id'] ?? 0),
+                'rank_request_approved',
+                (int) ($result['request_id'] ?? 0),
+                [
+                    'rank_name' => (string) ($result['new_rank_name'] ?? ''),
+                    'admin_note' => $note
+                ]
             );
 
             AdminAccess::audit(
@@ -73,16 +84,24 @@ class AdminUserController extends Controller
             $requestId = (int) ($_POST['request_id'] ?? 0);
             $note = trim((string) ($_POST['note'] ?? ''));
 
-            CustomerRankRequest::reject(
+            $result = CustomerRankRequest::reject(
                 $requestId,
                 AdminAccess::currentId(),
                 $note
+            );
+
+            $this->createRankDecisionNotification(
+                (int) ($result['user_id'] ?? 0),
+                'rank_request_rejected',
+                $requestId,
+                ['admin_note' => $note]
             );
 
             AdminAccess::audit(
                 'customer.rank_request_rejected',
                 [
                     'request_id' => $requestId,
+                    'user_id' => (int) ($result['user_id'] ?? 0),
                     'note' => $note
                 ],
                 AdminAccess::currentId()
@@ -287,6 +306,26 @@ class AdminUserController extends Controller
                 'error',
                 $e->getMessage()
             );
+        }
+    }
+
+
+    private function createRankDecisionNotification(
+        $userId,
+        $type,
+        $requestId,
+        array $data
+    ) {
+        try {
+            CustomerNotification::create(
+                (int) $userId,
+                (string) $type,
+                $data,
+                'rank_request',
+                (int) $requestId
+            );
+        } catch (Throwable $e) {
+            error_log('Customer notification error: ' . $e->getMessage());
         }
     }
 
