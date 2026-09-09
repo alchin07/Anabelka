@@ -1,0 +1,55 @@
+.public-header-count[hidden] {
+    display: none !important;
+}
+
+.public-header-profile-count,
+.public-header-admin-count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+}
+
+.public-header-popover a {
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.public-header-popover-count {
+    min-width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--primary-color, #8A2BE2);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.public-header-admin .public-header-action-icon {
+    color: var(--primary-color, #8A2BE2);
+}
+
+@media (max-width: 350px) {
+    .public-header .catalog-logo,
+    .public-header-logo {
+        font-size: 22px;
+    }
+
+    .public-header-action,
+    .public-header-language-code {
+        width: 34px;
+        min-width: 34px;
+        height: 37px;
+    }
+
+    .public-header-action-icon {
+        width: 20px;
+        height: 20px;
+        flex-basis: 20px;
+    }
+}
