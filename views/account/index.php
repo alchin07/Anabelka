@@ -21,7 +21,7 @@ $rankName = UserRankTranslator::localizeName(
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/account.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/account.css?v=3">
 </head>
 <body>
 
