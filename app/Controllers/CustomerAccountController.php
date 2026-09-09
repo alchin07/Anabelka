@@ -6,6 +6,7 @@ class CustomerAccountController extends Controller
     {
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
+        CustomerRankRequestInterfaceTranslator::seed();
 
         $user = CustomerAccount::current();
 
@@ -17,10 +18,40 @@ class CustomerAccountController extends Controller
         $this->view('account/index', [
             'user' => $user,
             'addresses' => CustomerAddress::allForUser((int) $user['id']),
+            'rankRequestState' => CustomerRankRequest::stateForUser((int) $user['id']),
             'csrfToken' => CustomerAccount::csrfToken(),
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
         ]);
+    }
+
+
+    public function requestRankUpgrade()
+    {
+        PublicInterfaceTranslator::seed();
+        CustomerAccountInterfaceTranslator::seed();
+        CustomerRankRequestInterfaceTranslator::seed();
+
+        try {
+            $this->verifyCsrf();
+            $user = CustomerAccount::current();
+
+            if (!$user) {
+                throw new RuntimeException('Сесію користувача не знайдено.');
+            }
+
+            CustomerRankRequest::createForUser((int) $user['id']);
+
+            $this->redirect(
+                'message',
+                Translator::t(
+                    'public.rank_request.sent',
+                    'Запит на підвищення рангу надіслано адміністратору.'
+                )
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
     }
 
 
