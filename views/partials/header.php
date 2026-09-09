@@ -28,6 +28,10 @@ if (!$isAdminPage) {
     SearchInterfaceTranslator::seed();
     FavoriteInterfaceTranslator::seed();
 
+    if (class_exists('CustomerAccountInterfaceTranslator')) {
+        CustomerAccountInterfaceTranslator::seed();
+    }
+
     $currentLanguage = Translator::currentLanguage();
     $activeLanguages = Translator::activeLanguages();
 
@@ -269,6 +273,15 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
                                 ) ?>
                             </span>
 
+                            <a href="/Anabelka/account">
+                                <?= htmlspecialchars(
+                                    Translator::t(
+                                        'public.account.title',
+                                        'Мій акаунт'
+                                    )
+                                ) ?>
+                            </a>
+
                             <a href="/Anabelka/orders">
                                 <?= htmlspecialchars(
                                     Translator::t(
@@ -278,11 +291,26 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
                                 ) ?>
                             </a>
 
-                            <a href="/Anabelka/logout">
-                                <?= htmlspecialchars(
-                                    Translator::t('header.logout', 'Вийти')
-                                ) ?>
-                            </a>
+                            <form
+                                class="public-header-language-form public-header-logout-form"
+                                action="/Anabelka/logout"
+                                method="post"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="_csrf"
+                                    value="<?= htmlspecialchars(
+                                        CustomerAccount::csrfToken(),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>"
+                                >
+                                <button type="submit">
+                                    <?= htmlspecialchars(
+                                        Translator::t('header.logout', 'Вийти')
+                                    ) ?>
+                                </button>
+                            </form>
                         <?php else: ?>
                             <a href="/Anabelka/login">
                                 <?= htmlspecialchars(
