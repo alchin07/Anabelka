@@ -22,6 +22,7 @@ class AdminUserController extends Controller
             'users' => AdminUser::page($filters, $page, $perPage),
             'ranks' => AdminUser::ranks(true),
             'assignableRanks' => AdminUser::assignableRanks(),
+            'rankRequests' => CustomerRankRequest::pendingForAdmin(),
             'history' => AdminUser::recentRankHistory(100),
             'summary' => AdminUser::summary(),
             'filters' => $filters,
@@ -32,6 +33,65 @@ class AdminUserController extends Controller
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
         ]);
+    }
+
+
+    public function approveRankRequest()
+    {
+        try {
+            $this->verifyCsrf();
+            $result = CustomerRankRequest::approve(
+                $_POST['request_id'] ?? 0,
+                $_POST['rank_id'] ?? 0,
+                AdminAccess::currentId(),
+                $_POST['note'] ?? ''
+            );
+
+            AdminAccess::audit(
+                'customer.rank_request_approved',
+                [
+                    'request_id' => (int) ($result['request_id'] ?? 0),
+                    'user_id' => (int) ($result['user_id'] ?? 0),
+                    'old_rank_id' => (int) ($result['old_rank_id'] ?? 0),
+                    'new_rank_id' => (int) ($result['new_rank_id'] ?? 0),
+                    'new_rank_name' => (string) ($result['new_rank_name'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirectBack('', 'message', 'Запит схвалено. Ранг користувача підвищено.');
+        } catch (Throwable $e) {
+            $this->redirectBack('', 'error', $e->getMessage());
+        }
+    }
+
+
+    public function rejectRankRequest()
+    {
+        try {
+            $this->verifyCsrf();
+            $requestId = (int) ($_POST['request_id'] ?? 0);
+            $note = trim((string) ($_POST['note'] ?? ''));
+
+            CustomerRankRequest::reject(
+                $requestId,
+                AdminAccess::currentId(),
+                $note
+            );
+
+            AdminAccess::audit(
+                'customer.rank_request_rejected',
+                [
+                    'request_id' => $requestId,
+                    'note' => $note
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirectBack('', 'message', 'Запит на підвищення рангу відхилено.');
+        } catch (Throwable $e) {
+            $this->redirectBack('', 'error', $e->getMessage());
+        }
     }
 
 
