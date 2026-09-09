@@ -66,7 +66,7 @@
     }
 
 
-    function focusRequestedLanguage()
+    function scrollRequestedLanguage()
     {
         const section = findLanguageSection(
             form.dataset.focusLanguage || ''
@@ -76,20 +76,15 @@
             return;
         }
 
-        const field = section.querySelector(
-            '.interface-translation-value'
-        );
-
-        if (!field) {
-            return;
-        }
-
+        /*
+         * Перехід «Відкрити для редагування» лише прокручує сторінку
+         * та підсвічує потрібну мову. Не фокусуємо textarea програмно,
+         * щоб мобільна клавіатура не відкривалася без дії користувача.
+         */
         section.classList.add('is-focus-target');
-        field.focus();
-        field.select();
 
         window.setTimeout(function () {
-            field.scrollIntoView({
+            section.scrollIntoView({
                 block: 'center'
             });
         }, 120);
@@ -304,6 +299,10 @@
                     setWorkflow(section, 'ai', 'draft');
                     updateLanguageState(targetField);
 
+                    /*
+                     * Це явна дія користувача, тому тут фокус допустимий:
+                     * після натискання кнопки ШІ можна одразу перевіряти текст.
+                     */
                     targetField.focus();
                     targetField.select();
 
@@ -374,5 +373,5 @@
     });
 
 
-    window.setTimeout(focusRequestedLanguage, 80);
+    window.setTimeout(scrollRequestedLanguage, 80);
 })();
