@@ -37,12 +37,28 @@ class CustomerAccount
         }
 
         $profile = CustomerProfile::getForUser($userId);
+        $birthDate = $profile['birth_date'] ?? null;
+        $knownUnderage = CustomerProfile::isKnownUnderageBirthDate($birthDate);
+
         $user['phone'] = (string) ($profile['phone'] ?? '');
-        $user['birth_date'] = $profile['birth_date'] ?? null;
+        $user['birth_date'] = $birthDate;
         $user['show_adult'] = (int) ($profile['show_adult'] ?? 0);
-        $user['is_adult'] = CustomerProfile::isAdultBirthDate(
-            $profile['birth_date'] ?? null
-        );
+        $user['adult_confirmed_at'] = $profile['adult_confirmed_at'] ?? null;
+        $user['is_adult'] = $birthDate !== null
+            && CustomerProfile::isAdultBirthDate($birthDate);
+        $user['is_known_underage'] = $knownUnderage ? 1 : 0;
+        $user['adult_confirmed'] = !$knownUnderage
+            && !empty($profile['adult_confirmed_at'])
+            ? 1
+            : 0;
+        $user['automatic_adult_access'] = !$knownUnderage
+            && AdultAccess::hasAutomaticRankAccessForUser($user)
+            ? 1
+            : 0;
+        $user['adult_section_access'] = !empty($user['adult_confirmed'])
+            || !empty($user['automatic_adult_access'])
+            ? 1
+            : 0;
 
         $_SESSION['user_name'] = (string) ($user['name'] ?? '');
         $_SESSION['user_rank_slug'] = (string) ($user['rank_slug'] ?? '');
@@ -141,8 +157,12 @@ class CustomerAccount
     }
 
 
-    public static function updateAdultPreferences($birthDate, $showAdult, $currentPassword)
-    {
+    public static function updateAdultPreferences(
+        $birthDate,
+        $adultConfirmed,
+        $showAdult,
+        $currentPassword
+    ) {
         $user = self::currentWithPassword();
 
         if (!password_verify((string) $currentPassword, (string) $user['password'])) {
@@ -150,11 +170,16 @@ class CustomerAccount
         }
 
         CustomerProfile::ensureSchema();
+        $current = self::current();
+        $hasAutomaticAccess = is_array($current)
+            && AdultAccess::hasAutomaticRankAccessForUser($current);
 
         return CustomerProfile::updateAdultPreferences(
             (int) $user['id'],
             $birthDate,
-            $showAdult
+            $adultConfirmed,
+            $showAdult,
+            $hasAutomaticAccess
         );
     }
 
@@ -202,6 +227,7 @@ class CustomerAccount
         }
 
         session_regenerate_id(true);
+        AdultAccess::clearConfirmation();
         $_SESSION['user_id'] = $userId;
         $_SESSION['user_name'] = (string) ($user['name'] ?? '');
         $_SESSION['user_rank_slug'] = (string) ($user['rank_slug'] ?? '');
@@ -215,6 +241,8 @@ class CustomerAccount
             $_SESSION['user_name'],
             $_SESSION['user_rank_slug']
         );
+
+        AdultAccess::clearConfirmation();
     }
 
 
