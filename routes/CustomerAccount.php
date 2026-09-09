@@ -16,6 +16,11 @@ $router->post(
 );
 
 $router->post(
+    '/account/rank-request',
+    'CustomerAccountController@requestRankUpgrade'
+);
+
+$router->post(
     '/account/adult-preferences',
     'CustomerAccountController@updateAdultPreferences'
 );
