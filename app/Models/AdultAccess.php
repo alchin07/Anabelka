@@ -7,6 +7,10 @@ class AdultAccess
 
     public static function isConfirmed()
     {
+        if (self::isKnownUnderage()) {
+            return false;
+        }
+
         return self::canShowAdultContent()
             || !empty($_SESSION[self::SESSION_KEY]);
     }
