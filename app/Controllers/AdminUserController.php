@@ -53,6 +53,7 @@ class AdminUserController extends Controller
                 'rank_request_approved',
                 (int) ($result['request_id'] ?? 0),
                 [
+                    'rank_id' => (int) ($result['new_rank_id'] ?? 0),
                     'rank_name' => (string) ($result['new_rank_name'] ?? ''),
                     'admin_note' => $note
                 ]
