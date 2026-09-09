@@ -105,7 +105,15 @@
 
     function ensureAiTranslationSwitcher()
     {
-        if (!pageUsesAiTranslation()) {
+        /*
+         * .admin-drawer-ai рендериться сервером лише коли поточна роль
+         * має право ai_translation.view. Використовуємо його наявність
+         * як маркер дозволу, але сам старий блок у drawer приховуємо.
+         */
+        if (
+            !document.querySelector('.admin-drawer-ai')
+            || !pageUsesAiTranslation()
+        ) {
             return;
         }
 
@@ -326,8 +334,8 @@
         normalizePencilButtons();
         markActiveSection();
         initDrawer();
-        retireDrawerAiSwitcher();
         ensureAiTranslationSwitcher();
+        retireDrawerAiSwitcher();
         ensurePageAiModules();
     }
 
