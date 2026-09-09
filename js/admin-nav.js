@@ -74,14 +74,60 @@
     }
 
 
+    function pageUsesAiTranslation()
+    {
+        const path = window.location.pathname.replace(/\/$/, '');
+        const exactPages = [
+            '/Anabelka/admin/categories',
+            '/Anabelka/admin/products',
+            '/Anabelka/admin/delivery',
+            '/Anabelka/admin/ranks'
+        ];
+
+        if (exactPages.includes(path)) {
+            return true;
+        }
+
+        return path === '/Anabelka/admin/translations/interface'
+            || path.indexOf('/Anabelka/admin/translations/interface/') === 0;
+    }
+
+
+    function retireDrawerAiSwitcher()
+    {
+        const drawerBlock = document.querySelector('.admin-drawer-ai');
+
+        if (drawerBlock) {
+            drawerBlock.hidden = true;
+        }
+    }
+
+
     function ensureAiTranslationSwitcher()
     {
+        if (!pageUsesAiTranslation()) {
+            return;
+        }
+
         if (!document.querySelector('link[data-admin-ai-translation]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';
-            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=2';
+            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=3';
             stylesheet.dataset.adminAiTranslation = '1';
             document.head.appendChild(stylesheet);
+        }
+
+        let topSlot = document.getElementById('admin-ai-top-slot');
+
+        if (!topSlot) {
+            topSlot = document.createElement('div');
+            topSlot.id = 'admin-ai-top-slot';
+            topSlot.className = 'admin-ai-top-slot';
+            topSlot.setAttribute(
+                'aria-label',
+                'Швидкий вибір ШІ для перекладу'
+            );
+            document.body.appendChild(topSlot);
         }
 
         let switcher = document.getElementById('ai-provider-switcher');
@@ -111,15 +157,13 @@
             switcher.appendChild(status);
         }
 
-        const target = document.getElementById('admin-ai-slot');
-
-        if (target && switcher.parentElement !== target) {
-            target.appendChild(switcher);
+        if (switcher.parentElement !== topSlot) {
+            topSlot.appendChild(switcher);
         }
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
             const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=5';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=6';
             script.dataset.adminAiTranslation = '1';
             document.body.appendChild(script);
         }
@@ -282,6 +326,7 @@
         normalizePencilButtons();
         markActiveSection();
         initDrawer();
+        retireDrawerAiSwitcher();
         ensureAiTranslationSwitcher();
         ensurePageAiModules();
     }
