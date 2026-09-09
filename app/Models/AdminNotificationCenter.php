@@ -124,7 +124,11 @@ class AdminNotificationCenter
         }
 
         $byKey = [];
-        $total = 0;
+        $allTotal = 0;
+        $badgeTotal = 0;
+        $preferences = self::canCustomizeBadge($admin)
+            ? self::preferences($adminUserId)
+            : null;
 
         foreach ($items as $item) {
             $key = (string) ($item['key'] ?? '');
@@ -134,11 +138,22 @@ class AdminNotificationCenter
                 $byKey[$key] = $count;
             }
 
-            $total += $count;
+            $allTotal += $count;
+
+            if (
+                $preferences === null
+                || ($key !== '' && !empty($preferences[$key]))
+            ) {
+                $badgeTotal += $count;
+            }
         }
 
         self::$summaryCache[$adminUserId] = [
-            'total' => $total,
+            // total — число для загального персонального бейджа.
+            'total' => $badgeTotal,
+            // all_total — усі доступні поточному адміністратору події.
+            'all_total' => $allTotal,
+            // items/by_key завжди повні: локальні лічильники не фільтруємо.
             'items' => $items,
             'by_key' => $byKey
         ];
@@ -147,11 +162,6 @@ class AdminNotificationCenter
     }
 
 
-    /**
-     * Підсумок саме для загального бейджа біля іконки адмін-панелі.
-     * Для Розробника і Власника враховує їх персональний вибір.
-     * Локальні бейджі розділів використовують summary() і не зникають.
-     */
     public static function badgeSummary($adminUserId = null)
     {
         $summary = self::summary($adminUserId);
@@ -187,6 +197,7 @@ class AdminNotificationCenter
 
         return [
             'total' => $total,
+            'all_total' => (int) ($summary['all_total'] ?? $total),
             'items' => $items,
             'by_key' => $byKey
         ];
@@ -654,6 +665,7 @@ class AdminNotificationCenter
     {
         return [
             'total' => 0,
+            'all_total' => 0,
             'items' => [],
             'by_key' => []
         ];
