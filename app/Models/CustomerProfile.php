@@ -84,8 +84,13 @@ class CustomerProfile
     }
 
 
-    public static function updateAdultPreferences($userId, $birthDate, $showAdult)
-    {
+    public static function updateAdultPreferences(
+        $userId,
+        $birthDate,
+        $adultConfirmed,
+        $showAdult,
+        $hasAutomaticAccess = false
+    ) {
         self::ensureSchema();
         $userId = (int) $userId;
 
@@ -94,18 +99,35 @@ class CustomerProfile
         }
 
         $birthDate = self::normalizeBirthDate($birthDate);
+        $adultConfirmed = !empty($adultConfirmed);
         $showAdult = !empty($showAdult);
+        $hasAutomaticAccess = !empty($hasAutomaticAccess);
         $knownUnderage = self::isKnownUnderageBirthDate($birthDate);
 
-        if ($showAdult && $knownUnderage) {
+        if ($knownUnderage && ($adultConfirmed || $showAdult || $hasAutomaticAccess)) {
             throw new InvalidArgumentException(
                 'Розділ 18+ недоступний неповнолітнім користувачам.'
             );
         }
 
-        $confirmedAt = $showAdult
-            ? date('Y-m-d H:i:s')
-            : null;
+        if ($showAdult && !$adultConfirmed && !$hasAutomaticAccess) {
+            throw new InvalidArgumentException(
+                'Спочатку підтвердьте, що вам уже виповнилося 18 років.'
+            );
+        }
+
+        $existing = self::getForUser($userId);
+        $confirmedAt = null;
+
+        if ($adultConfirmed) {
+            $confirmedAt = !empty($existing['adult_confirmed_at'])
+                ? (string) $existing['adult_confirmed_at']
+                : date('Y-m-d H:i:s');
+        }
+
+        if (!$adultConfirmed && !$hasAutomaticAccess) {
+            $showAdult = false;
+        }
 
         $stmt = Database::connect()->prepare("
             INSERT INTO customer_profiles
@@ -128,6 +150,7 @@ class CustomerProfile
             'birth_date' => $birthDate,
             'show_adult' => $showAdult ? 1 : 0,
             'adult_confirmed_at' => $confirmedAt,
+            'adult_confirmed' => $confirmedAt !== null,
             'is_adult' => $birthDate !== null
                 && self::isAdultBirthDate($birthDate),
             'is_known_underage' => $knownUnderage
@@ -135,13 +158,67 @@ class CustomerProfile
     }
 
 
-    public static function canShowAdultForUser($userId)
+    public static function confirmAdultForUser($userId)
+    {
+        self::ensureSchema();
+        $userId = (int) $userId;
+
+        if ($userId <= 0) {
+            throw new InvalidArgumentException('Некоректний користувач.');
+        }
+
+        $profile = self::getForUser($userId);
+
+        if (self::isKnownUnderageBirthDate($profile['birth_date'] ?? null)) {
+            throw new RuntimeException(
+                'Розділ 18+ недоступний неповнолітнім користувачам.'
+            );
+        }
+
+        if (!empty($profile['adult_confirmed_at'])) {
+            return (string) $profile['adult_confirmed_at'];
+        }
+
+        $confirmedAt = date('Y-m-d H:i:s');
+        $stmt = Database::connect()->prepare("
+            INSERT INTO customer_profiles
+                (user_id, adult_confirmed_at)
+            VALUES
+                (:user_id, :adult_confirmed_at)
+            ON DUPLICATE KEY UPDATE
+                adult_confirmed_at = VALUES(adult_confirmed_at)
+        ");
+        $stmt->execute([
+            'user_id' => $userId,
+            'adult_confirmed_at' => $confirmedAt
+        ]);
+
+        return $confirmedAt;
+    }
+
+
+    public static function isAdultConfirmedForUser($userId)
     {
         $profile = self::getForUser((int) $userId);
-        $birthDate = $profile['birth_date'] ?? null;
 
-        return !empty($profile['show_adult'])
-            && !self::isKnownUnderageBirthDate($birthDate);
+        return !empty($profile['adult_confirmed_at'])
+            && !self::isKnownUnderageBirthDate($profile['birth_date'] ?? null);
+    }
+
+
+    public static function canShowAdultForUser($userId, $hasAutomaticAccess = false)
+    {
+        $profile = self::getForUser((int) $userId);
+        $knownUnderage = self::isKnownUnderageBirthDate(
+            $profile['birth_date'] ?? null
+        );
+
+        if ($knownUnderage || empty($profile['show_adult'])) {
+            return false;
+        }
+
+        return !empty($profile['adult_confirmed_at'])
+            || !empty($hasAutomaticAccess);
     }
 
 
@@ -265,6 +342,8 @@ class CustomerProfile
             ");
         }
 
+        // Старе поле show_adult раніше одночасно означало згоду 18+.
+        // Для сумісності один раз перетворюємо наявне значення на підтвердження.
         $db->exec("
             UPDATE customer_profiles
             SET adult_confirmed_at = COALESCE(adult_confirmed_at, updated_at, created_at)
