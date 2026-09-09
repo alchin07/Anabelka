@@ -8,7 +8,10 @@ $addresses = is_array($addresses ?? null) ? $addresses : [];
 $csrfToken = (string) ($csrfToken ?? '');
 $message = trim((string) ($message ?? ''));
 $error = trim((string) ($error ?? ''));
-$adultEnabled = !empty($user['is_adult']) && !empty($user['show_adult']);
+$adultEnabled = !empty($user['adult_section_access']);
+$adultConfirmed = !empty($user['adult_confirmed']);
+$automaticAdultAccess = !empty($user['automatic_adult_access']);
+$knownUnderage = !empty($user['is_known_underage']);
 $rankName = UserRankTranslator::localizeName(
     (int) ($user['rank_id'] ?? 0),
     (string) ($user['rank_name'] ?? ''),
@@ -255,20 +258,35 @@ $rankName = UserRankTranslator::localizeName(
                 ) ?></h3>
                 <p><?= htmlspecialchars(
                     Translator::t(
-                        'public.account.adult_settings_hint',
-                        'Дата народження використовується для перевірки повноліття. Товари 18+ з’являються у звичайному пошуку лише після вашого дозволу.'
+                        'public.account.adult_privacy_hint',
+                        'Дата народження не є обов’язковою. Для доступу до розділу 18+ достатньо підтвердити повноліття.'
                     )
                 ) ?></p>
             </div>
 
             <span class="account-adult-status <?= $adultEnabled ? 'is-enabled' : '' ?>">
                 <?= htmlspecialchars(
-                    $adultEnabled
-                        ? Translator::t('public.account.adult_enabled', '18+ увімкнено')
-                        : Translator::t('public.account.adult_disabled', '18+ вимкнено')
+                    $knownUnderage
+                        ? Translator::t('public.account.adult_status_blocked', '18+ недоступно')
+                        : ($automaticAdultAccess
+                            ? Translator::t('public.account.adult_status_rank', '18+ доступ за рангом')
+                            : ($adultConfirmed
+                                ? Translator::t('public.account.adult_status_confirmed', '18+ підтверджено')
+                                : Translator::t('public.account.adult_status_off', '18+ не підтверджено')))
                 ) ?>
             </span>
         </div>
+
+        <?php if ($automaticAdultAccess && !$knownUnderage): ?>
+            <p class="account-adult-note">
+                <?= htmlspecialchars(
+                    Translator::t(
+                        'public.account.adult_vip_hint',
+                        'Ваш ранг дає автоматичний доступ до розділу 18+. Дата народження та окреме підтвердження не потрібні.'
+                    )
+                ) ?>
+            </p>
+        <?php endif; ?>
 
         <form
             class="account-adult-form"
@@ -288,6 +306,52 @@ $rankName = UserRankTranslator::localizeName(
                     max="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>"
                     value="<?= htmlspecialchars((string) ($user['birth_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                 >
+                <small><?= htmlspecialchars(
+                    Translator::t(
+                        'public.account.birth_optional',
+                        'Необов’язково. Ви можете залишити це поле порожнім.'
+                    )
+                ) ?></small>
+            </label>
+
+            <label class="account-adult-toggle">
+                <input
+                    type="checkbox"
+                    name="adult_confirmed"
+                    value="1"
+                    <?= $adultConfirmed ? 'checked' : '' ?>
+                >
+                <span class="account-adult-toggle-text">
+                    <strong><?= htmlspecialchars(
+                        Translator::t('public.account.adult_confirm', 'Мені вже виповнилося 18 років')
+                    ) ?></strong>
+                    <small><?= htmlspecialchars(
+                        Translator::t(
+                            'public.account.adult_confirm_hint',
+                            'Підтвердження відкриває доступ до окремого розділу 18+ без обов’язкового збереження дати народження.'
+                        )
+                    ) ?></small>
+                </span>
+            </label>
+
+            <label class="account-adult-toggle">
+                <input
+                    type="checkbox"
+                    name="show_adult"
+                    value="1"
+                    <?= !empty($user['show_adult']) ? 'checked' : '' ?>
+                >
+                <span class="account-adult-toggle-text">
+                    <strong><?= htmlspecialchars(
+                        Translator::t('public.account.adult_search', 'Показувати товари 18+ у звичайному пошуку')
+                    ) ?></strong>
+                    <small><?= htmlspecialchars(
+                        Translator::t(
+                            'public.account.adult_search_hint',
+                            'Увімкніть лише якщо хочете бачити 18+ товари разом зі звичайними результатами пошуку.'
+                        )
+                    ) ?></small>
+                </span>
             </label>
 
             <label>
@@ -300,26 +364,6 @@ $rankName = UserRankTranslator::localizeName(
                     autocomplete="current-password"
                     required
                 >
-            </label>
-
-            <label class="account-adult-toggle">
-                <input
-                    type="checkbox"
-                    name="show_adult"
-                    value="1"
-                    <?= !empty($user['show_adult']) ? 'checked' : '' ?>
-                >
-                <span class="account-adult-toggle-text">
-                    <strong><?= htmlspecialchars(
-                        Translator::t('public.account.show_adult', 'Показувати товари 18+')
-                    ) ?></strong>
-                    <small><?= htmlspecialchars(
-                        Translator::t(
-                            'public.account.show_adult_hint',
-                            'Доступно лише користувачам, яким виповнилося 18 років.'
-                        )
-                    ) ?></small>
-                </span>
             </label>
 
             <button type="submit">
