@@ -51,6 +51,36 @@ class CustomerAccountController extends Controller
     }
 
 
+    public function updateAdultPreferences()
+    {
+        PublicInterfaceTranslator::seed();
+        CustomerAccountInterfaceTranslator::seed();
+
+        try {
+            $this->verifyCsrf();
+            $result = CustomerAccount::updateAdultPreferences(
+                $_POST['birth_date'] ?? '',
+                !empty($_POST['show_adult']),
+                $_POST['current_password'] ?? ''
+            );
+
+            if (empty($result['is_adult'])) {
+                AdultAccess::clearConfirmation();
+            }
+
+            $this->redirect(
+                'message',
+                Translator::t(
+                    'public.account.adult_saved',
+                    'Налаштування віку та 18+ збережено.'
+                )
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
     public function changePassword()
     {
         PublicInterfaceTranslator::seed();
