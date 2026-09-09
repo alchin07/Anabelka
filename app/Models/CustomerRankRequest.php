@@ -355,23 +355,55 @@ class CustomerRankRequest
             throw new InvalidArgumentException('Некоректні дані запиту.');
         }
 
-        $stmt = Database::connect()->prepare("
-            UPDATE customer_rank_requests
-            SET status = 'rejected',
-                admin_user_id = :admin_user_id,
-                admin_note = :admin_note,
-                reviewed_at = NOW()
-            WHERE id = :id
-              AND status = 'pending'
-        ");
-        $stmt->execute([
-            'admin_user_id' => $adminUserId,
-            'admin_note' => $note !== '' ? $note : null,
-            'id' => $requestId
-        ]);
+        $db = Database::connect();
+        $db->beginTransaction();
 
-        if ($stmt->rowCount() <= 0) {
-            throw new RuntimeException('Запит уже оброблено або не знайдено.');
+        try {
+            $select = $db->prepare("
+                SELECT id, user_id, status
+                FROM customer_rank_requests
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $select->execute(['id' => $requestId]);
+            $request = $select->fetch(PDO::FETCH_ASSOC);
+
+            if (!$request || ($request['status'] ?? '') !== 'pending') {
+                throw new RuntimeException('Запит уже оброблено або не знайдено.');
+            }
+
+            $stmt = $db->prepare("
+                UPDATE customer_rank_requests
+                SET status = 'rejected',
+                    admin_user_id = :admin_user_id,
+                    admin_note = :admin_note,
+                    reviewed_at = NOW()
+                WHERE id = :id
+                  AND status = 'pending'
+            ");
+            $stmt->execute([
+                'admin_user_id' => $adminUserId,
+                'admin_note' => $note !== '' ? $note : null,
+                'id' => $requestId
+            ]);
+
+            if ($stmt->rowCount() <= 0) {
+                throw new RuntimeException('Запит уже оброблено або не знайдено.');
+            }
+
+            $db->commit();
+
+            return [
+                'request_id' => $requestId,
+                'user_id' => (int) ($request['user_id'] ?? 0),
+                'note' => $note
+            ];
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
         }
     }
 
