@@ -7,6 +7,7 @@ class CustomerAccountController extends Controller
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
         CustomerRankRequestInterfaceTranslator::seed();
+        CustomerNotificationInterfaceTranslator::seed();
 
         $user = CustomerAccount::current();
 
@@ -15,10 +16,26 @@ class CustomerAccountController extends Controller
             exit;
         }
 
+        $notifications = CustomerNotification::recentForUser((int) $user['id'], 10);
+        $unreadCount = CustomerNotification::unreadCount((int) $user['id']);
+        $unreadIds = [];
+
+        foreach ($notifications as $notification) {
+            if (empty($notification['is_read'])) {
+                $unreadIds[] = (int) ($notification['id'] ?? 0);
+            }
+        }
+
+        // Нове сповіщення показується як непрочитане один раз.
+        // Після відкриття сторінки акаунта воно переходить у прочитані.
+        CustomerNotification::markRead((int) $user['id'], $unreadIds);
+
         $this->view('account/index', [
             'user' => $user,
             'addresses' => CustomerAddress::allForUser((int) $user['id']),
             'rankRequestState' => CustomerRankRequest::stateForUser((int) $user['id']),
+            'notifications' => $notifications,
+            'notificationUnreadCount' => $unreadCount,
             'csrfToken' => CustomerAccount::csrfToken(),
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
