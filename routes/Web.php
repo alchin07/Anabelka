@@ -134,6 +134,16 @@ $router->post(
 );
 
 $router->post(
+    '/admin/users/rank-request/approve',
+    'AdminUserController@approveRankRequest'
+);
+
+$router->post(
+    '/admin/users/rank-request/reject',
+    'AdminUserController@rejectRankRequest'
+);
+
+$router->post(
     '/admin/users/delete',
     'AdminUserController@deleteAccount'
 );
