@@ -18,9 +18,27 @@ class AdminDashboardController extends Controller
 
         $translationSummary = $this->translationSummary();
         $aiSummary = $this->aiSummary();
+        $notificationSummary = [
+            'total' => 0,
+            'items' => [],
+            'by_key' => []
+        ];
+
+        try {
+            if (class_exists('AdminNotificationCenter')) {
+                $notificationSummary = AdminNotificationCenter::summary();
+            }
+        } catch (Throwable $e) {
+            // Центр сповіщень не повинен блокувати головну адмінки.
+        }
 
         $counts = is_array($overview['counts'] ?? null)
             ? $overview['counts']
+            : [];
+        $notificationByKey = is_array(
+            $notificationSummary['by_key'] ?? null
+        )
+            ? $notificationSummary['by_key']
             : [];
 
         $this->view(
@@ -30,16 +48,18 @@ class AdminDashboardController extends Controller
                 'recentOrders' => $overview['recent_orders'] ?? [],
                 'translationSummary' => $translationSummary,
                 'aiSummary' => $aiSummary,
+                'adminNotificationSummary' => $notificationSummary,
                 'dashboardError' => $dashboardError,
                 'navBadges' => [
-                    'orders' => (int) (
-                        ($counts['regular_new'] ?? 0)
-                        + ($counts['quick_new'] ?? 0)
+                    'orders' => (int) ($notificationByKey['orders'] ?? 0),
+                    'users' => (int) (
+                        ($notificationByKey['new_users'] ?? 0)
+                        + ($notificationByKey['rank_requests'] ?? 0)
                     ),
                     'regular_orders' => (int) ($counts['regular_new'] ?? 0),
                     'quick_orders' => (int) ($counts['quick_new'] ?? 0),
                     'translations' => (int) (
-                        $translationSummary['attention'] ?? 0
+                        $notificationByKey['translations'] ?? 0
                     )
                 ]
             ]
