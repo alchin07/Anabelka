@@ -167,6 +167,12 @@ class Router
         }
 
         if (AdminAccess::can($permission)) {
+            if (class_exists('AdminNotificationCenter')) {
+                AdminNotificationCenter::markPathViewed(
+                    $path,
+                    $method
+                );
+            }
             return;
         }
 
