@@ -36,6 +36,11 @@ class CustomerAccount
             return null;
         }
 
+        $profile = CustomerProfile::getForUser($userId);
+        $user['phone'] = (string) ($profile['phone'] ?? '');
+        $user['birth_date'] = $profile['birth_date'] ?? null;
+        $user['show_adult'] = (int) ($profile['show_adult'] ?? 0);
+
         $_SESSION['user_name'] = (string) ($user['name'] ?? '');
         $_SESSION['user_rank_slug'] = (string) ($user['rank_slug'] ?? '');
 
@@ -70,11 +75,12 @@ class CustomerAccount
     }
 
 
-    public static function updateIdentity($name, $email, $currentPassword)
+    public static function updateIdentity($name, $email, $phone, $currentPassword)
     {
         $user = self::currentWithPassword();
         $name = self::normalizeName($name);
         $email = self::normalizeEmail($email);
+        $phone = CustomerProfile::normalizePhone($phone);
 
         if (!password_verify((string) $currentPassword, (string) $user['password'])) {
             throw new RuntimeException('Поточний пароль введено неправильно.');
@@ -97,17 +103,29 @@ class CustomerAccount
             throw new RuntimeException('Користувач із таким email уже існує.');
         }
 
-        $stmt = $db->prepare("
-            UPDATE users
-            SET name = :name,
-                email = :email
-            WHERE id = :id
-        ");
-        $stmt->execute([
-            'name' => $name,
-            'email' => $email,
-            'id' => (int) $user['id']
-        ]);
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                UPDATE users
+                SET name = :name,
+                    email = :email
+                WHERE id = :id
+            ");
+            $stmt->execute([
+                'name' => $name,
+                'email' => $email,
+                'id' => (int) $user['id']
+            ]);
+
+            CustomerProfile::updatePhone((int) $user['id'], $phone);
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
 
         $_SESSION['user_name'] = $name;
 
