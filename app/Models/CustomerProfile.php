@@ -11,13 +11,16 @@ class CustomerProfile
             return;
         }
 
-        Database::connect()->exec("
+        $db = Database::connect();
+
+        $db->exec("
             CREATE TABLE IF NOT EXISTS customer_profiles
             (
                 user_id INT UNSIGNED NOT NULL,
                 phone VARCHAR(40) NULL,
                 birth_date DATE NULL,
                 show_adult TINYINT(1) NOT NULL DEFAULT 0,
+                adult_confirmed_at DATETIME NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     ON UPDATE CURRENT_TIMESTAMP,
@@ -27,6 +30,7 @@ class CustomerProfile
               COLLATE=utf8mb4_unicode_ci
         ");
 
+        self::ensureAdultConfirmedAtColumn($db);
         self::$schemaReady = true;
     }
 
@@ -37,15 +41,11 @@ class CustomerProfile
         $userId = (int) $userId;
 
         if ($userId <= 0) {
-            return [
-                'phone' => '',
-                'birth_date' => null,
-                'show_adult' => 0
-            ];
+            return self::emptyProfile();
         }
 
         $stmt = Database::connect()->prepare("
-            SELECT phone, birth_date, show_adult
+            SELECT phone, birth_date, show_adult, adult_confirmed_at
             FROM customer_profiles
             WHERE user_id = :user_id
             LIMIT 1
@@ -53,11 +53,7 @@ class CustomerProfile
         $stmt->execute(['user_id' => $userId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        return $row ?: [
-            'phone' => '',
-            'birth_date' => null,
-            'show_adult' => 0
-        ];
+        return $row ?: self::emptyProfile();
     }
 
 
@@ -99,38 +95,42 @@ class CustomerProfile
 
         $birthDate = self::normalizeBirthDate($birthDate);
         $showAdult = !empty($showAdult);
+        $knownUnderage = self::isKnownUnderageBirthDate($birthDate);
 
-        if ($showAdult && $birthDate === null) {
+        if ($showAdult && $knownUnderage) {
             throw new InvalidArgumentException(
-                'Щоб увімкнути товари 18+, вкажіть дату народження.'
+                'Розділ 18+ недоступний неповнолітнім користувачам.'
             );
         }
 
-        if ($showAdult && !self::isAdultBirthDate($birthDate)) {
-            throw new InvalidArgumentException(
-                'Товари 18+ доступні лише повнолітнім користувачам.'
-            );
-        }
+        $confirmedAt = $showAdult
+            ? date('Y-m-d H:i:s')
+            : null;
 
         $stmt = Database::connect()->prepare("
             INSERT INTO customer_profiles
-                (user_id, birth_date, show_adult)
+                (user_id, birth_date, show_adult, adult_confirmed_at)
             VALUES
-                (:user_id, :birth_date, :show_adult)
+                (:user_id, :birth_date, :show_adult, :adult_confirmed_at)
             ON DUPLICATE KEY UPDATE
                 birth_date = VALUES(birth_date),
-                show_adult = VALUES(show_adult)
+                show_adult = VALUES(show_adult),
+                adult_confirmed_at = VALUES(adult_confirmed_at)
         ");
         $stmt->execute([
             'user_id' => $userId,
             'birth_date' => $birthDate,
-            'show_adult' => $showAdult ? 1 : 0
+            'show_adult' => $showAdult ? 1 : 0,
+            'adult_confirmed_at' => $confirmedAt
         ]);
 
         return [
             'birth_date' => $birthDate,
             'show_adult' => $showAdult ? 1 : 0,
-            'is_adult' => self::isAdultBirthDate($birthDate)
+            'adult_confirmed_at' => $confirmedAt,
+            'is_adult' => $birthDate !== null
+                && self::isAdultBirthDate($birthDate),
+            'is_known_underage' => $knownUnderage
         ];
     }
 
@@ -138,9 +138,19 @@ class CustomerProfile
     public static function canShowAdultForUser($userId)
     {
         $profile = self::getForUser((int) $userId);
+        $birthDate = $profile['birth_date'] ?? null;
 
         return !empty($profile['show_adult'])
-            && self::isAdultBirthDate($profile['birth_date'] ?? null);
+            && !self::isKnownUnderageBirthDate($birthDate);
+    }
+
+
+    public static function isKnownUnderageBirthDate($birthDate)
+    {
+        $birthDate = self::normalizeBirthDate($birthDate);
+
+        return $birthDate !== null
+            && !self::isAdultBirthDate($birthDate);
     }
 
 
@@ -227,5 +237,39 @@ class CustomerProfile
         }
 
         return $phone;
+    }
+
+
+    private static function emptyProfile()
+    {
+        return [
+            'phone' => '',
+            'birth_date' => null,
+            'show_adult' => 0,
+            'adult_confirmed_at' => null
+        ];
+    }
+
+
+    private static function ensureAdultConfirmedAtColumn(PDO $db)
+    {
+        $column = $db->query("
+            SHOW COLUMNS FROM customer_profiles LIKE 'adult_confirmed_at'
+        ")->fetch(PDO::FETCH_ASSOC);
+
+        if (!$column) {
+            $db->exec("
+                ALTER TABLE customer_profiles
+                ADD COLUMN adult_confirmed_at DATETIME NULL
+                AFTER show_adult
+            ");
+        }
+
+        $db->exec("
+            UPDATE customer_profiles
+            SET adult_confirmed_at = COALESCE(adult_confirmed_at, updated_at, created_at)
+            WHERE show_adult = 1
+              AND adult_confirmed_at IS NULL
+        ");
     }
 }
