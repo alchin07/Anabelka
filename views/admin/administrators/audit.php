@@ -27,6 +27,8 @@ $actionLabels = [
     'customer.invitation_created' => 'Створено запрошення покупця',
     'customer.invitation_marked_sent' => 'Запрошення позначено як надіслане',
     'customer.rank_changed' => 'Змінено ранг покупця',
+    'customer.rank_request_approved' => 'Схвалено запит на підвищення рангу',
+    'customer.rank_request_rejected' => 'Відхилено запит на підвищення рангу',
     'customer.account_deleted' => 'Видалено акаунт покупця',
     'customer.account_deactivated' => 'Деактивовано акаунт покупця',
 
@@ -82,11 +84,14 @@ $detailLabels = [
     'stock_mode' => 'Облік залишків',
 
     'user_id' => 'ID користувача',
+    'request_id' => 'ID запиту',
     'old_rank_id' => 'Попередній ранг',
     'new_rank_id' => 'Новий ранг',
+    'new_rank_name' => 'Назва нового рангу',
     'rank_id' => 'ID рангу',
     'channel' => 'Канал запрошення',
     'direction' => 'Напрямок',
+    'note' => 'Примітка',
 
     'method_id' => 'ID способу доставки',
     'service_id' => 'ID служби доставки',
