@@ -33,6 +33,8 @@ class App
         require_once __DIR__ . '/../Models/CustomerAddress.php';
         require_once __DIR__ . '/../Models/CustomerAccount.php';
         require_once __DIR__ . '/../Models/CustomerAccountInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/CustomerRankRequest.php';
+        require_once __DIR__ . '/../Models/CustomerRankRequestInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/AdminUser.php';
         require_once __DIR__ . '/../Models/Order.php';
         require_once __DIR__ . '/../Models/QuickOrder.php';
