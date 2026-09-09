@@ -5,6 +5,11 @@ $router->get(
     'CustomerAccountController@index'
 );
 
+$router->get(
+    '/account/checkout-profile',
+    'CustomerAccountController@checkoutProfile'
+);
+
 $router->post(
     '/account/profile',
     'CustomerAccountController@updateProfile'
@@ -13,6 +18,26 @@ $router->post(
 $router->post(
     '/account/password',
     'CustomerAccountController@changePassword'
+);
+
+$router->post(
+    '/account/address/create',
+    'CustomerAccountController@createAddress'
+);
+
+$router->post(
+    '/account/address/update',
+    'CustomerAccountController@updateAddress'
+);
+
+$router->post(
+    '/account/address/default',
+    'CustomerAccountController@setDefaultAddress'
+);
+
+$router->post(
+    '/account/address/delete',
+    'CustomerAccountController@deleteAddress'
 );
 
 $router->post(
