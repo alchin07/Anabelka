@@ -5,6 +5,18 @@ class AdminNotificationCenter
     private static $schemaReady = false;
     private static $summaryCache = [];
 
+    private const BADGE_CHANNELS = [
+        'orders' => 'Нові замовлення',
+        'new_users' => 'Нові користувачі',
+        'rank_requests' => 'Запити на підвищення рангу',
+        'translations' => 'Переклади потребують уваги'
+    ];
+
+    private const CUSTOM_BADGE_ROLES = [
+        'owner',
+        'store_owner'
+    ];
+
 
     public static function ensureSchema()
     {
@@ -12,12 +24,28 @@ class AdminNotificationCenter
             return;
         }
 
-        Database::connect()->exec("
+        $db = Database::connect();
+
+        $db->exec("
             CREATE TABLE IF NOT EXISTS admin_notification_state
             (
                 admin_user_id BIGINT UNSIGNED NOT NULL,
                 channel VARCHAR(80) NOT NULL,
                 last_seen_value BIGINT UNSIGNED NOT NULL DEFAULT 0,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (admin_user_id, channel)
+            ) ENGINE=InnoDB
+              DEFAULT CHARSET=utf8mb4
+              COLLATE=utf8mb4_unicode_ci
+        ");
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS admin_notification_preferences
+            (
+                admin_user_id BIGINT UNSIGNED NOT NULL,
+                channel VARCHAR(80) NOT NULL,
+                is_enabled TINYINT(1) NOT NULL DEFAULT 1,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (admin_user_id, channel)
@@ -58,11 +86,10 @@ class AdminNotificationCenter
         $items = [];
 
         if (AdminAccess::can('orders.view')) {
-            $count = self::countNewOrders();
             $items[] = self::item(
                 'orders',
-                'Нові замовлення',
-                $count,
+                self::BADGE_CHANNELS['orders'],
+                self::countNewOrders(),
                 '/Anabelka/admin/orders',
                 'action'
             );
@@ -71,7 +98,7 @@ class AdminNotificationCenter
         if (AdminAccess::can('users.view')) {
             $items[] = self::item(
                 'new_users',
-                'Нові користувачі',
+                self::BADGE_CHANNELS['new_users'],
                 self::countNewUsers($adminUserId),
                 '/Anabelka/admin/users',
                 'new'
@@ -79,7 +106,7 @@ class AdminNotificationCenter
 
             $items[] = self::item(
                 'rank_requests',
-                'Запити на підвищення рангу',
+                self::BADGE_CHANNELS['rank_requests'],
                 self::countPendingRankRequests(),
                 '/Anabelka/admin/users',
                 'action'
@@ -89,7 +116,7 @@ class AdminNotificationCenter
         if (AdminAccess::can('translations.view')) {
             $items[] = self::item(
                 'translations',
-                'Переклади потребують уваги',
+                self::BADGE_CHANNELS['translations'],
                 self::countTranslationAttention(),
                 '/Anabelka/admin/translations',
                 'action'
@@ -117,6 +144,160 @@ class AdminNotificationCenter
         ];
 
         return self::$summaryCache[$adminUserId];
+    }
+
+
+    /**
+     * Підсумок саме для загального бейджа біля іконки адмін-панелі.
+     * Для Розробника і Власника враховує їх персональний вибір.
+     * Локальні бейджі розділів використовують summary() і не зникають.
+     */
+    public static function badgeSummary($adminUserId = null)
+    {
+        $summary = self::summary($adminUserId);
+        $admin = class_exists('AdminAccess')
+            ? AdminAccess::current()
+            : null;
+
+        if (!$admin || !self::canCustomizeBadge($admin)) {
+            return $summary;
+        }
+
+        $adminUserId = $adminUserId !== null
+            ? (int) $adminUserId
+            : (int) ($admin['id'] ?? AdminAccess::currentId());
+
+        $preferences = self::preferences($adminUserId);
+        $items = [];
+        $byKey = [];
+        $total = 0;
+
+        foreach ($summary['items'] ?? [] as $item) {
+            $key = (string) ($item['key'] ?? '');
+
+            if ($key === '' || empty($preferences[$key])) {
+                continue;
+            }
+
+            $count = max(0, (int) ($item['count'] ?? 0));
+            $items[] = $item;
+            $byKey[$key] = $count;
+            $total += $count;
+        }
+
+        return [
+            'total' => $total,
+            'items' => $items,
+            'by_key' => $byKey
+        ];
+    }
+
+
+    public static function canCustomizeBadge($admin = null)
+    {
+        if (!class_exists('AdminAccess')) {
+            return false;
+        }
+
+        $admin = is_array($admin)
+            ? $admin
+            : AdminAccess::current();
+
+        if (!$admin) {
+            return false;
+        }
+
+        return in_array(
+            (string) ($admin['role_slug'] ?? ''),
+            self::CUSTOM_BADGE_ROLES,
+            true
+        );
+    }
+
+
+    public static function badgeOptions($adminUserId = null)
+    {
+        $admin = class_exists('AdminAccess')
+            ? AdminAccess::current()
+            : null;
+
+        if (!$admin || !self::canCustomizeBadge($admin)) {
+            return [];
+        }
+
+        $adminUserId = $adminUserId !== null
+            ? (int) $adminUserId
+            : (int) ($admin['id'] ?? AdminAccess::currentId());
+        $preferences = self::preferences($adminUserId);
+        $options = [];
+
+        foreach (self::BADGE_CHANNELS as $key => $label) {
+            if (!self::channelAllowedByPermissions($key)) {
+                continue;
+            }
+
+            $options[] = [
+                'key' => $key,
+                'label' => $label,
+                'enabled' => !empty($preferences[$key])
+            ];
+        }
+
+        return $options;
+    }
+
+
+    public static function saveBadgePreferences(array $enabledChannels)
+    {
+        if (!class_exists('AdminAccess')) {
+            throw new RuntimeException('Адміністратора не знайдено.');
+        }
+
+        $admin = AdminAccess::current();
+
+        if (!$admin || !self::canCustomizeBadge($admin)) {
+            throw new RuntimeException(
+                'Персональний склад бейджа доступний лише Розробнику та Власнику.'
+            );
+        }
+
+        $adminUserId = (int) ($admin['id'] ?? AdminAccess::currentId());
+
+        if ($adminUserId <= 0) {
+            throw new RuntimeException('Адміністратора не знайдено.');
+        }
+
+        $enabledLookup = [];
+        foreach ($enabledChannels as $channel) {
+            $channel = trim((string) $channel);
+            if (array_key_exists($channel, self::BADGE_CHANNELS)) {
+                $enabledLookup[$channel] = true;
+            }
+        }
+
+        self::ensureSchema();
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            INSERT INTO admin_notification_preferences
+                (admin_user_id, channel, is_enabled)
+            VALUES
+                (:admin_user_id, :channel, :is_enabled)
+            ON DUPLICATE KEY UPDATE
+                is_enabled = VALUES(is_enabled),
+                updated_at = CURRENT_TIMESTAMP
+        ");
+
+        foreach (array_keys(self::BADGE_CHANNELS) as $channel) {
+            $stmt->execute([
+                'admin_user_id' => $adminUserId,
+                'channel' => $channel,
+                'is_enabled' => isset($enabledLookup[$channel]) ? 1 : 0
+            ]);
+        }
+
+        unset(self::$summaryCache[$adminUserId]);
+
+        return self::badgeOptions($adminUserId);
     }
 
 
@@ -151,6 +332,56 @@ class AdminNotificationCenter
             self::currentMaxUserId()
         );
         unset(self::$summaryCache[$adminUserId]);
+    }
+
+
+    private static function preferences($adminUserId)
+    {
+        $defaults = [];
+        foreach (array_keys(self::BADGE_CHANNELS) as $channel) {
+            $defaults[$channel] = true;
+        }
+
+        $adminUserId = (int) $adminUserId;
+
+        if ($adminUserId <= 0) {
+            return $defaults;
+        }
+
+        self::ensureSchema();
+        $stmt = Database::connect()->prepare("
+            SELECT channel, is_enabled
+            FROM admin_notification_preferences
+            WHERE admin_user_id = :admin_user_id
+        ");
+        $stmt->execute(['admin_user_id' => $adminUserId]);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $channel = (string) ($row['channel'] ?? '');
+            if (array_key_exists($channel, $defaults)) {
+                $defaults[$channel] = !empty($row['is_enabled']);
+            }
+        }
+
+        return $defaults;
+    }
+
+
+    private static function channelAllowedByPermissions($channel)
+    {
+        switch ((string) $channel) {
+            case 'orders':
+                return AdminAccess::can('orders.view');
+
+            case 'new_users':
+            case 'rank_requests':
+                return AdminAccess::can('users.view');
+
+            case 'translations':
+                return AdminAccess::can('translations.view');
+        }
+
+        return false;
     }
 
 
@@ -254,8 +485,6 @@ class AdminNotificationCenter
             $total += self::deliveryTranslationAttention();
         }
 
-        // Інтерфейсні переклади належать безпосередньо до розділу
-        // «Переклади», тому достатньо translations.view.
         $total += self::safeCount("
             SELECT COUNT(*)
             FROM interface_translations source
