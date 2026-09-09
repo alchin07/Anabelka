@@ -22,6 +22,13 @@ $headerSearchQuery = '';
 $favoriteProductIds = [];
 $favoriteLookup = [];
 $cartCount = 0;
+$userNotificationCount = 0;
+$currentAdmin = null;
+$adminNotificationSummary = [
+    'total' => 0,
+    'items' => [],
+    'by_key' => []
+];
 
 if (!$isAdminPage) {
     PublicInterfaceTranslator::seed();
@@ -45,16 +52,48 @@ if (!$isAdminPage) {
     }
 
     if (!empty($_SESSION['user_id'])) {
-        $dbItems = Cart::getItemsByUserId(
-            (int) $_SESSION['user_id']
-        );
+        $userId = (int) $_SESSION['user_id'];
+        $dbItems = Cart::getItemsByUserId($userId);
 
         foreach ($dbItems as $item) {
             $cartCount += (int) ($item['quantity'] ?? 0);
         }
+
+        if (class_exists('CustomerNotification')) {
+            try {
+                $userNotificationCount = CustomerNotification::unreadCount(
+                    $userId
+                );
+            } catch (Throwable $e) {
+                $userNotificationCount = 0;
+            }
+        }
     } else {
         foreach ($_SESSION['cart'] ?? [] as $item) {
             $cartCount += (int) ($item['quantity'] ?? 0);
+        }
+    }
+
+    if (!empty($_SESSION['admin_user_id']) && class_exists('AdminAccess')) {
+        try {
+            if (class_exists('AdminRolePermission')) {
+                AdminRolePermission::applySavedOverrides();
+            }
+
+            $currentAdmin = AdminAccess::current();
+
+            if ($currentAdmin && class_exists('AdminNotificationCenter')) {
+                $adminNotificationSummary = AdminNotificationCenter::summary(
+                    (int) ($currentAdmin['id'] ?? 0)
+                );
+            }
+        } catch (Throwable $e) {
+            $currentAdmin = null;
+            $adminNotificationSummary = [
+                'total' => 0,
+                'items' => [],
+                'by_key' => []
+            ];
         }
     }
 }
@@ -82,6 +121,16 @@ $currentUserName = trim((string) (
     $_SESSION['user_name'] ?? ''
 ));
 $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
+$favoriteCount = count($favoriteProductIds);
+$adminNotificationCount = max(
+    0,
+    (int) ($adminNotificationSummary['total'] ?? 0)
+);
+$badgeText = static function ($count) {
+    $count = max(0, (int) $count);
+
+    return $count > 99 ? '99+' : (string) $count;
+};
 
 ?>
 
@@ -99,7 +148,7 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-header.css?v=1"
+        href="/Anabelka/css/public-header.css?v=2"
     >
 
     <div class="public-header-shell">
@@ -225,7 +274,8 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
                     <span
                         class="public-header-count header-favorites-count"
                         id="favorite-count"
-                    ><?= count($favoriteProductIds) ?></span>
+                        <?= $favoriteCount > 0 ? '' : 'hidden' ?>
+                    ><?= $badgeText($favoriteCount) ?></span>
                 </a>
 
                 <details class="public-header-menu public-header-profile">
@@ -261,6 +311,11 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
                                     : Translator::t('header.login', 'Увійти')
                             ) ?>
                         </span>
+                        <span
+                            class="public-header-count public-header-profile-count"
+                            id="profile-notification-count"
+                            <?= $userNotificationCount > 0 ? '' : 'hidden' ?>
+                        ><?= $badgeText($userNotificationCount) ?></span>
                     </summary>
 
                     <div class="public-header-popover">
@@ -280,6 +335,11 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
                                         'Мій акаунт'
                                     )
                                 ) ?>
+                                <?php if ($userNotificationCount > 0): ?>
+                                    <span class="public-header-popover-count">
+                                        <?= $badgeText($userNotificationCount) ?>
+                                    </span>
+                                <?php endif; ?>
                             </a>
 
                             <a href="/Anabelka/orders">
@@ -359,8 +419,33 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
                     <span
                         class="public-header-count header-cart-count"
                         id="cart-count"
-                    ><?= $cartCount ?></span>
+                        <?= $cartCount > 0 ? '' : 'hidden' ?>
+                    ><?= $badgeText($cartCount) ?></span>
                 </a>
+
+                <?php if ($currentAdmin): ?>
+                    <a
+                        href="/Anabelka/admin"
+                        class="public-header-action public-header-admin"
+                        aria-label="Адмін-панель"
+                        title="Адмін-панель"
+                    >
+                        <span class="public-header-action-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <rect x="4" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                                <rect x="14" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                                <rect x="4" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                                <rect x="14" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                            </svg>
+                        </span>
+                        <span class="public-header-action-label">Адмін</span>
+                        <span
+                            class="public-header-count public-header-admin-count"
+                            id="admin-notification-count"
+                            <?= $adminNotificationCount > 0 ? '' : 'hidden' ?>
+                        ><?= $badgeText($adminNotificationCount) ?></span>
+                    </a>
+                <?php endif; ?>
 
                 <?php if (!empty($activeLanguages)): ?>
                     <details class="public-header-menu public-header-language">
@@ -491,7 +576,7 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
 
     <script
         id="favorites-script"
-        src="/Anabelka/js/favorites.js?v=1"
+        src="/Anabelka/js/favorites.js?v=2"
         data-endpoint="/Anabelka/favorites/toggle"
         data-state-endpoint="/Anabelka/favorites/state"
         data-add-label="<?= htmlspecialchars(
