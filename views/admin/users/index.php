@@ -4,6 +4,7 @@ $ranks = is_array($ranks ?? null) ? $ranks : [];
 $assignableRanks = is_array($assignableRanks ?? null)
     ? $assignableRanks
     : [];
+$rankRequests = is_array($rankRequests ?? null) ? $rankRequests : [];
 $history = is_array($history ?? null) ? $history : [];
 $summary = is_array($summary ?? null) ? $summary : [];
 $filters = is_array($filters ?? null) ? $filters : [];
@@ -36,6 +37,7 @@ $inviteStatusLabels = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Користувачі') ?></title>
     <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-rank-requests.css?v=1">
 </head>
 <body>
 
@@ -68,6 +70,8 @@ $inviteStatusLabels = [
             <?= htmlspecialchars($error) ?>
         </div>
     <?php endif; ?>
+
+    <?php require __DIR__ . '/rank-requests.php'; ?>
 
     <?php if ($inviteFlash && !empty($inviteFlash['invite_token'])): ?>
         <?php
