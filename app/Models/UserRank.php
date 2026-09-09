@@ -213,7 +213,7 @@ class UserRank
 
             if ($rankId === self::defaultRegistrationRankId()) {
                 throw new RuntimeException(
-                    'Спочатку призначте інший ранг для нових користувачів.'
+                    'Базовий ранг «Зареєстрований» не можна вимкнути.'
                 );
             }
 
@@ -250,20 +250,17 @@ class UserRank
     public static function setDefaultRegistrationRank($rankId)
     {
         $rankId = (int) $rankId;
-        $rank = self::find($rankId);
+        $baseRank = self::registrationBaseRank();
 
-        if (!$rank || empty($rank['is_active'])) {
+        if (!$baseRank) {
             throw new RuntimeException(
-                'Для реєстрації можна вибрати лише активний ранг.'
+                'Не знайдено активний базовий ранг «Зареєстрований».'
             );
         }
 
-        if (
-            ($rank['slug'] ?? '') === 'guest'
-            || (int) ($rank['level'] ?? 0) <= 0
-        ) {
+        if ($rankId !== (int) ($baseRank['id'] ?? 0)) {
             throw new RuntimeException(
-                'Гостьовий ранг не можна призначити новому акаунту.'
+                'Самореєстрація завжди використовує базовий ранг «Зареєстрований». Вищі ранги призначаються окремо.'
             );
         }
 
@@ -272,57 +269,41 @@ class UserRank
             (string) $rankId
         );
 
-        return $rank;
+        return self::find($rankId);
     }
 
 
     public static function defaultRegistrationRankId()
     {
+        $baseRank = self::registrationBaseRank();
+
+        if (!$baseRank) {
+            throw new RuntimeException(
+                'Не знайдено активний базовий ранг «Зареєстрований». Реєстрацію зупинено, щоб не призначити користувачу неправильний ранг.'
+            );
+        }
+
+        $rankId = (int) ($baseRank['id'] ?? 0);
+
+        if ($rankId <= 0) {
+            throw new RuntimeException(
+                'Некоректний базовий ранг для нової реєстрації.'
+            );
+        }
+
         $configuredId = (int) AppSetting::get(
             self::DEFAULT_REGISTRATION_SETTING,
             '0'
         );
 
-        if ($configuredId > 0) {
-            $rank = self::find($configuredId);
-
-            if (
-                $rank
-                && !empty($rank['is_active'])
-                && ($rank['slug'] ?? '') !== 'guest'
-                && (int) ($rank['level'] ?? 0) > 0
-            ) {
-                return $configuredId;
-            }
-        }
-
-        $db = Database::connect();
-        $stmt = $db->query("
-            SELECT id
-            FROM user_ranks
-            WHERE is_active = 1
-              AND slug <> 'guest'
-              AND level > 0
-            ORDER BY
-                CASE
-                    WHEN slug IN ('registered', 'registered-user', 'member', 'customer')
-                        THEN 0
-                    ELSE 1
-                END,
-                level ASC,
-                id ASC
-            LIMIT 1
-        ");
-
-        $fallbackId = (int) $stmt->fetchColumn();
-
-        if ($fallbackId <= 0) {
-            throw new RuntimeException(
-                'Немає активного рангу для нових користувачів.'
+        if ($configuredId !== $rankId) {
+            AppSetting::set(
+                self::DEFAULT_REGISTRATION_SETTING,
+                (string) $rankId
             );
         }
 
-        return $fallbackId;
+        return $rankId;
     }
 
 
@@ -348,6 +329,51 @@ class UserRank
             'active' => (int) ($row['active_count'] ?? 0),
             'inactive' => (int) ($row['inactive_count'] ?? 0)
         ];
+    }
+
+
+    private static function registrationBaseRank()
+    {
+        $slugCandidates = [
+            'registered',
+            'registered-user',
+            'member',
+            'customer',
+            'zareiestrovanii',
+            'zareiestrovanyy',
+            'zareyestrovannyy'
+        ];
+        $nameCandidates = [
+            'зареєстрований',
+            'зарегистрированный',
+            'registered',
+            'member'
+        ];
+
+        foreach (self::allWithUsage() as $rank) {
+            if (
+                empty($rank['is_active'])
+                || ($rank['slug'] ?? '') === 'guest'
+                || (int) ($rank['level'] ?? 0) <= 0
+            ) {
+                continue;
+            }
+
+            $slug = strtolower(trim((string) ($rank['slug'] ?? '')));
+            $name = trim((string) ($rank['name'] ?? ''));
+            $name = function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+
+            if (
+                in_array($slug, $slugCandidates, true)
+                || in_array($name, $nameCandidates, true)
+            ) {
+                return $rank;
+            }
+        }
+
+        return null;
     }
 
 
