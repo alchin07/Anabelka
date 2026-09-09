@@ -29,6 +29,8 @@ class App
         require_once __DIR__ . '/../Models/CartColorMigration.php';
         require_once __DIR__ . '/../Models/Favorite.php';
         require_once __DIR__ . '/../Models/User.php';
+        require_once __DIR__ . '/../Models/CustomerProfile.php';
+        require_once __DIR__ . '/../Models/CustomerAddress.php';
         require_once __DIR__ . '/../Models/CustomerAccount.php';
         require_once __DIR__ . '/../Models/CustomerAccountInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/AdminUser.php';
