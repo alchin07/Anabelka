@@ -33,23 +33,25 @@ class CatalogSearch
             $categories = self::searchCategoriesFallback($query, $languageCode);
         }
 
-        $products = array_values(array_filter(
-            $products,
-            function ($product) {
-                return !HomePage::isAdultCategoryId(
-                    (int) ($product['category_id'] ?? 0)
-                );
-            }
-        ));
+        if (!AdultAccess::canShowAdultContent()) {
+            $products = array_values(array_filter(
+                $products,
+                function ($product) {
+                    return !HomePage::isAdultCategoryId(
+                        (int) ($product['category_id'] ?? 0)
+                    );
+                }
+            ));
 
-        $categories = array_values(array_filter(
-            $categories,
-            function ($category) {
-                return !HomePage::isAdultCategoryId(
-                    (int) ($category['id'] ?? 0)
-                );
-            }
-        ));
+            $categories = array_values(array_filter(
+                $categories,
+                function ($category) {
+                    return !HomePage::isAdultCategoryId(
+                        (int) ($category['id'] ?? 0)
+                    );
+                }
+            ));
+        }
 
         $products = ProductTranslator::localizeList(
             $products,
