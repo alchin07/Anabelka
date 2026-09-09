@@ -179,7 +179,7 @@ class AuthController extends Controller
 
             $this->mergeGuestData((int) $user['id']);
 
-            header('Location: /Anabelka/account');
+            header('Location: /Anabelka/');
             exit;
         } catch (Throwable $e) {
             $this->showLoginError($e->getMessage(), $email);
