@@ -1,0 +1,27 @@
+.public-header-profile .public-header-popover-title {
+    margin-bottom: 5px;
+    padding: 9px 10px;
+    border: 1px solid var(--border-color, #E8DFF0);
+    border-radius: 10px;
+    background: var(--primary-light-color, #F0E8F7);
+    color: var(--primary-color, #8A2BE2);
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.account-hero > div:first-child > p {
+    display: inline-flex;
+    max-width: 100%;
+    margin: 10px 0 0;
+    padding: 7px 11px;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color, #EADCF7);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--primary-color, #8A2BE2);
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
