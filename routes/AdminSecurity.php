@@ -15,6 +15,11 @@ $router->post(
     'AdminAdministratorController@changeOwnPassword'
 );
 
+$router->post(
+    '/admin/profile/notification-badge',
+    'AdminAdministratorController@updateNotificationBadge'
+);
+
 $router->get(
     '/admin/administrators',
     'AdminAdministratorController@index'
