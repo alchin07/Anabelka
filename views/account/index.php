@@ -8,6 +8,7 @@ $addresses = is_array($addresses ?? null) ? $addresses : [];
 $csrfToken = (string) ($csrfToken ?? '');
 $message = trim((string) ($message ?? ''));
 $error = trim((string) ($error ?? ''));
+$adultEnabled = !empty($user['is_adult']) && !empty($user['show_adult']);
 $rankName = UserRankTranslator::localizeName(
     (int) ($user['rank_id'] ?? 0),
     (string) ($user['rank_name'] ?? ''),
@@ -23,6 +24,7 @@ $rankName = UserRankTranslator::localizeName(
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/account.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/account-adult.css?v=1">
 </head>
 <body>
 
@@ -243,6 +245,89 @@ $rankName = UserRankTranslator::localizeName(
                 </button>
             </form>
         </article>
+    </section>
+
+    <section class="account-adult-section">
+        <div class="account-adult-head">
+            <div>
+                <h3><?= htmlspecialchars(
+                    Translator::t('public.account.adult_settings', 'Вік і товари 18+')
+                ) ?></h3>
+                <p><?= htmlspecialchars(
+                    Translator::t(
+                        'public.account.adult_settings_hint',
+                        'Дата народження використовується для перевірки повноліття. Товари 18+ з’являються у звичайному пошуку лише після вашого дозволу.'
+                    )
+                ) ?></p>
+            </div>
+
+            <span class="account-adult-status <?= $adultEnabled ? 'is-enabled' : '' ?>">
+                <?= htmlspecialchars(
+                    $adultEnabled
+                        ? Translator::t('public.account.adult_enabled', '18+ увімкнено')
+                        : Translator::t('public.account.adult_disabled', '18+ вимкнено')
+                ) ?>
+            </span>
+        </div>
+
+        <form
+            class="account-adult-form"
+            method="post"
+            action="/Anabelka/account/adult-preferences"
+            autocomplete="off"
+        >
+            <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+
+            <label>
+                <span><?= htmlspecialchars(
+                    Translator::t('public.account.birth_date', 'Дата народження')
+                ) ?></span>
+                <input
+                    type="date"
+                    name="birth_date"
+                    max="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>"
+                    value="<?= htmlspecialchars((string) ($user['birth_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                >
+            </label>
+
+            <label>
+                <span><?= htmlspecialchars(
+                    Translator::t('public.account.current_password', 'Поточний пароль')
+                ) ?></span>
+                <input
+                    type="password"
+                    name="current_password"
+                    autocomplete="current-password"
+                    required
+                >
+            </label>
+
+            <label class="account-adult-toggle">
+                <input
+                    type="checkbox"
+                    name="show_adult"
+                    value="1"
+                    <?= !empty($user['show_adult']) ? 'checked' : '' ?>
+                >
+                <span class="account-adult-toggle-text">
+                    <strong><?= htmlspecialchars(
+                        Translator::t('public.account.show_adult', 'Показувати товари 18+')
+                    ) ?></strong>
+                    <small><?= htmlspecialchars(
+                        Translator::t(
+                            'public.account.show_adult_hint',
+                            'Доступно лише користувачам, яким виповнилося 18 років.'
+                        )
+                    ) ?></small>
+                </span>
+            </label>
+
+            <button type="submit">
+                <?= htmlspecialchars(
+                    Translator::t('public.account.adult_save', 'Зберегти налаштування 18+')
+                ) ?>
+            </button>
+        </form>
     </section>
 
     <section class="account-address-section">
