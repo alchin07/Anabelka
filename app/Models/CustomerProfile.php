@@ -104,16 +104,14 @@ class CustomerProfile
         $hasAutomaticAccess = !empty($hasAutomaticAccess);
         $knownUnderage = self::isKnownUnderageBirthDate($birthDate);
 
-        if ($knownUnderage && ($adultConfirmed || $showAdult || $hasAutomaticAccess)) {
+        if ($knownUnderage && ($adultConfirmed || $showAdult)) {
             throw new InvalidArgumentException(
                 'Розділ 18+ недоступний неповнолітнім користувачам.'
             );
         }
 
-        if ($showAdult && !$adultConfirmed && !$hasAutomaticAccess) {
-            throw new InvalidArgumentException(
-                'Спочатку підтвердьте, що вам уже виповнилося 18 років.'
-            );
+        if (!$adultConfirmed && !$hasAutomaticAccess) {
+            $showAdult = false;
         }
 
         $existing = self::getForUser($userId);
@@ -123,10 +121,6 @@ class CustomerProfile
             $confirmedAt = !empty($existing['adult_confirmed_at'])
                 ? (string) $existing['adult_confirmed_at']
                 : date('Y-m-d H:i:s');
-        }
-
-        if (!$adultConfirmed && !$hasAutomaticAccess) {
-            $showAdult = false;
         }
 
         $stmt = Database::connect()->prepare("
@@ -334,19 +328,21 @@ class CustomerProfile
             SHOW COLUMNS FROM customer_profiles LIKE 'adult_confirmed_at'
         ")->fetch(PDO::FETCH_ASSOC);
 
-        if (!$column) {
-            $db->exec("
-                ALTER TABLE customer_profiles
-                ADD COLUMN adult_confirmed_at DATETIME NULL
-                AFTER show_adult
-            ");
+        if ($column) {
+            return;
         }
 
+        $db->exec("
+            ALTER TABLE customer_profiles
+            ADD COLUMN adult_confirmed_at DATETIME NULL
+            AFTER show_adult
+        ");
+
         // Старе поле show_adult раніше одночасно означало згоду 18+.
-        // Для сумісності один раз перетворюємо наявне значення на підтвердження.
+        // Переносимо це значення лише під час самої міграції колонки.
         $db->exec("
             UPDATE customer_profiles
-            SET adult_confirmed_at = COALESCE(adult_confirmed_at, updated_at, created_at)
+            SET adult_confirmed_at = COALESCE(updated_at, created_at)
             WHERE show_adult = 1
               AND adult_confirmed_at IS NULL
         ");
