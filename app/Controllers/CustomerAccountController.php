@@ -16,6 +16,7 @@ class CustomerAccountController extends Controller
 
         $this->view('account/index', [
             'user' => $user,
+            'addresses' => CustomerAddress::allForUser((int) $user['id']),
             'csrfToken' => CustomerAccount::csrfToken(),
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
@@ -33,6 +34,7 @@ class CustomerAccountController extends Controller
             CustomerAccount::updateIdentity(
                 $_POST['name'] ?? '',
                 $_POST['email'] ?? '',
+                $_POST['phone'] ?? '',
                 $_POST['current_password'] ?? ''
             );
 
@@ -72,6 +74,117 @@ class CustomerAccountController extends Controller
         } catch (Throwable $e) {
             $this->redirect('error', $e->getMessage());
         }
+    }
+
+
+    public function createAddress()
+    {
+        $this->addressAction(function ($userId) {
+            CustomerAddress::create($userId, $this->addressData());
+        }, 'public.account.address_added', 'Адресу додано.');
+    }
+
+
+    public function updateAddress()
+    {
+        $this->addressAction(function ($userId) {
+            CustomerAddress::update(
+                $userId,
+                $_POST['address_id'] ?? 0,
+                $this->addressData()
+            );
+        }, 'public.account.address_saved', 'Адресу збережено.');
+    }
+
+
+    public function setDefaultAddress()
+    {
+        $this->addressAction(function ($userId) {
+            CustomerAddress::setDefault(
+                $userId,
+                $_POST['address_id'] ?? 0
+            );
+        }, 'public.account.address_default_saved', 'Основну адресу змінено.');
+    }
+
+
+    public function deleteAddress()
+    {
+        $this->addressAction(function ($userId) {
+            CustomerAddress::delete(
+                $userId,
+                $_POST['address_id'] ?? 0
+            );
+        }, 'public.account.address_deleted', 'Адресу видалено.');
+    }
+
+
+    public function checkoutProfile()
+    {
+        header('Content-Type: application/json; charset=UTF-8');
+        $user = CustomerAccount::current();
+
+        if (!$user) {
+            echo json_encode(
+                ['authenticated' => false],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+            return;
+        }
+
+        $address = CustomerAddress::defaultForUser((int) $user['id']);
+        echo json_encode(
+            [
+                'authenticated' => true,
+                'name' => (string) ($user['name'] ?? ''),
+                'email' => (string) ($user['email'] ?? ''),
+                'phone' => (string) ($user['phone'] ?? ''),
+                'address' => $address ? [
+                    'country' => (string) ($address['country'] ?? ''),
+                    'city' => (string) ($address['city'] ?? ''),
+                    'address' => (string) ($address['address'] ?? ''),
+                    'postcode' => (string) ($address['postcode'] ?? '')
+                ] : null
+            ],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+    }
+
+
+    private function addressAction(callable $callback, $translationKey, $fallback)
+    {
+        PublicInterfaceTranslator::seed();
+        CustomerAccountInterfaceTranslator::seed();
+
+        try {
+            $this->verifyCsrf();
+            $user = CustomerAccount::current();
+
+            if (!$user) {
+                throw new RuntimeException('Сесію користувача не знайдено.');
+            }
+
+            $callback((int) $user['id']);
+            $this->redirect(
+                'message',
+                Translator::t($translationKey, $fallback)
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    private function addressData()
+    {
+        return [
+            'label' => $_POST['label'] ?? '',
+            'country' => $_POST['country'] ?? '',
+            'city' => $_POST['city'] ?? '',
+            'address' => $_POST['address'] ?? '',
+            'postcode' => $_POST['postcode'] ?? '',
+            'is_default' => !empty($_POST['is_default'])
+        ];
     }
 
 
