@@ -20,6 +20,7 @@ class AdminDashboardController extends Controller
         $aiSummary = $this->aiSummary();
         $notificationSummary = [
             'total' => 0,
+            'all_total' => 0,
             'items' => [],
             'by_key' => []
         ];
@@ -27,6 +28,15 @@ class AdminDashboardController extends Controller
         try {
             if (class_exists('AdminNotificationCenter')) {
                 $notificationSummary = AdminNotificationCenter::summary();
+
+                // На головній адмінки показуємо повний центр сповіщень.
+                // Персональний фільтр Розробника/Власника впливає лише
+                // на загальний бейдж біля іконки адмін-панелі на сайті.
+                $notificationSummary['total'] = (int) (
+                    $notificationSummary['all_total']
+                    ?? $notificationSummary['total']
+                    ?? 0
+                );
             }
         } catch (Throwable $e) {
             // Центр сповіщень не повинен блокувати головну адмінки.
