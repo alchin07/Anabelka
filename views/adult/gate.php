@@ -3,6 +3,8 @@ HomeInterfaceTranslator::seed();
 $currentLanguage = $currentLanguage
     ?? Translator::currentLanguage();
 $pageTitle = Translator::t('home.adult_gate_title', 'Підтвердження віку');
+$accessDenied = !empty($accessDenied);
+$csrfToken = (string) ($csrfToken ?? '');
 
 $escape = function ($value) {
     return htmlspecialchars(
@@ -39,14 +41,22 @@ $escape = function ($value) {
             ) ?>
         </h1>
 
-        <p>
-            <?= $escape(
-                Translator::t(
-                    'home.adult_gate_text',
-                    'Підтвердьте, що вам виповнилося 18 років, щоб перейти до розділу.'
-                )
-            ) ?>
-        </p>
+        <?php if ($accessDenied): ?>
+            <p>
+                <?= $escape(
+                    'За датою народження у вашому акаунті доступ до розділу 18+ недоступний.'
+                ) ?>
+            </p>
+        <?php else: ?>
+            <p>
+                <?= $escape(
+                    Translator::t(
+                        'home.adult_gate_text',
+                        'Підтвердьте, що вам виповнилося 18 років, щоб перейти до розділу.'
+                    )
+                ) ?>
+            </p>
+        <?php endif; ?>
 
         <?php if (!empty($category['name'])): ?>
             <div class="adult-gate-section-name">
@@ -54,44 +64,59 @@ $escape = function ($value) {
             </div>
         <?php endif; ?>
 
-        <form
-            action="/Anabelka/18-plus/<?= $escape($category['slug'] ?? '') ?>"
-            method="post"
-            class="adult-gate-actions"
-        >
-            <input
-                type="hidden"
-                name="return_url"
-                value="<?= $escape($returnUrl ?? '') ?>"
+        <?php if (!$accessDenied): ?>
+            <form
+                action="/Anabelka/18-plus/<?= $escape($category['slug'] ?? '') ?>"
+                method="post"
+                class="adult-gate-actions"
             >
+                <input
+                    type="hidden"
+                    name="_csrf"
+                    value="<?= $escape($csrfToken) ?>"
+                >
+                <input
+                    type="hidden"
+                    name="return_url"
+                    value="<?= $escape($returnUrl ?? '') ?>"
+                >
 
-            <button type="submit" class="adult-gate-confirm">
+                <button type="submit" class="adult-gate-confirm">
+                    <?= $escape(
+                        Translator::t(
+                            'home.adult_confirm',
+                            'Мені вже є 18 років'
+                        )
+                    ) ?>
+                </button>
+
+                <a href="/Anabelka/" class="adult-gate-leave">
+                    <?= $escape(
+                        Translator::t(
+                            'home.adult_leave',
+                            'Повернутися на головну'
+                        )
+                    ) ?>
+                </a>
+            </form>
+        <?php else: ?>
+            <div class="adult-gate-actions">
+                <a href="/Anabelka/account" class="adult-gate-leave">
+                    <?= $escape('Повернутися до акаунта') ?>
+                </a>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!$accessDenied): ?>
+            <small>
                 <?= $escape(
                     Translator::t(
-                        'home.adult_confirm',
-                        'Мені вже є 18 років'
+                        'home.adult_gate_note',
+                        'Після підтвердження доступ діятиме протягом поточного сеансу.'
                     )
                 ) ?>
-            </button>
-
-            <a href="/Anabelka/" class="adult-gate-leave">
-                <?= $escape(
-                    Translator::t(
-                        'home.adult_leave',
-                        'Повернутися на головну'
-                    )
-                ) ?>
-            </a>
-        </form>
-
-        <small>
-            <?= $escape(
-                Translator::t(
-                    'home.adult_gate_note',
-                    'Після підтвердження доступ діятиме протягом поточного сеансу.'
-                )
-            ) ?>
-        </small>
+            </small>
+        <?php endif; ?>
     </section>
 </main>
 
