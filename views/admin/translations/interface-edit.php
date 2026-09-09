@@ -272,7 +272,7 @@ $translationStatusOptions = TranslationWorkflow::statusOptions();
 ></div>
 
 <script
-    src="/Anabelka/js/admin-interface-translations.js?v=2"
+    src="/Anabelka/js/admin-interface-translations.js?v=3"
 ></script>
 
 </body>
