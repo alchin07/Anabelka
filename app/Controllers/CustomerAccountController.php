@@ -74,7 +74,7 @@ class CustomerAccountController extends Controller
             $this->redirect(
                 'message',
                 Translator::t(
-                    'public.account.adult_saved',
+                    'public.account.adult_preferences_saved',
                     'Налаштування 18+ збережено.'
                 )
             );
