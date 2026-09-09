@@ -58,13 +58,16 @@ class CustomerAccountController extends Controller
 
         try {
             $this->verifyCsrf();
-            $result = CustomerAccount::updateAdultPreferences(
+            CustomerAccount::updateAdultPreferences(
                 $_POST['birth_date'] ?? '',
+                !empty($_POST['adult_confirmed']),
                 !empty($_POST['show_adult']),
                 $_POST['current_password'] ?? ''
             );
 
-            if (empty($result['is_adult'])) {
+            $current = CustomerAccount::current();
+
+            if (!$current || empty($current['adult_section_access'])) {
                 AdultAccess::clearConfirmation();
             }
 
@@ -72,7 +75,7 @@ class CustomerAccountController extends Controller
                 'message',
                 Translator::t(
                     'public.account.adult_saved',
-                    'Налаштування віку та 18+ збережено.'
+                    'Налаштування 18+ збережено.'
                 )
             );
         } catch (Throwable $e) {
