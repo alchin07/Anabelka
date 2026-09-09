@@ -16,6 +16,11 @@ $router->post(
 );
 
 $router->post(
+    '/account/adult-preferences',
+    'CustomerAccountController@updateAdultPreferences'
+);
+
+$router->post(
     '/account/password',
     'CustomerAccountController@changePassword'
 );
