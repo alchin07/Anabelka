@@ -40,6 +40,9 @@ class CustomerAccount
         $user['phone'] = (string) ($profile['phone'] ?? '');
         $user['birth_date'] = $profile['birth_date'] ?? null;
         $user['show_adult'] = (int) ($profile['show_adult'] ?? 0);
+        $user['is_adult'] = CustomerProfile::isAdultBirthDate(
+            $profile['birth_date'] ?? null
+        );
 
         $_SESSION['user_name'] = (string) ($user['name'] ?? '');
         $_SESSION['user_rank_slug'] = (string) ($user['rank_slug'] ?? '');
@@ -135,6 +138,24 @@ class CustomerAccount
         $_SESSION['user_name'] = $name;
 
         return self::current();
+    }
+
+
+    public static function updateAdultPreferences($birthDate, $showAdult, $currentPassword)
+    {
+        $user = self::currentWithPassword();
+
+        if (!password_verify((string) $currentPassword, (string) $user['password'])) {
+            throw new RuntimeException('Поточний пароль введено неправильно.');
+        }
+
+        CustomerProfile::ensureSchema();
+
+        return CustomerProfile::updateAdultPreferences(
+            (int) $user['id'],
+            $birthDate,
+            $showAdult
+        );
     }
 
 
