@@ -279,6 +279,8 @@ class AdminUser
         self::ensureHistoryTable();
         UserInvitation::ensureSchema();
         Favorite::ensureSchema();
+        CustomerProfile::ensureSchema();
+        CustomerAddress::ensureSchema();
 
         $userId = (int) $userId;
 
@@ -379,6 +381,18 @@ class AdminUser
                 WHERE user_id = :user_id
             ");
             $deleteCarts->execute(['user_id' => $userId]);
+
+            $deleteAddresses = $db->prepare("
+                DELETE FROM customer_addresses
+                WHERE user_id = :user_id
+            ");
+            $deleteAddresses->execute(['user_id' => $userId]);
+
+            $deleteProfile = $db->prepare("
+                DELETE FROM customer_profiles
+                WHERE user_id = :user_id
+            ");
+            $deleteProfile->execute(['user_id' => $userId]);
 
             $deleteUser = $db->prepare("
                 DELETE FROM users
