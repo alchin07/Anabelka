@@ -88,6 +88,118 @@ class CustomerProfile
     }
 
 
+    public static function updateAdultPreferences($userId, $birthDate, $showAdult)
+    {
+        self::ensureSchema();
+        $userId = (int) $userId;
+
+        if ($userId <= 0) {
+            throw new InvalidArgumentException('Некоректний користувач.');
+        }
+
+        $birthDate = self::normalizeBirthDate($birthDate);
+        $showAdult = !empty($showAdult);
+
+        if ($showAdult && $birthDate === null) {
+            throw new InvalidArgumentException(
+                'Щоб увімкнути товари 18+, вкажіть дату народження.'
+            );
+        }
+
+        if ($showAdult && !self::isAdultBirthDate($birthDate)) {
+            throw new InvalidArgumentException(
+                'Товари 18+ доступні лише повнолітнім користувачам.'
+            );
+        }
+
+        $stmt = Database::connect()->prepare("
+            INSERT INTO customer_profiles
+                (user_id, birth_date, show_adult)
+            VALUES
+                (:user_id, :birth_date, :show_adult)
+            ON DUPLICATE KEY UPDATE
+                birth_date = VALUES(birth_date),
+                show_adult = VALUES(show_adult)
+        ");
+        $stmt->execute([
+            'user_id' => $userId,
+            'birth_date' => $birthDate,
+            'show_adult' => $showAdult ? 1 : 0
+        ]);
+
+        return [
+            'birth_date' => $birthDate,
+            'show_adult' => $showAdult ? 1 : 0,
+            'is_adult' => self::isAdultBirthDate($birthDate)
+        ];
+    }
+
+
+    public static function canShowAdultForUser($userId)
+    {
+        $profile = self::getForUser((int) $userId);
+
+        return !empty($profile['show_adult'])
+            && self::isAdultBirthDate($profile['birth_date'] ?? null);
+    }
+
+
+    public static function isAdultBirthDate($birthDate)
+    {
+        $birthDate = self::normalizeBirthDate($birthDate);
+
+        if ($birthDate === null) {
+            return false;
+        }
+
+        $birth = DateTimeImmutable::createFromFormat('!Y-m-d', $birthDate);
+
+        if (!$birth) {
+            return false;
+        }
+
+        $adultBoundary = (new DateTimeImmutable('today'))->modify('-18 years');
+
+        return $birth <= $adultBoundary;
+    }
+
+
+    public static function normalizeBirthDate($birthDate)
+    {
+        $birthDate = trim((string) $birthDate);
+
+        if ($birthDate === '') {
+            return null;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $birthDate);
+        $errors = DateTimeImmutable::getLastErrors();
+
+        if (
+            !$date
+            || ($errors !== false && (
+                !empty($errors['warning_count'])
+                || !empty($errors['error_count'])
+            ))
+            || $date->format('Y-m-d') !== $birthDate
+        ) {
+            throw new InvalidArgumentException('Вкажіть коректну дату народження.');
+        }
+
+        $today = new DateTimeImmutable('today');
+
+        if ($date > $today) {
+            throw new InvalidArgumentException('Дата народження не може бути в майбутньому.');
+        }
+
+        if ($date < $today->modify('-120 years')) {
+            throw new InvalidArgumentException('Вкажіть коректну дату народження.');
+        }
+
+        return $date->format('Y-m-d');
+    }
+
+
     public static function normalizePhone($phone)
     {
         $phone = trim((string) $phone);
