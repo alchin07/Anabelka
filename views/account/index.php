@@ -4,6 +4,7 @@ CustomerAccountInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.account.title', 'Мій акаунт');
 $user = is_array($user ?? null) ? $user : [];
+$addresses = is_array($addresses ?? null) ? $addresses : [];
 $csrfToken = (string) ($csrfToken ?? '');
 $message = trim((string) ($message ?? ''));
 $error = trim((string) ($error ?? ''));
@@ -21,7 +22,7 @@ $rankName = UserRankTranslator::localizeName(
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/account.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/account.css?v=4">
 </head>
 <body>
 
@@ -95,7 +96,7 @@ $rankName = UserRankTranslator::localizeName(
                 <p><?= htmlspecialchars(
                     Translator::t(
                         'public.account.edit_profile',
-                        'Змінити ім’я або email'
+                        'Змінити ім’я, email або телефон'
                     )
                 ) ?></p>
             </div>
@@ -124,6 +125,19 @@ $rankName = UserRankTranslator::localizeName(
                         maxlength="190"
                         value="<?= htmlspecialchars((string) ($user['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                         required
+                    >
+                </label>
+
+                <label>
+                    <span><?= htmlspecialchars(
+                        Translator::t('public.account.phone', 'Телефон')
+                    ) ?></span>
+                    <input
+                        type="tel"
+                        name="phone"
+                        maxlength="40"
+                        autocomplete="tel"
+                        value="<?= htmlspecialchars((string) ($user['phone'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                     >
                 </label>
 
@@ -229,6 +243,144 @@ $rankName = UserRankTranslator::localizeName(
                 </button>
             </form>
         </article>
+    </section>
+
+    <section class="account-address-section">
+        <div class="account-address-head">
+            <div>
+                <h3><?= htmlspecialchars(
+                    Translator::t('public.account.addresses', 'Адреси доставки')
+                ) ?></h3>
+                <p><?= htmlspecialchars(
+                    Translator::t(
+                        'public.account.addresses_hint',
+                        'Основна адреса автоматично підставляється під час оформлення замовлення.'
+                    )
+                ) ?></p>
+            </div>
+
+            <details class="account-address-add">
+                <summary><?= htmlspecialchars(
+                    Translator::t('public.account.address_add', 'Додати адресу')
+                ) ?></summary>
+
+                <form method="post" action="/Anabelka/account/address/create" autocomplete="off">
+                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                    <div class="account-address-form-grid">
+                        <label>
+                            <span><?= htmlspecialchars(Translator::t('public.account.address_label', 'Назва адреси')) ?></span>
+                            <input type="text" name="label" maxlength="80" placeholder="<?= htmlspecialchars(Translator::t('public.account.address_label_placeholder', 'Наприклад: Дім')) ?>">
+                        </label>
+                        <label>
+                            <span><?= htmlspecialchars(Translator::t('public.account.address_country', 'Країна')) ?></span>
+                            <input type="text" name="country" maxlength="120" required>
+                        </label>
+                        <label>
+                            <span><?= htmlspecialchars(Translator::t('public.account.address_city', 'Місто')) ?></span>
+                            <input type="text" name="city" maxlength="120" required>
+                        </label>
+                        <label>
+                            <span><?= htmlspecialchars(Translator::t('public.account.address_postcode', 'Поштовий індекс')) ?></span>
+                            <input type="text" name="postcode" maxlength="30" inputmode="text">
+                        </label>
+                        <label class="account-address-wide">
+                            <span><?= htmlspecialchars(Translator::t('public.account.address_address', 'Адреса')) ?></span>
+                            <input type="text" name="address" maxlength="255" required>
+                        </label>
+                    </div>
+                    <label class="account-check-row">
+                        <input type="checkbox" name="is_default" value="1" <?= empty($addresses) ? 'checked' : '' ?>>
+                        <span><?= htmlspecialchars(Translator::t('public.account.address_make_default', 'Зробити основною')) ?></span>
+                    </label>
+                    <button type="submit"><?= htmlspecialchars(Translator::t('public.account.address_add', 'Додати адресу')) ?></button>
+                </form>
+            </details>
+        </div>
+
+        <?php if (empty($addresses)): ?>
+            <div class="account-address-empty">
+                <?= htmlspecialchars(Translator::t('public.account.address_empty', 'Збережених адрес поки немає.')) ?>
+            </div>
+        <?php else: ?>
+            <div class="account-address-list">
+                <?php foreach ($addresses as $address): ?>
+                    <?php $isDefault = !empty($address['is_default']); ?>
+                    <article class="account-address-card <?= $isDefault ? 'is-default' : '' ?>">
+                        <div class="account-address-card-top">
+                            <div>
+                                <strong><?= htmlspecialchars((string) ($address['label'] ?? '')) ?></strong>
+                                <?php if ($isDefault): ?>
+                                    <span class="account-address-badge"><?= htmlspecialchars(Translator::t('public.account.address_default', 'Основна')) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <small>#<?= (int) ($address['id'] ?? 0) ?></small>
+                        </div>
+
+                        <p>
+                            <?= htmlspecialchars((string) ($address['country'] ?? '')) ?>,
+                            <?= htmlspecialchars((string) ($address['city'] ?? '')) ?><br>
+                            <?= htmlspecialchars((string) ($address['address'] ?? '')) ?>
+                            <?php if (!empty($address['postcode'])): ?>
+                                · <?= htmlspecialchars((string) $address['postcode']) ?>
+                            <?php endif; ?>
+                        </p>
+
+                        <div class="account-address-actions">
+                            <?php if (!$isDefault): ?>
+                                <form method="post" action="/Anabelka/account/address/default">
+                                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="address_id" value="<?= (int) ($address['id'] ?? 0) ?>">
+                                    <button type="submit" class="is-secondary"><?= htmlspecialchars(Translator::t('public.account.address_make_default', 'Зробити основною')) ?></button>
+                                </form>
+                            <?php endif; ?>
+
+                            <details class="account-address-edit">
+                                <summary><?= htmlspecialchars(Translator::t('public.account.address_edit', 'Редагувати')) ?></summary>
+                                <form method="post" action="/Anabelka/account/address/update" autocomplete="off">
+                                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="address_id" value="<?= (int) ($address['id'] ?? 0) ?>">
+                                    <div class="account-address-form-grid">
+                                        <label>
+                                            <span><?= htmlspecialchars(Translator::t('public.account.address_label', 'Назва адреси')) ?></span>
+                                            <input type="text" name="label" maxlength="80" value="<?= htmlspecialchars((string) ($address['label'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                        </label>
+                                        <label>
+                                            <span><?= htmlspecialchars(Translator::t('public.account.address_country', 'Країна')) ?></span>
+                                            <input type="text" name="country" maxlength="120" value="<?= htmlspecialchars((string) ($address['country'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                                        </label>
+                                        <label>
+                                            <span><?= htmlspecialchars(Translator::t('public.account.address_city', 'Місто')) ?></span>
+                                            <input type="text" name="city" maxlength="120" value="<?= htmlspecialchars((string) ($address['city'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                                        </label>
+                                        <label>
+                                            <span><?= htmlspecialchars(Translator::t('public.account.address_postcode', 'Поштовий індекс')) ?></span>
+                                            <input type="text" name="postcode" maxlength="30" value="<?= htmlspecialchars((string) ($address['postcode'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                        </label>
+                                        <label class="account-address-wide">
+                                            <span><?= htmlspecialchars(Translator::t('public.account.address_address', 'Адреса')) ?></span>
+                                            <input type="text" name="address" maxlength="255" value="<?= htmlspecialchars((string) ($address['address'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                                        </label>
+                                    </div>
+                                    <?php if (!$isDefault): ?>
+                                        <label class="account-check-row">
+                                            <input type="checkbox" name="is_default" value="1">
+                                            <span><?= htmlspecialchars(Translator::t('public.account.address_make_default', 'Зробити основною')) ?></span>
+                                        </label>
+                                    <?php endif; ?>
+                                    <button type="submit"><?= htmlspecialchars(Translator::t('public.account.address_save', 'Зберегти адресу')) ?></button>
+                                </form>
+                            </details>
+
+                            <form method="post" action="/Anabelka/account/address/delete" onsubmit="return confirm('Видалити цю адресу?');">
+                                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="address_id" value="<?= (int) ($address['id'] ?? 0) ?>">
+                                <button type="submit" class="is-danger"><?= htmlspecialchars(Translator::t('public.account.address_delete', 'Видалити')) ?></button>
+                            </form>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </section>
 </main>
 
