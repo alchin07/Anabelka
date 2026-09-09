@@ -34,8 +34,43 @@ $adminNavBadges = is_array($navBadges ?? null)
     ? $navBadges
     : [];
 
+$currentAdmin = class_exists('AdminAccess')
+    ? AdminAccess::current()
+    : null;
+$adminCsrfToken = class_exists('AdminAccess')
+    ? AdminAccess::csrfToken()
+    : '';
+
+$adminNotificationSummary = [
+    'total' => 0,
+    'items' => [],
+    'by_key' => []
+];
+
+if ($currentAdmin && class_exists('AdminNotificationCenter')) {
+    try {
+        $adminNotificationSummary = AdminNotificationCenter::summary(
+            (int) ($currentAdmin['id'] ?? 0)
+        );
+    } catch (Throwable $e) {
+        $adminNotificationSummary = [
+            'total' => 0,
+            'items' => [],
+            'by_key' => []
+        ];
+    }
+}
+
+$notificationByKey = is_array(
+    $adminNotificationSummary['by_key'] ?? null
+)
+    ? $adminNotificationSummary['by_key']
+    : [];
+
 if (!array_key_exists('orders', $adminNavBadges)) {
-    if (
+    if (array_key_exists('orders', $notificationByKey)) {
+        $adminNavBadges['orders'] = (int) $notificationByKey['orders'];
+    } elseif (
         array_key_exists('regular_orders', $adminNavBadges)
         || array_key_exists('quick_orders', $adminNavBadges)
     ) {
@@ -55,17 +90,24 @@ if (!array_key_exists('orders', $adminNavBadges)) {
     }
 }
 
+if (!array_key_exists('users', $adminNavBadges)) {
+    $adminNavBadges['users'] = (int) (
+        ($notificationByKey['new_users'] ?? 0)
+        + ($notificationByKey['rank_requests'] ?? 0)
+    );
+}
+
+if (!array_key_exists('translations', $adminNavBadges)) {
+    $adminNavBadges['translations'] = (int) (
+        $notificationByKey['translations'] ?? 0
+    );
+}
+
 $orderBadge = (int) ($adminNavBadges['orders'] ?? 0);
+$userBadge = (int) ($adminNavBadges['users'] ?? 0);
 $translationBadge = (int) (
     $adminNavBadges['translations'] ?? 0
 );
-
-$currentAdmin = class_exists('AdminAccess')
-    ? AdminAccess::current()
-    : null;
-$adminCsrfToken = class_exists('AdminAccess')
-    ? AdminAccess::csrfToken()
-    : '';
 
 $adminCan = static function ($permission) {
     return !class_exists('AdminAccess')
@@ -211,6 +253,11 @@ $canAudit = $adminCan('audit.view');
                     data-admin-route="/Anabelka/admin/users"
                 >
                     <span>Користувачі</span>
+                    <?php if ($userBadge > 0): ?>
+                        <span class="admin-nav-badge">
+                            <?= $userBadge ?>
+                        </span>
+                    <?php endif; ?>
                 </a>
             <?php endif; ?>
 
