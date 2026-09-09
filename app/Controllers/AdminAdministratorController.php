@@ -19,10 +19,33 @@ class AdminAdministratorController extends Controller
 
     public function profile()
     {
+        $admin = AdminProfile::current();
+        $canCustomizeNotificationBadge = false;
+        $notificationBadgeOptions = [];
+
+        if (class_exists('AdminNotificationCenter')) {
+            try {
+                $canCustomizeNotificationBadge =
+                    AdminNotificationCenter::canCustomizeBadge($admin);
+
+                if ($canCustomizeNotificationBadge) {
+                    $notificationBadgeOptions =
+                        AdminNotificationCenter::badgeOptions(
+                            (int) ($admin['id'] ?? 0)
+                        );
+                }
+            } catch (Throwable $e) {
+                $canCustomizeNotificationBadge = false;
+                $notificationBadgeOptions = [];
+            }
+        }
+
         $this->view('admin/administrators/profile', [
             'pageTitle' => 'Адмін-панель · Профіль',
-            'admin' => AdminProfile::current(),
+            'admin' => $admin,
             'csrfToken' => AdminAccess::csrfToken(),
+            'canCustomizeNotificationBadge' => $canCustomizeNotificationBadge,
+            'notificationBadgeOptions' => $notificationBadgeOptions,
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
         ]);
@@ -57,6 +80,42 @@ class AdminAdministratorController extends Controller
             );
 
             $this->redirectProfile('message', 'Пароль успішно змінено.');
+        } catch (Throwable $e) {
+            $this->redirectProfile('error', $e->getMessage());
+        }
+    }
+
+
+    public function updateNotificationBadge()
+    {
+        try {
+            $this->verifyCsrf();
+
+            if (!class_exists('AdminNotificationCenter')) {
+                throw new RuntimeException('Центр сповіщень недоступний.');
+            }
+
+            $channels = is_array($_POST['badge_channels'] ?? null)
+                ? $_POST['badge_channels']
+                : [];
+
+            AdminNotificationCenter::saveBadgePreferences($channels);
+
+            AdminAccess::audit(
+                'admin.notification_badge_preferences_updated',
+                [
+                    'channels' => array_values(array_map(
+                        'strval',
+                        $channels
+                    ))
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirectProfile(
+                'message',
+                'Налаштування бейджа сповіщень збережено.'
+            );
         } catch (Throwable $e) {
             $this->redirectProfile('error', $e->getMessage());
         }
