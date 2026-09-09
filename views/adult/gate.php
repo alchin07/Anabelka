@@ -5,6 +5,7 @@ $currentLanguage = $currentLanguage
 $pageTitle = Translator::t('home.adult_gate_title', 'Підтвердження віку');
 $accessDenied = !empty($accessDenied);
 $csrfToken = (string) ($csrfToken ?? '');
+$isAuthenticated = !empty($_SESSION['user_id']);
 
 $escape = function ($value) {
     return htmlspecialchars(
@@ -110,10 +111,15 @@ $escape = function ($value) {
         <?php if (!$accessDenied): ?>
             <small>
                 <?= $escape(
-                    Translator::t(
-                        'home.adult_gate_note',
-                        'Після підтвердження доступ діятиме протягом поточного сеансу.'
-                    )
+                    $isAuthenticated
+                        ? Translator::t(
+                            'home.adult_gate_note_account',
+                            'Для зареєстрованого користувача підтвердження зберігається в акаунті; дата народження для цього не потрібна.'
+                        )
+                        : Translator::t(
+                            'home.adult_gate_note',
+                            'Після підтвердження доступ діятиме протягом поточного сеансу.'
+                        )
                 ) ?>
             </small>
         <?php endif; ?>
