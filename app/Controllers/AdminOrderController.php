@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Models/AdminOrderStatus.php';
+
 class AdminOrderController extends Controller
 {
     public function index()
@@ -71,7 +73,7 @@ class AdminOrderController extends Controller
                 );
             }
 
-            AdminOrder::updateStatus(
+            AdminOrderStatus::update(
                 $orderType,
                 $orderId,
                 $status
