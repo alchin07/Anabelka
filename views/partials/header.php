@@ -453,6 +453,11 @@ $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
         src="/Anabelka/js/checkout-delivery-input.js?v=4"
     ></script>
 
+    <script
+        src="/Anabelka/js/checkout-account-prefill.js?v=1"
+        defer
+    ></script>
+
 <?php endif; ?>
 
 <?php if ($isProductPage): ?>
