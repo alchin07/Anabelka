@@ -87,6 +87,11 @@ class CustomerAccount
         }
 
         $db = Database::connect();
+
+        // DDL у MySQL виконує implicit COMMIT, тому таблицю профілю
+        // потрібно підготувати до початку транзакції оновлення даних.
+        CustomerProfile::ensureSchema();
+
         $duplicate = $db->prepare("
             SELECT id
             FROM users
