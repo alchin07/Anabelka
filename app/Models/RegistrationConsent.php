@@ -47,14 +47,19 @@ class RegistrationConsent
     }
 
 
-    public static function recordRegistration($userId, $marketingOptIn)
+    public static function recordRegistration($userId, $marketingOptIn, $source = 'registration')
     {
         self::ensureSchema();
 
         $userId = (int) $userId;
+        $source = strtolower(trim((string) $source));
 
         if ($userId <= 0) {
             throw new InvalidArgumentException('Некоректний користувач.');
+        }
+
+        if (!preg_match('/^[a-z0-9_-]{2,40}$/', $source)) {
+            $source = 'registration';
         }
 
         $now = date('Y-m-d H:i:s');
@@ -77,12 +82,13 @@ class RegistrationConsent
                 :terms_accepted_at,
                 :privacy_accepted_at,
                 :marketing_opt_in,
-                'registration'
+                :source
             )
             ON DUPLICATE KEY UPDATE
                 terms_accepted_at = VALUES(terms_accepted_at),
                 privacy_accepted_at = VALUES(privacy_accepted_at),
-                marketing_opt_in = VALUES(marketing_opt_in)
+                marketing_opt_in = VALUES(marketing_opt_in),
+                source = VALUES(source)
         ");
 
         $stmt->execute([
@@ -91,7 +97,8 @@ class RegistrationConsent
             'privacy_version' => self::PRIVACY_VERSION,
             'terms_accepted_at' => $now,
             'privacy_accepted_at' => $now,
-            'marketing_opt_in' => $marketingOptIn ? 1 : 0
+            'marketing_opt_in' => $marketingOptIn ? 1 : 0,
+            'source' => $source
         ]);
     }
 }
