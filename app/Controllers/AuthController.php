@@ -8,6 +8,7 @@ class AuthController extends Controller
         CustomerAccountInterfaceTranslator::seed();
         CustomerEmailVerificationInterfaceTranslator::seed();
         RegistrationInterfaceTranslator::seed();
+        SocialAuthInterfaceTranslator::seed();
 
         if (CustomerAccount::current()) {
             header('Location: /Anabelka/account');
@@ -31,6 +32,7 @@ class AuthController extends Controller
         CustomerAccountInterfaceTranslator::seed();
         CustomerEmailVerificationInterfaceTranslator::seed();
         RegistrationInterfaceTranslator::seed();
+        SocialAuthInterfaceTranslator::seed();
 
         $name = trim((string) ($_POST['name'] ?? ''));
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
@@ -155,6 +157,7 @@ class AuthController extends Controller
         CustomerAccountInterfaceTranslator::seed();
         CustomerEmailVerificationInterfaceTranslator::seed();
         PasswordResetInterfaceTranslator::seed();
+        SocialAuthInterfaceTranslator::seed();
 
         if (CustomerAccount::current()) {
             header('Location: /Anabelka/account');
@@ -178,6 +181,11 @@ class AuthController extends Controller
             $error = Translator::t(
                 'public.email_verification.invalid',
                 'Не вдалося підтвердити email.'
+            );
+        } elseif (!empty($_GET['social_error'])) {
+            $error = Translator::t(
+                'public.social_auth.error_generic',
+                'Не вдалося увійти через Google. Спробуйте ще раз.'
             );
         }
 
