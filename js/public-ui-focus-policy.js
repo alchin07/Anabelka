@@ -32,6 +32,21 @@
         scrollFieldIntoView(active, 280);
     }
 
+    function loadAccountModules() {
+        if (window.location.pathname.replace(/\/$/, '') !== '/Anabelka/account') {
+            return;
+        }
+
+        if (document.querySelector('script[data-account-email-verification]')) {
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = '/Anabelka/js/account-email-verification.js?v=1';
+        script.dataset.accountEmailVerification = '1';
+        document.body.appendChild(script);
+    }
+
     document.addEventListener('focusin', function (event) {
         if (!isFormField(event.target)) {
             return;
@@ -44,5 +59,11 @@
     if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', keepActiveFieldVisible);
         window.visualViewport.addEventListener('scroll', keepActiveFieldVisible);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadAccountModules);
+    } else {
+        loadAccountModules();
     }
 })();
