@@ -33,6 +33,8 @@ class App
         require_once __DIR__ . '/../Models/CustomerAddress.php';
         require_once __DIR__ . '/../Models/CustomerEmailVerification.php';
         require_once __DIR__ . '/../Models/RegistrationConsent.php';
+        require_once __DIR__ . '/../Models/PasswordPolicyInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/PasswordPolicy.php';
         require_once __DIR__ . '/../Models/CustomerAccount.php';
         require_once __DIR__ . '/../Models/CustomerAccountInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerEmailVerificationInterfaceTranslator.php';
