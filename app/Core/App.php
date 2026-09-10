@@ -33,6 +33,7 @@ class App
         require_once __DIR__ . '/../Models/CustomerAddress.php';
         require_once __DIR__ . '/../Models/CustomerEmailVerification.php';
         require_once __DIR__ . '/../Models/CustomerPasswordReset.php';
+        require_once __DIR__ . '/../Models/CustomerSocialIdentity.php';
         require_once __DIR__ . '/../Models/RegistrationConsent.php';
         require_once __DIR__ . '/../Models/PasswordPolicyInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/PasswordPolicy.php';
@@ -41,6 +42,7 @@ class App
         require_once __DIR__ . '/../Models/CustomerEmailVerificationInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/PasswordResetInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/RegistrationInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/SocialAuthInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerRankRequest.php';
         require_once __DIR__ . '/../Models/CustomerRankRequestInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerNotification.php';
@@ -91,6 +93,8 @@ class App
         require_once __DIR__ . '/../Services/EmailVerificationMailer.php';
         require_once __DIR__ . '/../Services/EmailVerificationService.php';
         require_once __DIR__ . '/../Services/PasswordResetService.php';
+        require_once __DIR__ . '/../Services/GoogleOAuthProvider.php';
+        require_once __DIR__ . '/../Services/SocialAuthService.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
@@ -104,6 +108,7 @@ class App
         require_once __DIR__ . '/../Controllers/CustomerAccountController.php';
         require_once __DIR__ . '/../Controllers/EmailVerificationController.php';
         require_once __DIR__ . '/../Controllers/PasswordResetController.php';
+        require_once __DIR__ . '/../Controllers/SocialAuthController.php';
         require_once __DIR__ . '/../Controllers/LegalController.php';
         require_once __DIR__ . '/../Controllers/InvitationController.php';
         require_once __DIR__ . '/../Controllers/OrderController.php';
@@ -135,6 +140,7 @@ class App
         require __DIR__ . '/../../routes/CustomerAccount.php';
         require __DIR__ . '/../../routes/Legal.php';
         require __DIR__ . '/../../routes/PasswordReset.php';
+        require __DIR__ . '/../../routes/SocialAuth.php';
         require __DIR__ . '/../../routes/Web.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
