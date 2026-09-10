@@ -10,6 +10,21 @@ $router->get(
     'CustomerAccountController@checkoutProfile'
 );
 
+$router->get(
+    '/account/email-verification/status',
+    'EmailVerificationController@status'
+);
+
+$router->post(
+    '/account/email-verification/resend',
+    'EmailVerificationController@resend'
+);
+
+$router->get(
+    '/verify-email',
+    'EmailVerificationController@verify'
+);
+
 $router->post(
     '/account/profile',
     'CustomerAccountController@updateProfile'
