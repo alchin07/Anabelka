@@ -1,8 +1,10 @@
 <?php
+PasswordPolicyInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $invite = is_array($invite ?? null) ? $invite : null;
 $error = trim((string) ($error ?? ''));
 $token = trim((string) ($token ?? ''));
+$passwordMinLength = PasswordPolicy::minimumLength();
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -50,11 +52,14 @@ $token = trim((string) ($token ?? ''));
                     <input
                         type="password"
                         name="password"
-                        minlength="8"
+                        minlength="<?= $passwordMinLength ?>"
                         required
                         autocomplete="new-password"
                         style="width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--border-color);border-radius:10px;"
                     >
+                    <small style="display:block;margin-top:6px;color:#746c78;line-height:1.4;">
+                        <?= htmlspecialchars(Translator::t('public.password_policy.hint', 'Щонайменше 10 символів. Не використовуйте прості паролі або послідовності.')) ?>
+                    </small>
                 </label>
 
                 <label style="display:block;margin-bottom:18px;">
@@ -62,7 +67,7 @@ $token = trim((string) ($token ?? ''));
                     <input
                         type="password"
                         name="password_confirm"
-                        minlength="8"
+                        minlength="<?= $passwordMinLength ?>"
                         required
                         autocomplete="new-password"
                         style="width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--border-color);border-radius:10px;"
