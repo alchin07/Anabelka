@@ -279,11 +279,7 @@ class UserInvitation
             throw new InvalidArgumentException('Некоректне запрошення.');
         }
 
-        if (strlen($password) < 8) {
-            throw new InvalidArgumentException(
-                'Пароль має містити щонайменше 8 символів.'
-            );
-        }
+        PasswordPolicy::validate($password);
 
         $db = Database::connect();
         $db->beginTransaction();
