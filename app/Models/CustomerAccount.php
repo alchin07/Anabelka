@@ -205,7 +205,7 @@ class CustomerAccount
 
         $newPassword = (string) $newPassword;
         $confirmation = (string) $confirmation;
-        self::validatePassword($newPassword);
+        PasswordPolicy::validate($newPassword);
 
         if (!hash_equals($newPassword, $confirmation)) {
             throw new RuntimeException('Новий пароль і підтвердження не збігаються.');
@@ -259,7 +259,7 @@ class CustomerAccount
 
     public static function validateRegistrationPassword($password)
     {
-        self::validatePassword($password);
+        PasswordPolicy::validate($password);
     }
 
 
@@ -318,20 +318,5 @@ class CustomerAccount
         }
 
         return $email;
-    }
-
-
-    private static function validatePassword($password)
-    {
-        $password = (string) $password;
-        $length = function_exists('mb_strlen')
-            ? mb_strlen($password, 'UTF-8')
-            : strlen($password);
-
-        if ($length < 8) {
-            throw new InvalidArgumentException(
-                'Пароль має містити щонайменше 8 символів.'
-            );
-        }
     }
 }
