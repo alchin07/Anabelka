@@ -100,6 +100,7 @@ class CustomerAccount
         $name = self::normalizeName($name);
         $email = self::normalizeEmail($email);
         $phone = CustomerProfile::normalizePhone($phone);
+        $oldEmail = strtolower(trim((string) ($user['email'] ?? '')));
 
         if (!password_verify((string) $currentPassword, (string) $user['password'])) {
             throw new RuntimeException('Поточний пароль введено неправильно.');
@@ -107,9 +108,10 @@ class CustomerAccount
 
         $db = Database::connect();
 
-        // DDL у MySQL виконує implicit COMMIT, тому таблицю профілю
+        // DDL у MySQL виконує implicit COMMIT, тому залежні таблиці
         // потрібно підготувати до початку транзакції оновлення даних.
         CustomerProfile::ensureSchema();
+        CustomerEmailVerification::ensureSchema();
 
         $duplicate = $db->prepare("
             SELECT id
@@ -143,6 +145,15 @@ class CustomerAccount
             ]);
 
             CustomerProfile::updatePhone((int) $user['id'], $phone);
+
+            if ($oldEmail !== $email) {
+                CustomerEmailVerification::invalidateForEmailChange(
+                    (int) $user['id'],
+                    $oldEmail,
+                    $email
+                );
+            }
+
             $db->commit();
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
