@@ -32,9 +32,11 @@ class App
         require_once __DIR__ . '/../Models/CustomerProfile.php';
         require_once __DIR__ . '/../Models/CustomerAddress.php';
         require_once __DIR__ . '/../Models/CustomerEmailVerification.php';
+        require_once __DIR__ . '/../Models/RegistrationConsent.php';
         require_once __DIR__ . '/../Models/CustomerAccount.php';
         require_once __DIR__ . '/../Models/CustomerAccountInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerEmailVerificationInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/RegistrationInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerRankRequest.php';
         require_once __DIR__ . '/../Models/CustomerRankRequestInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerNotification.php';
@@ -96,6 +98,7 @@ class App
         require_once __DIR__ . '/../Controllers/AuthController.php';
         require_once __DIR__ . '/../Controllers/CustomerAccountController.php';
         require_once __DIR__ . '/../Controllers/EmailVerificationController.php';
+        require_once __DIR__ . '/../Controllers/LegalController.php';
         require_once __DIR__ . '/../Controllers/InvitationController.php';
         require_once __DIR__ . '/../Controllers/OrderController.php';
         require_once __DIR__ . '/../Controllers/QuickOrderController.php';
@@ -124,6 +127,7 @@ class App
         require __DIR__ . '/../../routes/AdminAuth.php';
         require __DIR__ . '/../../routes/AdminSecurity.php';
         require __DIR__ . '/../../routes/CustomerAccount.php';
+        require __DIR__ . '/../../routes/Legal.php';
         require __DIR__ . '/../../routes/Web.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
