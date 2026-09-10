@@ -7,6 +7,7 @@ class AuthController extends Controller
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
         CustomerEmailVerificationInterfaceTranslator::seed();
+        RegistrationInterfaceTranslator::seed();
 
         if (CustomerAccount::current()) {
             header('Location: /Anabelka/account');
@@ -17,6 +18,8 @@ class AuthController extends Controller
             'error' => '',
             'name' => '',
             'email' => '',
+            'termsAccepted' => false,
+            'marketingConsent' => false,
             'csrfToken' => CustomerAccount::csrfToken()
         ]);
     }
@@ -27,11 +30,14 @@ class AuthController extends Controller
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
         CustomerEmailVerificationInterfaceTranslator::seed();
+        RegistrationInterfaceTranslator::seed();
 
         $name = trim((string) ($_POST['name'] ?? ''));
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
         $confirmation = (string) ($_POST['password_confirmation'] ?? '');
+        $termsAccepted = !empty($_POST['accept_terms']);
+        $marketingConsent = !empty($_POST['marketing_consent']);
 
         try {
             $this->verifyCsrf();
@@ -41,6 +47,15 @@ class AuthController extends Controller
                     Translator::t(
                         'public.auth.error_all_fields',
                         'Заповніть усі поля.'
+                    )
+                );
+            }
+
+            if (!$termsAccepted) {
+                throw new InvalidArgumentException(
+                    Translator::t(
+                        'public.registration.consent_required',
+                        'Для реєстрації потрібно погодитися з Умовами користування та Політикою конфіденційності.'
                     )
                 );
             }
@@ -82,7 +97,26 @@ class AuthController extends Controller
                 );
             }
 
-            $userId = User::create($name, $email, $password);
+            // MySQL DDL робить implicit COMMIT, тому таблицю згод готуємо
+            // до транзакції створення користувача.
+            RegistrationConsent::ensureSchema();
+            $db = Database::connect();
+            $db->beginTransaction();
+
+            try {
+                $userId = User::create($name, $email, $password);
+                RegistrationConsent::recordRegistration(
+                    $userId,
+                    $marketingConsent
+                );
+                $db->commit();
+            } catch (Throwable $e) {
+                if ($db->inTransaction()) {
+                    $db->rollBack();
+                }
+                throw $e;
+            }
+
             $user = User::findById($userId);
 
             if (!$user) {
@@ -102,7 +136,13 @@ class AuthController extends Controller
             header('Location: /Anabelka/account');
             exit;
         } catch (Throwable $e) {
-            $this->showRegisterError($e->getMessage(), $name, $email);
+            $this->showRegisterError(
+                $e->getMessage(),
+                $name,
+                $email,
+                $termsAccepted,
+                $marketingConsent
+            );
         }
     }
 
@@ -271,14 +311,21 @@ class AuthController extends Controller
     }
 
 
-    private function showRegisterError($message, $name, $email)
-    {
+    private function showRegisterError(
+        $message,
+        $name,
+        $email,
+        $termsAccepted = false,
+        $marketingConsent = false
+    ) {
         http_response_code(422);
 
         $this->view('auth/register', [
             'error' => trim((string) $message),
             'name' => trim((string) $name),
             'email' => trim((string) $email),
+            'termsAccepted' => (bool) $termsAccepted,
+            'marketingConsent' => (bool) $marketingConsent,
             'csrfToken' => CustomerAccount::csrfToken()
         ]);
     }
