@@ -6,6 +6,7 @@ class AuthController extends Controller
     {
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
+        CustomerEmailVerificationInterfaceTranslator::seed();
 
         if (CustomerAccount::current()) {
             header('Location: /Anabelka/account');
@@ -25,6 +26,7 @@ class AuthController extends Controller
     {
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
+        CustomerEmailVerificationInterfaceTranslator::seed();
 
         $name = trim((string) ($_POST['name'] ?? ''));
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
@@ -90,6 +92,13 @@ class AuthController extends Controller
             CustomerAccount::startSession($user);
             $this->mergeGuestData((int) $userId);
 
+            // Підтвердження email не повинно блокувати реєстрацію або покупки.
+            try {
+                EmailVerificationService::issueForUser($user, true);
+            } catch (Throwable $e) {
+                error_log('Email verification issue error: ' . $e->getMessage());
+            }
+
             header('Location: /Anabelka/account');
             exit;
         } catch (Throwable $e) {
@@ -102,14 +111,31 @@ class AuthController extends Controller
     {
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
+        CustomerEmailVerificationInterfaceTranslator::seed();
 
         if (CustomerAccount::current()) {
             header('Location: /Anabelka/account');
             exit;
         }
 
+        $message = '';
+        $error = '';
+
+        if (!empty($_GET['email_verified'])) {
+            $message = Translator::t(
+                'public.email_verification.login_success',
+                'Email підтверджено. Тепер можна увійти до акаунта.'
+            );
+        } elseif (!empty($_GET['email_verification_error'])) {
+            $error = Translator::t(
+                'public.email_verification.invalid',
+                'Не вдалося підтвердити email.'
+            );
+        }
+
         $this->view('auth/login', [
-            'error' => '',
+            'message' => $message,
+            'error' => $error,
             'email' => '',
             'csrfToken' => CustomerAccount::csrfToken()
         ]);
@@ -237,6 +263,7 @@ class AuthController extends Controller
         http_response_code(422);
 
         $this->view('auth/login', [
+            'message' => '',
             'error' => trim((string) $message),
             'email' => trim((string) $email),
             'csrfToken' => CustomerAccount::csrfToken()
