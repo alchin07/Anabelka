@@ -2,6 +2,7 @@
 PublicInterfaceTranslator::seed();
 CustomerAccountInterfaceTranslator::seed();
 RegistrationInterfaceTranslator::seed();
+PasswordPolicyInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.auth.register_title', 'Реєстрація');
 $error = trim((string) ($error ?? ''));
@@ -10,6 +11,7 @@ $email = trim((string) ($email ?? ''));
 $termsAccepted = !empty($termsAccepted);
 $marketingConsent = !empty($marketingConsent);
 $csrfToken = (string) ($csrfToken ?? '');
+$passwordMinLength = PasswordPolicy::minimumLength();
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -65,7 +67,7 @@ $csrfToken = (string) ($csrfToken ?? '');
             <label class="auth-field">
                 <span><?= htmlspecialchars(Translator::t('public.auth.password', 'Пароль')) ?></span>
                 <span class="auth-password-wrap">
-                    <input type="password" name="password" minlength="8" autocomplete="new-password" required>
+                    <input type="password" name="password" minlength="<?= $passwordMinLength ?>" autocomplete="new-password" required>
                     <button
                         type="button"
                         class="auth-password-toggle"
@@ -79,13 +81,13 @@ $csrfToken = (string) ($csrfToken ?? '');
                         </svg>
                     </button>
                 </span>
-                <small><?= htmlspecialchars(Translator::t('public.auth.password_hint', 'Щонайменше 8 символів')) ?></small>
+                <small><?= htmlspecialchars(Translator::t('public.password_policy.hint', 'Щонайменше 10 символів. Не використовуйте прості паролі або послідовності.')) ?></small>
             </label>
 
             <label class="auth-field">
                 <span><?= htmlspecialchars(Translator::t('public.auth.confirm_password', 'Повторіть пароль')) ?></span>
                 <span class="auth-password-wrap">
-                    <input type="password" name="password_confirmation" minlength="8" autocomplete="new-password" required>
+                    <input type="password" name="password_confirmation" minlength="<?= $passwordMinLength ?>" autocomplete="new-password" required>
                     <button
                         type="button"
                         class="auth-password-toggle"
