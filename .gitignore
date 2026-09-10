@@ -1,4 +1,5 @@
 Test.txt
 config/ai.local.php
+config/social-auth.local.php
 uploads/products/*
 !uploads/products/.gitkeep
