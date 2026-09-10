@@ -3,6 +3,7 @@ PublicInterfaceTranslator::seed();
 CustomerAccountInterfaceTranslator::seed();
 RegistrationInterfaceTranslator::seed();
 PasswordPolicyInterfaceTranslator::seed();
+SocialAuthInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.auth.register_title', 'Реєстрація');
 $error = trim((string) ($error ?? ''));
@@ -22,6 +23,7 @@ $passwordMinLength = PasswordPolicy::minimumLength();
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/auth-register.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/social-auth.css?v=1">
     <style>
         .auth-page{min-height:100dvh;padding-bottom:45vh;scroll-padding-bottom:45vh}
         .auth-card{max-width:500px;margin:0 auto;padding:25px;background:#fff;border:1px solid var(--border-color);border-radius:16px}
@@ -144,6 +146,8 @@ $passwordMinLength = PasswordPolicy::minimumLength();
                 <?= htmlspecialchars(Translator::t('public.auth.register_button', 'Зареєструватися')) ?>
             </button>
         </form>
+
+        <?php require __DIR__ . '/partials/social-auth.php'; ?>
 
         <p class="auth-footer">
             <?= htmlspecialchars(Translator::t('public.auth.have_account', 'Вже є акаунт?')) ?>
