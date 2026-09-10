@@ -32,19 +32,30 @@
         scrollFieldIntoView(active, 280);
     }
 
+    function appendAccountScript(src, dataAttribute) {
+        if (document.querySelector('script[' + dataAttribute + ']')) {
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = src;
+        script.setAttribute(dataAttribute, '1');
+        document.body.appendChild(script);
+    }
+
     function loadAccountModules() {
         if (window.location.pathname.replace(/\/$/, '') !== '/Anabelka/account') {
             return;
         }
 
-        if (document.querySelector('script[data-account-email-verification]')) {
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = '/Anabelka/js/account-email-verification.js?v=1';
-        script.dataset.accountEmailVerification = '1';
-        document.body.appendChild(script);
+        appendAccountScript(
+            '/Anabelka/js/account-email-verification.js?v=1',
+            'data-account-email-verification'
+        );
+        appendAccountScript(
+            '/Anabelka/js/account-password-visibility.js?v=1',
+            'data-account-password-visibility'
+        );
     }
 
     document.addEventListener('focusin', function (event) {
