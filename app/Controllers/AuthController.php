@@ -97,9 +97,11 @@ class AuthController extends Controller
                 );
             }
 
-            // MySQL DDL робить implicit COMMIT, тому таблицю згод готуємо
-            // до транзакції створення користувача.
+            // MySQL DDL робить implicit COMMIT. Усі таблиці та базовий
+            // ранг готуємо до транзакції створення користувача.
             RegistrationConsent::ensureSchema();
+            UserRank::defaultRegistrationRankId();
+
             $db = Database::connect();
             $db->beginTransaction();
 
