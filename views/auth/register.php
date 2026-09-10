@@ -19,7 +19,7 @@ $csrfToken = (string) ($csrfToken ?? '');
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/auth-register.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/auth-register.css?v=2">
     <style>
         .auth-page{min-height:100dvh;padding-bottom:45vh;scroll-padding-bottom:45vh}
         .auth-card{max-width:500px;margin:0 auto;padding:25px;background:#fff;border:1px solid var(--border-color);border-radius:16px}
