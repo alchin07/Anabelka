@@ -34,6 +34,20 @@ class CustomerSocialIdentity
     }
 
 
+    public static function findByUserProvider($userId, $provider)
+    {
+        self::ensureSchema();
+        $stmt = Database::connect()->prepare("\n            SELECT *\n            FROM customer_social_identities\n            WHERE user_id = :user_id\n              AND provider = :provider\n            LIMIT 1\n        ");
+        $stmt->execute([
+            'user_id' => (int) $userId,
+            'provider' => self::normalizeProvider($provider)
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+
     public static function link($userId, $provider, $providerUserId, $email, array $profile = [])
     {
         self::ensureSchema();
@@ -47,17 +61,31 @@ class CustomerSocialIdentity
             throw new InvalidArgumentException('Некоректні дані зовнішнього акаунта.');
         }
 
-        $existing = self::findByProviderIdentity($provider, $providerUserId);
+        $byIdentity = self::findByProviderIdentity($provider, $providerUserId);
 
-        if ($existing && (int) $existing['user_id'] !== $userId) {
+        if ($byIdentity && (int) $byIdentity['user_id'] !== $userId) {
             throw new RuntimeException('Цей зовнішній акаунт уже прив’язаний до іншого користувача.');
+        }
+
+        $byUser = self::findByUserProvider($userId, $provider);
+
+        if (
+            $byUser
+            && (string) $byUser['provider_user_id'] !== $providerUserId
+        ) {
+            throw new RuntimeException('До цього користувача вже прив’язаний інший акаунт цього провайдера.');
         }
 
         $profileJson = !empty($profile)
             ? json_encode($profile, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
             : null;
 
-        $stmt = Database::connect()->prepare("\n            INSERT INTO customer_social_identities\n            (user_id, provider, provider_user_id, email, profile_json, last_login_at)\n            VALUES\n            (:user_id, :provider, :provider_user_id, :email, :profile_json, NOW())\n            ON DUPLICATE KEY UPDATE\n                provider_user_id = VALUES(provider_user_id),\n                email = VALUES(email),\n                profile_json = VALUES(profile_json),\n                last_login_at = NOW()\n        ");
+        if ($byIdentity || $byUser) {
+            $stmt = Database::connect()->prepare("\n                UPDATE customer_social_identities\n                SET email = :email,\n                    profile_json = :profile_json,\n                    last_login_at = NOW()\n                WHERE user_id = :user_id\n                  AND provider = :provider\n                  AND provider_user_id = :provider_user_id\n            ");
+        } else {
+            $stmt = Database::connect()->prepare("\n                INSERT INTO customer_social_identities\n                (user_id, provider, provider_user_id, email, profile_json, last_login_at)\n                VALUES\n                (:user_id, :provider, :provider_user_id, :email, :profile_json, NOW())\n            ");
+        }
+
         $stmt->execute([
             'user_id' => $userId,
             'provider' => $provider,
