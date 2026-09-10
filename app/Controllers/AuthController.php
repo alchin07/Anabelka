@@ -154,6 +154,7 @@ class AuthController extends Controller
         PublicInterfaceTranslator::seed();
         CustomerAccountInterfaceTranslator::seed();
         CustomerEmailVerificationInterfaceTranslator::seed();
+        PasswordResetInterfaceTranslator::seed();
 
         if (CustomerAccount::current()) {
             header('Location: /Anabelka/account');
@@ -163,7 +164,12 @@ class AuthController extends Controller
         $message = '';
         $error = '';
 
-        if (!empty($_GET['email_verified'])) {
+        if (!empty($_GET['password_reset'])) {
+            $message = Translator::t(
+                'public.password_reset.success',
+                'Пароль змінено. Увійдіть з новим паролем.'
+            );
+        } elseif (!empty($_GET['email_verified'])) {
             $message = Translator::t(
                 'public.email_verification.login_success',
                 'Email підтверджено. Тепер можна увійти до акаунта.'
