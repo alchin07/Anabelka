@@ -281,6 +281,36 @@ class CustomerEmailVerification
     }
 
 
+    public static function markVerifiedByTrustedProvider($userId, $email)
+    {
+        self::ensureSchema();
+
+        $userId = (int) $userId;
+        $email = self::normalizeEmail($email);
+
+        if ($userId <= 0) {
+            throw new InvalidArgumentException('Некоректний користувач.');
+        }
+
+        $stmt = Database::connect()->prepare("
+            INSERT INTO customer_email_verifications
+            (user_id, email, token_hash, expires_at, verified_at, last_sent_at)
+            VALUES (:user_id, :email, NULL, NULL, NOW(), NULL)
+            ON DUPLICATE KEY UPDATE
+                email = VALUES(email),
+                token_hash = NULL,
+                expires_at = NULL,
+                verified_at = NOW(),
+                updated_at = CURRENT_TIMESTAMP
+        ");
+
+        return $stmt->execute([
+            'user_id' => $userId,
+            'email' => $email
+        ]);
+    }
+
+
     public static function deleteForUser($userId)
     {
         self::ensureSchema();
