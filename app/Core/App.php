@@ -43,6 +43,7 @@ class App
         require_once __DIR__ . '/../Models/PasswordResetInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/RegistrationInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/SocialAuthInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/SocialConnectionsInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerRankRequest.php';
         require_once __DIR__ . '/../Models/CustomerRankRequestInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerNotification.php';
@@ -94,6 +95,7 @@ class App
         require_once __DIR__ . '/../Services/EmailVerificationService.php';
         require_once __DIR__ . '/../Services/PasswordResetService.php';
         require_once __DIR__ . '/../Services/GoogleOAuthProvider.php';
+        require_once __DIR__ . '/../Services/FacebookOAuthProvider.php';
         require_once __DIR__ . '/../Services/SocialAuthService.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
