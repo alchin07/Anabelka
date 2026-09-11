@@ -99,8 +99,6 @@ class AuthController extends Controller
                 );
             }
 
-            // MySQL DDL робить implicit COMMIT. Усі таблиці та базовий
-            // ранг готуємо до транзакції створення користувача.
             RegistrationConsent::ensureSchema();
             UserRank::defaultRegistrationRankId();
 
@@ -130,7 +128,6 @@ class AuthController extends Controller
             CustomerAccount::startSession($user);
             $this->mergeGuestData((int) $userId);
 
-            // Підтвердження email не повинно блокувати реєстрацію або покупки.
             try {
                 EmailVerificationService::issueForUser($user, true);
             } catch (Throwable $e) {
@@ -183,10 +180,26 @@ class AuthController extends Controller
                 'Не вдалося підтвердити email.'
             );
         } elseif (!empty($_GET['social_error'])) {
-            $error = Translator::t(
-                'public.social_auth.error_generic',
-                'Не вдалося увійти через Google. Спробуйте ще раз.'
-            );
+            $provider = strtolower(trim((string) ($_GET['social_provider'] ?? '')));
+
+            if (
+                $provider !== ''
+                && class_exists('SocialAuthProvider')
+                && SocialAuthProvider::exists($provider)
+            ) {
+                $error = sprintf(
+                    Translator::t(
+                        'public.social_auth.error_provider',
+                        'Не вдалося увійти через %s. Спробуйте ще раз.'
+                    ),
+                    SocialAuthProvider::label($provider)
+                );
+            } else {
+                $error = Translator::t(
+                    'public.social_auth.error_generic_provider',
+                    'Не вдалося увійти через зовнішній акаунт. Спробуйте ще раз.'
+                );
+            }
         }
 
         $this->view('auth/login', [
@@ -256,7 +269,6 @@ class AuthController extends Controller
             try {
                 UserInvitation::markAccepted((int) $user['id']);
             } catch (Throwable $e) {
-                // Статус запрошення не повинен блокувати успішний вхід.
             }
 
             $this->mergeGuestData((int) $user['id']);
