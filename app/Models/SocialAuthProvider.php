@@ -69,6 +69,78 @@ class SocialAuthProvider
     }
 
 
+    public static function ensureAdminPermissions()
+    {
+        if (!class_exists('AdminAccess')) {
+            return;
+        }
+
+        AdminAccess::ensureSchema();
+        $db = Database::connect();
+
+        $permissions = [
+            [
+                'social_auth.view',
+                'Перегляд налаштувань соціальної авторизації',
+                'security',
+                125
+            ],
+            [
+                'social_auth.manage',
+                'Керування соціальною авторизацією',
+                'security',
+                126
+            ]
+        ];
+
+        $insertPermission = $db->prepare("
+            INSERT IGNORE INTO admin_permissions
+            (permission_key, name, group_key, sort_order)
+            VALUES
+            (:permission_key, :name, :group_key, :sort_order)
+        ");
+
+        foreach ($permissions as $permission) {
+            $insertPermission->execute([
+                'permission_key' => $permission[0],
+                'name' => $permission[1],
+                'group_key' => $permission[2],
+                'sort_order' => $permission[3]
+            ]);
+        }
+
+        $roleSlugs = ['owner', 'store_owner', 'administrator'];
+        $roleStmt = $db->prepare("
+            SELECT id
+            FROM admin_roles
+            WHERE slug = :slug
+            LIMIT 1
+        ");
+        $grantStmt = $db->prepare("
+            INSERT IGNORE INTO admin_role_permissions
+            (role_id, permission_key)
+            VALUES
+            (:role_id, :permission_key)
+        ");
+
+        foreach ($roleSlugs as $roleSlug) {
+            $roleStmt->execute(['slug' => $roleSlug]);
+            $roleId = (int) $roleStmt->fetchColumn();
+
+            if ($roleId <= 0) {
+                continue;
+            }
+
+            foreach ($permissions as $permission) {
+                $grantStmt->execute([
+                    'role_id' => $roleId,
+                    'permission_key' => $permission[0]
+                ]);
+            }
+        }
+    }
+
+
     public static function exists($provider)
     {
         $provider = self::normalize($provider);
