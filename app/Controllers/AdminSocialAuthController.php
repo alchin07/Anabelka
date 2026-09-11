@@ -4,6 +4,9 @@ class AdminSocialAuthController extends Controller
 {
     public function index()
     {
+        SocialAuthProvider::ensureAdminPermissions();
+        $this->requirePermission('social_auth.view');
+
         $this->view('admin/social-auth/index', [
             'pageTitle' => 'Адмін-панель · Авторизація та соцмережі',
             'providers' => SocialAuthProvider::all(),
@@ -16,6 +19,8 @@ class AdminSocialAuthController extends Controller
 
     public function toggle()
     {
+        SocialAuthProvider::ensureAdminPermissions();
+        $this->requirePermission('social_auth.manage');
         $this->verifyCsrf();
 
         $provider = strtolower(trim((string) ($_POST['provider'] ?? '')));
@@ -47,6 +52,8 @@ class AdminSocialAuthController extends Controller
 
     public function move()
     {
+        SocialAuthProvider::ensureAdminPermissions();
+        $this->requirePermission('social_auth.manage');
         $this->verifyCsrf();
 
         $provider = strtolower(trim((string) ($_POST['provider'] ?? '')));
@@ -63,6 +70,19 @@ class AdminSocialAuthController extends Controller
         } catch (Throwable $e) {
             $this->redirectWithError($e->getMessage());
         }
+    }
+
+
+    private function requirePermission($permission)
+    {
+        if (AdminAccess::can((string) $permission)) {
+            return;
+        }
+
+        http_response_code(403);
+        header('Content-Type: text/html; charset=UTF-8');
+        echo '<h1>403 — Недостатньо прав</h1>';
+        exit;
     }
 
 
