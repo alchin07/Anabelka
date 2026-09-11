@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/../app/Models/SocialAuthProvider.php';
+require_once __DIR__ . '/../app/Controllers/AdminSocialAuthController.php';
+
 $router->get(
     '/auth/google',
     'SocialAuthController@google'
@@ -19,3 +22,5 @@ $router->post(
     '/auth/social/complete',
     'SocialAuthController@complete'
 );
+
+require __DIR__ . '/AdminSocialAuth.php';
