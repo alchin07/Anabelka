@@ -172,12 +172,36 @@ class ErrorHandler
         }
 
         $path = $directory . '/app-' . date('Y-m-d') . '.log';
-
-        if (@file_put_contents($path, $line . PHP_EOL, FILE_APPEND | LOCK_EX) === false) {
-            throw new RuntimeException('Не вдалося записати системний лог.');
-        }
+        self::appendLogLine($path, $line . PHP_EOL);
 
         return $reference;
+    }
+
+
+    private static function appendLogLine($path, $line)
+    {
+        // На деяких Android/KSWEB файлових системах advisory locking (LOCK_EX)
+        // не підтримується: файл може створитися, але file_put_contents повертає false.
+        // Спочатку використовуємо блокування, а потім безпечний fallback без нього.
+        $written = @file_put_contents(
+            (string) $path,
+            (string) $line,
+            FILE_APPEND | LOCK_EX
+        );
+
+        if ($written !== false) {
+            return;
+        }
+
+        $written = @file_put_contents(
+            (string) $path,
+            (string) $line,
+            FILE_APPEND
+        );
+
+        if ($written === false) {
+            throw new RuntimeException('Не вдалося записати системний лог.');
+        }
     }
 
 
