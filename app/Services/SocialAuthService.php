@@ -140,24 +140,12 @@ class SocialAuthService
 
         if ($user) {
             self::assertActiveUser($user);
-            CustomerSocialIdentity::link(
-                (int) $user['id'],
-                $provider,
-                $identity['provider_user_id'],
-                $identity['email'],
-                $identity['profile']
-            );
-            CustomerEmailVerification::markVerifiedByTrustedProvider(
-                (int) $user['id'],
-                $identity['email']
-            );
 
-            return [
-                'status' => 'login',
-                'user' => $user,
-                'new_account' => false,
-                'provider' => $provider
-            ];
+            throw new RuntimeException(
+                'Користувач із таким email уже існує. Увійдіть паролем і підключіть '
+                . SocialAuthProvider::label($provider)
+                . ' у розділі «Мій акаунт».'
+            );
         }
 
         $_SESSION[self::PENDING_SESSION_KEY] = [
