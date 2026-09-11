@@ -2,53 +2,85 @@
 
 class SocialAuthService
 {
-    private const STATE_SESSION_KEY = 'social_auth_google_state';
     private const PENDING_SESSION_KEY = 'social_auth_pending';
     private const STATE_TTL_SECONDS = 600;
     private const PENDING_TTL_SECONDS = 900;
 
 
-    public static function googleAuthorizationUrl()
+    public static function authorizationUrl($provider)
     {
+        $provider = self::normalizeProvider($provider);
+        $driver = self::providerDriver($provider);
+
+        if (!SocialAuthProvider::isEnabled($provider)) {
+            throw new RuntimeException(
+                'Цей спосіб входу вимкнено адміністратором магазину.'
+            );
+        }
+
+        if (!SocialAuthProvider::isConfigured($provider)) {
+            throw new RuntimeException(
+                SocialAuthProvider::label($provider) . ' OAuth ще не налаштовано.'
+            );
+        }
+
         $state = bin2hex(random_bytes(24));
-        $_SESSION[self::STATE_SESSION_KEY] = [
+        $_SESSION[self::stateSessionKey($provider)] = [
             'value' => $state,
             'expires_at' => time() + self::STATE_TTL_SECONDS
         ];
         unset($_SESSION[self::PENDING_SESSION_KEY]);
 
-        return GoogleOAuthProvider::authorizationUrl($state);
+        return $driver::authorizationUrl($state);
     }
 
 
-    public static function handleGoogleCallback($code, $state)
+    public static function googleAuthorizationUrl()
     {
-        self::assertState($state);
-        unset($_SESSION[self::STATE_SESSION_KEY]);
+        return self::authorizationUrl('google');
+    }
+
+
+    public static function handleCallback($provider, $code, $state)
+    {
+        $provider = self::normalizeProvider($provider);
+        $driver = self::providerDriver($provider);
+
+        if (!SocialAuthProvider::isEnabled($provider)) {
+            throw new RuntimeException(
+                'Цей спосіб входу вимкнено адміністратором магазину.'
+            );
+        }
+
+        self::assertState($provider, $state);
+        unset($_SESSION[self::stateSessionKey($provider)]);
 
         $code = trim((string) $code);
 
         if ($code === '') {
-            throw new RuntimeException('Google не повернув код авторизації.');
+            throw new RuntimeException(
+                SocialAuthProvider::label($provider)
+                . ' не повернув код авторизації.'
+            );
         }
 
-        $accessToken = GoogleOAuthProvider::exchangeCode($code);
-        $identity = GoogleOAuthProvider::userIdentity($accessToken);
+        $accessToken = $driver::exchangeCode($code);
+        $identity = $driver::userIdentity($accessToken);
         CustomerSocialIdentity::ensureSchema();
         CustomerEmailVerification::ensureSchema();
 
         $linked = CustomerSocialIdentity::findByProviderIdentity(
-            'google',
+            $provider,
             $identity['provider_user_id']
         );
 
         if ($linked) {
             $user = User::findById((int) $linked['user_id']);
             self::assertActiveUser($user);
-            self::assertSameEmail($user, $identity['email']);
+            self::assertSameEmail($user, $identity['email'], $provider);
             CustomerSocialIdentity::link(
                 (int) $user['id'],
-                'google',
+                $provider,
                 $identity['provider_user_id'],
                 $identity['email'],
                 $identity['profile']
@@ -61,7 +93,8 @@ class SocialAuthService
             return [
                 'status' => 'login',
                 'user' => $user,
-                'new_account' => false
+                'new_account' => false,
+                'provider' => $provider
             ];
         }
 
@@ -71,7 +104,7 @@ class SocialAuthService
             self::assertActiveUser($user);
             CustomerSocialIdentity::link(
                 (int) $user['id'],
-                'google',
+                $provider,
                 $identity['provider_user_id'],
                 $identity['email'],
                 $identity['profile']
@@ -84,12 +117,13 @@ class SocialAuthService
             return [
                 'status' => 'login',
                 'user' => $user,
-                'new_account' => false
+                'new_account' => false,
+                'provider' => $provider
             ];
         }
 
         $_SESSION[self::PENDING_SESSION_KEY] = [
-            'provider' => 'google',
+            'provider' => $provider,
             'provider_user_id' => (string) $identity['provider_user_id'],
             'email' => (string) $identity['email'],
             'name' => trim((string) $identity['name']),
@@ -99,8 +133,15 @@ class SocialAuthService
 
         return [
             'status' => 'pending_registration',
-            'new_account' => true
+            'new_account' => true,
+            'provider' => $provider
         ];
+    }
+
+
+    public static function handleGoogleCallback($code, $state)
+    {
+        return self::handleCallback('google', $code, $state);
     }
 
 
@@ -119,8 +160,10 @@ class SocialAuthService
             return null;
         }
 
+        $provider = self::normalizeProvider($pending['provider'] ?? '');
+
         if (
-            ($pending['provider'] ?? '') !== 'google'
+            !SocialAuthProvider::exists($provider)
             || empty($pending['provider_user_id'])
             || !filter_var($pending['email'] ?? '', FILTER_VALIDATE_EMAIL)
         ) {
@@ -143,8 +186,12 @@ class SocialAuthService
         $pending = self::pendingRegistration();
 
         if (!$pending) {
-            throw new RuntimeException('Сесію реєстрації через Google завершено. Спробуйте увійти ще раз.');
+            throw new RuntimeException(
+                'Сесію соціальної реєстрації завершено. Спробуйте увійти ще раз.'
+            );
         }
+
+        $provider = self::normalizeProvider($pending['provider'] ?? '');
 
         CustomerSocialIdentity::ensureSchema();
         CustomerEmailVerification::ensureSchema();
@@ -156,7 +203,7 @@ class SocialAuthService
 
         try {
             $existingIdentity = CustomerSocialIdentity::findByProviderIdentity(
-                'google',
+                $provider,
                 $pending['provider_user_id']
             );
 
@@ -171,7 +218,8 @@ class SocialAuthService
                 } else {
                     $name = trim((string) ($pending['name'] ?? ''));
                     if ($name === '') {
-                        $name = strstr((string) $pending['email'], '@', true) ?: 'Користувач';
+                        $name = strstr((string) $pending['email'], '@', true)
+                            ?: 'Користувач';
                     }
 
                     $temporaryPassword = bin2hex(random_bytes(32));
@@ -183,7 +231,7 @@ class SocialAuthService
                     RegistrationConsent::recordRegistration(
                         $userId,
                         (bool) $marketingOptIn,
-                        'google_oauth'
+                        $provider . '_oauth'
                     );
                     $user = User::findById($userId);
                     self::assertActiveUser($user);
@@ -191,10 +239,12 @@ class SocialAuthService
 
                 CustomerSocialIdentity::link(
                     (int) $user['id'],
-                    'google',
+                    $provider,
                     (string) $pending['provider_user_id'],
                     (string) $pending['email'],
-                    is_array($pending['profile'] ?? null) ? $pending['profile'] : []
+                    is_array($pending['profile'] ?? null)
+                        ? $pending['profile']
+                        : []
                 );
             }
 
@@ -222,10 +272,11 @@ class SocialAuthService
     }
 
 
-    private static function assertState($state)
+    private static function assertState($provider, $state)
     {
-        $stored = is_array($_SESSION[self::STATE_SESSION_KEY] ?? null)
-            ? $_SESSION[self::STATE_SESSION_KEY]
+        $sessionKey = self::stateSessionKey($provider);
+        $stored = is_array($_SESSION[$sessionKey] ?? null)
+            ? $_SESSION[$sessionKey]
             : [];
         $state = trim((string) $state);
         $storedValue = trim((string) ($stored['value'] ?? ''));
@@ -237,8 +288,12 @@ class SocialAuthService
             || $expiresAt < time()
             || !hash_equals($storedValue, $state)
         ) {
-            unset($_SESSION[self::STATE_SESSION_KEY]);
-            throw new RuntimeException('Сесію входу через Google не підтверджено.');
+            unset($_SESSION[$sessionKey]);
+            throw new RuntimeException(
+                'Сесію входу через '
+                . SocialAuthProvider::label($provider)
+                . ' не підтверджено.'
+            );
         }
     }
 
@@ -246,18 +301,58 @@ class SocialAuthService
     private static function assertActiveUser($user)
     {
         if (!$user || empty($user['is_active'])) {
-            throw new RuntimeException('Акаунт недоступний. Зверніться до адміністратора магазину.');
+            throw new RuntimeException(
+                'Акаунт недоступний. Зверніться до адміністратора магазину.'
+            );
         }
     }
 
 
-    private static function assertSameEmail(array $user, $email)
+    private static function assertSameEmail(array $user, $email, $provider)
     {
         if (
             strtolower(trim((string) ($user['email'] ?? '')))
             !== strtolower(trim((string) $email))
         ) {
-            throw new RuntimeException('Email Google не збігається з email прив’язаного акаунта.');
+            throw new RuntimeException(
+                'Email '
+                . SocialAuthProvider::label($provider)
+                . ' не збігається з email прив’язаного акаунта.'
+            );
         }
+    }
+
+
+    private static function providerDriver($provider)
+    {
+        if (!SocialAuthProvider::exists($provider)) {
+            throw new InvalidArgumentException(
+                'Невідомий провайдер соціальної авторизації.'
+            );
+        }
+
+        $driver = SocialAuthProvider::driverClass($provider);
+
+        if ($driver === '' || !class_exists($driver)) {
+            throw new RuntimeException(
+                'Провайдер '
+                . SocialAuthProvider::label($provider)
+                . ' ще не підключено до коду магазину.'
+            );
+        }
+
+        return $driver;
+    }
+
+
+    private static function stateSessionKey($provider)
+    {
+        return 'social_auth_' . self::normalizeProvider($provider) . '_state';
+    }
+
+
+    private static function normalizeProvider($provider)
+    {
+        return strtolower(trim((string) $provider));
     }
 }
