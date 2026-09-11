@@ -20,6 +20,16 @@ class CustomerSocialIdentity
     }
 
 
+    public static function allForUser($userId)
+    {
+        self::ensureSchema();
+        $stmt = Database::connect()->prepare("\n            SELECT *\n            FROM customer_social_identities\n            WHERE user_id = :user_id\n            ORDER BY created_at ASC, id ASC\n        ");
+        $stmt->execute(['user_id' => (int) $userId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+
     public static function findByProviderIdentity($provider, $providerUserId)
     {
         self::ensureSchema();
@@ -95,6 +105,18 @@ class CustomerSocialIdentity
         ]);
 
         return true;
+    }
+
+
+    public static function deleteUserProvider($userId, $provider)
+    {
+        self::ensureSchema();
+        $stmt = Database::connect()->prepare("\n            DELETE FROM customer_social_identities\n            WHERE user_id = :user_id\n              AND provider = :provider\n        ");
+
+        return $stmt->execute([
+            'user_id' => (int) $userId,
+            'provider' => self::normalizeProvider($provider)
+        ]);
     }
 
 
