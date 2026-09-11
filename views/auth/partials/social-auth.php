@@ -26,10 +26,10 @@ $providers = class_exists('SocialAuthProvider')
             );
             ?>
             <a
-                class="social-auth-provider social-auth-provider--<?= htmlspecialchars($code, ENT_QUOTES, 'UTF-8') ?>"
+                class="social-auth-provider social-auth-google social-auth-provider--<?= htmlspecialchars($code, ENT_QUOTES, 'UTF-8') ?>"
                 href="<?= htmlspecialchars((string) ($provider['route'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
             >
-                <span class="social-auth-provider-mark" aria-hidden="true">
+                <span class="social-auth-provider-mark social-auth-google-mark" aria-hidden="true">
                     <?= htmlspecialchars((string) ($provider['mark'] ?? '')) ?>
                 </span>
                 <span><?= htmlspecialchars($buttonText) ?></span>
