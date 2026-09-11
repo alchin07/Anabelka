@@ -140,6 +140,7 @@ class SocialAuthController extends Controller
     private function providerCallback($provider)
     {
         SocialAuthInterfaceTranslator::seed();
+        SocialConnectionsInterfaceTranslator::seed();
         $provider = strtolower(trim((string) $provider));
         $label = SocialAuthProvider::exists($provider)
             ? SocialAuthProvider::label($provider)
@@ -157,6 +158,22 @@ class SocialAuthController extends Controller
                 $_GET['code'] ?? '',
                 $_GET['state'] ?? ''
             );
+
+            if (($result['status'] ?? '') === 'connected') {
+                $message = str_replace(
+                    '{provider}',
+                    $label,
+                    Translator::t(
+                        'public.social_connections.connected_success',
+                        '{provider} успішно підключено до вашого акаунта.'
+                    )
+                );
+                header(
+                    'Location: /Anabelka/account?message='
+                    . rawurlencode($message)
+                );
+                exit;
+            }
 
             if (($result['status'] ?? '') === 'pending_registration') {
                 header('Location: /Anabelka/auth/social/complete');
@@ -178,6 +195,15 @@ class SocialAuthController extends Controller
             exit;
         } catch (Throwable $e) {
             error_log($label . ' OAuth callback error: ' . $e->getMessage());
+
+            if (CustomerAccount::current()) {
+                header(
+                    'Location: /Anabelka/account?error='
+                    . rawurlencode($e->getMessage())
+                );
+                exit;
+            }
+
             $this->redirectToLoginError($provider);
         }
     }
