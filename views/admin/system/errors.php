@@ -2,6 +2,7 @@
 $items = is_array($items ?? null) ? $items : [];
 $summary = is_array($summary ?? null) ? $summary : [];
 $filters = is_array($filters ?? null) ? $filters : [];
+$availableDates = is_array($availableDates ?? null) ? $availableDates : [];
 $selected = is_array($selected ?? null) ? $selected : null;
 $selectedReference = (string) ($selectedReference ?? '');
 $escape = static function ($value) {
@@ -11,6 +12,29 @@ $formatTime = static function ($value) {
     $timestamp = strtotime((string) $value);
     return $timestamp ? date('d.m.Y H:i:s', $timestamp) : (string) $value;
 };
+$formatDate = static function ($value) {
+    $timestamp = strtotime((string) $value);
+    return $timestamp ? date('d.m.Y', $timestamp) : (string) $value;
+};
+$kindLabels = [
+    'uncaught_exception' => 'Необроблений виняток',
+    'fatal_error' => 'Критична PHP-помилка',
+    'php_error' => 'PHP-помилка',
+    'handled_exception' => 'Оброблена помилка',
+    'application' => 'Подія застосунку'
+];
+$kindLabel = static function ($kind) use ($kindLabels) {
+    $kind = (string) $kind;
+    return $kindLabels[$kind] ?? $kind;
+};
+$filterQuery = [
+    'level' => (string) ($filters['level'] ?? 'all'),
+    'date' => (string) ($filters['date'] ?? ''),
+    'q' => (string) ($filters['q'] ?? '')
+];
+$filterQuery = array_filter($filterQuery, static function ($value, $key) {
+    return !($key === 'level' && $value === 'all') && $value !== '';
+}, ARRAY_FILTER_USE_BOTH);
 ?>
 <!DOCTYPE html>
 <html lang="uk">
@@ -18,7 +42,7 @@ $formatTime = static function ($value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Системні помилки') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=2">
 </head>
 <body>
 
@@ -60,7 +84,14 @@ $formatTime = static function ($value) {
 
         <label>
             <span>Дата</span>
-            <input type="date" name="date" value="<?= $escape($filters['date'] ?? '') ?>">
+            <select name="date">
+                <option value="">Усі дати</option>
+                <?php foreach ($availableDates as $date): ?>
+                    <option value="<?= $escape($date) ?>" <?= ($filters['date'] ?? '') === $date ? 'selected' : '' ?>>
+                        <?= $escape($formatDate($date)) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </label>
 
         <label class="system-errors-search">
@@ -84,6 +115,7 @@ $formatTime = static function ($value) {
             <?php if ($selected): ?>
                 <?php
                 $request = is_array($selected['request'] ?? null) ? $selected['request'] : [];
+                $closeQuery = http_build_query($filterQuery);
                 ?>
                 <div class="system-error-detail-head">
                     <div>
@@ -92,12 +124,12 @@ $formatTime = static function ($value) {
                         </span>
                         <h3><?= $escape($selected['reference'] ?? '') ?></h3>
                     </div>
-                    <a href="/Anabelka/admin/system/errors">Закрити</a>
+                    <a href="/Anabelka/admin/system/errors<?= $closeQuery !== '' ? '?' . $escape($closeQuery) : '' ?>">Закрити</a>
                 </div>
 
                 <dl class="system-error-detail-grid">
                     <div><dt>Час</dt><dd><?= $escape($formatTime($selected['time'] ?? '')) ?></dd></div>
-                    <div><dt>Тип</dt><dd><?= $escape($selected['kind'] ?? '') ?></dd></div>
+                    <div><dt>Тип</dt><dd><?= $escape($kindLabel($selected['kind'] ?? '')) ?></dd></div>
                     <div><dt>Метод</dt><dd><?= $escape($request['method'] ?? '') ?></dd></div>
                     <div><dt>URL</dt><dd><?= $escape($request['uri'] ?? '') ?></dd></div>
                     <div><dt>Користувач</dt><dd><?= (int) ($request['user_id'] ?? 0) ?: '—' ?></dd></div>
@@ -131,7 +163,11 @@ $formatTime = static function ($value) {
         <?php endif; ?>
 
         <?php foreach ($items as $item): ?>
-            <?php $request = is_array($item['request'] ?? null) ? $item['request'] : []; ?>
+            <?php
+            $request = is_array($item['request'] ?? null) ? $item['request'] : [];
+            $detailQuery = $filterQuery;
+            $detailQuery['ref'] = (string) ($item['reference'] ?? '');
+            ?>
             <article class="system-error-card">
                 <div class="system-error-card-head">
                     <span class="system-error-level is-<?= $escape($item['level'] ?? 'error') ?>">
@@ -149,8 +185,8 @@ $formatTime = static function ($value) {
                 </div>
 
                 <div class="system-error-card-foot">
-                    <span><?= $escape($item['kind'] ?? '') ?></span>
-                    <a href="/Anabelka/admin/system/errors?<?= $escape(http_build_query(['ref' => $item['reference'] ?? ''])) ?>">
+                    <span title="<?= $escape($item['kind'] ?? '') ?>"><?= $escape($kindLabel($item['kind'] ?? '')) ?></span>
+                    <a href="/Anabelka/admin/system/errors?<?= $escape(http_build_query($detailQuery)) ?>">
                         Подробиці
                     </a>
                 </div>
