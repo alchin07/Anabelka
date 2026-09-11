@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
+
 $router->get(
     '/admin/profile',
     'AdminAdministratorController@profile'
@@ -58,4 +60,14 @@ $router->post(
 $router->get(
     '/admin/audit',
     'AdminAdministratorController@audit'
+);
+
+$router->get(
+    '/admin/system/error-test',
+    'AdminErrorTestController@index'
+);
+
+$router->post(
+    '/admin/system/error-test',
+    'AdminErrorTestController@trigger'
 );
