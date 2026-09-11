@@ -14,6 +14,26 @@ $router->get(
 );
 
 $router->get(
+    '/auth/facebook',
+    'SocialAuthController@facebook'
+);
+
+$router->get(
+    '/auth/facebook/callback',
+    'SocialAuthController@facebookCallback'
+);
+
+$router->get(
+    '/auth/apple',
+    'SocialAuthController@apple'
+);
+
+$router->get(
+    '/auth/apple/callback',
+    'SocialAuthController@appleCallback'
+);
+
+$router->get(
     '/auth/social/complete',
     'SocialAuthController@completeForm'
 );
