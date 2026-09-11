@@ -26,8 +26,6 @@ class CustomerAccountController extends Controller
             }
         }
 
-        // Нове сповіщення показується як непрочитане один раз.
-        // Після відкриття сторінки акаунта воно переходить у прочитані.
         CustomerNotification::markRead((int) $user['id'], $unreadIds);
 
         $this->view('account/index', [
@@ -152,6 +150,201 @@ class CustomerAccountController extends Controller
                     'Пароль успішно змінено.'
                 )
             );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function socialConnectionsStatus()
+    {
+        PublicInterfaceTranslator::seed();
+        SocialConnectionsInterfaceTranslator::seed();
+        header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+
+        $user = CustomerAccount::current();
+
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(
+                ['authenticated' => false],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+            return;
+        }
+
+        $identities = CustomerSocialIdentity::allForUser((int) $user['id']);
+        $identityByProvider = [];
+
+        foreach ($identities as $identity) {
+            $identityByProvider[(string) ($identity['provider'] ?? '')] = $identity;
+        }
+
+        $connectedCount = count($identities);
+        $providers = [];
+
+        foreach (SocialAuthProvider::all() as $provider) {
+            $code = (string) ($provider['code'] ?? '');
+            $identity = $identityByProvider[$code] ?? null;
+            $linked = is_array($identity);
+            $enabled = !empty($provider['enabled']);
+            $configured = !empty($provider['configured']);
+
+            $providers[] = [
+                'code' => $code,
+                'label' => (string) ($provider['label'] ?? $code),
+                'mark' => (string) ($provider['mark'] ?? ''),
+                'linked' => $linked,
+                'linked_email' => $linked ? (string) ($identity['email'] ?? '') : '',
+                'enabled' => $enabled,
+                'configured' => $configured,
+                'available' => $enabled && $configured,
+                'connect_url' => (!$linked && $enabled && $configured)
+                    ? '/Anabelka/account/social-connect?provider=' . rawurlencode($code)
+                    : '',
+                'can_disconnect' => $linked && $connectedCount > 1
+            ];
+        }
+
+        echo json_encode(
+            [
+                'authenticated' => true,
+                'providers' => $providers,
+                'csrf_token' => CustomerAccount::csrfToken(),
+                'strings' => [
+                    'title' => Translator::t(
+                        'public.social_connections.title',
+                        'Способи входу'
+                    ),
+                    'hint' => Translator::t(
+                        'public.social_connections.hint',
+                        'Підключайте додаткові способи входу до одного акаунта Анабельки.'
+                    ),
+                    'connected' => Translator::t(
+                        'public.social_connections.connected',
+                        'Підключено'
+                    ),
+                    'not_connected' => Translator::t(
+                        'public.social_connections.not_connected',
+                        'Не підключено'
+                    ),
+                    'connect' => Translator::t(
+                        'public.social_connections.connect',
+                        'Підключити'
+                    ),
+                    'disconnect' => Translator::t(
+                        'public.social_connections.disconnect',
+                        'Від’єднати'
+                    ),
+                    'unavailable' => Translator::t(
+                        'public.social_connections.unavailable',
+                        'Спосіб входу зараз недоступний.'
+                    ),
+                    'not_configured' => Translator::t(
+                        'public.social_connections.not_configured',
+                        'Ще не налаштовано адміністратором.'
+                    ),
+                    'last_method' => Translator::t(
+                        'public.social_connections.last_method',
+                        'Щоб не втратити доступ до акаунта, останній підключений спосіб входу від’єднати не можна.'
+                    )
+                ]
+            ],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+    }
+
+
+    public function connectSocial()
+    {
+        SocialConnectionsInterfaceTranslator::seed();
+        $user = CustomerAccount::current();
+
+        if (!$user) {
+            header('Location: /Anabelka/login');
+            exit;
+        }
+
+        $provider = strtolower(trim((string) ($_GET['provider'] ?? '')));
+
+        try {
+            if (!SocialAuthProvider::exists($provider)) {
+                throw new InvalidArgumentException('Невідомий спосіб входу.');
+            }
+
+            if (CustomerSocialIdentity::findByUserProvider((int) $user['id'], $provider)) {
+                throw new RuntimeException(
+                    SocialAuthProvider::label($provider) . ' уже підключено до цього акаунта.'
+                );
+            }
+
+            header(
+                'Location: ' . SocialAuthService::connectionAuthorizationUrl(
+                    $provider,
+                    (int) $user['id']
+                )
+            );
+            exit;
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function disconnectSocial()
+    {
+        PublicInterfaceTranslator::seed();
+        SocialConnectionsInterfaceTranslator::seed();
+
+        try {
+            $this->verifyCsrf();
+            $user = CustomerAccount::current();
+
+            if (!$user) {
+                throw new RuntimeException('Сесію користувача не знайдено.');
+            }
+
+            $provider = strtolower(trim((string) ($_POST['provider'] ?? '')));
+
+            if (!SocialAuthProvider::exists($provider)) {
+                throw new InvalidArgumentException('Невідомий спосіб входу.');
+            }
+
+            $identity = CustomerSocialIdentity::findByUserProvider(
+                (int) $user['id'],
+                $provider
+            );
+
+            if (!$identity) {
+                throw new RuntimeException('Цей спосіб входу не підключено.');
+            }
+
+            $identities = CustomerSocialIdentity::allForUser((int) $user['id']);
+
+            if (count($identities) <= 1) {
+                throw new RuntimeException(
+                    Translator::t(
+                        'public.social_connections.last_method',
+                        'Щоб не втратити доступ до акаунта, останній підключений спосіб входу від’єднати не можна.'
+                    )
+                );
+            }
+
+            CustomerSocialIdentity::deleteUserProvider(
+                (int) $user['id'],
+                $provider
+            );
+
+            $message = str_replace(
+                '{provider}',
+                SocialAuthProvider::label($provider),
+                Translator::t(
+                    'public.social_connections.disconnected_success',
+                    '{provider} від’єднано від вашого акаунта.'
+                )
+            );
+            $this->redirect('message', $message);
         } catch (Throwable $e) {
             $this->redirect('error', $e->getMessage());
         }
