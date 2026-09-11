@@ -11,6 +11,21 @@ $router->get(
 );
 
 $router->get(
+    '/account/social-connections/status',
+    'CustomerAccountController@socialConnectionsStatus'
+);
+
+$router->get(
+    '/account/social-connect',
+    'CustomerAccountController@connectSocial'
+);
+
+$router->post(
+    '/account/social-disconnect',
+    'CustomerAccountController@disconnectSocial'
+);
+
+$router->get(
     '/account/email-verification/status',
     'EmailVerificationController@status'
 );
