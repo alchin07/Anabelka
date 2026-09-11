@@ -4,59 +4,37 @@ class SocialAuthController extends Controller
 {
     public function google()
     {
-        SocialAuthInterfaceTranslator::seed();
-
-        if (CustomerAccount::current()) {
-            header('Location: /Anabelka/account');
-            exit;
-        }
-
-        try {
-            header('Location: ' . SocialAuthService::googleAuthorizationUrl());
-            exit;
-        } catch (Throwable $e) {
-            error_log('Google OAuth start error: ' . $e->getMessage());
-            header('Location: /Anabelka/login?social_error=1');
-            exit;
-        }
+        $this->startProvider('google');
     }
 
 
     public function googleCallback()
     {
-        SocialAuthInterfaceTranslator::seed();
+        $this->providerCallback('google');
+    }
 
-        try {
-            if (!empty($_GET['error'])) {
-                throw new RuntimeException('Google OAuth cancelled: ' . (string) $_GET['error']);
-            }
 
-            $result = SocialAuthService::handleGoogleCallback(
-                $_GET['code'] ?? '',
-                $_GET['state'] ?? ''
-            );
+    public function facebook()
+    {
+        $this->startProvider('facebook');
+    }
 
-            if (($result['status'] ?? '') === 'pending_registration') {
-                header('Location: /Anabelka/auth/social/complete');
-                exit;
-            }
 
-            $user = is_array($result['user'] ?? null) ? $result['user'] : null;
+    public function facebookCallback()
+    {
+        $this->providerCallback('facebook');
+    }
 
-            if (!$user) {
-                throw new RuntimeException('Google OAuth не повернув користувача.');
-            }
 
-            CustomerAccount::startSession($user);
-            $this->mergeGuestData((int) $user['id']);
+    public function apple()
+    {
+        $this->startProvider('apple');
+    }
 
-            header('Location: /Anabelka/');
-            exit;
-        } catch (Throwable $e) {
-            error_log('Google OAuth callback error: ' . $e->getMessage());
-            header('Location: /Anabelka/login?social_error=1');
-            exit;
-        }
+
+    public function appleCallback()
+    {
+        $this->providerCallback('apple');
     }
 
 
@@ -133,6 +111,85 @@ class SocialAuthController extends Controller
                 'csrfToken' => CustomerAccount::csrfToken()
             ]);
         }
+    }
+
+
+    private function startProvider($provider)
+    {
+        SocialAuthInterfaceTranslator::seed();
+        $provider = strtolower(trim((string) $provider));
+        $label = SocialAuthProvider::exists($provider)
+            ? SocialAuthProvider::label($provider)
+            : ucfirst($provider);
+
+        if (CustomerAccount::current()) {
+            header('Location: /Anabelka/account');
+            exit;
+        }
+
+        try {
+            header('Location: ' . SocialAuthService::authorizationUrl($provider));
+            exit;
+        } catch (Throwable $e) {
+            error_log($label . ' OAuth start error: ' . $e->getMessage());
+            $this->redirectToLoginError($provider);
+        }
+    }
+
+
+    private function providerCallback($provider)
+    {
+        SocialAuthInterfaceTranslator::seed();
+        $provider = strtolower(trim((string) $provider));
+        $label = SocialAuthProvider::exists($provider)
+            ? SocialAuthProvider::label($provider)
+            : ucfirst($provider);
+
+        try {
+            if (!empty($_GET['error'])) {
+                throw new RuntimeException(
+                    $label . ' OAuth cancelled: ' . (string) $_GET['error']
+                );
+            }
+
+            $result = SocialAuthService::handleCallback(
+                $provider,
+                $_GET['code'] ?? '',
+                $_GET['state'] ?? ''
+            );
+
+            if (($result['status'] ?? '') === 'pending_registration') {
+                header('Location: /Anabelka/auth/social/complete');
+                exit;
+            }
+
+            $user = is_array($result['user'] ?? null) ? $result['user'] : null;
+
+            if (!$user) {
+                throw new RuntimeException(
+                    $label . ' OAuth не повернув користувача.'
+                );
+            }
+
+            CustomerAccount::startSession($user);
+            $this->mergeGuestData((int) $user['id']);
+
+            header('Location: /Anabelka/');
+            exit;
+        } catch (Throwable $e) {
+            error_log($label . ' OAuth callback error: ' . $e->getMessage());
+            $this->redirectToLoginError($provider);
+        }
+    }
+
+
+    private function redirectToLoginError($provider)
+    {
+        header(
+            'Location: /Anabelka/login?social_error=1&social_provider='
+            . rawurlencode((string) $provider)
+        );
+        exit;
     }
 
 
