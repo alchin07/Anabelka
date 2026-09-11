@@ -56,6 +56,10 @@
             '/Anabelka/js/account-password-visibility.js?v=1',
             'data-account-password-visibility'
         );
+        appendAccountScript(
+            '/Anabelka/js/account-social-connections.js?v=1',
+            'data-account-social-connections'
+        );
     }
 
     document.addEventListener('focusin', function (event) {
