@@ -7,7 +7,7 @@ class SocialAuthService
     private const PENDING_TTL_SECONDS = 900;
 
 
-    public static function authorizationUrl($provider)
+    public static function authorizationUrl($provider, array $context = [])
     {
         $provider = self::normalizeProvider($provider);
 
@@ -33,11 +33,25 @@ class SocialAuthService
         $state = bin2hex(random_bytes(24));
         $_SESSION[self::stateSessionKey($provider)] = [
             'value' => $state,
-            'expires_at' => time() + self::STATE_TTL_SECONDS
+            'expires_at' => time() + self::STATE_TTL_SECONDS,
+            'context' => $context
         ];
         unset($_SESSION[self::PENDING_SESSION_KEY]);
 
         return $driver::authorizationUrl($state);
+    }
+
+
+    public static function connectionAuthorizationUrl($provider, $userId)
+    {
+        $userId = (int) $userId;
+        $user = User::findById($userId);
+        self::assertActiveUser($user);
+
+        return self::authorizationUrl($provider, [
+            'mode' => 'connect',
+            'user_id' => $userId
+        ]);
     }
 
 
@@ -70,10 +84,7 @@ class SocialAuthService
         }
 
         $driver = self::providerDriver($provider);
-
-        self::assertState($provider, $state);
-        unset($_SESSION[self::stateSessionKey($provider)]);
-
+        $context = self::consumeState($provider, $state);
         $code = trim((string) $code);
 
         if ($code === '') {
@@ -87,6 +98,14 @@ class SocialAuthService
         $identity = $driver::userIdentity($accessToken);
         CustomerSocialIdentity::ensureSchema();
         CustomerEmailVerification::ensureSchema();
+
+        if (($context['mode'] ?? '') === 'connect') {
+            return self::connectIdentity(
+                $provider,
+                $identity,
+                (int) ($context['user_id'] ?? 0)
+            );
+        }
 
         $linked = CustomerSocialIdentity::findByProviderIdentity(
             $provider,
@@ -291,7 +310,52 @@ class SocialAuthService
     }
 
 
-    private static function assertState($provider, $state)
+    private static function connectIdentity($provider, array $identity, $userId)
+    {
+        $current = CustomerAccount::current();
+
+        if (!$current || (int) ($current['id'] ?? 0) !== (int) $userId) {
+            throw new RuntimeException(
+                'Сесію користувача для підключення способу входу не підтверджено.'
+            );
+        }
+
+        self::assertActiveUser($current);
+        self::assertSameEmail($current, $identity['email'] ?? '', $provider);
+
+        $linked = CustomerSocialIdentity::findByProviderIdentity(
+            $provider,
+            $identity['provider_user_id'] ?? ''
+        );
+
+        if ($linked && (int) ($linked['user_id'] ?? 0) !== (int) $userId) {
+            throw new RuntimeException(
+                'Цей зовнішній акаунт уже прив’язаний до іншого користувача.'
+            );
+        }
+
+        CustomerSocialIdentity::link(
+            (int) $userId,
+            $provider,
+            (string) ($identity['provider_user_id'] ?? ''),
+            (string) ($identity['email'] ?? ''),
+            is_array($identity['profile'] ?? null) ? $identity['profile'] : []
+        );
+        CustomerEmailVerification::markVerifiedByTrustedProvider(
+            (int) $userId,
+            (string) ($identity['email'] ?? '')
+        );
+
+        return [
+            'status' => 'connected',
+            'user' => $current,
+            'new_account' => false,
+            'provider' => $provider
+        ];
+    }
+
+
+    private static function consumeState($provider, $state)
     {
         $sessionKey = self::stateSessionKey($provider);
         $stored = is_array($_SESSION[$sessionKey] ?? null)
@@ -314,6 +378,12 @@ class SocialAuthService
                 . ' не підтверджено.'
             );
         }
+
+        unset($_SESSION[$sessionKey]);
+
+        return is_array($stored['context'] ?? null)
+            ? $stored['context']
+            : [];
     }
 
 
