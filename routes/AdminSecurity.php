@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../app/Models/SystemErrorLog.php';
+require_once __DIR__ . '/../app/Controllers/AdminSystemErrorController.php';
 require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
 
 $router->get(
@@ -60,6 +62,11 @@ $router->post(
 $router->get(
     '/admin/audit',
     'AdminAdministratorController@audit'
+);
+
+$router->get(
+    '/admin/system/errors',
+    'AdminSystemErrorController@index'
 );
 
 $router->get(
