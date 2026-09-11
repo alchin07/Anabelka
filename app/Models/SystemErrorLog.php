@@ -87,6 +87,22 @@ class SystemErrorLog
     }
 
 
+    public static function availableDates()
+    {
+        $dates = [];
+
+        foreach (self::logFiles() as $file) {
+            $name = basename((string) $file);
+
+            if (preg_match('/^app-(\d{4}-\d{2}-\d{2})\.log$/', $name, $match)) {
+                $dates[] = $match[1];
+            }
+        }
+
+        return array_values(array_unique($dates));
+    }
+
+
     private static function logFiles()
     {
         $files = glob(self::directory() . '/app-*.log');
