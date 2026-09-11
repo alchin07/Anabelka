@@ -109,6 +109,14 @@ $translationBadge = (int) (
     $adminNavBadges['translations'] ?? 0
 );
 
+if (class_exists('SocialAuthProvider')) {
+    try {
+        SocialAuthProvider::ensureAdminPermissions();
+    } catch (Throwable $e) {
+        // Налаштування соцавторизації не повинно ламати меню адмін-панелі.
+    }
+}
+
 $adminCan = static function ($permission) {
     return !class_exists('AdminAccess')
         || AdminAccess::can((string) $permission);
@@ -125,6 +133,7 @@ $canDelivery = $adminCan('delivery.view');
 $canLanguages = $adminCan('languages.view');
 $canTranslations = $adminCan('translations.view');
 $canAiTranslation = $adminCan('ai_translation.view');
+$canSocialAuth = $adminCan('social_auth.view');
 $canAdministrators = $adminCan('administrators.view');
 $canAudit = $adminCan('audit.view');
 
@@ -338,8 +347,17 @@ $canAudit = $adminCan('audit.view');
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($canAdministrators || $canAudit): ?>
+        <?php if ($canSocialAuth || $canAdministrators || $canAudit): ?>
             <span class="admin-nav-group-title">Безпека</span>
+
+            <?php if ($canSocialAuth): ?>
+                <a
+                    href="/Anabelka/admin/social-auth"
+                    data-admin-route="/Anabelka/admin/social-auth"
+                >
+                    <span>Авторизація та соцмережі</span>
+                </a>
+            <?php endif; ?>
 
             <?php if ($canAdministrators): ?>
                 <a
