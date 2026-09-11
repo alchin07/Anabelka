@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../app/Controllers/CustomerSocialConnectionController.php';
+
 $router->get(
     '/account',
     'CustomerAccountController@index'
@@ -12,17 +14,17 @@ $router->get(
 
 $router->get(
     '/account/social-connections/status',
-    'CustomerAccountController@socialConnectionsStatus'
+    'CustomerSocialConnectionController@status'
 );
 
 $router->get(
     '/account/social-connect',
-    'CustomerAccountController@connectSocial'
+    'CustomerSocialConnectionController@connect'
 );
 
 $router->post(
     '/account/social-disconnect',
-    'CustomerAccountController@disconnectSocial'
+    'CustomerSocialConnectionController@disconnect'
 );
 
 $router->get(
