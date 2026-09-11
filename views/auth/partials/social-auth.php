@@ -1,43 +1,39 @@
 <?php
 SocialAuthInterfaceTranslator::seed();
-$googleConfigured = class_exists('GoogleOAuthProvider')
-    && GoogleOAuthProvider::isConfigured();
+$providers = class_exists('SocialAuthProvider')
+    ? SocialAuthProvider::publicProviders()
+    : [];
 ?>
 
-<div class="social-auth">
-    <div class="social-auth-divider">
-        <span><?= htmlspecialchars(
-            Translator::t('public.social_auth.or', 'або')
-        ) ?></span>
-    </div>
+<?php if (!empty($providers)): ?>
+    <div class="social-auth">
+        <div class="social-auth-divider">
+            <span><?= htmlspecialchars(
+                Translator::t('public.social_auth.or', 'або')
+            ) ?></span>
+        </div>
 
-    <?php if ($googleConfigured): ?>
-        <a class="social-auth-google" href="/Anabelka/auth/google">
-            <span class="social-auth-google-mark" aria-hidden="true">G</span>
-            <span><?= htmlspecialchars(
+        <?php foreach ($providers as $provider): ?>
+            <?php
+            $code = (string) ($provider['code'] ?? '');
+            $label = (string) ($provider['label'] ?? $code);
+            $buttonText = sprintf(
                 Translator::t(
-                    'public.social_auth.google',
-                    'Продовжити з Google'
-                )
-            ) ?></span>
-        </a>
-    <?php else: ?>
-        <span class="social-auth-google is-disabled" aria-disabled="true">
-            <span class="social-auth-google-mark" aria-hidden="true">G</span>
-            <span><?= htmlspecialchars(
-                Translator::t(
-                    'public.social_auth.google',
-                    'Продовжити з Google'
-                )
-            ) ?></span>
-        </span>
-        <small class="social-auth-hint">
-            <?= htmlspecialchars(
-                Translator::t(
-                    'public.social_auth.google_unavailable',
-                    'Вхід через Google ще не налаштовано'
-                )
-            ) ?>
-        </small>
-    <?php endif; ?>
-</div>
+                    'public.social_auth.continue_with',
+                    'Продовжити з %s'
+                ),
+                $label
+            );
+            ?>
+            <a
+                class="social-auth-provider social-auth-provider--<?= htmlspecialchars($code, ENT_QUOTES, 'UTF-8') ?>"
+                href="<?= htmlspecialchars((string) ($provider['route'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+            >
+                <span class="social-auth-provider-mark" aria-hidden="true">
+                    <?= htmlspecialchars((string) ($provider['mark'] ?? '')) ?>
+                </span>
+                <span><?= htmlspecialchars($buttonText) ?></span>
+            </a>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
