@@ -11,6 +11,17 @@ $config = [
             'userinfo_endpoint' => 'https://openidconnect.googleapis.com/v1/userinfo',
             'scope' => 'openid email profile',
             'timeout' => 20
+        ],
+        'facebook' => [
+            'client_id' => getenv('FACEBOOK_APP_ID') ?: '',
+            'client_secret' => getenv('FACEBOOK_APP_SECRET') ?: '',
+            'redirect_uri' => getenv('FACEBOOK_REDIRECT_URI') ?: '',
+            'api_version' => 'v26.0',
+            'authorization_endpoint' => 'https://www.facebook.com/v26.0/dialog/oauth',
+            'token_endpoint' => 'https://graph.facebook.com/v26.0/oauth/access_token',
+            'userinfo_endpoint' => 'https://graph.facebook.com/v26.0/me',
+            'scope' => 'email,public_profile',
+            'timeout' => 20
         ]
     ]
 ];
