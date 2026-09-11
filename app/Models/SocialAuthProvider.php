@@ -7,6 +7,7 @@ class SocialAuthProvider
             'label' => 'Google',
             'mark' => 'G',
             'route' => '/Anabelka/auth/google',
+            'callback_path' => '/Anabelka/auth/google/callback',
             'driver' => 'GoogleOAuthProvider',
             'default_enabled' => true,
             'default_sort_order' => 10
@@ -15,6 +16,7 @@ class SocialAuthProvider
             'label' => 'Facebook',
             'mark' => 'f',
             'route' => '/Anabelka/auth/facebook',
+            'callback_path' => '/Anabelka/auth/facebook/callback',
             'driver' => 'FacebookOAuthProvider',
             'default_enabled' => false,
             'default_sort_order' => 20
@@ -23,6 +25,7 @@ class SocialAuthProvider
             'label' => 'Apple',
             'mark' => 'A',
             'route' => '/Anabelka/auth/apple',
+            'callback_path' => '/Anabelka/auth/apple/callback',
             'driver' => 'AppleOAuthProvider',
             'default_enabled' => false,
             'default_sort_order' => 30
@@ -79,18 +82,8 @@ class SocialAuthProvider
         $db = Database::connect();
 
         $permissions = [
-            [
-                'social_auth.view',
-                'Перегляд налаштувань соціальної авторизації',
-                'security',
-                125
-            ],
-            [
-                'social_auth.manage',
-                'Керування соціальною авторизацією',
-                'security',
-                126
-            ]
+            ['social_auth.view', 'Перегляд налаштувань соціальної авторизації', 'security', 125],
+            ['social_auth.manage', 'Керування соціальною авторизацією', 'security', 126]
         ];
 
         $insertPermission = $db->prepare("
@@ -153,15 +146,10 @@ class SocialAuthProvider
         $provider = self::normalize($provider);
 
         if (!isset(self::PROVIDERS[$provider])) {
-            throw new InvalidArgumentException(
-                'Невідомий провайдер соціальної авторизації.'
-            );
+            throw new InvalidArgumentException('Невідомий провайдер соціальної авторизації.');
         }
 
-        return self::buildProvider(
-            $provider,
-            self::PROVIDERS[$provider]
-        );
+        return self::buildProvider($provider, self::PROVIDERS[$provider]);
     }
 
 
@@ -207,9 +195,7 @@ class SocialAuthProvider
         $provider = self::normalize($provider);
 
         if (!isset(self::PROVIDERS[$provider])) {
-            throw new InvalidArgumentException(
-                'Невідомий провайдер соціальної авторизації.'
-            );
+            throw new InvalidArgumentException('Невідомий провайдер соціальної авторизації.');
         }
 
         return AppSetting::set(
@@ -225,9 +211,7 @@ class SocialAuthProvider
         $direction = strtolower(trim((string) $direction));
 
         if (!isset(self::PROVIDERS[$provider])) {
-            throw new InvalidArgumentException(
-                'Невідомий провайдер соціальної авторизації.'
-            );
+            throw new InvalidArgumentException('Невідомий провайдер соціальної авторизації.');
         }
 
         if (!in_array($direction, ['up', 'down'], true)) {
@@ -300,6 +284,7 @@ class SocialAuthProvider
             'label' => (string) ($definition['label'] ?? $code),
             'mark' => (string) ($definition['mark'] ?? ''),
             'route' => (string) ($definition['route'] ?? ''),
+            'callback_path' => (string) ($definition['callback_path'] ?? ''),
             'driver' => $driver,
             'enabled' => self::toBool($enabledRaw),
             'configured' => $configured,
