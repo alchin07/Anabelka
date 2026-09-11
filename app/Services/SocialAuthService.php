@@ -10,7 +10,12 @@ class SocialAuthService
     public static function authorizationUrl($provider)
     {
         $provider = self::normalizeProvider($provider);
-        $driver = self::providerDriver($provider);
+
+        if (!SocialAuthProvider::exists($provider)) {
+            throw new InvalidArgumentException(
+                'Невідомий провайдер соціальної авторизації.'
+            );
+        }
 
         if (!SocialAuthProvider::isEnabled($provider)) {
             throw new RuntimeException(
@@ -24,6 +29,7 @@ class SocialAuthService
             );
         }
 
+        $driver = self::providerDriver($provider);
         $state = bin2hex(random_bytes(24));
         $_SESSION[self::stateSessionKey($provider)] = [
             'value' => $state,
@@ -44,13 +50,26 @@ class SocialAuthService
     public static function handleCallback($provider, $code, $state)
     {
         $provider = self::normalizeProvider($provider);
-        $driver = self::providerDriver($provider);
+
+        if (!SocialAuthProvider::exists($provider)) {
+            throw new InvalidArgumentException(
+                'Невідомий провайдер соціальної авторизації.'
+            );
+        }
 
         if (!SocialAuthProvider::isEnabled($provider)) {
             throw new RuntimeException(
                 'Цей спосіб входу вимкнено адміністратором магазину.'
             );
         }
+
+        if (!SocialAuthProvider::isConfigured($provider)) {
+            throw new RuntimeException(
+                SocialAuthProvider::label($provider) . ' OAuth ще не налаштовано.'
+            );
+        }
+
+        $driver = self::providerDriver($provider);
 
         self::assertState($provider, $state);
         unset($_SESSION[self::stateSessionKey($provider)]);
