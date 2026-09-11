@@ -40,6 +40,8 @@ $currentAdmin = class_exists('AdminAccess')
 $adminCsrfToken = class_exists('AdminAccess')
     ? AdminAccess::csrfToken()
     : '';
+$isDeveloper = is_array($currentAdmin)
+    && (string) ($currentAdmin['role_slug'] ?? '') === 'owner';
 
 $adminNotificationSummary = [
     'total' => 0,
@@ -347,7 +349,7 @@ $canAudit = $adminCan('audit.view');
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($canSocialAuth || $canAdministrators || $canAudit): ?>
+        <?php if ($canSocialAuth || $canAdministrators || $canAudit || $isDeveloper): ?>
             <span class="admin-nav-group-title">Безпека</span>
 
             <?php if ($canSocialAuth): ?>
@@ -374,6 +376,15 @@ $canAudit = $adminCan('audit.view');
                     data-admin-route="/Anabelka/admin/audit"
                 >
                     <span>Журнал дій</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($isDeveloper): ?>
+                <a
+                    href="/Anabelka/admin/system/errors"
+                    data-admin-route="/Anabelka/admin/system/errors"
+                >
+                    <span>Системні помилки</span>
                 </a>
             <?php endif; ?>
         <?php endif; ?>
