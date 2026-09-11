@@ -10,7 +10,7 @@ $escape = function ($value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Авторизація та соцмережі') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-social-auth.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-social-auth.css?v=2">
 </head>
 <body>
 
@@ -46,6 +46,7 @@ $escape = function ($value) {
             $enabled = !empty($provider['enabled']);
             $configured = !empty($provider['configured']);
             $available = !empty($provider['available']);
+            $callbackPath = trim((string) ($provider['callback_path'] ?? ''));
             $isFirst = $index === 0;
             $isLast = $index === count($providers) - 1;
             ?>
@@ -76,6 +77,12 @@ $escape = function ($value) {
                                     <?= $available ? 'доступно' : 'приховано' ?>
                                 </strong>
                             </span>
+                            <?php if ($callbackPath !== ''): ?>
+                                <span class="admin-social-auth-callback">
+                                    Callback:
+                                    <code><?= $escape($callbackPath) ?></code>
+                                </span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
