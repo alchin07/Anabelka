@@ -31,6 +31,7 @@ class AdminSystemErrorController extends Controller
             'items' => $items,
             'summary' => SystemErrorLog::summary($items),
             'filters' => $filters,
+            'availableDates' => SystemErrorLog::availableDates(),
             'selected' => $selected,
             'selectedReference' => $reference
         ]);
