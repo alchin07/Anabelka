@@ -8,6 +8,24 @@ $pageTitle = Translator::t(
     'Завершення реєстрації'
 );
 $pending = is_array($pending ?? null) ? $pending : [];
+$providerCode = strtolower(trim((string) ($pending['provider'] ?? 'google')));
+$providerLabel = class_exists('SocialAuthProvider')
+    ? SocialAuthProvider::label($providerCode)
+    : ucfirst($providerCode);
+$completeHeading = sprintf(
+    Translator::t(
+        'public.social_auth.complete_heading_provider',
+        'Завершіть реєстрацію через %s'
+    ),
+    $providerLabel
+);
+$completeHint = sprintf(
+    Translator::t(
+        'public.social_auth.complete_hint_provider',
+        '%s підтвердив ваш email. Для створення нового акаунта Анабельки потрібно прийняти умови.'
+    ),
+    $providerLabel
+);
 $error = trim((string) ($error ?? ''));
 $termsAccepted = !empty($termsAccepted);
 $marketingConsent = !empty($marketingConsent);
@@ -21,7 +39,7 @@ $csrfToken = (string) ($csrfToken ?? '');
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/social-auth.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/social-auth.css?v=2">
 </head>
 <body>
 
@@ -29,18 +47,8 @@ $csrfToken = (string) ($csrfToken ?? '');
 
 <main class="catalog auth-page">
     <section class="social-complete-card">
-        <h2><?= htmlspecialchars(
-            Translator::t(
-                'public.social_auth.complete_heading',
-                'Завершіть реєстрацію через Google'
-            )
-        ) ?></h2>
-        <p><?= htmlspecialchars(
-            Translator::t(
-                'public.social_auth.complete_hint',
-                'Google підтвердив ваш email. Для створення нового акаунта Анабельки потрібно прийняти умови.'
-            )
-        ) ?></p>
+        <h2><?= htmlspecialchars($completeHeading) ?></h2>
+        <p><?= htmlspecialchars($completeHint) ?></p>
 
         <div class="social-complete-identity">
             <strong><?= htmlspecialchars((string) ($pending['name'] ?? '')) ?></strong>
