@@ -173,7 +173,9 @@ class SystemErrorStatus
     {
         $references = array_values(array_unique(array_filter(
             array_map('strval', $references),
-            [self::class, 'validReference']
+            static function ($reference) {
+                return self::validReference($reference);
+            }
         )));
 
         if (empty($references)) {
