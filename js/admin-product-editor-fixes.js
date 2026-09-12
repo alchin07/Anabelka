@@ -89,6 +89,30 @@
             });
         }
 
+        form.addEventListener('focusin', function (event) {
+            const input = event.target;
+
+            if (!input.matches('[data-size-stock]') || input.readOnly) {
+                return;
+            }
+
+            if (input.value === '0') {
+                input.value = '';
+            }
+        });
+
+        form.addEventListener('focusout', function (event) {
+            const input = event.target;
+
+            if (!input.matches('[data-size-stock]') || input.readOnly) {
+                return;
+            }
+
+            if (String(input.value || '').trim() === '') {
+                input.value = '0';
+            }
+        });
+
         const productIdField = document.getElementById('product-edit-id');
         const variantTable = form.querySelector('[data-variant-table]');
         let activeVariantKey = '';
