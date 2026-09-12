@@ -4,8 +4,10 @@ require_once __DIR__ . '/../app/Models/SystemErrorLog.php';
 require_once __DIR__ . '/../app/Models/SystemErrorNotification.php';
 require_once __DIR__ . '/../app/Models/SystemErrorStatus.php';
 require_once __DIR__ . '/../app/Models/SystemErrorNote.php';
+require_once __DIR__ . '/../app/Models/SystemErrorExternalNotificationSettings.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorNotificationController.php';
+require_once __DIR__ . '/../app/Controllers/AdminSystemErrorExternalNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
 
 $router->get(
@@ -81,6 +83,16 @@ $router->post(
 $router->post(
     '/admin/system/errors/note',
     'AdminSystemErrorController@updateNote'
+);
+
+$router->get(
+    '/admin/system/error-external-notifications',
+    'AdminSystemErrorExternalNotificationController@index'
+);
+
+$router->post(
+    '/admin/system/error-external-notifications',
+    'AdminSystemErrorExternalNotificationController@save'
 );
 
 $router->get(
