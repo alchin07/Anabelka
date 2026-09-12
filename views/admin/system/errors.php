@@ -58,6 +58,7 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Системні помилки') ?></title>
     <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-system-error-notes.css?v=1">
 </head>
 <body>
 
@@ -163,6 +164,9 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                 $occurrences = is_array($selected['occurrences'] ?? null)
                     ? $selected['occurrences']
                     : [];
+                $developerNote = (string) ($selected['developer_note'] ?? '');
+                $developerNoteUpdatedAt = (string) ($selected['developer_note_updated_at'] ?? '');
+                $developerNoteUpdatedBy = (int) ($selected['developer_note_updated_by'] ?? 0);
                 ?>
                 <div class="system-error-detail-head">
                     <div>
@@ -177,6 +181,9 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                                 <span class="system-error-repeat-badge">
                                     ×<?= $selectedRepeatCount ?> повторів
                                 </span>
+                            <?php endif; ?>
+                            <?php if ($developerNote !== ''): ?>
+                                <span class="system-error-note-badge">Нотатка</span>
                             <?php endif; ?>
                         </div>
                         <h3><?= $escape($selected['reference'] ?? '') ?></h3>
@@ -227,6 +234,38 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                         </div>
                     </details>
                 <?php endif; ?>
+
+                <form class="system-error-note" method="post" action="/Anabelka/admin/system/errors/note">
+                    <div class="system-error-note-head">
+                        <strong>Нотатка розробника</strong>
+                        <?php if ($developerNoteUpdatedAt !== ''): ?>
+                            <span class="system-error-note-meta">
+                                Оновлено <?= $escape($formatTime($developerNoteUpdatedAt)) ?>
+                                <?= $developerNoteUpdatedBy > 0 ? ' · адм. ' . $developerNoteUpdatedBy : '' ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+
+                    <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+                    <input type="hidden" name="reference" value="<?= $escape($selected['reference'] ?? '') ?>">
+                    <input type="hidden" name="filter_level" value="<?= $escape($filters['level'] ?? 'all') ?>">
+                    <input type="hidden" name="filter_status" value="<?= $escape($filters['status'] ?? 'all') ?>">
+                    <input type="hidden" name="filter_date" value="<?= $escape($filters['date'] ?? '') ?>">
+                    <input type="hidden" name="filter_q" value="<?= $escape($filters['q'] ?? '') ?>">
+
+                    <textarea
+                        name="note"
+                        maxlength="4000"
+                        placeholder="Наприклад: причина знайдена, виправлено в OAuth, перевірити після завантаження на хостинг..."
+                    ><?= $escape($developerNote) ?></textarea>
+
+                    <div class="system-error-note-foot">
+                        <span class="system-error-note-hint">
+                            Нотатка прив’язана до всієї групи повторюваної помилки. Щоб видалити її, очистіть поле та збережіть.
+                        </span>
+                        <button type="submit">Зберегти нотатку</button>
+                    </div>
+                </form>
 
                 <div class="system-error-status-actions" aria-label="Статус помилки">
                     <?php if ($selectedWorkflow !== 'resolved'): ?>
@@ -295,6 +334,7 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
             $detailQuery['ref'] = (string) ($item['reference'] ?? '');
             $itemWorkflow = (string) ($item['workflow_status'] ?? 'new');
             $repeatCount = max(1, (int) ($item['repeat_count'] ?? 1));
+            $itemNote = trim((string) ($item['developer_note'] ?? ''));
             ?>
             <article class="system-error-card is-status-<?= $escape($itemWorkflow) ?>">
                 <div class="system-error-card-head">
@@ -307,6 +347,9 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                         </span>
                         <?php if ($repeatCount > 1): ?>
                             <span class="system-error-repeat-badge">×<?= $repeatCount ?></span>
+                        <?php endif; ?>
+                        <?php if ($itemNote !== ''): ?>
+                            <span class="system-error-note-badge">Нотатка</span>
                         <?php endif; ?>
                     </div>
                     <time><?= $escape($formatTime($item['last_time'] ?? $item['time'] ?? '')) ?></time>
