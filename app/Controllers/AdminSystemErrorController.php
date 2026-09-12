@@ -6,6 +6,10 @@ class AdminSystemErrorController extends Controller
     {
         $this->assertDeveloper();
 
+        if (class_exists('SystemErrorNotification')) {
+            SystemErrorNotification::markSeen(AdminAccess::currentId());
+        }
+
         $filters = [
             'level' => strtolower(trim((string) ($_GET['level'] ?? 'all'))),
             'date' => trim((string) ($_GET['date'] ?? '')),
