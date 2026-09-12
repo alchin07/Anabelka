@@ -1,0 +1,116 @@
+.system-error-note {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #dec9ef;
+    border-radius: 12px;
+    background: #fbf7ff;
+}
+
+.system-error-note-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.system-error-note-head strong {
+    color: #5f2b84;
+    font-size: 13px;
+}
+
+.system-error-note-meta {
+    color: #817787;
+    font-size: 10px;
+    text-align: right;
+}
+
+.system-error-note textarea {
+    width: 100%;
+    min-height: 96px;
+    resize: vertical;
+    box-sizing: border-box;
+    border: 1px solid #d7c1e9;
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px 11px;
+    color: #302837;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.system-error-note textarea:focus {
+    border-color: #8a2be2;
+    outline: 3px solid rgba(138, 43, 226, .12);
+}
+
+.system-error-note-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.system-error-note-hint {
+    color: #817787;
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+.system-error-note button {
+    min-height: 38px;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 10px;
+    background: #8a2be2;
+    padding: 8px 14px;
+    color: #fff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.system-error-note-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f1e7fb;
+    color: #6a2b97;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .02em;
+}
+
+@media (max-width: 560px) {
+    .system-error-note {
+        padding: 10px;
+    }
+
+    .system-error-note-head {
+        display: block;
+    }
+
+    .system-error-note-meta {
+        margin-top: 4px;
+        text-align: left;
+    }
+
+    .system-error-note textarea {
+        min-height: 110px;
+        font-size: 12px;
+    }
+
+    .system-error-note-foot {
+        display: grid;
+        gap: 7px;
+    }
+
+    .system-error-note button {
+        width: 100%;
+    }
+}
