@@ -36,8 +36,10 @@ class AdminSystemErrorController extends Controller
         ];
 
         $rawItems = SystemErrorLog::recent($logFilters, 300);
-        $items = SystemErrorStatus::decorateItems(
-            SystemErrorLog::groupItems($rawItems, 300)
+        $items = SystemErrorNote::decorateGroups(
+            SystemErrorStatus::decorateItems(
+                SystemErrorLog::groupItems($rawItems, 300)
+            )
         );
 
         $reference = trim((string) ($_GET['ref'] ?? ''));
@@ -47,6 +49,7 @@ class AdminSystemErrorController extends Controller
 
         if (is_array($selected)) {
             $selected = SystemErrorStatus::decorateItems([$selected])[0] ?? $selected;
+            $selected = SystemErrorNote::decorateGroups([$selected])[0] ?? $selected;
 
             if (($selected['workflow_status'] ?? 'new') === 'new') {
                 SystemErrorStatus::markViewed(
@@ -54,6 +57,7 @@ class AdminSystemErrorController extends Controller
                     (int) ($admin['id'] ?? AdminAccess::currentId())
                 );
                 $selected = SystemErrorStatus::decorateItems([$selected])[0] ?? $selected;
+                $selected = SystemErrorNote::decorateGroups([$selected])[0] ?? $selected;
 
                 foreach ($items as &$item) {
                     if (($item['group_key'] ?? '') === ($selected['group_key'] ?? '')) {
@@ -157,6 +161,69 @@ class AdminSystemErrorController extends Controller
         $_SESSION['admin_system_error_flash'] = [
             'type' => 'success',
             'message' => $labels[$status] ?? 'Статус оновлено.'
+        ];
+
+        $this->redirectBack($reference);
+    }
+
+
+    public function updateNote()
+    {
+        $admin = $this->assertDeveloper();
+
+        if (!AdminAccess::verifyCsrf($_POST['_csrf'] ?? '')) {
+            $_SESSION['admin_system_error_flash'] = [
+                'type' => 'error',
+                'message' => 'Сесія застаріла. Оновіть сторінку та спробуйте ще раз.'
+            ];
+            $this->redirectBack();
+        }
+
+        $reference = trim((string) ($_POST['reference'] ?? ''));
+        $note = trim((string) ($_POST['note'] ?? ''));
+        $group = $reference !== ''
+            ? SystemErrorLog::groupForReference($reference)
+            : null;
+
+        if (!is_array($group)) {
+            $_SESSION['admin_system_error_flash'] = [
+                'type' => 'error',
+                'message' => 'Групу системної помилки не знайдено.'
+            ];
+            $this->redirectBack();
+        }
+
+        $groupKey = (string) ($group['group_key'] ?? '');
+
+        try {
+            $result = SystemErrorNote::save(
+                $groupKey,
+                $note,
+                (int) ($admin['id'] ?? AdminAccess::currentId())
+            );
+        } catch (InvalidArgumentException $e) {
+            $_SESSION['admin_system_error_flash'] = [
+                'type' => 'error',
+                'message' => $e->getMessage()
+            ];
+            $this->redirectBack($reference);
+        }
+
+        AdminAccess::audit(
+            'system.error_note.update',
+            [
+                'reference' => $reference,
+                'group_key' => $groupKey,
+                'action' => $result === 'deleted' ? 'deleted' : 'saved'
+            ],
+            (int) ($admin['id'] ?? AdminAccess::currentId())
+        );
+
+        $_SESSION['admin_system_error_flash'] = [
+            'type' => 'success',
+            'message' => $result === 'deleted'
+                ? 'Нотатку розробника видалено.'
+                : 'Нотатку розробника збережено.'
         ];
 
         $this->redirectBack($reference);
