@@ -337,6 +337,10 @@
         ensureAiTranslationSwitcher();
         retireDrawerAiSwitcher();
         ensurePageAiModules();
+        appendScript(
+            '/Anabelka/js/admin-system-error-notifications.js?v=1',
+            'data-admin-system-error-notifications'
+        );
     }
 
 
