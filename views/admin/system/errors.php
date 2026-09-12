@@ -1,10 +1,13 @@
 <?php
 $items = is_array($items ?? null) ? $items : [];
 $summary = is_array($summary ?? null) ? $summary : [];
+$workflowSummary = is_array($workflowSummary ?? null) ? $workflowSummary : [];
 $filters = is_array($filters ?? null) ? $filters : [];
 $availableDates = is_array($availableDates ?? null) ? $availableDates : [];
 $selected = is_array($selected ?? null) ? $selected : null;
 $selectedReference = (string) ($selectedReference ?? '');
+$csrfToken = (string) ($csrfToken ?? '');
+$flash = is_array($flash ?? null) ? $flash : null;
 $escape = static function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
@@ -27,13 +30,25 @@ $kindLabel = static function ($kind) use ($kindLabels) {
     $kind = (string) $kind;
     return $kindLabels[$kind] ?? $kind;
 };
+$workflowLabels = [
+    'new' => 'Нова',
+    'viewed' => 'Переглянута',
+    'resolved' => 'Вирішена',
+    'ignored' => 'Ігнорована'
+];
+$workflowLabel = static function ($status) use ($workflowLabels) {
+    $status = (string) $status;
+    return $workflowLabels[$status] ?? $status;
+};
 $filterQuery = [
     'level' => (string) ($filters['level'] ?? 'all'),
+    'status' => (string) ($filters['status'] ?? 'all'),
     'date' => (string) ($filters['date'] ?? ''),
     'q' => (string) ($filters['q'] ?? '')
 ];
 $filterQuery = array_filter($filterQuery, static function ($value, $key) {
-    return !($key === 'level' && $value === 'all') && $value !== '';
+    return !(in_array($key, ['level', 'status'], true) && $value === 'all')
+        && $value !== '';
 }, ARRAY_FILTER_USE_BOTH);
 ?>
 <!DOCTYPE html>
@@ -42,7 +57,7 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Системні помилки') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=3">
 </head>
 <body>
 
@@ -83,6 +98,23 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
         </label>
 
         <label>
+            <span>Статус</span>
+            <select name="status">
+                <?php foreach ([
+                    'all' => 'Усі',
+                    'new' => 'Нові',
+                    'viewed' => 'Переглянуті',
+                    'resolved' => 'Вирішені',
+                    'ignored' => 'Ігноровані'
+                ] as $value => $label): ?>
+                    <option value="<?= $escape($value) ?>" <?= ($filters['status'] ?? 'all') === $value ? 'selected' : '' ?>>
+                        <?= $escape($label) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+
+        <label class="system-errors-date">
             <span>Дата</span>
             <select name="date">
                 <option value="">Усі дати</option>
@@ -110,18 +142,30 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
         </div>
     </form>
 
+    <?php if ($flash): ?>
+        <div class="system-error-flash is-<?= $escape($flash['type'] ?? 'success') ?>" role="status">
+            <?= $escape($flash['message'] ?? '') ?>
+        </div>
+    <?php endif; ?>
+
     <?php if ($selectedReference !== ''): ?>
         <section class="system-error-detail">
             <?php if ($selected): ?>
                 <?php
                 $request = is_array($selected['request'] ?? null) ? $selected['request'] : [];
                 $closeQuery = http_build_query($filterQuery);
+                $selectedWorkflow = (string) ($selected['workflow_status'] ?? 'new');
                 ?>
                 <div class="system-error-detail-head">
                     <div>
-                        <span class="system-error-level is-<?= $escape($selected['level'] ?? 'error') ?>">
-                            <?= $escape(strtoupper((string) ($selected['level'] ?? 'error'))) ?>
-                        </span>
+                        <div class="system-error-badges">
+                            <span class="system-error-level is-<?= $escape($selected['level'] ?? 'error') ?>">
+                                <?= $escape(strtoupper((string) ($selected['level'] ?? 'error'))) ?>
+                            </span>
+                            <span class="system-error-workflow is-<?= $escape($selectedWorkflow) ?>">
+                                <?= $escape($workflowLabel($selectedWorkflow)) ?>
+                            </span>
+                        </div>
                         <h3><?= $escape($selected['reference'] ?? '') ?></h3>
                     </div>
                     <a href="/Anabelka/admin/system/errors<?= $closeQuery !== '' ? '?' . $escape($closeQuery) : '' ?>">Закрити</a>
@@ -141,6 +185,47 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                 <div class="system-error-message-block">
                     <strong>Повідомлення</strong>
                     <p><?= $escape($selected['message'] ?? '') ?></p>
+                </div>
+
+                <div class="system-error-status-actions" aria-label="Статус помилки">
+                    <?php if ($selectedWorkflow !== 'resolved'): ?>
+                        <form method="post" action="/Anabelka/admin/system/errors/status">
+                            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+                            <input type="hidden" name="reference" value="<?= $escape($selected['reference'] ?? '') ?>">
+                            <input type="hidden" name="status" value="resolved">
+                            <input type="hidden" name="filter_level" value="<?= $escape($filters['level'] ?? 'all') ?>">
+                            <input type="hidden" name="filter_status" value="<?= $escape($filters['status'] ?? 'all') ?>">
+                            <input type="hidden" name="filter_date" value="<?= $escape($filters['date'] ?? '') ?>">
+                            <input type="hidden" name="filter_q" value="<?= $escape($filters['q'] ?? '') ?>">
+                            <button type="submit" class="is-resolved">Вирішено</button>
+                        </form>
+                    <?php endif; ?>
+
+                    <?php if ($selectedWorkflow !== 'ignored'): ?>
+                        <form method="post" action="/Anabelka/admin/system/errors/status">
+                            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+                            <input type="hidden" name="reference" value="<?= $escape($selected['reference'] ?? '') ?>">
+                            <input type="hidden" name="status" value="ignored">
+                            <input type="hidden" name="filter_level" value="<?= $escape($filters['level'] ?? 'all') ?>">
+                            <input type="hidden" name="filter_status" value="<?= $escape($filters['status'] ?? 'all') ?>">
+                            <input type="hidden" name="filter_date" value="<?= $escape($filters['date'] ?? '') ?>">
+                            <input type="hidden" name="filter_q" value="<?= $escape($filters['q'] ?? '') ?>">
+                            <button type="submit" class="is-ignored">Ігнорувати</button>
+                        </form>
+                    <?php endif; ?>
+
+                    <?php if (in_array($selectedWorkflow, ['resolved', 'ignored'], true)): ?>
+                        <form method="post" action="/Anabelka/admin/system/errors/status">
+                            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+                            <input type="hidden" name="reference" value="<?= $escape($selected['reference'] ?? '') ?>">
+                            <input type="hidden" name="status" value="viewed">
+                            <input type="hidden" name="filter_level" value="<?= $escape($filters['level'] ?? 'all') ?>">
+                            <input type="hidden" name="filter_status" value="<?= $escape($filters['status'] ?? 'all') ?>">
+                            <input type="hidden" name="filter_date" value="<?= $escape($filters['date'] ?? '') ?>">
+                            <input type="hidden" name="filter_q" value="<?= $escape($filters['q'] ?? '') ?>">
+                            <button type="submit" class="is-viewed">Повернути в роботу</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
 
                 <?php if (!empty($selected['trace'])): ?>
@@ -167,12 +252,18 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
             $request = is_array($item['request'] ?? null) ? $item['request'] : [];
             $detailQuery = $filterQuery;
             $detailQuery['ref'] = (string) ($item['reference'] ?? '');
+            $itemWorkflow = (string) ($item['workflow_status'] ?? 'new');
             ?>
-            <article class="system-error-card">
+            <article class="system-error-card is-status-<?= $escape($itemWorkflow) ?>">
                 <div class="system-error-card-head">
-                    <span class="system-error-level is-<?= $escape($item['level'] ?? 'error') ?>">
-                        <?= $escape(strtoupper((string) ($item['level'] ?? 'error'))) ?>
-                    </span>
+                    <div class="system-error-badges">
+                        <span class="system-error-level is-<?= $escape($item['level'] ?? 'error') ?>">
+                            <?= $escape(strtoupper((string) ($item['level'] ?? 'error'))) ?>
+                        </span>
+                        <span class="system-error-workflow is-<?= $escape($itemWorkflow) ?>">
+                            <?= $escape($workflowLabel($itemWorkflow)) ?>
+                        </span>
+                    </div>
                     <time><?= $escape($formatTime($item['time'] ?? '')) ?></time>
                 </div>
 
