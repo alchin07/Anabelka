@@ -45,13 +45,13 @@
 
     const style = document.createElement('style');
     style.textContent = [
-        '.product-variant-stock-block{margin-top:16px;padding-top:15px;border-top:1px solid #e2d8e8}',
-        '.product-variant-stock-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}',
-        '.product-variant-stock-head>div{display:grid;gap:3px}',
+        '.product-variant-stock-block{min-width:0;max-width:100%;margin-top:16px;padding-top:15px;border-top:1px solid #e2d8e8}',
+        '.product-variant-stock-head{min-width:0;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}',
+        '.product-variant-stock-head>div{min-width:0;display:grid;gap:3px}',
         '.product-variant-stock-head span,.product-variant-stock-note{color:#77707c;font-size:11px}',
         '.product-variant-stock-note{padding:10px;border-radius:10px;background:#faf7fc}',
-        '.product-variant-stock-table-wrap{overflow-x:auto;margin-top:10px;padding-bottom:4px}',
-        '.product-variant-stock-table{min-width:100%;border-collapse:separate;border-spacing:6px;font-size:12px}',
+        '.product-variant-stock-table-wrap{width:100%;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;margin-top:10px;padding-bottom:4px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}',
+        '.product-variant-stock-table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:6px;font-size:12px}',
         '.product-variant-stock-table th{font-weight:800;text-align:center;white-space:nowrap}',
         '.product-variant-stock-table th:first-child{text-align:left;position:sticky;left:0;background:#fff;z-index:2}',
         '.product-variant-stock-color{display:inline-flex;align-items:center;gap:6px}',
@@ -122,14 +122,19 @@
     function cacheCurrentInputs()
     {
         tableWrap.querySelectorAll('[data-variant-stock-input]').forEach(function (input) {
-            cache.set(String(input.dataset.variantKey || ''), Math.max(0, Number(input.value || 0)));
+            cache.set(
+                String(input.dataset.variantKey || ''),
+                Math.max(0, Number(input.value || 0))
+            );
         });
     }
 
     function seedLoadedRows()
     {
         loadedRows.forEach(function (row) {
-            const key = textKey(row.size_name) + '||' + colorKey(row.color_name, row.color_hex);
+            const key = textKey(row.size_name)
+                + '||'
+                + colorKey(row.color_name, row.color_hex);
 
             if (!cache.has(key)) {
                 cache.set(key, Math.max(0, Number(row.stock || 0)));
@@ -137,9 +142,51 @@
         });
     }
 
-    function render()
+    function loadedStockFallback(sizeName, color)
     {
-        cacheCurrentInputs();
+        const size = textKey(sizeName);
+        const name = textKey(color.name);
+        const hex = String(color.hex || '').trim().toLowerCase();
+        let nameMatch = null;
+        let hexMatch = null;
+
+        loadedRows.forEach(function (row) {
+            if (textKey(row.size_name) !== size) {
+                return;
+            }
+
+            const rowName = textKey(row.color_name);
+            const rowHex = String(row.color_hex || '').trim().toLowerCase();
+            const stock = Math.max(0, Number(row.stock || 0));
+
+            if (nameMatch === null && rowName === name) {
+                nameMatch = stock;
+            }
+
+            if (hexMatch === null && hex !== '' && rowHex === hex) {
+                hexMatch = stock;
+            }
+        });
+
+        if (nameMatch !== null) {
+            return nameMatch;
+        }
+
+        if (hexMatch !== null) {
+            return hexMatch;
+        }
+
+        return 0;
+    }
+
+    function render(options)
+    {
+        const preferLoadedRows = Boolean(options && options.preferLoadedRows);
+
+        if (!preferLoadedRows) {
+            cacheCurrentInputs();
+        }
+
         seedLoadedRows();
 
         const sizes = currentSizes();
@@ -201,6 +248,11 @@
                 const td = document.createElement('td');
                 const input = document.createElement('input');
                 const key = textKey(sizeName) + '||' + color.key;
+                let stock = cache.has(key)
+                    ? Math.max(0, Number(cache.get(key) || 0))
+                    : loadedStockFallback(sizeName, color);
+
+                cache.set(key, stock);
                 input.type = 'number';
                 input.min = '0';
                 input.step = '1';
@@ -211,7 +263,7 @@
                 input.dataset.sizeName = sizeName;
                 input.dataset.colorName = color.name;
                 input.dataset.colorHex = color.hex;
-                input.value = String(Math.max(0, Number(cache.get(key) || 0)));
+                input.value = String(stock);
                 input.addEventListener('input', function () {
                     matrixTouched = true;
                     updateTotal();
@@ -264,7 +316,7 @@
             hasStoredMatrix = false;
             matrixTouched = false;
             cache.clear();
-            render();
+            render({ preferLoadedRows: true });
             return;
         }
 
@@ -292,9 +344,14 @@
             }
         } catch (error) {
             loadedRows = [];
+            hasStoredMatrix = false;
         }
 
-        render();
+        // Поки запит виконується, MutationObserver може встигнути намалювати
+        // тимчасові нулі. Вони не повинні перезаписувати фактичні залишки,
+        // щойно сервер повернув збережену матрицю.
+        cache.clear();
+        render({ preferLoadedRows: true });
     }
 
     document.addEventListener('click', function (event) {
