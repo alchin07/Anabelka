@@ -4,6 +4,7 @@ class ErrorHandler
 {
     private static $projectRoot = '';
     private static $handling = false;
+    private static $notifying = false;
 
 
     public static function register($projectRoot)
@@ -173,6 +174,7 @@ class ErrorHandler
 
         $path = $directory . '/app-' . date('Y-m-d') . '.log';
         self::appendLogLine($path, $line . PHP_EOL);
+        self::notifyExternal($reference);
 
         return $reference;
     }
@@ -201,6 +203,49 @@ class ErrorHandler
 
         if ($written === false) {
             throw new RuntimeException('Не вдалося записати системний лог.');
+        }
+    }
+
+
+    private static function notifyExternal($reference)
+    {
+        if (self::$notifying) {
+            return;
+        }
+
+        self::$notifying = true;
+
+        try {
+            $root = self::$projectRoot !== ''
+                ? self::$projectRoot
+                : dirname(__DIR__, 2);
+
+            require_once __DIR__ . '/Database.php';
+            require_once __DIR__ . '/../Models/AppSetting.php';
+            require_once __DIR__ . '/../Models/SystemErrorLog.php';
+            require_once __DIR__ . '/../Models/SystemErrorExternalNotificationSettings.php';
+            require_once __DIR__ . '/../Services/SystemErrorExternalNotifier.php';
+
+            if (!class_exists('SystemErrorLog')
+                || !class_exists('SystemErrorExternalNotificationSettings')
+                || !class_exists('SystemErrorExternalNotifier')) {
+                return;
+            }
+
+            $group = SystemErrorLog::groupForReference((string) $reference);
+
+            if (!is_array($group)) {
+                return;
+            }
+
+            SystemErrorExternalNotifier::sendAutomatic($group);
+        } catch (Throwable $notificationError) {
+            self::fallbackLog('warning', 'external_notification_failure', [
+                'reference' => (string) $reference,
+                'message' => $notificationError->getMessage()
+            ]);
+        } finally {
+            self::$notifying = false;
         }
     }
 
