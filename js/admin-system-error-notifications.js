@@ -6,6 +6,7 @@
 
     const endpoint = '/Anabelka/admin/system/error-notifications';
     const errorsUrl = '/Anabelka/admin/system/errors';
+    const systemErrorColor = '#b63e48';
 
 
     function updateMenu(count)
@@ -29,11 +30,13 @@
 
         if (!badge) {
             badge = document.createElement('span');
-            badge.className = 'admin-nav-badge is-attention';
+            badge.className = 'admin-nav-badge';
             badge.dataset.systemErrorBadge = '1';
             link.appendChild(badge);
         }
 
+        badge.style.background = systemErrorColor;
+        badge.style.color = '#fff';
         badge.textContent = String(count);
         badge.setAttribute(
             'aria-label',
