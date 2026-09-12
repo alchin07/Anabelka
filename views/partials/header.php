@@ -101,6 +101,9 @@ if (!$isAdminPage) {
 $isCheckoutPage =
     $requestPath === '/Anabelka/checkout';
 
+$isQuickOrderPage =
+    $requestPath === '/Anabelka/quick-order';
+
 $isProductPage =
     strpos(
         $requestPath,
@@ -538,8 +541,12 @@ $badgeText = static function ($count) {
         src="/Anabelka/js/checkout-delivery-input.js?v=4"
     ></script>
 
+<?php endif; ?>
+
+<?php if ($isCheckoutPage || $isQuickOrderPage): ?>
+
     <script
-        src="/Anabelka/js/checkout-account-prefill.js?v=1"
+        src="/Anabelka/js/checkout-account-prefill.js?v=2"
         defer
     ></script>
 
