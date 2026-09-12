@@ -46,6 +46,7 @@
     function arrangeAccountPrimaryBlocks() {
         const accountGrid = document.querySelector('.account-grid');
         const addressSection = document.querySelector('.account-address-section');
+        const notifications = document.querySelector('.account-notifications');
 
         if (!accountGrid || !addressSection) {
             return;
@@ -71,6 +72,10 @@
             accountGrid.insertBefore(addressSection, passwordCard);
         } else {
             profileCard.insertAdjacentElement('afterend', addressSection);
+        }
+
+        if (notifications) {
+            notifications.insertAdjacentElement('afterend', accountGrid);
         }
 
         accountGrid.classList.add('account-grid-primary');
