@@ -7,6 +7,7 @@
     const addLabel = script?.dataset.addLabel || 'Добавить в избранное';
     const removeLabel = script?.dataset.removeLabel || 'Удалить из избранного';
     const headerCount = document.getElementById('favorite-count');
+    const cartHeaderCount = document.getElementById('cart-count');
     const pageCount = document.getElementById('favorite-page-count');
 
     const productSlugFromHref = function (href) {
@@ -67,6 +68,32 @@
     const formatHeaderCount = function (count) {
         return count > 99 ? '99+' : String(count);
     };
+
+    const syncCartHeaderCount = function () {
+        if (!cartHeaderCount) {
+            return;
+        }
+
+        const numericText = String(cartHeaderCount.textContent || '')
+            .replace(/[^0-9]/g, '');
+        const safeCount = Math.max(0, Number(numericText) || 0);
+
+        cartHeaderCount.hidden = safeCount <= 0;
+    };
+
+    if (cartHeaderCount) {
+        syncCartHeaderCount();
+
+        const cartCountObserver = new MutationObserver(function () {
+            syncCartHeaderCount();
+        });
+
+        cartCountObserver.observe(cartHeaderCount, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+    }
 
     const updateCount = function (count) {
         const safeCount = Math.max(0, Number(count) || 0);
