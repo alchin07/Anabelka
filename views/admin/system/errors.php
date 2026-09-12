@@ -57,7 +57,7 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Системні помилки') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=4">
 </head>
 <body>
 
@@ -67,13 +67,17 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
     <section class="system-errors-intro">
         <div>
             <h2>Системні помилки</h2>
-            <p>Технічний журнал Анабельки. Деталі доступні лише Розробнику.</p>
+            <p>Технічний журнал Анабельки. Однакові помилки об’єднуються в групи.</p>
         </div>
         <a href="/Anabelka/admin/system/error-test">Тест обробника</a>
     </section>
 
     <section class="system-errors-summary" aria-label="Статистика помилок">
-        <div><span>Показано</span><strong><?= (int) ($summary['total'] ?? 0) ?></strong></div>
+        <div>
+            <span>Показано груп</span>
+            <strong><?= (int) ($summary['total'] ?? 0) ?></strong>
+            <small>Подій: <?= (int) ($summary['events'] ?? $summary['total'] ?? 0) ?></small>
+        </div>
         <div><span>Критичні</span><strong><?= (int) ($summary['critical'] ?? 0) ?></strong></div>
         <div><span>Помилки</span><strong><?= (int) ($summary['error'] ?? 0) ?></strong></div>
         <div><span>Попередження</span><strong><?= (int) ($summary['warning'] ?? 0) ?></strong></div>
@@ -155,6 +159,10 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                 $request = is_array($selected['request'] ?? null) ? $selected['request'] : [];
                 $closeQuery = http_build_query($filterQuery);
                 $selectedWorkflow = (string) ($selected['workflow_status'] ?? 'new');
+                $selectedRepeatCount = max(1, (int) ($selected['repeat_count'] ?? 1));
+                $occurrences = is_array($selected['occurrences'] ?? null)
+                    ? $selected['occurrences']
+                    : [];
                 ?>
                 <div class="system-error-detail-head">
                     <div>
@@ -165,11 +173,30 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                             <span class="system-error-workflow is-<?= $escape($selectedWorkflow) ?>">
                                 <?= $escape($workflowLabel($selectedWorkflow)) ?>
                             </span>
+                            <?php if ($selectedRepeatCount > 1): ?>
+                                <span class="system-error-repeat-badge">
+                                    ×<?= $selectedRepeatCount ?> повторів
+                                </span>
+                            <?php endif; ?>
                         </div>
                         <h3><?= $escape($selected['reference'] ?? '') ?></h3>
                     </div>
                     <a href="/Anabelka/admin/system/errors<?= $closeQuery !== '' ? '?' . $escape($closeQuery) : '' ?>">Закрити</a>
                 </div>
+
+                <?php if ($selectedRepeatCount > 1): ?>
+                    <div class="system-error-repeat-summary">
+                        <strong>Повторювана помилка</strong>
+                        <div>
+                            <span>Перше:</span>
+                            <b><?= $escape($formatTime($selected['first_time'] ?? '')) ?></b>
+                        </div>
+                        <div>
+                            <span>Останнє:</span>
+                            <b><?= $escape($formatTime($selected['last_time'] ?? $selected['time'] ?? '')) ?></b>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <dl class="system-error-detail-grid">
                     <div><dt>Час</dt><dd><?= $escape($formatTime($selected['time'] ?? '')) ?></dd></div>
@@ -186,6 +213,20 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                     <strong>Повідомлення</strong>
                     <p><?= $escape($selected['message'] ?? '') ?></p>
                 </div>
+
+                <?php if ($selectedRepeatCount > 1 && !empty($occurrences)): ?>
+                    <details class="system-error-occurrences">
+                        <summary>Останні спрацювання (<?= count($occurrences) ?>)</summary>
+                        <div class="system-error-occurrence-list">
+                            <?php foreach ($occurrences as $occurrence): ?>
+                                <div class="system-error-occurrence-row">
+                                    <time><?= $escape($formatTime($occurrence['time'] ?? '')) ?></time>
+                                    <code><?= $escape($occurrence['reference'] ?? '') ?></code>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </details>
+                <?php endif; ?>
 
                 <div class="system-error-status-actions" aria-label="Статус помилки">
                     <?php if ($selectedWorkflow !== 'resolved'): ?>
@@ -253,6 +294,7 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
             $detailQuery = $filterQuery;
             $detailQuery['ref'] = (string) ($item['reference'] ?? '');
             $itemWorkflow = (string) ($item['workflow_status'] ?? 'new');
+            $repeatCount = max(1, (int) ($item['repeat_count'] ?? 1));
             ?>
             <article class="system-error-card is-status-<?= $escape($itemWorkflow) ?>">
                 <div class="system-error-card-head">
@@ -263,12 +305,21 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                         <span class="system-error-workflow is-<?= $escape($itemWorkflow) ?>">
                             <?= $escape($workflowLabel($itemWorkflow)) ?>
                         </span>
+                        <?php if ($repeatCount > 1): ?>
+                            <span class="system-error-repeat-badge">×<?= $repeatCount ?></span>
+                        <?php endif; ?>
                     </div>
-                    <time><?= $escape($formatTime($item['time'] ?? '')) ?></time>
+                    <time><?= $escape($formatTime($item['last_time'] ?? $item['time'] ?? '')) ?></time>
                 </div>
 
                 <strong class="system-error-reference"><?= $escape($item['reference'] ?? '') ?></strong>
                 <p class="system-error-message"><?= $escape($item['message'] ?? '') ?></p>
+
+                <?php if ($repeatCount > 1): ?>
+                    <div class="system-error-repeat-line">
+                        Повторилося <?= $repeatCount ?> разів · перше <?= $escape($formatTime($item['first_time'] ?? '')) ?>
+                    </div>
+                <?php endif; ?>
 
                 <div class="system-error-meta">
                     <span><?= $escape($request['method'] ?? '') ?></span>
