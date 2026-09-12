@@ -5,6 +5,7 @@ require_once __DIR__ . '/../app/Models/SystemErrorNotification.php';
 require_once __DIR__ . '/../app/Models/SystemErrorStatus.php';
 require_once __DIR__ . '/../app/Models/SystemErrorNote.php';
 require_once __DIR__ . '/../app/Models/SystemErrorExternalNotificationSettings.php';
+require_once __DIR__ . '/../app/Services/SystemErrorExternalNotifier.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorExternalNotificationController.php';
@@ -93,6 +94,11 @@ $router->get(
 $router->post(
     '/admin/system/error-external-notifications',
     'AdminSystemErrorExternalNotificationController@save'
+);
+
+$router->post(
+    '/admin/system/error-external-notifications/test',
+    'AdminSystemErrorExternalNotificationController@test'
 );
 
 $router->get(
