@@ -43,10 +43,59 @@
         document.body.appendChild(script);
     }
 
+    function arrangeAccountPrimaryBlocks() {
+        const accountGrid = document.querySelector('.account-grid');
+        const addressSection = document.querySelector('.account-address-section');
+
+        if (!accountGrid || !addressSection) {
+            return;
+        }
+
+        const cards = Array.from(accountGrid.querySelectorAll(':scope > .account-card'));
+        const profileCard = cards.find(function (card) {
+            return Boolean(card.querySelector('form[action="/Anabelka/account/profile"]'));
+        });
+        const passwordCard = cards.find(function (card) {
+            return Boolean(card.querySelector('form[action="/Anabelka/account/password"]'));
+        });
+
+        if (!profileCard) {
+            return;
+        }
+
+        profileCard.classList.add('account-primary-profile');
+        addressSection.classList.add('account-primary-addresses');
+
+        if (passwordCard) {
+            passwordCard.classList.add('account-primary-password');
+            accountGrid.insertBefore(addressSection, passwordCard);
+        } else {
+            profileCard.insertAdjacentElement('afterend', addressSection);
+        }
+
+        accountGrid.classList.add('account-grid-primary');
+
+        if (!document.getElementById('account-primary-layout-style')) {
+            const style = document.createElement('style');
+            style.id = 'account-primary-layout-style';
+            style.textContent = [
+                '.account-grid-primary>.account-primary-addresses{margin-top:0}',
+                '@media(min-width:701px){',
+                '.account-grid-primary>.account-primary-profile{grid-column:1;grid-row:1}',
+                '.account-grid-primary>.account-primary-password{grid-column:2;grid-row:1}',
+                '.account-grid-primary>.account-primary-addresses{grid-column:1/-1;grid-row:2}',
+                '}'
+            ].join('');
+            document.head.appendChild(style);
+        }
+    }
+
     function loadAccountModules() {
         if (window.location.pathname.replace(/\/$/, '') !== '/Anabelka/account') {
             return;
         }
+
+        arrangeAccountPrimaryBlocks();
 
         appendAccountScript(
             '/Anabelka/js/account-email-verification.js?v=1',
