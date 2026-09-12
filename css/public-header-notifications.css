@@ -9,6 +9,11 @@
     padding: 0 4px;
 }
 
+.public-header-admin-count.is-system-error {
+    background: #b63e48;
+    color: #fff;
+}
+
 .public-header-popover a {
     justify-content: space-between;
     gap: 10px;
