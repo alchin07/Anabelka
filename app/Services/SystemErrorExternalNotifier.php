@@ -116,6 +116,163 @@ class SystemErrorExternalNotifier
     }
 
 
+    public static function sendAutomatic(array $group, array $settings = null)
+    {
+        $settings = $settings ?? SystemErrorExternalNotificationSettings::get();
+
+        if (!SystemErrorExternalNotificationSettings::shouldNotify($group, $settings)) {
+            return [];
+        }
+
+        $channels = is_array($settings['channels'] ?? null)
+            ? $settings['channels']
+            : [];
+        $status = self::status($settings);
+        $results = [];
+
+        foreach ($channels as $channel) {
+            $channel = (string) $channel;
+
+            if (!isset($status[$channel]) || empty($status[$channel]['configured'])) {
+                continue;
+            }
+
+            if (!self::cooldownPassed($group, $channel, $settings)) {
+                $results[$channel] = [
+                    'ok' => true,
+                    'sent' => false,
+                    'reason' => 'cooldown'
+                ];
+                continue;
+            }
+
+            try {
+                [$subject, $message] = self::automaticMessage($group);
+
+                if ($channel === 'email') {
+                    self::sendEmail(
+                        (string) ($settings['email_to'] ?? ''),
+                        $subject,
+                        $message
+                    );
+                } elseif ($channel === 'telegram') {
+                    self::sendTelegram(
+                        (string) ($settings['telegram_chat_id'] ?? ''),
+                        $subject . "\n\n" . $message
+                    );
+                }
+
+                self::markAutomaticSent($group, $channel);
+
+                $results[$channel] = [
+                    'ok' => true,
+                    'sent' => true
+                ];
+            } catch (Throwable $e) {
+                $results[$channel] = [
+                    'ok' => false,
+                    'sent' => false,
+                    'message' => self::safeErrorMessage($e->getMessage())
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+
+    private static function automaticMessage(array $group)
+    {
+        $level = strtoupper((string) ($group['level'] ?? 'ERROR'));
+        $reference = trim((string) ($group['reference'] ?? ''));
+        $repeatCount = max(1, (int) ($group['repeat_count'] ?? 1));
+        $time = (string) ($group['last_time'] ?? $group['time'] ?? date('c'));
+        $request = is_array($group['request'] ?? null) ? $group['request'] : [];
+        $method = strtoupper((string) ($request['method'] ?? ''));
+        $uri = (string) ($request['uri'] ?? '');
+        $message = trim((string) ($group['message'] ?? ''));
+        $file = trim((string) ($group['file'] ?? ''));
+        $line = (int) ($group['line'] ?? 0);
+
+        $subject = '[' . $level . '] Анабелька — системна помилка'
+            . ($reference !== '' ? ' ' . $reference : '');
+
+        $body = [
+            'Добрий день.',
+            '',
+            'Система моніторингу «Анабелька» зафіксувала системну помилку, яка потребує уваги.',
+            '',
+            'Рівень: ' . $level,
+            'Код помилки: ' . ($reference !== '' ? $reference : 'не вказано'),
+            'Кількість повторів: ' . $repeatCount,
+            'Останнє спрацювання: ' . $time
+        ];
+
+        if ($method !== '' || $uri !== '') {
+            $body[] = 'Запит: ' . trim($method . ' ' . $uri);
+        }
+
+        if ($message !== '') {
+            $body[] = 'Повідомлення: ' . self::shortText($message, 700);
+        }
+
+        if ($file !== '') {
+            $body[] = 'Файл: ' . $file . ($line > 0 ? ':' . $line : '');
+        }
+
+        $body[] = '';
+        $body[] = 'Будь ласка, відкрийте журнал «Системні помилки» в адмін-панелі та перевірте подробиці.';
+        $body[] = 'Стек викликів і секретні дані в email не надсилаються.';
+        $body[] = '';
+        $body[] = 'З повагою,';
+        $body[] = 'система моніторингу «Анабелька».';
+
+        return [$subject, implode("\n", $body)];
+    }
+
+
+    private static function cooldownPassed(array $group, $channel, array $settings)
+    {
+        $cooldownMinutes = max(0, (int) ($settings['cooldown_minutes'] ?? 0));
+
+        if ($cooldownMinutes === 0) {
+            return true;
+        }
+
+        $lastSent = (int) AppSetting::get(
+            self::deliveryStateKey($group, $channel),
+            '0'
+        );
+
+        return $lastSent <= 0 || (time() - $lastSent) >= ($cooldownMinutes * 60);
+    }
+
+
+    private static function markAutomaticSent(array $group, $channel)
+    {
+        AppSetting::set(
+            self::deliveryStateKey($group, $channel),
+            (string) time()
+        );
+    }
+
+
+    private static function deliveryStateKey(array $group, $channel)
+    {
+        $groupKey = trim((string) ($group['group_key'] ?? ''));
+
+        if ($groupKey === '') {
+            $reference = trim((string) ($group['reference'] ?? 'unknown'));
+            $groupKey = 'REF-' . substr(hash('sha256', $reference), 0, 24);
+        }
+
+        $safeGroupKey = preg_replace('/[^A-Za-z0-9_-]/', '', $groupKey);
+        $safeChannel = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $channel);
+
+        return 'system_error.external.sent.' . $safeGroupKey . '.' . $safeChannel;
+    }
+
+
     private static function sendEmail($to, $subject, $body)
     {
         $config = self::config();
@@ -331,6 +488,23 @@ class SystemErrorExternalNotifier
     }
 
 
+    private static function shortText($value, $limit)
+    {
+        $value = trim((string) $value);
+        $limit = max(1, (int) $limit);
+
+        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+            return mb_strlen($value, 'UTF-8') > $limit
+                ? mb_substr($value, 0, $limit, 'UTF-8') . '…'
+                : $value;
+        }
+
+        return strlen($value) > $limit
+            ? substr($value, 0, $limit) . '…'
+            : $value;
+    }
+
+
     private static function safeErrorMessage($message)
     {
         $message = trim((string) $message);
@@ -339,7 +513,7 @@ class SystemErrorExternalNotifier
             return 'не вдалося відправити тестове повідомлення.';
         }
 
-        return mb_substr($message, 0, 300, 'UTF-8');
+        return self::shortText($message, 300);
     }
 
 
