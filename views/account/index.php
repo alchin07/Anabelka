@@ -295,7 +295,7 @@ $rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
                 ) ?></p>
             </div>
 
-            <form method="post" action="/Anabelka/account/profile" autocomplete="off">
+            <form method="post" action="/Anabelka/account/profile" autocomplete="on">
                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
                 <label>
@@ -306,6 +306,7 @@ $rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
                         type="text"
                         name="name"
                         maxlength="120"
+                        autocomplete="name"
                         value="<?= htmlspecialchars((string) ($user['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                         required
                     >
@@ -317,6 +318,7 @@ $rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
                         type="email"
                         name="email"
                         maxlength="190"
+                        autocomplete="email"
                         value="<?= htmlspecialchars((string) ($user['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                         required
                     >
@@ -582,28 +584,28 @@ $rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
                     Translator::t('public.account.address_add', 'Додати адресу')
                 ) ?></summary>
 
-                <form method="post" action="/Anabelka/account/address/create" autocomplete="off">
+                <form method="post" action="/Anabelka/account/address/create" autocomplete="on">
                     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <div class="account-address-form-grid">
                         <label>
                             <span><?= htmlspecialchars(Translator::t('public.account.address_label', 'Назва адреси')) ?></span>
-                            <input type="text" name="label" maxlength="80" placeholder="<?= htmlspecialchars(Translator::t('public.account.address_label_placeholder', 'Наприклад: Дім')) ?>">
+                            <input type="text" name="label" maxlength="80" autocomplete="off" placeholder="<?= htmlspecialchars(Translator::t('public.account.address_label_placeholder', 'Наприклад: Дім')) ?>">
                         </label>
                         <label>
                             <span><?= htmlspecialchars(Translator::t('public.account.address_country', 'Країна')) ?></span>
-                            <input type="text" name="country" maxlength="120" required>
+                            <input type="text" name="country" maxlength="120" autocomplete="country-name" required>
                         </label>
                         <label>
                             <span><?= htmlspecialchars(Translator::t('public.account.address_city', 'Місто')) ?></span>
-                            <input type="text" name="city" maxlength="120" required>
+                            <input type="text" name="city" maxlength="120" autocomplete="address-level2" required>
                         </label>
                         <label>
                             <span><?= htmlspecialchars(Translator::t('public.account.address_postcode', 'Поштовий індекс')) ?></span>
-                            <input type="text" name="postcode" maxlength="30" inputmode="text">
+                            <input type="text" name="postcode" maxlength="30" autocomplete="postal-code" inputmode="text">
                         </label>
                         <label class="account-address-wide">
                             <span><?= htmlspecialchars(Translator::t('public.account.address_address', 'Адреса')) ?></span>
-                            <input type="text" name="address" maxlength="255" required>
+                            <input type="text" name="address" maxlength="255" autocomplete="street-address" required>
                         </label>
                     </div>
                     <label class="account-check-row">
@@ -654,29 +656,29 @@ $rankRequestStatus = (string) ($latestRankRequest['status'] ?? '');
 
                             <details class="account-address-edit">
                                 <summary><?= htmlspecialchars(Translator::t('public.account.address_edit', 'Редагувати')) ?></summary>
-                                <form method="post" action="/Anabelka/account/address/update" autocomplete="off">
+                                <form method="post" action="/Anabelka/account/address/update" autocomplete="on">
                                     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="address_id" value="<?= (int) ($address['id'] ?? 0) ?>">
                                     <div class="account-address-form-grid">
                                         <label>
                                             <span><?= htmlspecialchars(Translator::t('public.account.address_label', 'Назва адреси')) ?></span>
-                                            <input type="text" name="label" maxlength="80" value="<?= htmlspecialchars((string) ($address['label'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="text" name="label" maxlength="80" autocomplete="off" value="<?= htmlspecialchars((string) ($address['label'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                                         </label>
                                         <label>
                                             <span><?= htmlspecialchars(Translator::t('public.account.address_country', 'Країна')) ?></span>
-                                            <input type="text" name="country" maxlength="120" value="<?= htmlspecialchars((string) ($address['country'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                                            <input type="text" name="country" maxlength="120" autocomplete="country-name" value="<?= htmlspecialchars((string) ($address['country'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
                                         </label>
                                         <label>
                                             <span><?= htmlspecialchars(Translator::t('public.account.address_city', 'Місто')) ?></span>
-                                            <input type="text" name="city" maxlength="120" value="<?= htmlspecialchars((string) ($address['city'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                                            <input type="text" name="city" maxlength="120" autocomplete="address-level2" value="<?= htmlspecialchars((string) ($address['city'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
                                         </label>
                                         <label>
                                             <span><?= htmlspecialchars(Translator::t('public.account.address_postcode', 'Поштовий індекс')) ?></span>
-                                            <input type="text" name="postcode" maxlength="30" value="<?= htmlspecialchars((string) ($address['postcode'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="text" name="postcode" maxlength="30" autocomplete="postal-code" value="<?= htmlspecialchars((string) ($address['postcode'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                                         </label>
                                         <label class="account-address-wide">
                                             <span><?= htmlspecialchars(Translator::t('public.account.address_address', 'Адреса')) ?></span>
-                                            <input type="text" name="address" maxlength="255" value="<?= htmlspecialchars((string) ($address['address'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                                            <input type="text" name="address" maxlength="255" autocomplete="street-address" value="<?= htmlspecialchars((string) ($address['address'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
                                         </label>
                                     </div>
                                     <?php if (!$isDefault): ?>

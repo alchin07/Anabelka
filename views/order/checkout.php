@@ -95,6 +95,7 @@ $checkoutJsTranslations = [
         <form
             action="/Anabelka/checkout"
             method="POST"
+            autocomplete="on"
         >
 
             <div style="margin-bottom: 15px;">
@@ -116,6 +117,7 @@ $checkoutJsTranslations = [
                 <input
                     type="text"
                     name="customer_name"
+                    autocomplete="name"
                     required
                     value="<?= htmlspecialchars(
                         $_SESSION['user_name'] ?? ''
@@ -150,6 +152,7 @@ $checkoutJsTranslations = [
                 <input
                     type="email"
                     name="customer_email"
+                    autocomplete="email"
                     required
                     style="
                         width: 100%;
@@ -175,6 +178,7 @@ $checkoutJsTranslations = [
                 <input
                     type="tel"
                     name="customer_phone"
+                    autocomplete="tel"
                     style="
                         width: 100%;
                         box-sizing: border-box;
@@ -432,6 +436,7 @@ $checkoutJsTranslations = [
                     id="delivery-country"
                     type="text"
                     name="delivery_country"
+                    autocomplete="country-name"
                     required
                     style="
                         width: 100%;
@@ -461,6 +466,7 @@ $checkoutJsTranslations = [
                     id="delivery-city"
                     type="text"
                     name="delivery_city"
+                    autocomplete="address-level2"
                     required
                     style="
                         width: 100%;
@@ -499,6 +505,7 @@ $checkoutJsTranslations = [
                     id="delivery-address"
                     type="text"
                     name="delivery_address"
+                    autocomplete="street-address"
                     placeholder="<?= htmlspecialchars(
                         Translator::t(
                             'checkout.address_placeholder',
@@ -534,6 +541,7 @@ $checkoutJsTranslations = [
                     id="delivery-postcode"
                     type="text"
                     name="delivery_postcode"
+                    autocomplete="postal-code"
                     style="
                         width: 100%;
                         box-sizing: border-box;

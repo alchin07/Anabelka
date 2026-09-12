@@ -68,6 +68,7 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
         <form
             action="/Anabelka/quick-order"
             method="POST"
+            autocomplete="on"
         >
 
             <div style="margin-bottom: 15px;">
@@ -89,6 +90,7 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
                 <input
                     type="text"
                     name="customer_name"
+                    autocomplete="name"
                     required
                     value="<?= htmlspecialchars(
                         $_SESSION['user_name'] ?? ''
