@@ -10,9 +10,12 @@ class AdminSystemErrorExternalNotificationController extends Controller
             : null;
         unset($_SESSION['admin_system_error_external_flash']);
 
+        $settings = SystemErrorExternalNotificationSettings::get();
+
         $this->view('admin/system/error-external-notifications', [
             'pageTitle' => 'Адмін-панель · Зовнішні сповіщення про помилки',
-            'settings' => SystemErrorExternalNotificationSettings::get(),
+            'settings' => $settings,
+            'transportStatus' => SystemErrorExternalNotifier::status($settings),
             'csrfToken' => AdminAccess::csrfToken(),
             'flash' => $flash,
             'admin' => $admin
@@ -51,6 +54,56 @@ class AdminSystemErrorExternalNotificationController extends Controller
             $_SESSION['admin_system_error_external_flash'] = [
                 'type' => 'success',
                 'message' => 'Налаштування зовнішніх сповіщень збережено.'
+            ];
+        } catch (Throwable $e) {
+            $_SESSION['admin_system_error_external_flash'] = [
+                'type' => 'error',
+                'message' => $e->getMessage()
+            ];
+        }
+
+        $this->redirect();
+    }
+
+
+    public function test()
+    {
+        $admin = $this->assertDeveloper();
+
+        if (!AdminAccess::verifyCsrf($_POST['_csrf'] ?? '')) {
+            $_SESSION['admin_system_error_external_flash'] = [
+                'type' => 'error',
+                'message' => 'Сесія застаріла. Оновіть сторінку та спробуйте ще раз.'
+            ];
+            $this->redirect();
+        }
+
+        try {
+            $settings = SystemErrorExternalNotificationSettings::get();
+            $results = SystemErrorExternalNotifier::sendTest($settings);
+            $messages = [];
+            $allOk = !empty($results);
+            $auditResults = [];
+
+            foreach ($results as $channel => $result) {
+                $ok = !empty($result['ok']);
+                $allOk = $allOk && $ok;
+                $messages[] = (string) ($result['message'] ?? '');
+                $auditResults[(string) $channel] = $ok;
+            }
+
+            AdminAccess::audit(
+                'system.error_external_notifications.test',
+                [
+                    'channels' => array_keys($results),
+                    'results' => $auditResults
+                ],
+                (int) ($admin['id'] ?? AdminAccess::currentId())
+            );
+
+            $_SESSION['admin_system_error_external_flash'] = [
+                'type' => $allOk ? 'success' : 'error',
+                'message' => implode(' ', array_filter($messages))
             ];
         } catch (Throwable $e) {
             $_SESSION['admin_system_error_external_flash'] = [
