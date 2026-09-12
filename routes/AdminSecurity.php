@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../app/Models/SystemErrorLog.php';
 require_once __DIR__ . '/../app/Models/SystemErrorNotification.php';
+require_once __DIR__ . '/../app/Models/SystemErrorStatus.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
@@ -69,6 +70,11 @@ $router->get(
 $router->get(
     '/admin/system/errors',
     'AdminSystemErrorController@index'
+);
+
+$router->post(
+    '/admin/system/errors/status',
+    'AdminSystemErrorController@updateStatus'
 );
 
 $router->get(
