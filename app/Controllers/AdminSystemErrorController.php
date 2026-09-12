@@ -35,13 +35,14 @@ class AdminSystemErrorController extends Controller
             'q' => $filters['q']
         ];
 
+        $rawItems = SystemErrorLog::recent($logFilters, 300);
         $items = SystemErrorStatus::decorateItems(
-            SystemErrorLog::recent($logFilters, 300)
+            SystemErrorLog::groupItems($rawItems, 300)
         );
 
         $reference = trim((string) ($_GET['ref'] ?? ''));
         $selected = $reference !== ''
-            ? SystemErrorLog::findByReference($reference)
+            ? SystemErrorLog::groupForReference($reference)
             : null;
 
         if (is_array($selected)) {
@@ -55,7 +56,7 @@ class AdminSystemErrorController extends Controller
                 $selected = SystemErrorStatus::decorateItems([$selected])[0] ?? $selected;
 
                 foreach ($items as &$item) {
-                    if (($item['reference'] ?? '') === ($selected['reference'] ?? '')) {
+                    if (($item['group_key'] ?? '') === ($selected['group_key'] ?? '')) {
                         $item['workflow_status'] = 'viewed';
                         $item['workflow_updated_at'] = (string) ($selected['workflow_updated_at'] ?? '');
                         $item['workflow_updated_by'] = (int) ($selected['workflow_updated_by'] ?? 0);
