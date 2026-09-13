@@ -623,6 +623,7 @@
                     'aria-expanded',
                     isCollapsed ? 'false' : 'true'
                 );
+                button.textContent = isCollapsed ? '›' : '⌄';
                 button.title = isCollapsed ? 'Розгорнути гілку' : 'Згорнути гілку';
 
                 if (children) {

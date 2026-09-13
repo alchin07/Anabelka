@@ -103,10 +103,6 @@
     background: #f7effb;
 }
 
-.category-collapse-button[aria-expanded="false"] {
-    transform: rotate(-90deg);
-}
-
 .category-admin-card {
     min-width: 0;
     padding: 13px;

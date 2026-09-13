@@ -348,4 +348,28 @@ test('category manager UI keeps stable collapse storage and structural controls'
     assert.match(script, /window\.setCategoryTranslationWorkflow/);
 });
 
+test('category collapse swaps symbols without transforming the button box', function () {
+    const css = read('css/admin-categories.css');
+    const script = read('js/admin-categories.js');
+    const collapseButtonRules = Array.from(
+        css.matchAll(/([^{}]+)\{([^{}]*)\}/g)
+    ).filter(function (match) {
+        return match[1].includes('.category-collapse-button');
+    });
+
+    collapseButtonRules.forEach(function (rule) {
+        assert.doesNotMatch(rule[2], /(?:^|;)\s*transform\s*:/i);
+    });
+    assert.match(
+        script,
+        /button\.textContent\s*=\s*isCollapsed\s*\?\s*'›'\s*:\s*'⌄'/
+    );
+    assert.match(
+        script,
+        /button\.setAttribute\(\s*'aria-expanded',\s*isCollapsed\s*\?\s*'false'\s*:\s*'true'\s*\)/
+    );
+    assert.match(script, /sessionStorage\.getItem\(collapsedStorageKey\)/);
+    assert.match(script, /sessionStorage\.setItem\(\s*collapsedStorageKey/);
+});
+
 process.stdout.write('category manager contract checks passed\n');
