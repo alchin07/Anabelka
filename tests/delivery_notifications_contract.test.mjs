@@ -24,7 +24,7 @@ test('delivery page no longer renders the legacy site-message container', () => 
 test('delivery common helper no longer defines the legacy showMessage API', () => {
     const common = source('js/admin-delivery/common.js');
     assert.equal(common.includes('window.showMessage'), false);
-    assert.equal(common.includes("getElementById(\n                'site-message'"), false);
+    assert.equal(common.includes('site-message'), false);
 });
 
 test('delivery scripts no longer consume showMessage or browser alert', () => {
