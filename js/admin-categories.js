@@ -27,53 +27,6 @@
         departmentById.set(Number(department.id || 0), department);
     });
 
-    function showMessage(message, isError)
-    {
-        if (
-            window.AdminFlashMessage
-            && typeof window.AdminFlashMessage.show === 'function'
-        ) {
-            window.AdminFlashMessage.show(message, isError);
-            return;
-        }
-
-        const element = document.getElementById('site-message');
-
-        if (!element) {
-            return;
-        }
-
-        element.textContent = String(message || '');
-        element.classList.toggle('is-error', Boolean(isError));
-        element.classList.add('show');
-        window.clearTimeout(window.categoryManagerMessageTimer);
-        window.categoryManagerMessageTimer = window.setTimeout(function () {
-            element.classList.remove('show');
-        }, isError ? 4800 : 2800);
-    }
-
-
-    function storeSuccessMessage(message)
-    {
-        if (
-            window.AdminFlashMessage
-            && typeof window.AdminFlashMessage.storeSuccess === 'function'
-        ) {
-            window.AdminFlashMessage.storeSuccess(message);
-            return;
-        }
-
-        try {
-            window.sessionStorage.setItem(
-                'anabelka-category-success-flash',
-                String(message || 'Збережено.')
-            );
-        } catch (error) {
-            // Navigation must still complete when browser storage is disabled.
-        }
-    }
-
-
     function openModal(modal, trigger, focusField)
     {
         closeModals(false);
@@ -166,7 +119,10 @@
 
             try {
                 const result = await request(form.action, new FormData(form));
-                storeSuccessMessage(result.message || 'Збережено.');
+                window.AnabelkaNotify.flash(
+                    'success',
+                    result.message || 'Збережено.'
+                );
                 closeModals(false);
 
                 if (returnUrl) {
@@ -175,7 +131,9 @@
                     window.location.reload();
                 }
             } catch (error) {
-                showMessage(error.message || 'Операцію не виконано.', true);
+                window.AnabelkaNotify.error(
+                    error.message || 'Операцію не виконано.'
+                );
 
                 if (submitButton) {
                     submitButton.disabled = false;
@@ -265,7 +223,9 @@
             const category = categoryById.get(categoryId);
 
             if (!category) {
-                showMessage('Категорію не знайдено у списку.', true);
+                window.AnabelkaNotify.error(
+                    'Категорію не знайдено у списку.'
+                );
                 return;
             }
 
@@ -484,7 +444,9 @@
             const category = categoryById.get(categoryId);
 
             if (!category) {
-                showMessage('Категорію не знайдено у списку.', true);
+                window.AnabelkaNotify.error(
+                    'Категорію не знайдено у списку.'
+                );
                 return;
             }
 
@@ -578,11 +540,16 @@
 
         try {
             const result = await request(url, data);
-            storeSuccessMessage(result.message || 'Збережено.');
+            window.AnabelkaNotify.flash(
+                'success',
+                result.message || 'Збережено.'
+            );
             window.location.reload();
         } catch (error) {
             button.disabled = false;
-            showMessage(error.message || 'Операцію не виконано.', true);
+            window.AnabelkaNotify.error(
+                error.message || 'Операцію не виконано.'
+            );
         }
     }
 

@@ -24,10 +24,6 @@
         href="/Anabelka/css/admin-translations.css?v=7"
     >
 
-    <link
-        rel="stylesheet"
-        href="/Anabelka/css/admin-flash-message.css?v=1"
-    >
 </head>
 <body>
 
@@ -432,14 +428,6 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
 
     </section>
 </main>
-
-<div
-    id="site-message"
-    class="site-message"
-    role="status"
-    aria-live="polite"
-></div>
-<script src="/Anabelka/js/admin-flash-message.js?v=1"></script>
 
 </body>
 </html>

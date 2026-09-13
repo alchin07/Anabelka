@@ -7,24 +7,6 @@
 (function () {
     'use strict';
 
-    function showMessage(text)
-    {
-        const message = document.getElementById('site-message');
-
-        if (!message) {
-            window.alert(text);
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-
-        clearTimeout(window.categoryAiMessageTimer);
-        window.categoryAiMessageTimer = setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
-    }
-
 
     function ensureStyles()
     {
@@ -162,7 +144,7 @@
                 !window.AnabelkaAITranslation
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
-                showMessage(
+                window.AnabelkaNotify.warning(
                     'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
                 );
                 return;
@@ -213,12 +195,12 @@
                     );
                 }
 
-                showMessage(
+                window.AnabelkaNotify.info(
                     'ШІ-переклад отримано. «Зберегти» підтвердить переклад.'
                 );
 
             } catch (error) {
-                showMessage(
+                window.AnabelkaNotify.error(
                     error.message || 'Не вдалося отримати ШІ-переклад.'
                 );
             } finally {
