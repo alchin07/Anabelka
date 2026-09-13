@@ -198,23 +198,16 @@ if (
                     true;
 
 
-                window.showMessage(
+                window.AnabelkaNotify.flash(
+                    'success',
                     'Служба доставки добавлена'
                 );
 
-
-                setTimeout(
-                    () => {
-
-                        window.location.reload();
-
-                    },
-                    500
-                );
+                window.location.reload();
 
             } catch (error) {
 
-                window.showMessage(
+                window.AnabelkaNotify.error(
                     error instanceof Error
                         ? error.message
                         : 'Не удалось добавить службу доставки.'
