@@ -32,7 +32,9 @@ class AdultController extends Controller
             $_GET['return'] ?? ''
         );
 
-        header('Location: ' . $url, true, 301);
+        // Keep this temporary for the same reason as the legacy catalog URL:
+        // department ownership and cross-department ambiguity can change.
+        header('Location: ' . $url, true, 302);
         exit;
     }
 

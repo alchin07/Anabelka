@@ -251,9 +251,13 @@ class CategoryManager
                     );
                 }
             } else {
-                $targetDepartmentId = $requestedDepartmentId > 0
-                    ? $requestedDepartmentId
-                    : $oldDepartmentId;
+                if ($requestedDepartmentId <= 0) {
+                    throw new DomainException(
+                        'Оберіть підрозділ для кореневої категорії.'
+                    );
+                }
+
+                $targetDepartmentId = $requestedDepartmentId;
             }
 
             self::lockDepartment($db, $targetDepartmentId);

@@ -42,7 +42,10 @@ class CatalogController extends Controller
             $url .= '?' . $query;
         }
 
-        header('Location: ' . $url, true, 301);
+        // The mapping may change after a category moves departments or a
+        // second visible department starts using the same slug. Do not let
+        // clients cache a potentially stale permanent redirect.
+        header('Location: ' . $url, true, 302);
         exit;
     }
 

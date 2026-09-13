@@ -22,6 +22,14 @@ SHOW CREATE TABLE categories;
 SHOW CREATE TABLE products;
 SHOW CREATE TABLE category_translations;
 
+-- Must return zero rows. SHOW CREATE TABLE departments should additionally
+-- show UNIQUE KEY `slug` (`slug`), which makes canonical department lookup
+-- deterministic even under the case-insensitive production collation.
+SELECT slug, COUNT(*) AS duplicate_count
+FROM departments
+GROUP BY slug
+HAVING COUNT(*) > 1;
+
 -- Must return zero rows before this migration is applied.
 SELECT
     COLUMN_NAME,
@@ -32,6 +40,58 @@ FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'categories'
   AND COLUMN_NAME = 'is_adult';
+
+-- Must return zero rows before this one-time migration. A returned row means
+-- the migration (or an equivalent manual change) has already been applied.
+SELECT
+    INDEX_NAME,
+    SEQ_IN_INDEX,
+    COLUMN_NAME
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'categories'
+  AND INDEX_NAME = 'idx_categories_tree'
+ORDER BY SEQ_IN_INDEX;
+
+-- Must return zero rows before step 1. This catches both the approved name and
+-- an equivalent pre-existing category ownership FK under another name.
+SELECT
+    kcu.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    kcu.REFERENCED_TABLE_NAME,
+    kcu.REFERENCED_COLUMN_NAME,
+    rc.UPDATE_RULE,
+    rc.DELETE_RULE
+FROM information_schema.KEY_COLUMN_USAGE kcu
+INNER JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+    ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+   AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+   AND rc.TABLE_NAME = kcu.TABLE_NAME
+WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
+  AND kcu.TABLE_NAME = 'category_translations'
+  AND kcu.COLUMN_NAME = 'category_id'
+  AND kcu.REFERENCED_TABLE_NAME = 'categories';
+
+-- Must return exactly the two approved current rules before step 2:
+-- fk_categories_department/CASCADE and fk_categories_parent/SET NULL.
+SELECT
+    kcu.CONSTRAINT_NAME,
+    kcu.COLUMN_NAME,
+    kcu.REFERENCED_TABLE_NAME,
+    rc.UPDATE_RULE,
+    rc.DELETE_RULE
+FROM information_schema.KEY_COLUMN_USAGE kcu
+INNER JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+    ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+   AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+   AND rc.TABLE_NAME = kcu.TABLE_NAME
+WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
+  AND kcu.TABLE_NAME = 'categories'
+  AND kcu.CONSTRAINT_NAME IN (
+      'fk_categories_department',
+      'fk_categories_parent'
+  )
+ORDER BY kcu.CONSTRAINT_NAME;
 
 -- Must return zero rows: adding the translation FK never deletes orphans.
 SELECT

@@ -64,6 +64,10 @@ function test(name, callback) {
     }
 }
 
+function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 test('canonical catalog route wins before the one-segment legacy route', function () {
     const routes = routesFrom('routes/Web.php');
 
@@ -114,7 +118,27 @@ test('category manager mutations are exposed as protected POST routes', function
     });
 
     const controller = read('app/Controllers/AdminCategoryController.php');
-    assert.match(controller, /public function (create|update|move|toggle|delete)\(\)[\s\S]*?\$this->verifyCsrf\(\);/);
+
+    ['create', 'update', 'move', 'toggle', 'delete'].forEach(function (method) {
+        assert.match(
+            controller,
+            new RegExp(
+                'public\\s+function\\s+'
+                    + escapeRegExp(method)
+                    + '\\(\\)\\s*\\{\\s*\\$this->verifyCsrf\\(\\);'
+            )
+        );
+    });
+});
+
+test('legacy redirects remain temporary because department ownership can move', function () {
+    const catalog = read('app/Controllers/CatalogController.php');
+    const adult = read('app/Controllers/AdultController.php');
+
+    assert.match(catalog, /header\('Location: '\s*\.\s*\$url,\s*true,\s*302\)/);
+    assert.match(adult, /header\('Location: '\s*\.\s*\$url,\s*true,\s*302\)/);
+    assert.doesNotMatch(catalog, /true,\s*301/);
+    assert.doesNotMatch(adult, /true,\s*301/);
 });
 
 test('database preflight contains read-only statements only', function () {
@@ -176,6 +200,10 @@ test('subtree moves synchronize product departments and preserve no-op order', f
     assert.match(
         manager,
         /\$positionChanged\s*=\s*\$targetDepartmentId\s*!==\s*\$oldDepartmentId[\s\S]*?\$targetParentId\s*!==\s*\$oldParentId/
+    );
+    assert.match(
+        manager,
+        /else\s*\{\s*if\s*\(\$requestedDepartmentId\s*<=\s*0\)[\s\S]*?Оберіть підрозділ для кореневої категорії[\s\S]*?\$targetDepartmentId\s*=\s*\$requestedDepartmentId;/
     );
     assert.match(manager, /FOR\s+UPDATE/i);
 });
