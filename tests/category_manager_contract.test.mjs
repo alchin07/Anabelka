@@ -735,7 +735,7 @@ test('adult gate keeps the return URL contract and uses the Anabelka palette', f
     assert.doesNotMatch(confirmRule, /background:\s*#(?:000|000000)\b/i);
 });
 
-test('public header keeps icon-only favorites before search and four action controls', function () {
+test('public header keeps favorites by logo and mobile actions in one flex row', function () {
     const header = read('views/partials/header.php');
     const css = read('css/public-header.css');
     const globalCss = read('css/style.css');
@@ -783,6 +783,22 @@ test('public header keeps icon-only favorites before search and four action cont
         compactCss,
         '.public-header-brand .header-favorites'
     );
+    const compactSearchRule = cssRuleBody(
+        compactCss,
+        '.public-header .site-search-form'
+    );
+    const compactPopoverRule = cssRuleBody(
+        compactCss,
+        '.public-header-popover'
+    );
+    const compactProfilePopoverRule = cssRuleBody(
+        compactCss,
+        '.public-header-profile .public-header-popover'
+    );
+    const mobileActionRule = cssRuleBody(
+        mobileCss,
+        '.public-header-action'
+    );
     const compactLogoMatch = compactCss.match(
         /\.public-header\s+\.catalog-logo,\s*\.public-header-logo\s*\{([^{}]*)\}/i
     );
@@ -797,6 +813,14 @@ test('public header keeps icon-only favorites before search and four action cont
                 '.public-header .catalog-logo',
                 '.public-header-logo'
             ].includes(selector));
+    });
+    const actionContainerRules = Array.from(
+        css.matchAll(/([^{}]+)\{([^{}]*)\}/g)
+    ).filter(function (match) {
+        return match[1]
+            .split(',')
+            .map((selector) => selector.trim())
+            .includes('.public-header-actions');
     });
 
     assert.ok(compactLogoMatch, 'compact logo rule was not found');
@@ -882,11 +906,16 @@ test('public header keeps icon-only favorites before search and four action cont
         /\.public-header-page-title\s*\{[^{}]*margin-top:\s*3px[^{}]*font-size:\s*11px/is
     );
     assert.match(
-        compactCss,
-        /\.public-header-main\s*\{[^{}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+92px[^{}]*column-gap:\s*4px[^{}]*row-gap:\s*3px/is
+        compactMainRule,
+        /grid-template-columns:\s*minmax\(0,\s*1fr\)/i
     );
+    assert.doesNotMatch(compactMainRule, /grid-template-columns:[^;]*92px/i);
+    assert.match(compactMainRule, /row-gap:\s*3px/i);
     assert.match(compactShellRule, /width:\s*calc\(100%\s*-\s*10px\)/i);
-    assert.match(compactBrandRule, /gap:\s*2px/i);
+    assert.match(
+        compactBrandRule,
+        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*1[^;]*;[^{}]*gap:\s*2px/i
+    );
     assert.match(
         compactLogoRule,
         /font-size:\s*clamp\(22px,\s*6vw,\s*26px\)/i
@@ -907,9 +936,31 @@ test('public header keeps icon-only favorites before search and four action cont
         /(?:^|;)\s*width:\s*\d+px|(?:^|;)\s*max-width:\s*calc\(/i
     );
     assert.match(
-        compactCss,
-        /\.public-header-actions\s*\{[^{}]*width:\s*92px[^{}]*display:\s*grid[^{}]*grid-template-columns:\s*repeat\(2,\s*44px\)[^{}]*grid-template-rows:\s*repeat\(2,\s*44px\)[^{}]*gap:\s*4px/is
+        compactActionsRule,
+        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*2[^;]*;[^{}]*width:\s*100%[^;]*;[^{}]*display:\s*flex[^;]*;[^{}]*flex-direction:\s*row[^;]*;[^{}]*flex-wrap:\s*nowrap[^;]*;[^{}]*justify-content:\s*flex-end[^;]*;[^{}]*gap:\s*2px/i
     );
+    assert.match(
+        compactSearchRule,
+        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*3/i
+    );
+    assert.match(
+        compactPopoverRule,
+        /width:\s*180px[^;]*;[^{}]*max-width:\s*calc\(100vw\s*-\s*10px\)/i
+    );
+    assert.match(
+        compactProfilePopoverRule,
+        /left:\s*0[^;]*;[^{}]*right:\s*auto/i
+    );
+    assert.ok(
+        actionContainerRules.length > 0,
+        'header action-container CSS rules were not found'
+    );
+    actionContainerRules.forEach(function (rule) {
+        assert.doesNotMatch(
+            rule[2],
+            /display:\s*grid|grid-template-(?:columns|rows)/i
+        );
+    });
     assert.match(globalCss, /\*\s*\{[^{}]*box-sizing:\s*border-box/i);
     assert.match(
         css,
@@ -927,7 +978,7 @@ test('public header keeps icon-only favorites before search and four action cont
         cssMediaBody(homeCss, 600),
         /\.home-page\s*\{[^{}]*padding-top:\s*6px/is
     );
-    assert.match(header, /css\/public-header\.css\?v=5/);
+    assert.match(header, /css\/public-header\.css\?v=6/);
 
     const tinyControlRules = Array.from(
         tinyCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)
@@ -955,43 +1006,52 @@ test('public header keeps icon-only favorites before search and four action cont
     const shellInsetMatch = compactShellRule.match(
         /width:\s*calc\(100%\s*-\s*(\d+)px\)/i
     );
-    const actionCellMatch = compactActionsRule.match(
-        /grid-template-columns:\s*repeat\(2,\s*(\d+)px\)/i
-    );
-
     assert.ok(shellInsetMatch, 'compact shell inset was not found');
-    assert.ok(actionCellMatch, 'compact action cell width was not found');
 
     const shellInset = Number(shellInsetMatch[1]);
-    const actionsWidth = pixelDeclaration(compactActionsRule, 'width');
-    const actionCellWidth = Number(actionCellMatch[1]);
+    const actionCellWidth = pixelDeclaration(mobileActionRule, 'width');
+    const actionCellHeight = pixelDeclaration(mobileActionRule, 'height');
     const actionsGap = pixelDeclaration(compactActionsRule, 'gap');
-    const columnGap = pixelDeclaration(compactMainRule, 'column-gap');
+    const rowGap = pixelDeclaration(compactMainRule, 'row-gap');
     const brandGap = pixelDeclaration(compactBrandRule, 'gap');
     const favoriteWidth = pixelDeclaration(compactFavoriteRule, 'width');
+    const popoverWidth = pixelDeclaration(compactPopoverRule, 'width');
+    const actionRowWidth = (4 * actionCellWidth) + (3 * actionsGap);
 
-    assert.equal(actionsWidth, (2 * actionCellWidth) + actionsGap);
     assert.ok(actionCellWidth >= 44, 'mobile action cell is below 44px');
+    assert.ok(actionCellHeight >= 44, 'mobile action cell is below 44px');
     assert.ok(favoriteWidth >= 44, 'favorite touch target is below 44px');
 
     [320, 360, 375, 390, 400, 412, 430].forEach(function (width) {
         const shellWidth = width - shellInset;
-        const availableBrandWidth = shellWidth - actionsWidth - columnGap;
         const fullLogoBudget = 160;
         const requiredBrandWidth = fullLogoBudget + brandGap + favoriteWidth;
-        const topHeight = (2 * actionCellWidth) + actionsGap;
-        const headerHeightWithTitle = topHeight
-            + 3
+        const profileLeft = shellWidth - actionRowWidth;
+        const headerHeightWithTitle = favoriteWidth
+            + rowGap
+            + actionCellHeight
+            + rowGap
             + 44
             + 5
             + 4
             + 3
             + 13;
 
-        assert.ok(width <= 760, `${width}px must use the bounded mobile grid`);
         assert.ok(
-            requiredBrandWidth <= availableBrandWidth,
-            `${width}px leaves only ${availableBrandWidth}px for the full logo and favorite`
+            requiredBrandWidth <= shellWidth,
+            `${width}px cannot fit the full logo and favorite row`
+        );
+        assert.ok(
+            actionRowWidth <= shellWidth,
+            `${width}px cannot fit four actions in one row`
+        );
+        assert.ok(
+            profileLeft + popoverWidth <= shellWidth,
+            `${width}px profile popover exceeds the right shell edge`
+        );
+        assert.ok(
+            profileLeft >= 0,
+            `${width}px profile popover starts outside the shell`
         );
         assert.ok(
             headerHeightWithTitle <= 164,
