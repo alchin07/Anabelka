@@ -149,7 +149,7 @@ document
                             || 'Элемент';
 
 
-                        showMessage(
+                        window.AnabelkaNotify.success(
                             itemName
                             +
                             (
@@ -161,8 +161,10 @@ document
 
                     } catch (error) {
 
-                        showMessage(
-                            error.message
+                        window.AnabelkaNotify.error(
+                            error instanceof Error
+                                ? error.message
+                                : 'Не удалось изменить статус.'
                         );
                     }
 
