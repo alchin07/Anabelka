@@ -7,30 +7,6 @@
 (function () {
     'use strict';
 
-    function showMessage(text)
-    {
-        if (typeof window.showMessage === 'function') {
-            window.showMessage(text);
-            return;
-        }
-
-        const message = document.getElementById('site-message');
-
-        if (!message) {
-            window.alert(text);
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-
-        clearTimeout(window.deliveryAiMessageTimer);
-        window.deliveryAiMessageTimer = setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
-    }
-
-
     function ensureStyles()
     {
         if (document.getElementById('delivery-ai-translation-styles')) {
@@ -210,7 +186,7 @@
                 !window.AnabelkaAITranslation
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
-                showMessage(
+                window.AnabelkaNotify.info(
                     'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
                 );
                 return;
@@ -268,12 +244,12 @@
                     );
                 }
 
-                showMessage(
+                window.AnabelkaNotify.info(
                     'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
                 );
 
             } catch (error) {
-                showMessage(
+                window.AnabelkaNotify.error(
                     error && error.message
                         ? error.message
                         : 'Не вдалося отримати ШІ-переклад.'
@@ -318,7 +294,7 @@
                 !window.AnabelkaAITranslation
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
-                showMessage(
+                window.AnabelkaNotify.info(
                     'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
                 );
                 return;
@@ -373,12 +349,12 @@
                     );
                 }
 
-                showMessage(
+                window.AnabelkaNotify.info(
                     'ШІ-переклад поля отримано. Перевірте його та натисніть «Зберегти».'
                 );
 
             } catch (error) {
-                showMessage(
+                window.AnabelkaNotify.error(
                     error && error.message
                         ? error.message
                         : 'Не вдалося отримати ШІ-переклад поля.'
