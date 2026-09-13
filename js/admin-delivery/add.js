@@ -136,10 +136,6 @@
 
                 addModal.hidden = true;
 
-                window.showMessage(
-                    'Способ доставки добавлен'
-                );
-
                 /*
                  * Новый способ не должен раскрывать
                  * дерево целиком после перезагрузки.
@@ -183,13 +179,15 @@
                     /* Ничего: добавление уже выполнено. */
                 }
 
-                setTimeout(
-                    () => window.location.reload(),
-                    300
+                window.AnabelkaNotify.flash(
+                    'success',
+                    'Способ доставки добавлен'
                 );
 
+                window.location.reload();
+
             } catch (error) {
-                window.showMessage(
+                window.AnabelkaNotify.error(
                     error instanceof Error
                         ? error.message
                         : 'Не удалось добавить способ доставки.'
