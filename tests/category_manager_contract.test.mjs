@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -103,6 +104,52 @@ function assertBalancedSqlParentheses(sql) {
     }
 
     assert.equal(depth, 0, 'CREATE TABLE DDL has unclosed parentheses');
+}
+
+function cssRuleBody(css, selector) {
+    const expression = new RegExp(
+        '(?:^|})\\s*' + escapeRegExp(selector) + '\\s*\\{([^{}]*)\\}',
+        'm'
+    );
+    const match = css.match(expression);
+
+    assert.ok(match, `CSS rule ${selector} was not found`);
+    return match[1];
+}
+
+function flashPage(storage, messageElement) {
+    const timers = [];
+    const window = {
+        sessionStorage: {
+            getItem(key) {
+                return storage.has(key) ? storage.get(key) : null;
+            },
+            setItem(key, value) {
+                storage.set(key, String(value));
+            },
+            removeItem(key) {
+                storage.delete(key);
+            }
+        },
+        clearTimeout() {},
+        setTimeout(callback, delay) {
+            timers.push({callback, delay});
+            return timers.length;
+        }
+    };
+    const document = {
+        getElementById(id) {
+            return id === 'site-message' ? messageElement : null;
+        }
+    };
+
+    window.window = window;
+    vm.runInNewContext(
+        read('js/admin-flash-message.js'),
+        {document, window}
+    );
+
+    return {timers, window};
 }
 
 test('canonical catalog route wins before the one-segment legacy route', function () {
@@ -370,6 +417,135 @@ test('category collapse swaps symbols without transforming the button box', func
     );
     assert.match(script, /sessionStorage\.getItem\(collapsedStorageKey\)/);
     assert.match(script, /sessionStorage\.setItem\(\s*collapsedStorageKey/);
+});
+
+test('category success message survives reload through session storage', function () {
+    const storage = new Map();
+    const firstPage = flashPage(storage, null);
+
+    firstPage.window.AdminFlashMessage.storeSuccess(
+        'Категорію та переклади збережено.'
+    );
+
+    assert.equal(storage.size, 1);
+
+    const classes = new Set();
+    const messageElement = {
+        textContent: '',
+        classList: {
+            add(name) {
+                classes.add(name);
+            },
+            remove(name) {
+                classes.delete(name);
+            },
+            toggle(name, enabled) {
+                if (enabled) {
+                    classes.add(name);
+                } else {
+                    classes.delete(name);
+                }
+            }
+        }
+    };
+    const reloadedPage = flashPage(storage, messageElement);
+
+    assert.equal(storage.size, 0);
+    assert.equal(
+        messageElement.textContent,
+        'Категорію та переклади збережено.'
+    );
+    assert.ok(classes.has('show'));
+    assert.ok(!classes.has('is-error'));
+    assert.equal(reloadedPage.timers.at(-1)?.delay, 2800);
+
+    reloadedPage.window.AdminFlashMessage.show(
+        'Операцію не виконано.',
+        true
+    );
+
+    assert.ok(classes.has('is-error'));
+    assert.equal(reloadedPage.timers.at(-1)?.delay, 4800);
+    assert.ok(
+        reloadedPage.timers.at(-1).delay
+            > reloadedPage.timers.at(-2).delay
+    );
+});
+
+test('category mutations store success before immediate reload or replace', function () {
+    const script = read('js/admin-categories.js');
+
+    assert.match(
+        script,
+        /const result = await request\(form\.action, new FormData\(form\)\);\s*storeSuccessMessage\(result\.message \|\| 'Збережено\.'\);\s*closeModals\(false\);\s*if \(returnUrl\) \{\s*window\.location\.replace\(returnUrl\);\s*\} else \{\s*window\.location\.reload\(\);\s*\}/
+    );
+    assert.match(
+        script,
+        /const result = await request\(url, data\);\s*storeSuccessMessage\(result\.message \|\| 'Збережено\.'\);\s*window\.location\.reload\(\);/
+    );
+    assert.doesNotMatch(script, /\},\s*(?:250|300)\s*\);/);
+    assert.doesNotMatch(
+        script,
+        /showMessage\(result\.message \|\| 'Збережено\.', false\)/
+    );
+
+    ['editForm', 'createForm', 'moveForm', 'deleteForm'].forEach(
+        function (formName) {
+            assert.match(
+                script,
+                new RegExp(
+                    escapeRegExp(formName)
+                        + '\\s*\\.addEventListener\\(\\s*'
+                        + "'submit',\\s*submitAndReload\\("
+                )
+            );
+        }
+    );
+    assert.match(
+        script,
+        /simpleAction\(button, '\/Anabelka\/admin\/categories\/toggle'/
+    );
+    assert.match(
+        script,
+        /simpleAction\(button, '\/Anabelka\/admin\/categories\/move'/
+    );
+});
+
+test('category flash is available after manager reload and translation return', function () {
+    const categoryView = read('views/admin/categories/index.php');
+    const missingTranslationsView = read('views/admin/translations/missing.php');
+
+    [categoryView, missingTranslationsView].forEach(function (view) {
+        assert.match(view, /css\/admin-flash-message\.css\?v=1/);
+        assert.match(view, /id="site-message"[^>]*aria-live="polite"/);
+        assert.match(view, /js\/admin-flash-message\.js\?v=1/);
+    });
+    assert.ok(
+        categoryView.indexOf('js/admin-flash-message.js?v=1')
+            < categoryView.indexOf('js/admin-categories.js?v=2')
+    );
+});
+
+test('category flash geometry is centered and safe on 320px screens', function () {
+    const css = read('css/admin-flash-message.css');
+    const baseRule = cssRuleBody(css, '.site-message');
+    const errorRule = cssRuleBody(css, '.site-message.is-error');
+
+    assert.match(baseRule, /position:\s*fixed/i);
+    assert.match(baseRule, /top:\s*50%/i);
+    assert.match(baseRule, /left:\s*50%/i);
+    assert.doesNotMatch(baseRule, /(?:^|;)\s*(?:right|bottom)\s*:/i);
+    assert.match(baseRule, /width:\s*max-content/i);
+    assert.match(
+        baseRule,
+        /max-width:\s*min\(360px,\s*calc\(100vw\s*-\s*24px\)\)/i
+    );
+    assert.match(baseRule, /box-sizing:\s*border-box/i);
+    assert.match(baseRule, /overflow-wrap:\s*anywhere/i);
+    assert.match(baseRule, /background:\s*#fffaf7/i);
+    assert.match(baseRule, /border[^;]*#5f9b68/i);
+    assert.match(errorRule, /background:\s*#fff7f5/i);
+    assert.match(errorRule, /border[^;]*#c45757/i);
 });
 
 process.stdout.write('category manager contract checks passed\n');

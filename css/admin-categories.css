@@ -431,31 +431,6 @@
     background: #fff;
 }
 
-.site-message {
-    position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 10050;
-    max-width: min(390px, calc(100% - 32px));
-    padding: 12px 15px;
-    border-radius: 11px;
-    background: #302437;
-    color: #fff;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(12px);
-    transition: 0.18s ease;
-}
-
-.site-message.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.site-message.is-error {
-    background: #8d2525;
-}
-
 @media (max-width: 680px) {
     .category-manager {
         width: min(100% - 12px, 1120px);

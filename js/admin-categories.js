@@ -29,6 +29,14 @@
 
     function showMessage(message, isError)
     {
+        if (
+            window.AdminFlashMessage
+            && typeof window.AdminFlashMessage.show === 'function'
+        ) {
+            window.AdminFlashMessage.show(message, isError);
+            return;
+        }
+
         const element = document.getElementById('site-message');
 
         if (!element) {
@@ -41,7 +49,28 @@
         window.clearTimeout(window.categoryManagerMessageTimer);
         window.categoryManagerMessageTimer = window.setTimeout(function () {
             element.classList.remove('show');
-        }, isError ? 4500 : 2400);
+        }, isError ? 4800 : 2800);
+    }
+
+
+    function storeSuccessMessage(message)
+    {
+        if (
+            window.AdminFlashMessage
+            && typeof window.AdminFlashMessage.storeSuccess === 'function'
+        ) {
+            window.AdminFlashMessage.storeSuccess(message);
+            return;
+        }
+
+        try {
+            window.sessionStorage.setItem(
+                'anabelka-category-success-flash',
+                String(message || 'Збережено.')
+            );
+        } catch (error) {
+            // Navigation must still complete when browser storage is disabled.
+        }
     }
 
 
@@ -137,16 +166,14 @@
 
             try {
                 const result = await request(form.action, new FormData(form));
-                showMessage(result.message || 'Збережено.', false);
+                storeSuccessMessage(result.message || 'Збережено.');
                 closeModals(false);
 
-                window.setTimeout(function () {
-                    if (returnUrl) {
-                        window.location.replace(returnUrl);
-                    } else {
-                        window.location.reload();
-                    }
-                }, 300);
+                if (returnUrl) {
+                    window.location.replace(returnUrl);
+                } else {
+                    window.location.reload();
+                }
             } catch (error) {
                 showMessage(error.message || 'Операцію не виконано.', true);
 
@@ -551,10 +578,8 @@
 
         try {
             const result = await request(url, data);
-            showMessage(result.message || 'Збережено.', false);
-            window.setTimeout(function () {
-                window.location.reload();
-            }, 250);
+            storeSuccessMessage(result.message || 'Збережено.');
+            window.location.reload();
         } catch (error) {
             button.disabled = false;
             showMessage(error.message || 'Операцію не виконано.', true);

@@ -182,6 +182,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-flash-message.css?v=1">
 </head>
 <body>
 
@@ -418,6 +419,7 @@ require __DIR__ . '/../../partials/header.php';
 
 <div id="site-message" class="site-message" role="status" aria-live="polite"></div>
 <script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
-<script src="/Anabelka/js/admin-categories.js?v=1"></script>
+<script src="/Anabelka/js/admin-flash-message.js?v=1"></script>
+<script src="/Anabelka/js/admin-categories.js?v=2"></script>
 </body>
 </html>
