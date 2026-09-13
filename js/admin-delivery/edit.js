@@ -781,7 +781,7 @@
                             );
                         }
                     } catch (error) {
-                        window.showMessage(
+                        window.AnabelkaNotify.error(
                             error instanceof Error
                                 ? error.message
                                 : 'Не удалось загрузить переводы.'
@@ -970,12 +970,12 @@
 
                 editModal.hidden = true;
 
-                window.showMessage(
+                window.AnabelkaNotify.success(
                     'Изменения и переводы сохранены'
                 );
 
             } catch (error) {
-                window.showMessage(
+                window.AnabelkaNotify.error(
                     error instanceof Error
                         ? error.message
                         : 'Не удалось сохранить изменения.'
