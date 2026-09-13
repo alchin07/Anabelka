@@ -112,7 +112,7 @@ $renderSidebarNodes = function (array $nodes, $level = 1) use (&$renderSidebarNo
     <title>Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/home.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/home.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/home-desktop-sidebar.css?v=2">
 </head>
 <body>

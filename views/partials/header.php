@@ -124,6 +124,8 @@ $currentUserName = trim((string) (
     $_SESSION['user_name'] ?? ''
 ));
 $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
+$favoritesLabel = Translator::t('header.favorites', 'Обране');
+$catalogLabel = Translator::t('public.catalog.title', 'Каталог');
 $favoriteCount = count($favoriteProductIds);
 $adminNotificationCount = max(
     0,
@@ -151,7 +153,7 @@ $badgeText = static function ($count) {
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-header.css?v=3"
+        href="/Anabelka/css/public-header.css?v=4"
     >
 
     <div class="public-header-shell">
@@ -159,8 +161,7 @@ $badgeText = static function ($count) {
             <nav
                 class="public-header-brand"
                 aria-label="<?= htmlspecialchars(
-                    'Анабелька — '
-                    . Translator::t('header.favorites', 'Обране')
+                    'Анабелька — ' . $favoritesLabel
                 ) ?>"
             >
                 <a
@@ -175,7 +176,10 @@ $badgeText = static function ($count) {
                     href="/Anabelka/favorites"
                     class="public-header-action header-favorites"
                     aria-label="<?= htmlspecialchars(
-                        Translator::t('header.favorites', 'Обране')
+                        $favoritesLabel
+                    ) ?>"
+                    title="<?= htmlspecialchars(
+                        $favoritesLabel
                     ) ?>"
                 >
                     <span class="public-header-action-icon" aria-hidden="true">
@@ -188,11 +192,6 @@ $badgeText = static function ($count) {
                                 stroke-linejoin="round"
                             />
                         </svg>
-                    </span>
-                    <span class="public-header-action-label">
-                        <?= htmlspecialchars(
-                            Translator::t('header.favorites', 'Обране')
-                        ) ?>
                     </span>
                     <span
                         class="public-header-count header-favorites-count"
@@ -398,6 +397,22 @@ $badgeText = static function ($count) {
                                 ) ?>
                             </a>
                         <?php endif; ?>
+
+                        <?php if ($currentAdmin): ?>
+                            <a
+                                href="/Anabelka/admin"
+                                class="public-header-admin"
+                                aria-label="Адмін-панель"
+                                title="Адмін-панель"
+                            >
+                                <span>Адмін-панель</span>
+                                <span
+                                    class="public-header-popover-count public-header-admin-count"
+                                    id="admin-notification-count"
+                                    <?= $adminNotificationCount > 0 ? '' : 'hidden' ?>
+                                ><?= $badgeText($adminNotificationCount) ?></span>
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </details>
 
@@ -434,29 +449,24 @@ $badgeText = static function ($count) {
                     ><?= $badgeText($cartCount) ?></span>
                 </a>
 
-                <?php if ($currentAdmin): ?>
-                    <a
-                        href="/Anabelka/admin"
-                        class="public-header-action public-header-admin"
-                        aria-label="Адмін-панель"
-                        title="Адмін-панель"
-                    >
-                        <span class="public-header-action-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24">
-                                <rect x="4" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                                <rect x="14" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                                <rect x="4" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                                <rect x="14" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                            </svg>
-                        </span>
-                        <span class="public-header-action-label">Адмін</span>
-                        <span
-                            class="public-header-count public-header-admin-count"
-                            id="admin-notification-count"
-                            <?= $adminNotificationCount > 0 ? '' : 'hidden' ?>
-                        ><?= $badgeText($adminNotificationCount) ?></span>
-                    </a>
-                <?php endif; ?>
+                <a
+                    href="/Anabelka/catalog"
+                    class="public-header-action public-header-catalog"
+                    aria-label="<?= htmlspecialchars($catalogLabel) ?>"
+                    title="<?= htmlspecialchars($catalogLabel) ?>"
+                >
+                    <span class="public-header-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="4" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                            <rect x="14" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                            <rect x="4" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                            <rect x="14" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                        </svg>
+                    </span>
+                    <span class="public-header-action-label">
+                        <?= htmlspecialchars($catalogLabel) ?>
+                    </span>
+                </a>
 
                 <?php if (!empty($activeLanguages)): ?>
                     <details class="public-header-menu public-header-language">

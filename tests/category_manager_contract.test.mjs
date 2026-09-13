@@ -117,6 +117,33 @@ function cssRuleBody(css, selector) {
     return match[1];
 }
 
+function cssMediaBody(css, maxWidth) {
+    const marker = new RegExp(
+        '@media\\s*\\(max-width:\\s*' + maxWidth + 'px\\)\\s*\\{',
+        'i'
+    );
+    const match = marker.exec(css);
+
+    assert.ok(match, `@media (max-width: ${maxWidth}px) was not found`);
+
+    const start = match.index + match[0].length;
+    let depth = 1;
+
+    for (let offset = start; offset < css.length; offset += 1) {
+        if (css[offset] === '{') {
+            depth += 1;
+        } else if (css[offset] === '}') {
+            depth -= 1;
+
+            if (depth === 0) {
+                return css.slice(start, offset);
+            }
+        }
+    }
+
+    assert.fail(`@media (max-width: ${maxWidth}px) has no closing brace`);
+}
+
 function flashPage(storage, messageElement) {
     const timers = [];
     const window = {
@@ -473,19 +500,29 @@ test('adult visibility is explicit and inherited without name heuristics', funct
 
 test('catalog root renders data-driven adult categories after standard roots', function () {
     const view = read('views/catalog/index.php');
+    const category = read('app/Models/Category.php');
     const standardLoop = view.indexOf(
         'foreach ($standardCategories as $category)'
     );
     const adultLoop = view.indexOf(
         'foreach ($adultCategories as $category)'
     );
+    const partitionBlock = view.slice(
+        view.indexOf('foreach ($categories as $category)'),
+        view.indexOf('?>')
+    );
 
     assert.match(view, /\$standardCategories\s*=\s*\[\]/);
     assert.match(view, /\$adultCategories\s*=\s*\[\]/);
     assert.match(
         view,
-        /foreach\s*\(\$categories\s+as\s+\$category\)[\s\S]*?!empty\(\$category\['is_adult'\]\)[\s\S]*?\$adultCategories\[\]\s*=\s*\$category[\s\S]*?\$standardCategories\[\]\s*=\s*\$category/
+        /foreach\s*\(\$categories\s+as\s+\$category\)[\s\S]*?\$category\['parent_id'\][\s\S]*?continue;[\s\S]*?!empty\(\$category\['is_adult'\]\)[\s\S]*?\$adultCategories\[\]\s*=\s*\$category[\s\S]*?\$standardCategories\[\]\s*=\s*\$category/
     );
+    assert.match(
+        category,
+        /public\s+static\s+function\s+all\(\)[\s\S]*?\$category\['parent_id'\]\s*!==\s*null[\s\S]*?continue;/
+    );
+    assert.doesNotMatch(partitionBlock, /effective_adult/);
     assert.ok(standardLoop >= 0, 'standard category loop was not found');
     assert.ok(
         adultLoop > standardLoop,
@@ -511,20 +548,37 @@ test('catalog adult entry has Anabelka branding and a mobile-safe strawberry car
     const css = read('css/catalog.css');
     const homeCss = read('css/home.css');
     const sidebarCss = read('css/home-desktop-sidebar.css');
+    const translations = read('app/Models/PublicInterfaceTranslator.php');
     const entryRule = cssRuleBody(css, '.catalog-adult-entry');
     const badgeRule = cssRuleBody(css, '.catalog-adult-badge');
+    const listRule = cssRuleBody(css, '.catalog-adult-list');
 
     assert.match(view, /class="catalog-adult-brand-name"[^>]*>\s*Анабелька\s*</);
     assert.match(view, /class="catalog-adult-strawberry"/);
     assert.match(view, /class="catalog-adult-category-name"[\s\S]*?\$category\['name'\]/);
+    assert.match(view, /class="catalog-adult-action"[\s\S]*?public\.catalog\.adult_enter/);
+    assert.equal(
+        (translations.match(/'public\.catalog\.adult_enter'\s*=>/g) || []).length,
+        3
+    );
+    assert.match(listRule, /align-items:\s*flex-start/i);
     assert.match(entryRule, /min-width:\s*0/i);
-    assert.match(entryRule, /max-width:\s*100%/i);
+    assert.match(entryRule, /width:\s*min\(100%,\s*420px\)/i);
+    assert.match(entryRule, /max-width:\s*420px/i);
     assert.match(entryRule, /box-sizing:\s*border-box/i);
+    assert.match(entryRule, /flex-direction:\s*column/i);
     assert.match(entryRule, /#8a2be2/i);
     assert.match(entryRule, /#6519b9/i);
     assert.match(badgeRule, /background:\s*#f4eaff/i);
     assert.match(badgeRule, /color:\s*#6519b9/i);
-    assert.match(css, /@media\s*\(max-width:\s*600px\)[\s\S]*?\.catalog-adult-entry[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/i);
+    assert.match(
+        css,
+        /\.catalog-adult-top\s*\{[^{}]*display:\s*flex[^{}]*justify-content:\s*space-between/is
+    );
+    assert.match(
+        css,
+        /@media\s*\(max-width:\s*600px\)[\s\S]*?\.catalog-adult-entry\s*\{[^{}]*width:\s*100%/i
+    );
     assert.doesNotMatch(view + css, /#302437/i);
     assert.match(
         cssRuleBody(homeCss, '.home-adult-section'),
@@ -567,15 +621,33 @@ test('adult gate keeps the return URL contract and uses the Anabelka palette', f
     assert.doesNotMatch(confirmRule, /background:\s*#(?:000|000000)\b/i);
 });
 
-test('favorite stays beside the logo before search with bounded mobile geometry', function () {
+test('public header keeps icon-only favorites before search and four action controls', function () {
     const header = read('views/partials/header.php');
     const css = read('css/public-header.css');
+    const notificationCss = read('css/public-header-notifications.css');
+    const homeCss = read('css/home.css');
     const logoPosition = header.indexOf('public-header-logo');
     const favoritePosition = header.indexOf('header-favorites');
     const searchPosition = header.indexOf('site-search-form');
     const actionsPosition = header.indexOf('public-header-actions');
+    const favoriteStart = header.lastIndexOf('<a', favoritePosition);
+    const favoriteEnd = header.indexOf('</a>', favoritePosition) + 4;
+    const favoriteBlock = header.slice(favoriteStart, favoriteEnd);
+    const actionsStart = header.lastIndexOf('<nav', actionsPosition);
+    const actionsEnd = header.indexOf('</nav>', actionsPosition);
+    const actionsBlock = header.slice(actionsStart, actionsEnd);
     const mainRule = cssRuleBody(css, '.public-header-main');
     const brandRule = cssRuleBody(css, '.public-header-brand');
+    const shellRule = cssRuleBody(css, '.public-header-shell');
+    const actionsRule = cssRuleBody(css, '.public-header-actions');
+    const actionRule = cssRuleBody(css, '.public-header-action');
+    const actionFocusRule = cssRuleBody(
+        css,
+        '.public-header-action:focus-visible'
+    );
+    const mobileCss = cssMediaBody(css, 760);
+    const compactCss = cssMediaBody(css, 400);
+    const tinyCss = cssMediaBody(notificationCss, 350);
 
     assert.ok(logoPosition >= 0);
     assert.ok(favoritePosition > logoPosition);
@@ -589,6 +661,34 @@ test('favorite stays beside the logo before search with bounded mobile geometry'
         header,
         /<nav[\s\S]*?class="public-header-brand"[\s\S]*?public-header-logo[\s\S]*?header-favorites[\s\S]*?<\/nav>\s*<form\s+class="site-search-form"/
     );
+    assert.match(
+        header,
+        /\$favoritesLabel\s*=\s*Translator::t\('header\.favorites',\s*'Обране'\)/
+    );
+    assert.match(favoriteBlock, /aria-label="<\?=[\s\S]*?\$favoritesLabel/);
+    assert.match(favoriteBlock, /title="<\?=[\s\S]*?\$favoritesLabel/);
+    assert.doesNotMatch(favoriteBlock, /public-header-action-label/);
+
+    const actionOrder = [
+        'public-header-profile',
+        'header-cart',
+        'public-header-catalog',
+        'public-header-menu public-header-language'
+    ].map((className) => actionsBlock.indexOf(className));
+
+    actionOrder.forEach(function (position, index) {
+        assert.ok(position >= 0, `header action ${index + 1} was not found`);
+    });
+    assert.deepEqual(actionOrder, [...actionOrder].sort((a, b) => a - b));
+    assert.match(
+        actionsBlock,
+        /href="\/Anabelka\/catalog"[\s\S]*?class="public-header-action public-header-catalog"[\s\S]*?aria-label=/
+    );
+    assert.match(actionsBlock, /public-header-catalog[\s\S]*?title=/);
+    assert.match(
+        header,
+        /class="public-header-admin"[\s\S]*?href="\/Anabelka\/admin"|href="\/Anabelka\/admin"[\s\S]*?class="public-header-admin"/
+    );
 
     assert.match(brandRule, /display:\s*(?:inline-)?flex/i);
     assert.match(brandRule, /align-items:\s*center/i);
@@ -598,46 +698,115 @@ test('favorite stays beside the logo before search with bounded mobile geometry'
         mainRule,
         /grid-template-columns:\s*max-content\s+minmax\(280px,\s*1fr\)\s+auto/i
     );
+    assert.match(shellRule, /padding:\s*10px\s+0\s+8px/i);
+    assert.match(mainRule, /gap:\s*12px/i);
+    assert.match(actionsRule, /display:\s*flex/i);
+    assert.match(actionRule, /height:\s*42px/i);
     assert.match(
-        css,
-        /@media\s*\(max-width:\s*760px\)[\s\S]*?\.public-header-main\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/i
+        actionFocusRule,
+        /outline:\s*(?:2px|3px)\s+solid\s+var\(--primary-color,\s*#8a2be2\)/i
+    );
+    assert.match(actionFocusRule, /outline-offset:\s*[23]px/i);
+    assert.doesNotMatch(shellRule + mainRule, /(?:min-)?height\s*:/i);
+    assert.match(
+        mobileCss,
+        /\.public-header-main\s*\{[^{}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto[^{}]*gap:\s*4px\s+8px/is
     );
     assert.match(
-        css,
-        /@media\s*\(max-width:\s*760px\)[\s\S]*?\.public-header-action\s*\{[^{}]*width:\s*44px[^{}]*min-width:\s*44px[^{}]*height:\s*44px/is
+        mobileCss,
+        /\.public-header-shell\s*\{[^{}]*padding:\s*5px\s+0\s+4px/is
     );
     assert.match(
-        css,
-        /@media\s*\(max-width:\s*760px\)[\s\S]*?\.public-header-logo\s*\{[^{}]*width:\s*142px/is
+        mobileCss,
+        /\.public-header-action\s*\{[^{}]*width:\s*44px[^{}]*min-width:\s*44px[^{}]*height:\s*44px/is
     );
     assert.match(
-        css,
-        /@media\s*\(max-width:\s*400px\)[\s\S]*?\.public-header-logo\s*\{[^{}]*width:\s*112px/is
+        mobileCss,
+        /\.public-header-logo\s*\{[^{}]*width:\s*142px/is
     );
     assert.match(
-        css,
-        /@media\s*\(max-width:\s*400px\)[\s\S]*?\.public-header-actions\s*\{[^{}]*display:\s*grid[^{}]*grid-template-columns:\s*repeat\(2,\s*44px\)[^{}]*gap:\s*4px/is
+        mobileCss,
+        /\.public-header-page-title\s*\{[^{}]*margin-top:\s*3px[^{}]*font-size:\s*11px/is
+    );
+    assert.match(
+        compactCss,
+        /\.public-header-main\s*\{[^{}]*gap:\s*3px\s+8px/is
+    );
+    assert.match(
+        compactCss,
+        /\.public-header-logo\s*\{[^{}]*width:\s*118px[^{}]*font-size:\s*23px/is
+    );
+    assert.match(
+        compactCss,
+        /\.public-header-actions\s*\{[^{}]*display:\s*grid[^{}]*grid-template-columns:\s*repeat\(2,\s*44px\)[^{}]*gap:\s*4px/is
     );
     assert.match(
         css,
         /\.public-header\s+\.site-search-form\s*\{[^{}]*min-width:\s*0[^{}]*max-width:\s*100%/is
     );
+    assert.match(
+        mobileCss,
+        /\.public-header\s+\.site-search-form\s*\{[^{}]*grid-column:\s*1\s*\/\s*-1[^{}]*grid-row:\s*2/is
+    );
+    assert.match(
+        mobileCss,
+        /\.public-header\s+\.site-search-button\s*\{[^{}]*min-width:\s*44px[^{}]*width:\s*44px/is
+    );
+    assert.match(
+        cssMediaBody(homeCss, 600),
+        /\.home-page\s*\{[^{}]*padding-top:\s*6px/is
+    );
 
-    [320, 360, 375, 390, 412, 430].forEach(function (width) {
+    const tinyControlRules = Array.from(
+        tinyCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)
+    ).filter(function (match) {
+        return match[1]
+            .split(',')
+            .map((selector) => selector.trim())
+            .some((selector) => [
+                '.public-header-action',
+                '.public-header-language-code'
+            ].includes(selector));
+    });
+
+    tinyControlRules.forEach(function (rule) {
+        for (const declaration of rule[2].matchAll(
+            /(?:^|;)\s*(width|min-width|height)\s*:\s*(\d+)px/gi
+        )) {
+            assert.ok(
+                Number(declaration[2]) >= 44,
+                `${declaration[1]} shrinks a mobile control below 44px`
+            );
+        }
+    });
+
+    [320, 360, 375, 390, 400, 401, 412, 430].forEach(function (width) {
         const compact = width <= 400;
         const shellWidth = width - (compact ? 14 : 20);
         const brandWidth = compact
-            ? 112 + 1 + 44
+            ? 118 + 2 + 44
             : 142 + 4 + 44;
         const fourActionsWidth = compact
             ? (2 * 44) + 4
             : (4 * 44) + (3 * 2);
         const usedWidth = brandWidth + fourActionsWidth + 8;
+        const topHeight = compact ? (2 * 44) + 4 : 44;
+        const headerHeightWithTitle = topHeight
+            + (compact ? 3 : 4)
+            + 44
+            + 5
+            + 4
+            + 3
+            + 13;
 
         assert.ok(width <= 760, `${width}px must use the bounded mobile grid`);
         assert.ok(
             usedWidth <= shellWidth,
             `${width}px header exceeds its ${shellWidth}px shell budget`
+        );
+        assert.ok(
+            headerHeightWithTitle <= (compact ? 164 : 117),
+            `${width}px header has excess vertical whitespace`
         );
     });
 });

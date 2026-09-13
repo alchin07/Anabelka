@@ -1,4 +1,4 @@
-@import url('/Anabelka/css/public-header-notifications.css?v=1');
+@import url('/Anabelka/css/public-header-notifications.css?v=2');
 
 .public-header {
     position: relative;
@@ -113,6 +113,12 @@
     background: #faf7ff;
     color: var(--primary-color, #8A2BE2);
     outline: none;
+}
+
+.public-header-action:focus-visible {
+    border-color: var(--primary-color, #8A2BE2);
+    outline: 2px solid var(--primary-color, #8A2BE2);
+    outline-offset: 2px;
 }
 
 .public-header-action-icon {
@@ -294,12 +300,12 @@
 @media (max-width: 760px) {
     .public-header-shell {
         width: calc(100% - 20px);
-        padding: 8px 0 7px;
+        padding: 5px 0 4px;
     }
 
     .public-header-main {
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 7px 8px;
+        gap: 4px 8px;
     }
 
     .public-header-brand {
@@ -358,8 +364,9 @@
     }
 
     .public-header-page-title {
-        margin-top: 6px;
-        font-size: 12px;
+        margin-top: 3px;
+        font-size: 11px;
+        line-height: 1.15;
     }
 
     .public-header-popover {
@@ -377,22 +384,22 @@
     }
 
     .public-header-main {
-        gap: 6px 8px;
+        gap: 3px 8px;
     }
 
     .public-header-brand {
-        gap: 1px;
+        gap: 2px;
         overflow: hidden;
     }
 
     .public-header .catalog-logo,
     .public-header-logo {
-        width: 112px;
+        width: 118px;
         max-width: calc(100% - 45px);
         overflow: hidden;
-        flex: 0 1 112px;
-        font-size: 21px;
-        letter-spacing: -.035em;
+        flex: 0 1 118px;
+        font-size: 23px;
+        letter-spacing: -.025em;
     }
 
     .public-header-actions {

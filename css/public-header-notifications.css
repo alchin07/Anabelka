@@ -42,14 +42,7 @@
 @media (max-width: 350px) {
     .public-header .catalog-logo,
     .public-header-logo {
-        font-size: 22px;
-    }
-
-    .public-header-action,
-    .public-header-language-code {
-        width: 34px;
-        min-width: 34px;
-        height: 37px;
+        font-size: 23px;
     }
 
     .public-header-action-icon {
