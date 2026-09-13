@@ -46,6 +46,7 @@ Node.js `node:test`, Git/GitHub stacked draft PR.
 **Files:**
 
 - Create: `tests/anabelka_notifications_contract.test.mjs`
+- Create: `tests/anabelka_flash_runtime.php`
 
 1. Build a minimal real DOM/session runtime around `vm.runInNewContext`.
 2. Add behavior tests for immediate rendering, shared structure, type accents,
@@ -53,7 +54,9 @@ Node.js `node:test`, Git/GitHub stacked draft PR.
    persistent messages, and one-shot cross-page client flash.
 3. Add repository integration tests for the PHP bridge, guarded partial,
    header includes, safe mobile CSS, and reduced-motion handling.
-4. Run `node tests/anabelka_notifications_contract.test.mjs` and confirm the
+4. Add executable PHP session tests for normalization, one-shot consumption,
+   options, and duplicate suppression; run them wherever PHP CLI is available.
+5. Run `node tests/anabelka_notifications_contract.test.mjs` and confirm the
    expected missing-foundation failure.
 
 ## Task 3: Implement the shared foundation (GREEN)

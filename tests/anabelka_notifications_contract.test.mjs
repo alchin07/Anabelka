@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -23,6 +24,31 @@ function cssRuleBody(css, selector) {
 
     assert.ok(match, `CSS rule ${selector} must exist`);
     return match[1];
+}
+
+function relativeLuminance(hexColor) {
+    const channels = hexColor.match(/[0-9a-f]{2}/gi).map(function (value) {
+        const channel = parseInt(value, 16) / 255;
+
+        return channel <= 0.04045
+            ? channel / 12.92
+            : Math.pow((channel + 0.055) / 1.055, 2.4);
+    });
+
+    return (
+        0.2126 * channels[0]
+        + 0.7152 * channels[1]
+        + 0.0722 * channels[2]
+    );
+}
+
+function contrastRatio(first, second) {
+    const firstLuminance = relativeLuminance(first);
+    const secondLuminance = relativeLuminance(second);
+    const lighter = Math.max(firstLuminance, secondLuminance);
+    const darker = Math.min(firstLuminance, secondLuminance);
+
+    return (lighter + 0.05) / (darker + 0.05);
 }
 
 function test(name, callback) {
@@ -392,6 +418,27 @@ test('show supports persistent notifications and safe duration overrides', funct
     assert.equal(fallbackPage.timers.at(-1)?.delay, 5000);
 });
 
+test('types use a normalized own-value allowlist and messages match PHP parity', function () {
+    const page = createPage();
+    const notify = page.window.AnabelkaNotify;
+
+    ['constructor', '__proto__', 'toString'].forEach(function (type) {
+        assert.equal(notify.show(type, 'Must be rejected'), false);
+        assert.equal(notify.flash(type, 'Must be rejected'), false);
+    });
+    assert.equal(page.container.children.length, 0);
+    assert.equal(page.timers.length, 0);
+
+    assert.equal(notify.show(' SUCCESS ', 0), true);
+    const notification = page.container.children[0];
+    assert.ok(notification.classList.contains('anabelka-notification--success'));
+    assert.equal(
+        notification.querySelector('.anabelka-notification__message')?.textContent,
+        '0'
+    );
+    assert.equal(page.timers.at(-1)?.delay, 2800);
+});
+
 test('client flash survives navigation and is consumed exactly once', function () {
     const sharedStorage = new Map();
     const firstPage = createPage({storage: sharedStorage});
@@ -416,6 +463,22 @@ test('client flash survives navigation and is consumed exactly once', function (
 
     const refreshedPage = createPage({storage: sharedStorage});
     assert.equal(refreshedPage.container.children.length, 0);
+});
+
+test('deduplication spans stored, active, and queued notification states', function () {
+    const storedFirst = createPage({storage: new Map()});
+    const storedNotify = storedFirst.window.AnabelkaNotify;
+
+    assert.equal(storedNotify.flash('success', 'Same event'), true);
+    assert.equal(storedNotify.success('Same event'), false);
+    assert.equal(storedFirst.container.children.length, 0);
+
+    const shownFirst = createPage({storage: new Map()});
+    const shownNotify = shownFirst.window.AnabelkaNotify;
+
+    assert.equal(shownNotify.success('Same event'), true);
+    assert.equal(shownNotify.flash('success', 'Same event'), false);
+    assert.equal(shownFirst.storage.size, 0);
 });
 
 test('malformed client flash is removed without displaying a message', function () {
@@ -511,6 +574,17 @@ test('CSS keeps every type in one mobile-safe purple top-center overlay', functi
     assert.match(close, /min-width:\s*44px/i);
     assert.match(close, /min-height:\s*44px/i);
     assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/i);
+
+    const background = notification.match(/background:\s*(#[0-9a-f]{6})/i)?.[1];
+    const errorAccent = cssRuleBody(
+        css,
+        '.anabelka-notification--error'
+    ).match(/--anabelka-notification-accent:\s*(#[0-9a-f]{6})/i)?.[1];
+    assert.ok(background && errorAccent);
+    assert.ok(
+        contrastRatio(background, errorAccent) >= 3,
+        'error accent must have at least 3:1 contrast against the purple base'
+    );
 });
 
 test('PHP bridge owns a separate one-shot session namespace and generic API', function () {
@@ -538,8 +612,29 @@ test('PHP bridge owns a separate one-shot session namespace and generic API', fu
     assert.match(bridge, /\$_SESSION\[self::SESSION_KEY\]/);
     assert.match(bridge, /unset\(\$_SESSION\[self::SESSION_KEY\]\)/);
     assert.match(bridge, /\['success',\s*'info',\s*'warning',\s*'error'\]/);
+    assert.match(
+        bridge,
+        /if\s*\(\s*!is_string\(\$item\['type'\]\s*\?\?\s*null\)\s*\)\s*\{\s*return null;/
+    );
     assert.doesNotMatch(bridge, /Категор|Достав|Товар|Замовлен|Заказ/u);
     assert.match(app, /require_once\s+__DIR__\s*\.\s*'\/AnabelkaFlash\.php'/);
+});
+
+test('PHP bridge has an executable behavior suite', function () {
+    const runtimeTest = filePath('tests/anabelka_flash_runtime.php');
+    assert.ok(fs.existsSync(runtimeTest));
+
+    const phpVersion = spawnSync('php', ['-v'], {encoding: 'utf8'});
+
+    if (phpVersion.error && phpVersion.error.code === 'ENOENT') {
+        process.stdout.write('skip - PHP CLI is unavailable in this environment\n');
+        return;
+    }
+
+    assert.equal(phpVersion.status, 0, phpVersion.stderr);
+    const result = spawnSync('php', [runtimeTest], {encoding: 'utf8'});
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /anabelka flash runtime checks passed/);
 });
 
 test('one guarded partial connects both header paths to one DOM container', function () {

@@ -432,6 +432,17 @@ test('category failures and AI feedback use the shared typed API', function () {
     assert.doesNotMatch(ai, /function\s+showMessage|site-message|window\.alert\(/);
 });
 
+test('category AI loader cache versions expose the migrated script', function () {
+    const nav = read('js/admin-nav.js');
+    const adminHeader = read('views/admin/partials/header.php');
+
+    assert.match(
+        nav,
+        /\/Anabelka\/js\/admin-category-ai-translation\.js\?v=5/
+    );
+    assert.match(adminHeader, /\/Anabelka\/js\/admin-nav\.js\?v=18/);
+});
+
 test('category views rely on the single shared notification partial', function () {
     const categoryView = read('views/admin/categories/index.php');
     const missingTranslationsView = read('views/admin/translations/missing.php');

@@ -54,6 +54,8 @@ session flash in their owning section so refresh cannot repeat the message.
   assets, included by both public and admin header paths.
 - `tests/anabelka_notifications_contract.test.mjs` — runtime and integration
   contract checks.
+- `tests/anabelka_flash_runtime.php` — executable PHP session behavior checks
+  for environments with PHP CLI.
 
 `app/Core/App.php` loads the PHP bridge. Both header implementations include
 the shared partial; a request-level guard in the partial guarantees that its

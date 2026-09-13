@@ -115,7 +115,11 @@ final class AnabelkaFlash
             return null;
         }
 
-        $type = strtolower(trim((string) ($item['type'] ?? '')));
+        if (!is_string($item['type'] ?? null)) {
+            return null;
+        }
+
+        $type = strtolower(trim($item['type']));
         $messageValue = $item['message'] ?? '';
 
         if (

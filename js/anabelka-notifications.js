@@ -7,6 +7,7 @@
         warning: 4000,
         error: 5000
     });
+    const types = new Set(['success', 'info', 'warning', 'error']);
     const storageKey = 'anabelka.notifications.flash.v1';
     const accents = Object.freeze({
         success: '✓',
@@ -24,6 +25,26 @@
         return type + '\u0000' + message;
     }
 
+    function normalizeType(type)
+    {
+        if (typeof type !== 'string') {
+            return '';
+        }
+
+        const normalized = type.trim().toLowerCase();
+
+        return types.has(normalized) ? normalized : '';
+    }
+
+    function normalizeMessage(message)
+    {
+        if (message === null || message === undefined) {
+            return '';
+        }
+
+        return String(message).trim();
+    }
+
     function normalizeOptions(type, options)
     {
         const supplied = options && typeof options === 'object'
@@ -36,6 +57,24 @@
                 ? suppliedDuration
                 : durations[type],
             persistent: supplied.persistent === true
+        };
+    }
+
+    function normalizeItem(type, message, options)
+    {
+        const normalizedType = normalizeType(type);
+        const normalizedMessage = normalizeMessage(message);
+
+        if (normalizedType === '' || normalizedMessage === '') {
+            return null;
+        }
+
+        return {
+            element: null,
+            message: normalizedMessage,
+            options: normalizeOptions(normalizedType, options),
+            signature: signature(normalizedType, normalizedMessage),
+            type: normalizedType
         };
     }
 
@@ -95,37 +134,34 @@
 
     function enqueue(type, message, options)
     {
-        const text = String(message || '').trim();
+        const item = normalizeItem(type, message, options);
 
-        if (!durations[type] || text === '') {
+        if (!item) {
             return false;
         }
 
-        const itemSignature = signature(type, text);
-
-        if (pendingSignatures.has(itemSignature)) {
+        if (
+            pendingSignatures.has(item.signature)
+            || storedItems().some(function (storedItem) {
+                return storedItem.signature === item.signature;
+            })
+        ) {
             return false;
         }
 
-        pendingSignatures.add(itemSignature);
-        queue.push({
-            element: null,
-            message: text,
-            options: normalizeOptions(type, options),
-            signature: itemSignature,
-            type: type
-        });
+        pendingSignatures.add(item.signature);
+        queue.push(item);
         renderNext();
 
         return true;
     }
 
-    function storedItems()
+    function parseStoredItems(serialized)
     {
         let payload;
 
         try {
-            payload = JSON.parse(window.sessionStorage.getItem(storageKey) || 'null');
+            payload = JSON.parse(serialized || 'null');
         } catch (error) {
             return [];
         }
@@ -134,48 +170,74 @@
             return [];
         }
 
-        return payload.items.filter(function (item) {
-            return item
-                && durations[item.type]
-                && typeof item.message === 'string'
-                && item.message.trim() !== '';
-        }).map(function (item) {
-            return {
-                message: item.message.trim(),
-                options: normalizeOptions(item.type, item.options),
-                type: item.type
-            };
+        const items = [];
+        const signatures = new Set();
+
+        payload.items.forEach(function (candidate) {
+            if (!candidate || typeof candidate !== 'object') {
+                return;
+            }
+
+            const item = normalizeItem(
+                candidate.type,
+                candidate.message,
+                candidate.options
+            );
+
+            if (!item || signatures.has(item.signature)) {
+                return;
+            }
+
+            signatures.add(item.signature);
+            items.push(item);
         });
+
+        return items;
+    }
+
+    function storedItems()
+    {
+        try {
+            return parseStoredItems(
+                window.sessionStorage.getItem(storageKey)
+            );
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function storageItem(item)
+    {
+        return {
+            message: item.message,
+            options: item.options,
+            type: item.type
+        };
     }
 
     function flash(type, message, options)
     {
-        const text = String(message || '').trim();
+        const item = normalizeItem(type, message, options);
 
-        if (!durations[type] || text === '') {
+        if (!item) {
             return false;
         }
 
-        const itemSignature = signature(type, text);
         const items = storedItems();
-        const isDuplicate = pendingSignatures.has(itemSignature)
-            || items.some(function (item) {
-                return signature(item.type, item.message) === itemSignature;
+        const isDuplicate = pendingSignatures.has(item.signature)
+            || items.some(function (storedItem) {
+                return storedItem.signature === item.signature;
             });
 
         if (isDuplicate) {
             return false;
         }
 
-        items.push({
-            message: text,
-            options: normalizeOptions(type, options),
-            type: type
-        });
+        items.push(item);
 
         try {
             window.sessionStorage.setItem(storageKey, JSON.stringify({
-                items: items,
+                items: items.map(storageItem),
                 version: 1
             }));
         } catch (error) {
@@ -185,23 +247,23 @@
         return true;
     }
 
-    function consumeClientFlash()
+    function takeClientFlash()
     {
-        let hasStoredFlash = false;
+        let serialized;
 
         try {
-            hasStoredFlash = window.sessionStorage.getItem(storageKey) !== null;
+            serialized = window.sessionStorage.getItem(storageKey);
 
-            if (hasStoredFlash) {
-                const items = storedItems();
-                window.sessionStorage.removeItem(storageKey);
-                items.forEach(function (item) {
-                    enqueue(item.type, item.message, item.options);
-                });
+            if (serialized === null) {
+                return [];
             }
+
+            window.sessionStorage.removeItem(storageKey);
         } catch (error) {
-            return;
+            return [];
         }
+
+        return parseStoredItems(serialized);
     }
 
     function consumeBootstrapFlash()
@@ -278,6 +340,9 @@
         dismiss: dismiss
     });
 
+    const clientFlashItems = takeClientFlash();
     consumeBootstrapFlash();
-    consumeClientFlash();
+    clientFlashItems.forEach(function (item) {
+        enqueue(item.type, item.message, item.options);
+    });
 }(window, document));
