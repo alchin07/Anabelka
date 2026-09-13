@@ -25,7 +25,7 @@ foreach ($categories as $category) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=8">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=9">
 </head>
 <body>
 
@@ -63,7 +63,7 @@ foreach ($categories as $category) {
                         ) ?>"
                         class="catalog-adult-entry"
                     >
-                        <span class="catalog-adult-top">
+                        <span class="catalog-adult-brand">
                             <span class="catalog-adult-brand-name">Анабелька</span>
 
                             <span
@@ -91,20 +91,24 @@ foreach ($categories as $category) {
                             </span>
                         </span>
 
-                        <span class="catalog-adult-badge">18+</span>
+                        <span class="catalog-adult-child">
+                            <span class="catalog-adult-category-line">
+                                <span class="catalog-adult-badge">18+</span>
 
-                        <span class="catalog-adult-category-name">
-                            <?= htmlspecialchars($category['name']) ?>
-                        </span>
+                                <span class="catalog-adult-category-name">
+                                    <?= htmlspecialchars($category['name']) ?>
+                                </span>
+                            </span>
 
-                        <span class="catalog-adult-action">
-                            <?= htmlspecialchars(
-                                Translator::t(
-                                    'public.catalog.adult_enter',
-                                    'Увійти до розділу'
-                                )
-                            ) ?>
-                            <span aria-hidden="true">→</span>
+                            <span class="catalog-adult-action">
+                                <?= htmlspecialchars(
+                                    Translator::t(
+                                        'public.catalog.adult_enter',
+                                        'Увійти до розділу'
+                                    )
+                                ) ?>
+                                <span aria-hidden="true">→</span>
+                            </span>
                         </span>
                     </a>
                 <?php endforeach; ?>

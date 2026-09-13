@@ -153,7 +153,7 @@ $badgeText = static function ($count) {
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-header.css?v=4"
+        href="/Anabelka/css/public-header.css?v=5"
     >
 
     <div class="public-header-shell">

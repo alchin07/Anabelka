@@ -144,6 +144,58 @@ function cssMediaBody(css, maxWidth) {
     assert.fail(`@media (max-width: ${maxWidth}px) has no closing brace`);
 }
 
+function htmlElementBlockByClass(source, tagName, className) {
+    const openingExpression = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+    let openingMatch;
+
+    while ((openingMatch = openingExpression.exec(source)) !== null) {
+        const classMatch = openingMatch[0].match(
+            /\bclass\s*=\s*(["'])(.*?)\1/i
+        );
+        const classes = classMatch
+            ? classMatch[2].split(/\s+/).filter(Boolean)
+            : [];
+
+        if (!classes.includes(className)) {
+            continue;
+        }
+
+        const tagExpression = new RegExp(`<\\/?${tagName}\\b[^>]*>`, 'gi');
+        tagExpression.lastIndex = openingMatch.index;
+        let depth = 0;
+        let tagMatch;
+
+        while ((tagMatch = tagExpression.exec(source)) !== null) {
+            if (/^<\//.test(tagMatch[0])) {
+                depth -= 1;
+
+                if (depth === 0) {
+                    return source.slice(
+                        openingMatch.index,
+                        tagExpression.lastIndex
+                    );
+                }
+            } else if (!/\/\s*>$/.test(tagMatch[0])) {
+                depth += 1;
+            }
+        }
+
+        assert.fail(`HTML element .${className} has no closing </${tagName}>`);
+    }
+
+    assert.fail(`HTML element ${tagName}.${className} was not found`);
+}
+
+function pixelDeclaration(ruleBody, property) {
+    const match = ruleBody.match(new RegExp(
+        '(?:^|;)\\s*' + escapeRegExp(property) + '\\s*:\\s*(\\d+)px',
+        'i'
+    ));
+
+    assert.ok(match, `CSS declaration ${property}: <px> was not found`);
+    return Number(match[1]);
+}
+
 function flashPage(storage, messageElement) {
     const timers = [];
     const window = {
@@ -543,15 +595,48 @@ test('catalog root renders data-driven adult categories after standard roots', f
     assert.doesNotMatch(adultBlock, /href=['"]\/Anabelka\/18-plus\//);
 });
 
-test('catalog adult entry has Anabelka branding and a mobile-safe strawberry card', function () {
+test('catalog adult entry nests the database category below an unboxed Anabelka strawberry brand', function () {
     const view = read('views/catalog/index.php');
     const css = read('css/catalog.css');
     const homeCss = read('css/home.css');
     const sidebarCss = read('css/home-desktop-sidebar.css');
     const translations = read('app/Models/PublicInterfaceTranslator.php');
     const entryRule = cssRuleBody(css, '.catalog-adult-entry');
+    const brandRule = cssRuleBody(css, '.catalog-adult-brand');
+    const childRule = cssRuleBody(css, '.catalog-adult-child');
     const badgeRule = cssRuleBody(css, '.catalog-adult-badge');
     const listRule = cssRuleBody(css, '.catalog-adult-list');
+    const structuralView = view.replace(/<\?[\s\S]*?\?>/g, 'PHP_VALUE');
+    const entryBlock = htmlElementBlockByClass(
+        structuralView,
+        'a',
+        'catalog-adult-entry'
+    );
+    const brandBlock = htmlElementBlockByClass(
+        entryBlock,
+        'span',
+        'catalog-adult-brand'
+    );
+    const strawberryBlock = htmlElementBlockByClass(
+        brandBlock,
+        'span',
+        'catalog-adult-strawberry'
+    );
+    const childBlock = htmlElementBlockByClass(
+        entryBlock,
+        'span',
+        'catalog-adult-child'
+    );
+    const categoryBlock = htmlElementBlockByClass(
+        childBlock,
+        'span',
+        'catalog-adult-category-name'
+    );
+    const strawberryRules = Array.from(
+        css.matchAll(/([^{}]+)\{([^{}]*)\}/g)
+    ).filter(function (match) {
+        return match[1].includes('.catalog-adult-strawberry');
+    });
 
     assert.match(view, /class="catalog-adult-brand-name"[^>]*>\s*Анабелька\s*</);
     assert.match(view, /class="catalog-adult-strawberry"/);
@@ -571,10 +656,39 @@ test('catalog adult entry has Anabelka branding and a mobile-safe strawberry car
     assert.match(entryRule, /#6519b9/i);
     assert.match(badgeRule, /background:\s*#f4eaff/i);
     assert.match(badgeRule, /color:\s*#6519b9/i);
+    assert.match(brandBlock, /catalog-adult-brand-name[\s\S]*?Анабелька/);
+    assert.match(brandBlock, /Анабелька[\s\S]*?catalog-adult-strawberry/);
+    assert.doesNotMatch(brandBlock, /catalog-adult-child/);
+    assert.match(childBlock, /catalog-adult-badge[\s\S]*?18\+/);
     assert.match(
-        css,
-        /\.catalog-adult-top\s*\{[^{}]*display:\s*flex[^{}]*justify-content:\s*space-between/is
+        childBlock,
+        /catalog-adult-badge[\s\S]*?catalog-adult-category-name[\s\S]*?catalog-adult-action/
     );
+    assert.match(categoryBlock, /PHP_VALUE/);
+    assert.ok(
+        entryBlock.indexOf(brandBlock) < entryBlock.indexOf(childBlock),
+        'dynamic adult category must follow the branded parent heading'
+    );
+    assert.doesNotMatch(
+        strawberryBlock.slice(0, strawberryBlock.indexOf('>') + 1),
+        /\bstyle\s*=/i
+    );
+    assert.match(brandRule, /display:\s*inline-flex/i);
+    assert.match(brandRule, /width:\s*max-content/i);
+    assert.match(brandRule, /gap:\s*[468]px/i);
+    assert.doesNotMatch(brandRule, /justify-content:\s*space-between/i);
+    assert.ok(strawberryRules.length > 0, 'strawberry CSS rule was not found');
+    strawberryRules.forEach(function (rule) {
+        assert.doesNotMatch(
+            rule[2],
+            /(?:^|;)\s*(?:background|border|border-radius|box-shadow|padding)\s*:/i
+        );
+    });
+    assert.match(childRule, /margin-left:\s*\d+px/i);
+    assert.match(childRule, /padding-left:\s*\d+px/i);
+    assert.match(childRule, /border-left:\s*\d+px\s+solid/i);
+    assert.doesNotMatch(view + css, /catalog-adult-top/);
+    assert.match(view, /css\/catalog\.css\?v=9/);
     assert.match(
         css,
         /@media\s*\(max-width:\s*600px\)[\s\S]*?\.catalog-adult-entry\s*\{[^{}]*width:\s*100%/i
@@ -624,6 +738,7 @@ test('adult gate keeps the return URL contract and uses the Anabelka palette', f
 test('public header keeps icon-only favorites before search and four action controls', function () {
     const header = read('views/partials/header.php');
     const css = read('css/public-header.css');
+    const globalCss = read('css/style.css');
     const notificationCss = read('css/public-header-notifications.css');
     const homeCss = read('css/home.css');
     const logoPosition = header.indexOf('public-header-logo');
@@ -646,8 +761,46 @@ test('public header keeps icon-only favorites before search and four action cont
         '.public-header-action:focus-visible'
     );
     const mobileCss = cssMediaBody(css, 760);
-    const compactCss = cssMediaBody(css, 400);
+    const compactCss = cssMediaBody(css, 430);
     const tinyCss = cssMediaBody(notificationCss, 350);
+    const compactBrandRule = cssRuleBody(
+        compactCss,
+        '.public-header-brand'
+    );
+    const compactShellRule = cssRuleBody(
+        compactCss,
+        '.public-header-shell'
+    );
+    const compactMainRule = cssRuleBody(
+        compactCss,
+        '.public-header-main'
+    );
+    const compactActionsRule = cssRuleBody(
+        compactCss,
+        '.public-header-actions'
+    );
+    const compactFavoriteRule = cssRuleBody(
+        compactCss,
+        '.public-header-brand .header-favorites'
+    );
+    const compactLogoMatch = compactCss.match(
+        /\.public-header\s+\.catalog-logo,\s*\.public-header-logo\s*\{([^{}]*)\}/i
+    );
+    const logoAndBrandRules = Array.from(
+        (css + '\n' + notificationCss).matchAll(/([^{}]+)\{([^{}]*)\}/g)
+    ).filter(function (match) {
+        return match[1]
+            .split(',')
+            .map((selector) => selector.trim())
+            .some((selector) => [
+                '.public-header-brand',
+                '.public-header .catalog-logo',
+                '.public-header-logo'
+            ].includes(selector));
+    });
+
+    assert.ok(compactLogoMatch, 'compact logo rule was not found');
+    const compactLogoRule = compactLogoMatch[1];
 
     assert.ok(logoPosition >= 0);
     assert.ok(favoritePosition > logoPosition);
@@ -730,16 +883,34 @@ test('public header keeps icon-only favorites before search and four action cont
     );
     assert.match(
         compactCss,
-        /\.public-header-main\s*\{[^{}]*gap:\s*3px\s+8px/is
+        /\.public-header-main\s*\{[^{}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+92px[^{}]*column-gap:\s*4px[^{}]*row-gap:\s*3px/is
+    );
+    assert.match(compactShellRule, /width:\s*calc\(100%\s*-\s*10px\)/i);
+    assert.match(compactBrandRule, /gap:\s*2px/i);
+    assert.match(
+        compactLogoRule,
+        /font-size:\s*clamp\(22px,\s*6vw,\s*26px\)/i
+    );
+    assert.match(compactLogoRule, /flex:\s*0\s+0\s+auto/i);
+    assert.ok(
+        logoAndBrandRules.length > 0,
+        'logo/brand CSS rules were not found'
+    );
+    logoAndBrandRules.forEach(function (rule) {
+        assert.doesNotMatch(
+            rule[2],
+            /overflow:\s*hidden|text-overflow:\s*ellipsis/i
+        );
+    });
+    assert.doesNotMatch(
+        compactLogoRule,
+        /(?:^|;)\s*width:\s*\d+px|(?:^|;)\s*max-width:\s*calc\(/i
     );
     assert.match(
         compactCss,
-        /\.public-header-logo\s*\{[^{}]*width:\s*118px[^{}]*font-size:\s*23px/is
+        /\.public-header-actions\s*\{[^{}]*width:\s*92px[^{}]*display:\s*grid[^{}]*grid-template-columns:\s*repeat\(2,\s*44px\)[^{}]*grid-template-rows:\s*repeat\(2,\s*44px\)[^{}]*gap:\s*4px/is
     );
-    assert.match(
-        compactCss,
-        /\.public-header-actions\s*\{[^{}]*display:\s*grid[^{}]*grid-template-columns:\s*repeat\(2,\s*44px\)[^{}]*gap:\s*4px/is
-    );
+    assert.match(globalCss, /\*\s*\{[^{}]*box-sizing:\s*border-box/i);
     assert.match(
         css,
         /\.public-header\s+\.site-search-form\s*\{[^{}]*min-width:\s*0[^{}]*max-width:\s*100%/is
@@ -756,6 +927,7 @@ test('public header keeps icon-only favorites before search and four action cont
         cssMediaBody(homeCss, 600),
         /\.home-page\s*\{[^{}]*padding-top:\s*6px/is
     );
+    assert.match(header, /css\/public-header\.css\?v=5/);
 
     const tinyControlRules = Array.from(
         tinyCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)
@@ -780,19 +952,36 @@ test('public header keeps icon-only favorites before search and four action cont
         }
     });
 
-    [320, 360, 375, 390, 400, 401, 412, 430].forEach(function (width) {
-        const compact = width <= 400;
-        const shellWidth = width - (compact ? 14 : 20);
-        const brandWidth = compact
-            ? 118 + 2 + 44
-            : 142 + 4 + 44;
-        const fourActionsWidth = compact
-            ? (2 * 44) + 4
-            : (4 * 44) + (3 * 2);
-        const usedWidth = brandWidth + fourActionsWidth + 8;
-        const topHeight = compact ? (2 * 44) + 4 : 44;
+    const shellInsetMatch = compactShellRule.match(
+        /width:\s*calc\(100%\s*-\s*(\d+)px\)/i
+    );
+    const actionCellMatch = compactActionsRule.match(
+        /grid-template-columns:\s*repeat\(2,\s*(\d+)px\)/i
+    );
+
+    assert.ok(shellInsetMatch, 'compact shell inset was not found');
+    assert.ok(actionCellMatch, 'compact action cell width was not found');
+
+    const shellInset = Number(shellInsetMatch[1]);
+    const actionsWidth = pixelDeclaration(compactActionsRule, 'width');
+    const actionCellWidth = Number(actionCellMatch[1]);
+    const actionsGap = pixelDeclaration(compactActionsRule, 'gap');
+    const columnGap = pixelDeclaration(compactMainRule, 'column-gap');
+    const brandGap = pixelDeclaration(compactBrandRule, 'gap');
+    const favoriteWidth = pixelDeclaration(compactFavoriteRule, 'width');
+
+    assert.equal(actionsWidth, (2 * actionCellWidth) + actionsGap);
+    assert.ok(actionCellWidth >= 44, 'mobile action cell is below 44px');
+    assert.ok(favoriteWidth >= 44, 'favorite touch target is below 44px');
+
+    [320, 360, 375, 390, 400, 412, 430].forEach(function (width) {
+        const shellWidth = width - shellInset;
+        const availableBrandWidth = shellWidth - actionsWidth - columnGap;
+        const fullLogoBudget = 160;
+        const requiredBrandWidth = fullLogoBudget + brandGap + favoriteWidth;
+        const topHeight = (2 * actionCellWidth) + actionsGap;
         const headerHeightWithTitle = topHeight
-            + (compact ? 3 : 4)
+            + 3
             + 44
             + 5
             + 4
@@ -801,11 +990,11 @@ test('public header keeps icon-only favorites before search and four action cont
 
         assert.ok(width <= 760, `${width}px must use the bounded mobile grid`);
         assert.ok(
-            usedWidth <= shellWidth,
-            `${width}px header exceeds its ${shellWidth}px shell budget`
+            requiredBrandWidth <= availableBrandWidth,
+            `${width}px leaves only ${availableBrandWidth}px for the full logo and favorite`
         );
         assert.ok(
-            headerHeightWithTitle <= (compact ? 164 : 117),
+            headerHeightWithTitle <= 164,
             `${width}px header has excess vertical whitespace`
         );
     });

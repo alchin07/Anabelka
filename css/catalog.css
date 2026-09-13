@@ -202,13 +202,13 @@ body {
     outline-offset: 3px;
 }
 
-.catalog-adult-top {
-    width: 100%;
+.catalog-adult-brand {
     min-width: 0;
-    display: flex;
+    max-width: 100%;
+    width: max-content;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
+    gap: 6px;
 }
 
 .catalog-adult-brand-name {
@@ -217,6 +217,24 @@ body {
     font-style: italic;
     font-weight: 700;
     line-height: 1;
+}
+
+.catalog-adult-child {
+    min-width: 0;
+    max-width: calc(100% - 18px);
+    display: grid;
+    gap: 8px;
+    margin-left: 18px;
+    padding-left: 13px;
+    border-left: 2px solid rgba(244, 234, 255, .65);
+}
+
+.catalog-adult-category-line {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .catalog-adult-badge {
@@ -247,7 +265,6 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin-top: 3px;
     color: #fff;
     font-size: 14px;
     font-weight: 800;
@@ -255,16 +272,12 @@ body {
 }
 
 .catalog-adult-strawberry {
-    box-sizing: border-box;
-    width: 60px;
-    height: 60px;
-    flex: 0 0 60px;
-    display: grid;
-    place-items: center;
-    padding: 5px;
-    border: 1px solid rgba(255, 255, 255, .35);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, .12);
+    width: 39px;
+    height: 39px;
+    flex: 0 0 39px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .catalog-adult-strawberry svg {
@@ -286,11 +299,9 @@ body {
     }
 
     .catalog-adult-strawberry {
-        width: 54px;
-        height: 54px;
-        flex-basis: 54px;
-        padding: 5px;
-        border-radius: 17px;
+        width: 35px;
+        height: 35px;
+        flex-basis: 35px;
     }
 }
 
