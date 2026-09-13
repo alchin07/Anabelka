@@ -265,25 +265,23 @@ if (
                     true;
 
 
-                window.showMessage(
-                    settingsSaved
-                        ? 'Опция доставки добавлена'
-                        : 'Опция добавлена, но настройка поля не сохранена'
-                );
+                if (settingsSaved) {
+                    window.AnabelkaNotify.flash(
+                        'success',
+                        'Опция доставки добавлена'
+                    );
+                } else {
+                    window.AnabelkaNotify.flash(
+                        'warning',
+                        'Опция добавлена, но настройка поля не сохранена'
+                    );
+                }
 
-
-                setTimeout(
-                    () => {
-
-                        window.location.reload();
-
-                    },
-                    500
-                );
+                window.location.reload();
 
             } catch (error) {
 
-                window.showMessage(
+                window.AnabelkaNotify.error(
                     error instanceof Error
                         ? error.message
                         : 'Не удалось добавить опцию доставки.'
