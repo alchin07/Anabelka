@@ -68,6 +68,43 @@ function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function createTableDdlFrom(relativePath, tableName) {
+    const source = read(relativePath);
+    const execExpression = /\$db->exec\(\s*"([\s\S]*?)"\s*\);/g;
+    let match;
+
+    while ((match = execExpression.exec(source)) !== null) {
+        if (new RegExp(
+            'CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\s+'
+                + escapeRegExp(tableName)
+                + '\\b',
+            'i'
+        ).test(match[1])) {
+            return match[1];
+        }
+    }
+
+    assert.fail(`CREATE TABLE DDL for ${tableName} was not found`);
+}
+
+function assertBalancedSqlParentheses(sql) {
+    let depth = 0;
+
+    for (const [offset, character] of Array.from(sql).entries()) {
+        if (character === '(') {
+            depth += 1;
+        } else if (character === ')') {
+            depth -= 1;
+            assert.ok(
+                depth >= 0,
+                `unmatched closing parenthesis at SQL offset ${offset}`
+            );
+        }
+    }
+
+    assert.equal(depth, 0, 'CREATE TABLE DDL has unclosed parentheses');
+}
+
 test('canonical catalog route wins before the one-segment legacy route', function () {
     const routes = routesFrom('routes/Web.php');
 
@@ -237,6 +274,16 @@ test('translation ownership is constrained before category FK rules change', fun
     assert.match(sql, /fk_categories_department_restrict[\s\S]*ON\s+DELETE\s+RESTRICT/i);
     assert.match(sql, /fk_categories_parent_restrict[\s\S]*ON\s+DELETE\s+RESTRICT/i);
     assert.match(sql, /fk_category_translations_category[\s\S]*ON\s+DELETE\s+CASCADE/i);
+});
+
+test('CategoryTranslator emits structurally balanced CREATE TABLE DDL', function () {
+    const ddl = createTableDdlFrom(
+        'app/Models/CategoryTranslator.php',
+        'category_translations'
+    );
+
+    assert.match(ddl, /CONSTRAINT\s+fk_category_translations_category/i);
+    assertBalancedSqlParentheses(ddl);
 });
 
 test('subtree moves synchronize product departments and preserve no-op order', function () {

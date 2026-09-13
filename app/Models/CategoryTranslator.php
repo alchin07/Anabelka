@@ -39,7 +39,6 @@ class CategoryTranslator
                     REFERENCES categories (id)
                     ON DELETE CASCADE
                     ON UPDATE RESTRICT
-                )
             ) ENGINE=InnoDB
               DEFAULT CHARSET=utf8mb4
               COLLATE=utf8mb4_unicode_ci
