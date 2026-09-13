@@ -89,7 +89,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
                             <span class="category-status is-inherited">Приховано предком</span>
                         <?php endif; ?>
                         <?php if (!empty($category['effective_adult'])): ?>
-                            <span class="category-status is-adult">
+                            <span class="category-status is-adult<?= empty($category['is_adult']) ? ' is-inherited' : '' ?>">
                                 18+<?= empty($category['is_adult']) ? ' успадковано' : '' ?>
                             </span>
                         <?php endif; ?>
@@ -181,7 +181,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
     <title>Категорії — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=2">
     <link rel="stylesheet" href="/Anabelka/css/admin-flash-message.css?v=1">
 </head>
 <body>

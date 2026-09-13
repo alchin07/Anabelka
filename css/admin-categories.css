@@ -189,8 +189,16 @@
 }
 
 .category-status.is-adult {
-    background: #302437;
+    box-sizing: border-box;
+    max-width: 100%;
+    background: #8a2be2;
     color: #fff;
+}
+
+.category-status.is-adult.is-inherited {
+    border: 1px solid #8a2be2;
+    background: #f4eaff;
+    color: #6519b9;
 }
 
 .category-status.is-error {

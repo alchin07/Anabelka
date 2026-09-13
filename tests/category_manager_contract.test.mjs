@@ -387,6 +387,58 @@ test('adult visibility is explicit and inherited without name heuristics', funct
     assert.doesNotMatch(homePage, /looksAdult|18-plus'\s*,|adult'\s*,|інтим|ерот/i);
 });
 
+test('adult status badges use the Anabelka palette without mobile overflow', function () {
+    const css = read('css/admin-categories.css');
+    const view = read('views/admin/categories/index.php');
+    const baseRule = cssRuleBody(css, '.category-status');
+    const adultRule = cssRuleBody(css, '.category-status.is-adult');
+    const statusContainerRules = Array.from(
+        css.matchAll(/([^{}]+)\{([^{}]*)\}/g)
+    ).filter(function (match) {
+        return match[1]
+            .split(',')
+            .map((selector) => selector.trim())
+            .includes('.category-statuses');
+    });
+
+    assert.match(adultRule, /background:\s*#8a2be2/i);
+    assert.match(adultRule, /color:\s*#(?:fff|ffffff)/i);
+    assert.doesNotMatch(adultRule, /#302437/i);
+
+    const inheritedRule = cssRuleBody(
+        css,
+        '.category-status.is-adult.is-inherited'
+    );
+
+    assert.match(inheritedRule, /background:\s*#f4eaff/i);
+    assert.match(inheritedRule, /color:\s*#6519b9/i);
+    assert.match(inheritedRule, /border:\s*1px\s+solid\s+#8a2be2/i);
+    assert.doesNotMatch(inheritedRule, /#302437/i);
+
+    assert.match(baseRule, /display:\s*inline-flex/i);
+    assert.match(baseRule, /white-space:\s*nowrap/i);
+    assert.match(adultRule, /box-sizing:\s*border-box/i);
+    assert.match(adultRule, /max-width:\s*100%/i);
+    assert.ok(
+        statusContainerRules.length > 0,
+        'CSS rule for .category-statuses was not found'
+    );
+    assert.match(
+        statusContainerRules.map((rule) => rule[2]).join('\n'),
+        /flex-wrap:\s*wrap/i
+    );
+
+    assert.match(
+        view,
+        /category-status is-adult<\?=\s*empty\(\$category\['is_adult'\]\)\s*\?\s*' is-inherited'\s*:\s*''\s*\?>/
+    );
+    assert.match(
+        view,
+        /18\+<\?=\s*empty\(\$category\['is_adult'\]\)\s*\?\s*' успадковано'\s*:\s*''\s*\?>/
+    );
+    assert.match(view, /css\/admin-categories\.css\?v=2/);
+});
+
 test('category manager UI keeps stable collapse storage and structural controls', function () {
     const script = read('js/admin-categories.js');
 
