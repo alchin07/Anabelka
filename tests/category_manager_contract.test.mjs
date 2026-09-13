@@ -169,6 +169,59 @@ test('migration changes only the approved category tables', function () {
     );
 });
 
+test('replacement category foreign keys use fresh constraint symbols', function () {
+    const statements = sqlStatements(
+        read('database/migrations/2026-09-13_category_manager.sql')
+    );
+    const categoryAlter = statements.find(function (statement) {
+        return /^ALTER\s+TABLE\s+categories\b/i.test(statement);
+    });
+
+    assert.ok(categoryAlter);
+    assert.match(
+        categoryAlter,
+        /DROP\s+FOREIGN\s+KEY\s+fk_categories_department\b/i
+    );
+    assert.match(
+        categoryAlter,
+        /DROP\s+FOREIGN\s+KEY\s+fk_categories_parent\b/i
+    );
+    assert.match(
+        categoryAlter,
+        /ADD\s+CONSTRAINT\s+fk_categories_department_restrict\b/i
+    );
+    assert.match(
+        categoryAlter,
+        /ADD\s+CONSTRAINT\s+fk_categories_parent_restrict\b/i
+    );
+    assert.doesNotMatch(
+        categoryAlter,
+        /ADD\s+CONSTRAINT\s+fk_categories_department\s/i
+    );
+    assert.doesNotMatch(
+        categoryAlter,
+        /ADD\s+CONSTRAINT\s+fk_categories_parent\s/i
+    );
+});
+
+test('preflight recognizes pristine and migrated category FK names', function () {
+    const preflight = withoutSqlComments(
+        read('database/preflight/category_manager_preflight.sql')
+    );
+
+    [
+        'fk_categories_department',
+        'fk_categories_parent',
+        'fk_categories_department_restrict',
+        'fk_categories_parent_restrict'
+    ].forEach(function (constraintName) {
+        assert.match(
+            preflight,
+            new RegExp("'" + constraintName + "'", 'i')
+        );
+    });
+});
+
 test('translation ownership is constrained before category FK rules change', function () {
     const sql = withoutSqlComments(
         read('database/migrations/2026-09-13_category_manager.sql')
@@ -181,8 +234,8 @@ test('translation ownership is constrained before category FK rules change', fun
     assert.ok(translationFk >= 0);
     assert.ok(categoryAlter > translationFk);
     assert.match(sql, /ADD\s+COLUMN\s+is_adult\s+TINYINT\(1\)\s+NOT\s+NULL\s+DEFAULT\s+0/i);
-    assert.match(sql, /fk_categories_department[\s\S]*ON\s+DELETE\s+RESTRICT/i);
-    assert.match(sql, /fk_categories_parent[\s\S]*ON\s+DELETE\s+RESTRICT/i);
+    assert.match(sql, /fk_categories_department_restrict[\s\S]*ON\s+DELETE\s+RESTRICT/i);
+    assert.match(sql, /fk_categories_parent_restrict[\s\S]*ON\s+DELETE\s+RESTRICT/i);
     assert.match(sql, /fk_category_translations_category[\s\S]*ON\s+DELETE\s+CASCADE/i);
 });
 

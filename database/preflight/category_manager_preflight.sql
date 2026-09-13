@@ -1,4 +1,5 @@
--- Category manager read-only preflight for MariaDB 10.4.x.
+-- Category manager read-only preflight and migration-state inspection for
+-- MariaDB 10.4.x.
 -- This file contains SELECT/SHOW statements only. It changes no data/schema.
 
 SELECT VERSION() AS server_version, DATABASE() AS database_name;
@@ -30,7 +31,9 @@ FROM departments
 GROUP BY slug
 HAVING COUNT(*) > 1;
 
--- Must return zero rows before this migration is applied.
+-- Before step 2 this must return zero rows. One is_adult row means step 2 (or
+-- an equivalent change) is already present; inspect all FK/index checks below
+-- and do not rerun the one-time ALTER blindly.
 SELECT
     COLUMN_NAME,
     COLUMN_TYPE,
@@ -41,8 +44,8 @@ WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'categories'
   AND COLUMN_NAME = 'is_adult';
 
--- Must return zero rows before this one-time migration. A returned row means
--- the migration (or an equivalent manual change) has already been applied.
+-- Before step 2 this must return zero rows. Returned rows mean the tree index
+-- already exists; inspect the complete migration state before continuing.
 SELECT
     INDEX_NAME,
     SEQ_IN_INDEX,
@@ -53,8 +56,10 @@ WHERE TABLE_SCHEMA = DATABASE()
   AND INDEX_NAME = 'idx_categories_tree'
 ORDER BY SEQ_IN_INDEX;
 
--- Must return zero rows before step 1. This catches both the approved name and
--- an equivalent pre-existing category ownership FK under another name.
+-- Before step 1 this must return zero rows. If the single approved
+-- fk_category_translations_category row already exists with UPDATE RESTRICT
+-- and DELETE CASCADE, step 1 is complete and must not be rerun. Any other row
+-- requires manual review.
 SELECT
     kcu.CONSTRAINT_NAME,
     kcu.COLUMN_NAME,
@@ -72,8 +77,13 @@ WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
   AND kcu.COLUMN_NAME = 'category_id'
   AND kcu.REFERENCED_TABLE_NAME = 'categories';
 
--- Must return exactly the two approved current rules before step 2:
--- fk_categories_department/CASCADE and fk_categories_parent/SET NULL.
+-- Before step 2 this must return exactly the two source rules:
+--   fk_categories_department: UPDATE RESTRICT / DELETE CASCADE
+--   fk_categories_parent: UPDATE RESTRICT / DELETE SET NULL
+-- After step 2 it must instead return exactly the two replacement rules:
+--   fk_categories_department_restrict: RESTRICT / RESTRICT
+--   fk_categories_parent_restrict: RESTRICT / RESTRICT
+-- A mixture of source and replacement names is not an approved state.
 SELECT
     kcu.CONSTRAINT_NAME,
     kcu.COLUMN_NAME,
@@ -89,7 +99,9 @@ WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
   AND kcu.TABLE_NAME = 'categories'
   AND kcu.CONSTRAINT_NAME IN (
       'fk_categories_department',
-      'fk_categories_parent'
+      'fk_categories_parent',
+      'fk_categories_department_restrict',
+      'fk_categories_parent_restrict'
   )
 ORDER BY kcu.CONSTRAINT_NAME;
 
