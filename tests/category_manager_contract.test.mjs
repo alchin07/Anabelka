@@ -471,6 +471,177 @@ test('adult visibility is explicit and inherited without name heuristics', funct
     assert.doesNotMatch(homePage, /looksAdult|18-plus'\s*,|adult'\s*,|інтим|ерот/i);
 });
 
+test('catalog root renders data-driven adult categories after standard roots', function () {
+    const view = read('views/catalog/index.php');
+    const standardLoop = view.indexOf(
+        'foreach ($standardCategories as $category)'
+    );
+    const adultLoop = view.indexOf(
+        'foreach ($adultCategories as $category)'
+    );
+
+    assert.match(view, /\$standardCategories\s*=\s*\[\]/);
+    assert.match(view, /\$adultCategories\s*=\s*\[\]/);
+    assert.match(
+        view,
+        /foreach\s*\(\$categories\s+as\s+\$category\)[\s\S]*?!empty\(\$category\['is_adult'\]\)[\s\S]*?\$adultCategories\[\]\s*=\s*\$category[\s\S]*?\$standardCategories\[\]\s*=\s*\$category/
+    );
+    assert.ok(standardLoop >= 0, 'standard category loop was not found');
+    assert.ok(
+        adultLoop > standardLoop,
+        'adult category loop must follow all standard root categories'
+    );
+
+    const standardBlock = view.slice(standardLoop, adultLoop);
+    const adultBlock = view.slice(adultLoop);
+
+    assert.match(standardBlock, /Category::catalogUrl\(\$category\)/);
+    assert.match(adultBlock, /AdultAccess::gateUrl\(\$category\)/);
+    assert.match(adultBlock, /\$category\['name'\]/);
+    assert.doesNotMatch(adultBlock, /\$category\['id'\]\s*={2,3}\s*\d+/);
+    assert.doesNotMatch(
+        adultBlock,
+        /\$category\['slug'\]\s*={2,3}\s*['"][^'"]+['"]/
+    );
+    assert.doesNotMatch(adultBlock, /href=['"]\/Anabelka\/18-plus\//);
+});
+
+test('catalog adult entry has Anabelka branding and a mobile-safe strawberry card', function () {
+    const view = read('views/catalog/index.php');
+    const css = read('css/catalog.css');
+    const homeCss = read('css/home.css');
+    const sidebarCss = read('css/home-desktop-sidebar.css');
+    const entryRule = cssRuleBody(css, '.catalog-adult-entry');
+    const badgeRule = cssRuleBody(css, '.catalog-adult-badge');
+
+    assert.match(view, /class="catalog-adult-brand-name"[^>]*>\s*Анабелька\s*</);
+    assert.match(view, /class="catalog-adult-strawberry"/);
+    assert.match(view, /class="catalog-adult-category-name"[\s\S]*?\$category\['name'\]/);
+    assert.match(entryRule, /min-width:\s*0/i);
+    assert.match(entryRule, /max-width:\s*100%/i);
+    assert.match(entryRule, /box-sizing:\s*border-box/i);
+    assert.match(entryRule, /#8a2be2/i);
+    assert.match(entryRule, /#6519b9/i);
+    assert.match(badgeRule, /background:\s*#f4eaff/i);
+    assert.match(badgeRule, /color:\s*#6519b9/i);
+    assert.match(css, /@media\s*\(max-width:\s*600px\)[\s\S]*?\.catalog-adult-entry[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/i);
+    assert.doesNotMatch(view + css, /#302437/i);
+    assert.match(
+        cssRuleBody(homeCss, '.home-adult-section'),
+        /#8a2be2[\s\S]*#6519b9/i
+    );
+    assert.doesNotMatch(
+        homeCss + sidebarCss,
+        /#302437|#2a232d|#171319|#241d27/i
+    );
+});
+
+test('adult gate keeps the return URL contract and uses the Anabelka palette', function () {
+    const controller = read('app/Controllers/AdultController.php');
+    const view = read('views/adult/gate.php');
+    const css = read('css/adult-gate.css');
+    const badgeRule = cssRuleBody(css, '.adult-gate-badge');
+    const confirmRule = cssRuleBody(css, '.adult-gate-confirm');
+
+    assert.match(
+        controller,
+        /\$returnUrl\s*=\s*AdultAccess::safeReturnUrl\([\s\S]*?\$_GET\['return'\]\s*\?\?\s*\$defaultReturn/
+    );
+    assert.match(
+        controller,
+        /\$returnUrl\s*=\s*AdultAccess::safeReturnUrl\([\s\S]*?\$_POST\['return_url'\]\s*\?\?\s*\$defaultReturn/
+    );
+    assert.match(controller, /AdultAccess::confirm\(\);\s*header\('Location: '\s*\.\s*\$returnUrl\)/);
+    assert.match(view, /name="return_url"[\s\S]*?\$returnUrl/);
+    assert.match(view, /action="<\?=\s*\$escape\(AdultAccess::gateUrl\(\$category\)\)\s*\?>"/);
+
+    assert.match(badgeRule, /background:\s*#8a2be2/i);
+    assert.match(confirmRule, /background:\s*#8a2be2/i);
+    assert.match(
+        css,
+        /\.adult-gate-confirm:hover[^{}]*\{[^{}]*background:\s*#6519b9/is
+    );
+    assert.match(css, /#f4eaff/i);
+    assert.match(css, /color:\s*#(?:fff|ffffff)/i);
+    assert.doesNotMatch(view + css, /#302437|#241d27/i);
+    assert.doesNotMatch(confirmRule, /background:\s*#(?:000|000000)\b/i);
+});
+
+test('favorite stays beside the logo before search with bounded mobile geometry', function () {
+    const header = read('views/partials/header.php');
+    const css = read('css/public-header.css');
+    const logoPosition = header.indexOf('public-header-logo');
+    const favoritePosition = header.indexOf('header-favorites');
+    const searchPosition = header.indexOf('site-search-form');
+    const actionsPosition = header.indexOf('public-header-actions');
+    const mainRule = cssRuleBody(css, '.public-header-main');
+    const brandRule = cssRuleBody(css, '.public-header-brand');
+
+    assert.ok(logoPosition >= 0);
+    assert.ok(favoritePosition > logoPosition);
+    assert.ok(searchPosition > favoritePosition);
+    assert.ok(actionsPosition > searchPosition);
+    assert.equal(
+        (header.match(/href="\/Anabelka\/favorites"/g) || []).length,
+        1
+    );
+    assert.match(
+        header,
+        /<nav[\s\S]*?class="public-header-brand"[\s\S]*?public-header-logo[\s\S]*?header-favorites[\s\S]*?<\/nav>\s*<form\s+class="site-search-form"/
+    );
+
+    assert.match(brandRule, /display:\s*(?:inline-)?flex/i);
+    assert.match(brandRule, /align-items:\s*center/i);
+    assert.match(brandRule, /min-width:\s*0/i);
+    assert.match(brandRule, /max-width:\s*100%/i);
+    assert.match(
+        mainRule,
+        /grid-template-columns:\s*max-content\s+minmax\(280px,\s*1fr\)\s+auto/i
+    );
+    assert.match(
+        css,
+        /@media\s*\(max-width:\s*760px\)[\s\S]*?\.public-header-main\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/i
+    );
+    assert.match(
+        css,
+        /@media\s*\(max-width:\s*760px\)[\s\S]*?\.public-header-action\s*\{[^{}]*width:\s*44px[^{}]*min-width:\s*44px[^{}]*height:\s*44px/is
+    );
+    assert.match(
+        css,
+        /@media\s*\(max-width:\s*760px\)[\s\S]*?\.public-header-logo\s*\{[^{}]*width:\s*142px/is
+    );
+    assert.match(
+        css,
+        /@media\s*\(max-width:\s*400px\)[\s\S]*?\.public-header-logo\s*\{[^{}]*width:\s*112px/is
+    );
+    assert.match(
+        css,
+        /@media\s*\(max-width:\s*400px\)[\s\S]*?\.public-header-actions\s*\{[^{}]*display:\s*grid[^{}]*grid-template-columns:\s*repeat\(2,\s*44px\)[^{}]*gap:\s*4px/is
+    );
+    assert.match(
+        css,
+        /\.public-header\s+\.site-search-form\s*\{[^{}]*min-width:\s*0[^{}]*max-width:\s*100%/is
+    );
+
+    [320, 360, 375, 390, 412, 430].forEach(function (width) {
+        const compact = width <= 400;
+        const shellWidth = width - (compact ? 14 : 20);
+        const brandWidth = compact
+            ? 112 + 1 + 44
+            : 142 + 4 + 44;
+        const fourActionsWidth = compact
+            ? (2 * 44) + 4
+            : (4 * 44) + (3 * 2);
+        const usedWidth = brandWidth + fourActionsWidth + 8;
+
+        assert.ok(width <= 760, `${width}px must use the bounded mobile grid`);
+        assert.ok(
+            usedWidth <= shellWidth,
+            `${width}px header exceeds its ${shellWidth}px shell budget`
+        );
+    });
+});
+
 test('adult status badges use the Anabelka palette without mobile overflow', function () {
     const css = read('css/admin-categories.css');
     const view = read('views/admin/categories/index.php');

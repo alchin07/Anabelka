@@ -151,18 +151,56 @@ $badgeText = static function ($count) {
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-header.css?v=2"
+        href="/Anabelka/css/public-header.css?v=3"
     >
 
     <div class="public-header-shell">
         <div class="public-header-main">
-            <a
-                href="/Anabelka/"
-                class="catalog-logo public-header-logo"
-                aria-label="Анабелька"
+            <nav
+                class="public-header-brand"
+                aria-label="<?= htmlspecialchars(
+                    'Анабелька — '
+                    . Translator::t('header.favorites', 'Обране')
+                ) ?>"
             >
-                Анабелька
-            </a>
+                <a
+                    href="/Anabelka/"
+                    class="catalog-logo public-header-logo"
+                    aria-label="Анабелька"
+                >
+                    Анабелька
+                </a>
+
+                <a
+                    href="/Anabelka/favorites"
+                    class="public-header-action header-favorites"
+                    aria-label="<?= htmlspecialchars(
+                        Translator::t('header.favorites', 'Обране')
+                    ) ?>"
+                >
+                    <span class="public-header-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M12 20.2S4 15.3 4 8.9C4 6.2 5.9 4.5 8.2 4.5c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 4.5 20 6.2 20 8.9c0 6.4-8 11.3-8 11.3Z"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </span>
+                    <span class="public-header-action-label">
+                        <?= htmlspecialchars(
+                            Translator::t('header.favorites', 'Обране')
+                        ) ?>
+                    </span>
+                    <span
+                        class="public-header-count header-favorites-count"
+                        id="favorite-count"
+                        <?= $favoriteCount > 0 ? '' : 'hidden' ?>
+                    ><?= $badgeText($favoriteCount) ?></span>
+                </a>
+            </nav>
 
             <form
                 class="site-search-form"
@@ -251,36 +289,6 @@ $badgeText = static function ($count) {
                 class="public-header-actions"
                 aria-label="Навігація користувача"
             >
-                <a
-                    href="/Anabelka/favorites"
-                    class="public-header-action header-favorites"
-                    aria-label="<?= htmlspecialchars(
-                        Translator::t('header.favorites', 'Обране')
-                    ) ?>"
-                >
-                    <span class="public-header-action-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24">
-                            <path
-                                d="M12 20.2S4 15.3 4 8.9C4 6.2 5.9 4.5 8.2 4.5c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 4.5 20 6.2 20 8.9c0 6.4-8 11.3-8 11.3Z"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-                    </span>
-                    <span class="public-header-action-label">
-                        <?= htmlspecialchars(
-                            Translator::t('header.favorites', 'Обране')
-                        ) ?>
-                    </span>
-                    <span
-                        class="public-header-count header-favorites-count"
-                        id="favorite-count"
-                        <?= $favoriteCount > 0 ? '' : 'hidden' ?>
-                    ><?= $badgeText($favoriteCount) ?></span>
-                </a>
-
                 <details class="public-header-menu public-header-profile">
                     <summary
                         class="public-header-action"
