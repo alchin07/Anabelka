@@ -1,466 +1,284 @@
+<?php
+$departments = is_array($departments ?? null) ? $departments : [];
+$categories = is_array($categories ?? null) ? $categories : [];
+$categoryForest = is_array($categoryForest ?? null) ? $categoryForest : [];
+$languages = is_array($languages ?? null) ? $languages : [];
+$csrfToken = (string) ($csrfToken ?? '');
+$translationStatusOptions = TranslationWorkflow::statusOptions();
+$escape = function ($value) {
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+};
+$json = json_encode([
+    'categories' => $categories,
+    'departments' => $departments
+], JSON_UNESCAPED_UNICODE
+    | JSON_UNESCAPED_SLASHES
+    | JSON_HEX_TAG
+    | JSON_HEX_AMP
+    | JSON_HEX_APOS
+    | JSON_HEX_QUOT);
+
+$renderNodes = null;
+$renderNodes = function (array $nodes, $level = 0) use (
+    &$renderNodes,
+    $escape
+) {
+    foreach ($nodes as $category) {
+        $id = (int) ($category['id'] ?? 0);
+        $children = is_array($category['children'] ?? null)
+            ? $category['children']
+            : [];
+        $childCount = (int) ($category['child_count'] ?? count($children));
+        $productCount = (int) ($category['product_count'] ?? 0);
+        $translationCount = (int) ($category['translation_count'] ?? 0);
+        $canDelete = $childCount === 0 && $productCount === 0;
+        ?>
+        <div
+            class="category-admin-row"
+            data-category-row="<?= $id ?>"
+            data-category-level="<?= (int) $level ?>"
+        >
+            <div class="category-tree-controls" aria-label="Керування положенням">
+                <?php if (!empty($children)): ?>
+                    <button
+                        type="button"
+                        class="category-tree-button category-collapse-button"
+                        data-category-collapse="<?= $id ?>"
+                        aria-expanded="true"
+                        aria-controls="category-children-<?= $id ?>"
+                        title="Згорнути гілку"
+                    >⌄</button>
+                <?php else: ?>
+                    <span class="category-tree-placeholder" aria-hidden="true"></span>
+                <?php endif; ?>
+
+                <button
+                    type="button"
+                    class="category-tree-button"
+                    data-category-reorder="up"
+                    data-category-id="<?= $id ?>"
+                    aria-label="Перемістити вище"
+                    title="Вище"
+                >↑</button>
+                <button
+                    type="button"
+                    class="category-tree-button"
+                    data-category-reorder="down"
+                    data-category-id="<?= $id ?>"
+                    aria-label="Перемістити нижче"
+                    title="Нижче"
+                >↓</button>
+            </div>
+
+            <article class="category-admin-card">
+                <div class="category-admin-card-head">
+                    <div>
+                        <span class="category-admin-name">
+                            <?= $escape($category['name'] ?? '') ?>
+                        </span>
+                        <span class="category-admin-path">
+                            /catalog/<?= $escape($category['department_slug'] ?? '') ?>/<?= $escape($category['slug'] ?? '') ?>
+                        </span>
+                    </div>
+
+                    <div class="category-statuses">
+                        <span class="category-status <?= !empty($category['is_active']) ? 'is-on' : 'is-off' ?>">
+                            <?= !empty($category['is_active']) ? 'Увімкнено' : 'Вимкнено' ?>
+                        </span>
+                        <?php if (empty($category['effective_active']) && !empty($category['is_active'])): ?>
+                            <span class="category-status is-inherited">Приховано предком</span>
+                        <?php endif; ?>
+                        <?php if (!empty($category['effective_adult'])): ?>
+                            <span class="category-status is-adult">
+                                18+<?= empty($category['is_adult']) ? ' успадковано' : '' ?>
+                            </span>
+                        <?php endif; ?>
+                        <?php if (!empty($category['tree_invalid'])): ?>
+                            <span class="category-status is-error">Помилка дерева</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <?php if (!empty($category['description'])): ?>
+                    <span class="category-admin-description">
+                        <?= $escape($category['description']) ?>
+                    </span>
+                <?php endif; ?>
+
+                <div class="category-admin-counts">
+                    <span>Дочірніх: <?= $childCount ?></span>
+                    <span>Товарів: <?= $productCount ?></span>
+                    <span>Перекладів: <?= $translationCount ?></span>
+                </div>
+
+                <div class="category-admin-actions">
+                    <button
+                        type="button"
+                        class="category-action category-edit-button"
+                        data-category-edit="<?= $id ?>"
+                        data-category-id="<?= $id ?>"
+                    >Редагувати</button>
+                    <button
+                        type="button"
+                        class="category-action"
+                        data-category-move="<?= $id ?>"
+                    >Перемістити</button>
+                    <button
+                        type="button"
+                        class="category-action"
+                        data-category-toggle="is_active"
+                        data-category-id="<?= $id ?>"
+                        data-category-value="<?= !empty($category['is_active']) ? 0 : 1 ?>"
+                    ><?= !empty($category['is_active']) ? 'Вимкнути' : 'Увімкнути' ?></button>
+                    <button
+                        type="button"
+                        class="category-action"
+                        data-category-toggle="is_adult"
+                        data-category-id="<?= $id ?>"
+                        data-category-value="<?= !empty($category['is_adult']) ? 0 : 1 ?>"
+                    ><?= !empty($category['is_adult']) ? 'Зняти 18+' : 'Позначити 18+' ?></button>
+                    <button
+                        type="button"
+                        class="category-action is-danger"
+                        data-category-delete="<?= $id ?>"
+                        <?= $canDelete ? '' : 'disabled' ?>
+                        title="<?= $canDelete
+                            ? 'Видалити порожню листову категорію'
+                            : 'Видалення заблоковано: є дочірні категорії або товари' ?>"
+                    >Видалити</button>
+                </div>
+            </article>
+        </div>
+
+        <div
+            class="category-children"
+            id="category-children-<?= $id ?>"
+            data-category-children="<?= $id ?>"
+        >
+            <button
+                type="button"
+                class="category-add-level"
+                data-category-create
+                data-parent-id="<?= $id ?>"
+                data-department-id="<?= (int) ($category['department_id'] ?? 0) ?>"
+            >+ Додати підкатегорію до «<?= $escape($category['name'] ?? '') ?>»</button>
+
+            <?php if (empty($children)): ?>
+                <div class="category-level-empty">Підкатегорій поки немає.</div>
+            <?php endif; ?>
+
+            <?php $renderNodes($children, $level + 1); ?>
+        </div>
+        <?php
+    }
+};
+?>
 <!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Категорії — Адмін-панель</title>
-
-    <link
-        rel="stylesheet"
-        href="/Anabelka/css/style.css?v=8"
-    >
-
-    <link
-        rel="stylesheet"
-        href="/Anabelka/css/catalog.css?v=4"
-    >
-
-    <style>
-        .category-admin {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 18px;
-        }
-
-        .category-admin-head {
-            margin-bottom: 18px;
-        }
-
-        .category-admin-head h2 {
-            margin: 0 0 5px;
-        }
-
-        .category-admin-subtitle {
-            margin: 0;
-            color: #777;
-        }
-
-        .category-admin-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        /*
-         * Правило Анабельки:
-         * уровни дерева НЕ смещаются вправо.
-         * Иерархия показывается только оттенком карточки.
-         */
-        .category-admin-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 44px;
-            gap: 10px;
-            align-items: stretch;
-            margin-left: 0;
-        }
-
-        .category-admin-card {
-            min-width: 0;
-            min-height: 92px;
-            box-sizing: border-box;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            background: #faf7ff;
-        }
-
-        /* Уровень 1 — самый светлый. */
-        .category-admin-row[data-category-level="0"] .category-admin-card {
-            background: #faf7ff;
-        }
-
-        /* Уровень 2 — темнее. */
-        .category-admin-row[data-category-level="1"] .category-admin-card {
-            background: #f2e8fc;
-        }
-
-        /* Уровень 3 и глубже — ещё темнее. */
-        .category-admin-row[data-category-level="2"] .category-admin-card,
-        .category-admin-row[data-category-level="3"] .category-admin-card,
-        .category-admin-row[data-category-level="4"] .category-admin-card,
-        .category-admin-row[data-category-level="5"] .category-admin-card {
-            background: #e4cef8;
-        }
-
-        .category-admin-name {
-            display: block;
-            font-weight: 700;
-            font-size: 16px;
-        }
-
-        .category-admin-description {
-            display: block;
-            margin-top: 5px;
-            color: #777;
-            font-size: 13px;
-            line-height: 1.4;
-        }
-
-        .category-admin-slug {
-            display: block;
-            margin-top: 6px;
-            color: #999;
-            font-size: 12px;
-        }
-
-        .category-edit-button {
-            width: 44px;
-            min-height: 92px;
-            padding: 0;
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            background: #fff;
-            color: var(--primary-color);
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-        .category-edit-button:hover {
-            background: var(--primary-light-color);
-        }
-
-        .category-modal[hidden] {
-            display: none;
-        }
-
-        .category-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .category-modal-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.35);
-        }
-
-        .category-modal-window {
-            position: relative;
-            width: min(680px, 100%);
-            max-height: 88vh;
-            overflow-y: auto;
-            padding: 20px;
-            border-radius: 18px;
-            background: #fff;
-        }
-
-        .category-modal-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            margin-bottom: 16px;
-        }
-
-        .category-modal-head h3 {
-            margin: 0;
-        }
-
-        .category-modal-close {
-            border: 0;
-            background: transparent;
-            font-size: 28px;
-            cursor: pointer;
-        }
-
-        .category-source-head,
-        .category-language-head {
-            margin: 14px 0 10px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            background: #faf7ff;
-            font-weight: 700;
-        }
-
-        .category-translation-section {
-            margin-top: 18px;
-            padding-top: 16px;
-            border-top: 1px solid #eadcf7;
-            scroll-margin: 18px;
-        }
-
-        .category-translation-section.is-translation-focus {
-            margin-right: -8px;
-            margin-left: -8px;
-            padding-right: 8px;
-            padding-left: 8px;
-            border-radius: 12px;
-            background: #faf7ff;
-            box-shadow: 0 0 0 2px var(--primary-color);
-        }
-
-        .category-form-group {
-            margin-bottom: 14px;
-        }
-
-        .category-form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 700;
-        }
-
-        .category-form-group input,
-        .category-form-group textarea {
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .category-translation-workflow {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-
-        .category-translation-origin {
-            color: #777;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .category-translation-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .category-translation-status select {
-            min-height: 38px;
-            padding: 0 9px;
-            border: 1px solid var(--border-color);
-            border-radius: 9px;
-            background: #fff;
-            font: inherit;
-        }
-
-        .category-modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .category-modal-actions button {
-            padding: 11px 16px;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-
-        .category-save {
-            border: 0;
-            background: var(--primary-color);
-            color: #fff;
-            font-weight: 700;
-        }
-
-        .category-cancel {
-            border: 1px solid #ddd;
-            background: #fff;
-        }
-
-        @media (max-width: 650px) {
-            .category-admin {
-                padding: 12px 7px;
-            }
-
-            .category-admin-list {
-                gap: 8px;
-            }
-
-            .category-admin-row {
-                grid-template-columns: minmax(0, 1fr) 42px;
-                gap: 8px;
-                margin-left: 0;
-            }
-
-            .category-admin-card,
-            .category-edit-button {
-                min-height: 86px;
-            }
-
-            .category-edit-button {
-                width: 42px;
-            }
-
-            .category-translation-workflow,
-            .category-translation-status {
-                align-items: stretch;
-                flex-direction: column;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=1">
 </head>
 <body>
 
 <?php
-$pageTitle = 'Админ-панель — Категории';
+$pageTitle = 'Адмін-панель — Категорії';
 require __DIR__ . '/../../partials/header.php';
-
-$categoryById = [];
-foreach ($categories as $categoryItem) {
-    $categoryById[(int) $categoryItem['id']] = $categoryItem;
-}
-
-$depthFor = function ($category) use (&$categoryById) {
-    $depth = 0;
-    $parentId = (int) ($category['parent_id'] ?? 0);
-    $guard = 0;
-
-    while ($parentId > 0 && isset($categoryById[$parentId]) && $guard < 20) {
-        $depth++;
-        $parentId = (int) ($categoryById[$parentId]['parent_id'] ?? 0);
-        $guard++;
-    }
-
-    return $depth;
-};
-$translationStatusOptions = TranslationWorkflow::statusOptions();
 ?>
 
-<main class="catalog">
-    <section class="product-card category-admin">
-        <div class="category-admin-head">
-            <h2>Категорії</h2>
-            <p class="category-admin-subtitle">
-                Редагування українського оригіналу та перекладів
+<main class="category-manager">
+    <header class="category-manager-head">
+        <div>
+            <h2>Дерево категорій</h2>
+            <p>
+                Slug стабільний. Видимість та 18+ успадковуються від предків.
             </p>
         </div>
+    </header>
 
-        <div class="category-admin-list">
-            <?php foreach ($categories as $category): ?>
-                <?php
-                $depth = $depthFor($category);
-                $translationsJson = json_encode(
-                    $category['translations'] ?? [],
-                    JSON_UNESCAPED_UNICODE
-                );
-                ?>
+    <?php if (empty($departments)): ?>
+        <div class="category-manager-empty">Спочатку створіть підрозділ каталогу.</div>
+    <?php endif; ?>
 
-                <div
-                    class="category-admin-row"
-                    data-category-level="<?= (int) $depth ?>"
-                >
-                    <div class="category-admin-card">
-                        <span class="category-admin-name">
-                            <?= htmlspecialchars($category['name']) ?>
-                        </span>
-
-                        <?php if (!empty($category['description'])): ?>
-                            <span class="category-admin-description">
-                                <?= htmlspecialchars($category['description']) ?>
-                            </span>
-                        <?php endif; ?>
-
-                        <span class="category-admin-slug">
-                            slug: <?= htmlspecialchars($category['slug']) ?>
-                        </span>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="category-edit-button"
-                        aria-label="Редагувати категорію"
-                        data-category-id="<?= (int) $category['id'] ?>"
-                        data-category-name="<?= htmlspecialchars(
-                            $category['name'],
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
-                        data-category-description="<?= htmlspecialchars(
-                            $category['description'] ?? '',
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
-                        data-category-translations="<?= htmlspecialchars(
-                            $translationsJson,
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
-                    >
-                        ✎
-                    </button>
+    <?php foreach ($departments as $department): ?>
+        <?php
+        $departmentId = (int) ($department['id'] ?? 0);
+        $roots = $categoryForest[$departmentId] ?? [];
+        ?>
+        <section class="category-department" data-department-id="<?= $departmentId ?>">
+            <div class="category-department-head">
+                <div>
+                    <h3><?= $escape($department['name'] ?? '') ?></h3>
+                    <span>/catalog/<?= $escape($department['slug'] ?? '') ?>/…</span>
                 </div>
-            <?php endforeach; ?>
-        </div>
-    </section>
+                <span class="category-status <?= !empty($department['is_active']) ? 'is-on' : 'is-off' ?>">
+                    <?= !empty($department['is_active']) ? 'Підрозділ активний' : 'Підрозділ вимкнено' ?>
+                </span>
+            </div>
+
+            <div class="category-admin-list">
+                <button
+                    type="button"
+                    class="category-add-level is-root"
+                    data-category-create
+                    data-parent-id=""
+                    data-department-id="<?= $departmentId ?>"
+                >+ Додати кореневу категорію</button>
+
+                <?php if (empty($roots)): ?>
+                    <div class="category-level-empty">Категорій у підрозділі поки немає.</div>
+                <?php endif; ?>
+
+                <?php $renderNodes($roots); ?>
+            </div>
+        </section>
+    <?php endforeach; ?>
 </main>
 
-<div
-    id="category-edit-modal"
-    class="category-modal"
-    hidden
->
-    <div
-        class="category-modal-backdrop"
-        data-category-close
-    ></div>
-
-    <div
-        class="category-modal-window"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="category-edit-title"
-    >
+<div id="category-edit-modal" class="category-modal" hidden>
+    <div class="category-modal-backdrop" data-category-close></div>
+    <div class="category-modal-window" role="dialog" aria-modal="true" aria-labelledby="category-edit-title">
         <div class="category-modal-head">
             <h3 id="category-edit-title">Редагування категорії</h3>
-            <button
-                type="button"
-                class="category-modal-close"
-                data-category-close
-            >×</button>
+            <button type="button" class="category-modal-close" data-category-close aria-label="Закрити">×</button>
         </div>
 
-        <form
-            id="category-edit-form"
-            action="/Anabelka/admin/categories/update"
-            method="POST"
-        >
-            <input
-                type="hidden"
-                name="category_id"
-                id="category-edit-id"
-            >
+        <form id="category-edit-form" action="/Anabelka/admin/categories/update" method="post">
+            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="category_id" id="category-edit-id">
 
-            <div class="category-source-head">
-                Українська · вихідна мова
-            </div>
+            <div class="category-source-head">Українська · вихідна мова</div>
 
             <div class="category-form-group">
                 <label for="category-edit-name">Назва *</label>
-                <input
-                    type="text"
-                    name="name"
-                    id="category-edit-name"
-                    required
-                >
+                <input type="text" name="name" id="category-edit-name" maxlength="150" required>
             </div>
 
             <div class="category-form-group">
                 <label for="category-edit-description">Опис</label>
-                <textarea
-                    name="description"
-                    id="category-edit-description"
-                    rows="4"
-                ></textarea>
+                <textarea name="description" id="category-edit-description" rows="4"></textarea>
             </div>
+
+            <div class="category-check-grid">
+                <label>
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" id="category-edit-active" value="1">
+                    Категорія активна
+                </label>
+                <label>
+                    <input type="hidden" name="is_adult" value="0">
+                    <input type="checkbox" name="is_adult" id="category-edit-adult" value="1">
+                    Власна позначка 18+
+                </label>
+            </div>
+
+            <p class="category-form-note">
+                Slug і положення в дереві тут не змінюються.
+            </p>
 
             <?php foreach ($languages as $language): ?>
                 <?php
@@ -469,390 +287,137 @@ $translationStatusOptions = TranslationWorkflow::statusOptions();
                     continue;
                 }
                 ?>
-
-                <section
-                    class="category-translation-section"
-                    data-category-language="<?= htmlspecialchars($code) ?>"
-                >
+                <section class="category-translation-section" data-category-language="<?= $escape($code) ?>">
                     <div class="category-language-head">
-                        <?= htmlspecialchars($language['name']) ?>
-                        · <?= htmlspecialchars($language['short_name']) ?>
+                        <?= $escape($language['name'] ?? '') ?> · <?= $escape($language['short_name'] ?? '') ?>
                     </div>
-
                     <div class="category-translation-workflow">
-                        <input
-                            type="hidden"
-                            name="translation_source[<?= htmlspecialchars($code) ?>]"
-                            class="category-translation-source"
-                            value="manual"
-                        >
-
-                        <span class="category-translation-origin">
-                            Ручний переклад
-                        </span>
-
+                        <input type="hidden" name="translation_source[<?= $escape($code) ?>]" class="category-translation-source" value="manual">
+                        <span class="category-translation-origin">Ручний переклад</span>
                         <label class="category-translation-status">
                             <span>Стан</span>
-                            <select
-                                name="translation_status[<?= htmlspecialchars($code) ?>]"
-                            >
+                            <select name="translation_status[<?= $escape($code) ?>]">
                                 <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
-                                    <option value="<?= htmlspecialchars($statusCode) ?>">
-                                        <?= htmlspecialchars($statusLabel) ?>
-                                    </option>
+                                    <option value="<?= $escape($statusCode) ?>"><?= $escape($statusLabel) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </label>
                     </div>
-
                     <div class="category-form-group">
-                        <label>Название / Name</label>
-                        <input
-                            type="text"
-                            name="translation_name[<?= htmlspecialchars($code) ?>]"
-                            class="category-translation-name"
-                            autocomplete="off"
-                        >
+                        <label>Назва перекладу</label>
+                        <input type="text" name="translation_name[<?= $escape($code) ?>]" class="category-translation-name" maxlength="255" autocomplete="off">
                     </div>
-
                     <div class="category-form-group">
-                        <label>Описание / Description</label>
-                        <textarea
-                            name="translation_description[<?= htmlspecialchars($code) ?>]"
-                            class="category-translation-description"
-                            rows="3"
-                        ></textarea>
+                        <label>Опис перекладу</label>
+                        <textarea name="translation_description[<?= $escape($code) ?>]" class="category-translation-description" rows="3"></textarea>
                     </div>
                 </section>
             <?php endforeach; ?>
 
             <div class="category-modal-actions">
-                <button
-                    type="button"
-                    class="category-cancel"
-                    data-category-close
-                >Отмена</button>
-
-                <button
-                    type="submit"
-                    class="category-save"
-                >Сохранить</button>
+                <button type="button" class="category-cancel" data-category-close>Скасувати</button>
+                <button type="submit" class="category-save">Зберегти</button>
             </div>
         </form>
     </div>
 </div>
 
-<div
-    id="site-message"
-    class="site-message"
-></div>
+<div id="category-create-modal" class="category-modal" hidden>
+    <div class="category-modal-backdrop" data-category-close></div>
+    <div class="category-modal-window is-compact" role="dialog" aria-modal="true" aria-labelledby="category-create-title">
+        <div class="category-modal-head">
+            <h3 id="category-create-title">Нова категорія</h3>
+            <button type="button" class="category-modal-close" data-category-close aria-label="Закрити">×</button>
+        </div>
+        <form id="category-create-form" action="/Anabelka/admin/categories/create" method="post">
+            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="parent_id" id="category-create-parent">
+            <div class="category-form-group">
+                <label for="category-create-department">Підрозділ</label>
+                <select name="department_id" id="category-create-department" required>
+                    <?php foreach ($departments as $department): ?>
+                        <option value="<?= (int) ($department['id'] ?? 0) ?>"><?= $escape($department['name'] ?? '') ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <p class="category-form-note" id="category-create-context"></p>
+            <div class="category-form-group">
+                <label for="category-create-name">Назва *</label>
+                <input type="text" name="name" id="category-create-name" maxlength="150" required>
+            </div>
+            <div class="category-form-group">
+                <label for="category-create-description">Опис</label>
+                <textarea name="description" id="category-create-description" rows="4"></textarea>
+            </div>
+            <div class="category-check-grid">
+                <label><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" checked> Активна</label>
+                <label><input type="hidden" name="is_adult" value="0"><input type="checkbox" name="is_adult" value="1"> Власна позначка 18+</label>
+            </div>
+            <p class="category-form-note">Slug буде створено один раз із назви та залишиться стабільним.</p>
+            <div class="category-modal-actions">
+                <button type="button" class="category-cancel" data-category-close>Скасувати</button>
+                <button type="submit" class="category-save">Створити</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-<script>
-(function () {
-    const modal = document.getElementById('category-edit-modal');
-    const form = document.getElementById('category-edit-form');
-    const idField = document.getElementById('category-edit-id');
-    const nameField = document.getElementById('category-edit-name');
-    const descriptionField = document.getElementById('category-edit-description');
+<div id="category-move-modal" class="category-modal" hidden>
+    <div class="category-modal-backdrop" data-category-close></div>
+    <div class="category-modal-window is-compact" role="dialog" aria-modal="true" aria-labelledby="category-move-title">
+        <div class="category-modal-head">
+            <h3 id="category-move-title">Переміщення гілки</h3>
+            <button type="button" class="category-modal-close" data-category-close aria-label="Закрити">×</button>
+        </div>
+        <form id="category-move-form" action="/Anabelka/admin/categories/move" method="post">
+            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="category_id" id="category-move-id">
+            <p class="category-form-note" id="category-move-context"></p>
+            <div class="category-form-group">
+                <label for="category-move-parent">Нова батьківська категорія</label>
+                <select name="parent_id" id="category-move-parent"></select>
+            </div>
+            <div class="category-form-group">
+                <label for="category-move-department">Підрозділ кореневої категорії</label>
+                <select name="department_id" id="category-move-department">
+                    <?php foreach ($departments as $department): ?>
+                        <option value="<?= (int) ($department['id'] ?? 0) ?>"><?= $escape($department['name'] ?? '') ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <p class="category-form-note">
+                Для дочірньої категорії підрозділ визначається новим предком. Переміщується вся гілка; конфлікт slug скасує операцію.
+            </p>
+            <div class="category-modal-actions">
+                <button type="button" class="category-cancel" data-category-close>Скасувати</button>
+                <button type="submit" class="category-save">Перемістити</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-    function getTranslationFocusField(button) {
-        const params = new URLSearchParams(window.location.search);
-        const languageCode = String(
-            params.get('focus_language') || ''
-        ).trim().toLowerCase();
-        const requestedId = String(
-            params.get('highlight') || ''
-        ).trim();
+<div id="category-delete-modal" class="category-modal" hidden>
+    <div class="category-modal-backdrop" data-category-close></div>
+    <div class="category-modal-window is-compact" role="dialog" aria-modal="true" aria-labelledby="category-delete-title">
+        <div class="category-modal-head">
+            <h3 id="category-delete-title">Видалити категорію?</h3>
+            <button type="button" class="category-modal-close" data-category-close aria-label="Закрити">×</button>
+        </div>
+        <form id="category-delete-form" action="/Anabelka/admin/categories/delete" method="post">
+            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="category_id" id="category-delete-id">
+            <p id="category-delete-context"></p>
+            <p class="category-form-note">Дозволено лише для категорії без дітей і товарів. Її переклади буде видалено разом із нею.</p>
+            <div class="category-modal-actions">
+                <button type="button" class="category-cancel" data-category-close>Скасувати</button>
+                <button type="submit" class="category-delete-confirm">Видалити</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-        if (
-            languageCode === ''
-            || !/^\d+$/.test(requestedId)
-            || requestedId !== String(button.dataset.categoryId || '')
-        ) {
-            return null;
-        }
-
-        const section = Array.from(
-            document.querySelectorAll('[data-category-language]')
-        ).find(function (item) {
-            return String(
-                item.dataset.categoryLanguage || ''
-            ).trim().toLowerCase() === languageCode;
-        }) || null;
-
-        if (!section) {
-            return null;
-        }
-
-        const targetName = section.querySelector(
-            '.category-translation-name'
-        );
-        const targetDescription = section.querySelector(
-            '.category-translation-description'
-        );
-
-        if (targetName && targetName.value.trim() === '') {
-            return targetName;
-        }
-
-        if (
-            String(button.dataset.categoryDescription || '').trim() !== ''
-            && targetDescription
-            && targetDescription.value.trim() === ''
-        ) {
-            return targetDescription;
-        }
-
-        return targetName || targetDescription;
-    }
-
-    function focusTranslationField(field) {
-        document
-            .querySelectorAll('.category-translation-section.is-translation-focus')
-            .forEach(function (section) {
-                section.classList.remove('is-translation-focus');
-            });
-
-        if (!field) {
-            nameField.focus();
-            return;
-        }
-
-        const section = field.closest('.category-translation-section');
-
-        if (section) {
-            section.classList.add('is-translation-focus');
-        }
-
-        field.focus();
-
-        if (typeof field.select === 'function') {
-            field.select();
-        }
-
-        window.setTimeout(function () {
-            field.scrollIntoView({
-                block: 'center'
-            });
-        }, 50);
-    }
-
-    function getTranslationReturnUrl() {
-        const params = new URLSearchParams(window.location.search);
-        const requestedId = String(
-            params.get('highlight') || ''
-        ).trim();
-        const languageCode = String(
-            params.get('focus_language') || ''
-        ).trim();
-
-        if (/^\d+$/.test(requestedId) && languageCode !== '') {
-            return '/Anabelka/admin/translations/missing?section=categories';
-        }
-
-        return '';
-    }
-
-    function setCategoryTranslationWorkflow(section, source, status) {
-        if (!section) {
-            return;
-        }
-
-        const sourceField = section.querySelector(
-            '.category-translation-source'
-        );
-        const sourceLabel = section.querySelector(
-            '.category-translation-origin'
-        );
-        const statusField = section.querySelector(
-            '.category-translation-status select'
-        );
-        const normalizedSource = source === 'ai' ? 'ai' : 'manual';
-        const normalizedStatus = [
-            'draft',
-            'review',
-            'approved',
-            'outdated'
-        ].includes(status) ? status : 'approved';
-
-        if (sourceField) {
-            sourceField.value = normalizedSource;
-        }
-
-        if (sourceLabel) {
-            sourceLabel.textContent = normalizedSource === 'ai'
-                ? 'Створено ШІ'
-                : 'Ручний переклад';
-        }
-
-        if (statusField) {
-            statusField.value = normalizedStatus;
-        }
-
-        section.dataset.translationStatus = normalizedStatus;
-    }
-
-    window.setCategoryTranslationWorkflow =
-        setCategoryTranslationWorkflow;
-
-    function closeModal() {
-        modal.hidden = true;
-    }
-
-    function showMessage(text) {
-        const message = document.getElementById('site-message');
-        if (!message) {
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-
-        clearTimeout(window.categoryMessageTimer);
-        window.categoryMessageTimer = setTimeout(function () {
-            message.classList.remove('show');
-        }, 2200);
-    }
-
-    document.querySelectorAll('.category-edit-button').forEach(function (button) {
-        button.addEventListener('click', function () {
-            idField.value = button.dataset.categoryId || '';
-            nameField.value = button.dataset.categoryName || '';
-            descriptionField.value = button.dataset.categoryDescription || '';
-
-            let translations = {};
-            try {
-                translations = JSON.parse(
-                    button.dataset.categoryTranslations || '{}'
-                );
-            } catch (error) {
-                translations = {};
-            }
-
-            document.querySelectorAll('[data-category-language]').forEach(function (section) {
-                const code = section.dataset.categoryLanguage;
-                const translation = translations[code] || {};
-
-                section.querySelector('.category-translation-name').value =
-                    translation.name || '';
-
-                section.querySelector('.category-translation-description').value =
-                    translation.description || '';
-
-                setCategoryTranslationWorkflow(
-                    section,
-                    translation.source || 'manual',
-                    translation.status || (
-                        (translation.name || translation.description)
-                            ? 'approved'
-                            : 'draft'
-                    )
-                );
-            });
-
-            modal.hidden = false;
-
-            const translationFocusField =
-                getTranslationFocusField(button);
-
-            window.setTimeout(function () {
-                focusTranslationField(translationFocusField);
-            }, 50);
-        });
-    });
-
-    document.querySelectorAll('[data-category-close]').forEach(function (button) {
-        button.addEventListener('click', closeModal);
-    });
-
-    document
-        .querySelectorAll(
-            '.category-translation-name, '
-            + '.category-translation-description'
-        )
-        .forEach(function (field) {
-            field.addEventListener('input', function () {
-                const section = field.closest(
-                    '[data-category-language]'
-                );
-                const statusField = section
-                    ? section.querySelector(
-                        '.category-translation-status select'
-                    )
-                    : null;
-                const hasContent = section && (
-                    section.querySelector(
-                        '.category-translation-name'
-                    ).value.trim() !== ''
-                    || section.querySelector(
-                        '.category-translation-description'
-                    ).value.trim() !== ''
-                );
-
-                setCategoryTranslationWorkflow(
-                    section,
-                    'manual',
-                    statusField
-                        && statusField.value === 'draft'
-                        && hasContent
-                            ? 'approved'
-                            : (statusField ? statusField.value : 'approved')
-                );
-            });
-        });
-
-    document
-        .querySelectorAll('.category-translation-status select')
-        .forEach(function (select) {
-            select.addEventListener('change', function () {
-                const section = select.closest(
-                    '[data-category-language]'
-                );
-
-                if (section) {
-                    section.dataset.translationStatus = select.value;
-                }
-            });
-        });
-
-    form.addEventListener('submit', async function (event) {
-        event.preventDefault();
-
-        try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: new FormData(form),
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Не удалось сохранить категорию.');
-            }
-
-            showMessage(data.message || 'Сохранено.');
-            closeModal();
-
-            setTimeout(function () {
-                const returnUrl = getTranslationReturnUrl();
-
-                if (returnUrl) {
-                    window.location.replace(returnUrl);
-                    return;
-                }
-
-                window.location.reload();
-            }, 400);
-
-        } catch (error) {
-            showMessage(error.message || 'Не удалось сохранить категорию.');
-        }
-    });
-})();
-</script>
-
+<div id="site-message" class="site-message" role="status" aria-live="polite"></div>
+<script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
+<script src="/Anabelka/js/admin-categories.js?v=1"></script>
 </body>
 </html>

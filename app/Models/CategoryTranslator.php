@@ -33,6 +33,12 @@ class CategoryTranslator
                 ),
                 KEY idx_category_translations_language (
                     language_code
+                ),
+                CONSTRAINT fk_category_translations_category
+                    FOREIGN KEY (category_id)
+                    REFERENCES categories (id)
+                    ON DELETE CASCADE
+                    ON UPDATE RESTRICT
                 )
             ) ENGINE=InnoDB
               DEFAULT CHARSET=utf8mb4
@@ -43,7 +49,7 @@ class CategoryTranslator
     }
 
 
-    public static function getForCategory($categoryId)
+    public static function getForCategory($categoryId, $forUpdate = false)
     {
         self::ensureTable();
 
@@ -55,7 +61,7 @@ class CategoryTranslator
 
         $db = Database::connect();
 
-        $stmt = $db->prepare("
+        $sql = "
             SELECT
                 language_code,
                 name,
@@ -64,7 +70,13 @@ class CategoryTranslator
                 status
             FROM category_translations
             WHERE category_id = :category_id
-        ");
+        ";
+
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $db->prepare($sql);
 
         $stmt->execute([
             'category_id' => $categoryId
@@ -74,6 +86,58 @@ class CategoryTranslator
 
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $result[$row['language_code']] = $row;
+        }
+
+        return $result;
+    }
+
+
+    public static function getForCategories(array $categoryIds)
+    {
+        self::ensureTable();
+
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map('intval', $categoryIds),
+            function ($categoryId) {
+                return $categoryId > 0;
+            }
+        )));
+
+        if (empty($categoryIds)) {
+            return [];
+        }
+
+        $placeholders = [];
+        $params = [];
+
+        foreach ($categoryIds as $index => $categoryId) {
+            $key = 'category_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $categoryId;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT
+                category_id,
+                language_code,
+                name,
+                description,
+                source,
+                status
+            FROM category_translations
+            WHERE category_id IN (" . implode(', ', $placeholders) . ")
+            ORDER BY category_id ASC, language_code ASC
+        ");
+        $stmt->execute($params);
+        $result = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $categoryId = (int) ($row['category_id'] ?? 0);
+            $languageCode = (string) ($row['language_code'] ?? '');
+
+            if ($categoryId > 0 && $languageCode !== '') {
+                $result[$categoryId][$languageCode] = $row;
+            }
         }
 
         return $result;

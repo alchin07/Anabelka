@@ -156,7 +156,7 @@ require __DIR__ . '/../../partials/header.php';
                         <?= $filters['category_id'] === (int) $category['id'] ? 'selected' : '' ?>
                     >
                         <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
-                        <?= empty($category['is_active']) ? ' · прихована' : '' ?>
+                        <?= empty($category['effective_active']) ? ' · прихована деревом' : '' ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -331,7 +331,7 @@ require __DIR__ . '/../../partials/header.php';
                                     <?php $depth = $categoryDepth($category); ?>
                                     <option value="<?= (int) $category['id'] ?>">
                                         <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
-                                        <?= empty($category['is_active']) ? ' · прихована' : '' ?>
+                                        <?= empty($category['effective_active']) ? ' · прихована деревом' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>

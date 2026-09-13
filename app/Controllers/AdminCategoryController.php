@@ -4,326 +4,201 @@ class AdminCategoryController extends Controller
 {
     public function index()
     {
+        // Runtime table creation, where still needed by older installations,
+        // happens before any manager transaction is opened.
+        CategoryTranslator::getForCategory(0);
+
+        $departments = Department::allForAdmin();
         $categories = Category::getAllForAdmin();
-        $languages = Language::active();
+        $translations = CategoryTranslator::getForCategories(
+            array_column($categories, 'id')
+        );
 
         foreach ($categories as &$category) {
-            $category['translations'] =
-                CategoryTranslator::getForCategory(
-                    (int) $category['id']
-                );
+            $categoryId = (int) ($category['id'] ?? 0);
+            $category['translations'] = $translations[$categoryId] ?? [];
         }
         unset($category);
 
-        $this->view(
-            'admin/categories/index',
-            [
-                'categories' => $categories,
-                'languages' => $languages
-            ]
-        );
+        $this->view('admin/categories/index', [
+            'departments' => $departments,
+            'categories' => $categories,
+            'categoryForest' => Category::buildAdminForest($categories),
+            'languages' => Language::active(),
+            'csrfToken' => AdminAccess::csrfToken()
+        ]);
+    }
+
+
+    public function create()
+    {
+        $this->verifyCsrf();
+
+        try {
+            $category = CategoryManager::create($_POST);
+
+            $this->jsonSuccess(
+                'Категорію створено.',
+                ['category' => $category]
+            );
+        } catch (Throwable $e) {
+            $this->handleFailure($e);
+        }
     }
 
 
     public function update()
     {
-        $categoryId =
-            (int) ($_POST['category_id'] ?? 0);
+        $this->verifyCsrf();
 
-        $name =
-            trim((string) ($_POST['name'] ?? ''));
-
-        $description =
-            trim((string) ($_POST['description'] ?? ''));
-
-        if ($categoryId <= 0 || $name === '') {
-            $this->jsonErrorResponse(
-                'Название категории обязательно.',
-                400
-            );
-        }
-
+        // Both helpers may perform legacy CREATE TABLE IF NOT EXISTS work.
+        // Resolve it before CategoryManager starts the data transaction.
         $activeLanguages = Language::active();
-
-        /*
-         * ensureTable() виконує DDL, тому готуємо таблицю до початку
-         * транзакції. Інакше MySQL може неявно завершити транзакцію.
-         */
         CategoryTranslator::getForCategory(0);
 
-        $db = Database::connect();
+        try {
+            CategoryManager::update(
+                (int) ($_POST['category_id'] ?? 0),
+                $_POST,
+                $activeLanguages
+            );
+
+            $this->jsonSuccess('Категорію та переклади збережено.');
+        } catch (Throwable $e) {
+            $this->handleFailure($e);
+        }
+    }
+
+
+    public function move()
+    {
+        $this->verifyCsrf();
 
         try {
-            $currentSource = $this->loadCategorySource(
-                $db,
-                $categoryId
-            );
-            $storedBefore = CategoryTranslator::getForCategory(
-                $categoryId
-            );
+            $direction = trim((string) ($_POST['direction'] ?? ''));
+            $categoryId = (int) ($_POST['category_id'] ?? 0);
 
-            $db->beginTransaction();
-
-            $sourceChanged = TranslationWorkflow::sourceChanged(
-                $currentSource['name'] ?? '',
-                $currentSource['description'] ?? '',
-                $name,
-                $description
-            );
-
-            $updated = Category::updateAdmin(
-                $categoryId,
-                $name,
-                $description
-            );
-
-            if (!$updated) {
-                throw new RuntimeException(
-                    'Не удалось сохранить категорию.'
-                );
-            }
-
-            if ($sourceChanged) {
-                CategoryTranslator::markOutdated($categoryId);
-            }
-
-            $translationNames =
-                $_POST['translation_name'] ?? [];
-
-            $translationDescriptions =
-                $_POST['translation_description'] ?? [];
-
-            $translationSources =
-                $_POST['translation_source'] ?? [];
-
-            $translationStatuses =
-                $_POST['translation_status'] ?? [];
-
-            if (!is_array($translationNames)) {
-                $translationNames = [];
-            }
-
-            if (!is_array($translationDescriptions)) {
-                $translationDescriptions = [];
-            }
-
-            if (!is_array($translationSources)) {
-                $translationSources = [];
-            }
-
-            if (!is_array($translationStatuses)) {
-                $translationStatuses = [];
-            }
-
-            $expectedTranslations = [];
-
-            foreach ($activeLanguages as $language) {
-                $code = strtolower(
-                    trim((string) ($language['code'] ?? ''))
-                );
-
-                if (
-                    $code === ''
-                    || $code === Language::SOURCE_CODE
-                ) {
-                    continue;
-                }
-
-                $translationName = trim(
-                    (string) ($translationNames[$code] ?? '')
-                );
-
-                $translationDescription = trim(
-                    (string) ($translationDescriptions[$code] ?? '')
-                );
-
-                $storedTranslation = is_array(
-                    $storedBefore[$code] ?? null
-                )
-                    ? $storedBefore[$code]
-                    : [];
-
-                $translationSource =
-                    TranslationWorkflow::normalizeSource(
-                        $translationSources[$code]
-                        ?? ($storedTranslation['source'] ?? 'manual')
-                    );
-
-                $translationStatus =
-                    TranslationWorkflow::normalizeStatus(
-                        $translationStatuses[$code]
-                        ?? ($storedTranslation['status'] ?? 'approved'),
-                        $translationName !== ''
-                            || $translationDescription !== ''
-                    );
-
-                $translationChanged =
-                    TranslationWorkflow::translationChanged(
-                        $storedTranslation,
-                        $translationName,
-                        $translationDescription
-                    );
-
-                $statusChanged = $translationStatus !==
-                    TranslationWorkflow::normalizeStatus(
-                        $storedTranslation['status'] ?? 'approved',
-                        !empty($storedTranslation)
-                    );
-
-                if (
-                    $sourceChanged
-                    && !empty($storedTranslation)
-                    && !$translationChanged
-                    && !$statusChanged
-                ) {
-                    $expectedTranslations[$code] = [
-                        'name' => (string) (
-                            $storedTranslation['name'] ?? ''
-                        ),
-                        'description' => (string) (
-                            $storedTranslation['description'] ?? ''
-                        ),
-                        'source' => (string) (
-                            $storedTranslation['source'] ?? 'manual'
-                        ),
-                        'status' => 'outdated'
-                    ];
-
-                    continue;
-                }
-
-                CategoryTranslator::saveForCategory(
+            if ($direction !== '') {
+                $changed = CategoryManager::reorder(
                     $categoryId,
-                    $code,
-                    $translationName,
-                    $translationDescription,
-                    $translationSource,
-                    $translationStatus
+                    $direction
                 );
 
-                $expectedTranslations[$code] = [
-                    'name' => $translationName,
-                    'description' => $translationDescription,
-                    'source' => $translationSource,
-                    'status' => $translationStatus
-                ];
+                $this->jsonSuccess(
+                    $changed
+                        ? 'Порядок категорій змінено.'
+                        : 'Категорія вже займає крайню позицію.'
+                );
             }
 
-            $this->verifySavedTranslations(
-                CategoryTranslator::getForCategory($categoryId),
-                $expectedTranslations
+            $result = CategoryManager::move(
+                $categoryId,
+                $_POST['parent_id'] ?? null,
+                (int) ($_POST['department_id'] ?? 0)
             );
 
-            $db->commit();
-
-            header(
-                'Content-Type: application/json; charset=UTF-8'
+            $this->jsonSuccess(
+                'Гілку категорій переміщено.',
+                ['move' => $result]
             );
-
-            echo json_encode(
-                [
-                    'success' => true,
-                    'message' =>
-                        'Категория и переводы сохранены.'
-                ],
-                JSON_UNESCAPED_UNICODE
-            );
-            exit;
-
         } catch (Throwable $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-
-            $this->jsonErrorResponse(
-                $e->getMessage(),
-                500
-            );
+            $this->handleFailure($e);
         }
     }
 
 
-    private function verifySavedTranslations(
-        array $storedTranslations,
-        array $expectedTranslations
-    ) {
-        foreach ($expectedTranslations as $code => $expected) {
-            $expectedName = trim(
-                (string) ($expected['name'] ?? '')
-            );
-
-            $expectedDescription = trim(
-                (string) ($expected['description'] ?? '')
-            );
-
-            if ($expectedName === '' && $expectedDescription === '') {
-                if (isset($storedTranslations[$code])) {
-                    throw new RuntimeException(
-                        'Порожній переклад ' . strtoupper($code)
-                        . ' не було видалено.'
-                    );
-                }
-
-                continue;
-            }
-
-            $stored = $storedTranslations[$code] ?? null;
-
-            if (
-                !$stored
-                || trim((string) ($stored['name'] ?? ''))
-                    !== $expectedName
-                || trim((string) ($stored['description'] ?? ''))
-                    !== $expectedDescription
-                || (string) ($stored['source'] ?? '')
-                    !== (string) ($expected['source'] ?? 'manual')
-                || (string) ($stored['status'] ?? '')
-                    !== (string) ($expected['status'] ?? 'approved')
-            ) {
-                throw new RuntimeException(
-                    'База даних не підтвердила збереження перекладу '
-                    . strtoupper($code) . '.'
-                );
-            }
-        }
-    }
-
-
-    private function loadCategorySource(PDO $db, $categoryId)
+    public function toggle()
     {
-        $stmt = $db->prepare("
-            SELECT name, description
-            FROM categories
-            WHERE id = :id
-            LIMIT 1
-        ");
-        $stmt->execute(['id' => (int) $categoryId]);
+        $this->verifyCsrf();
 
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            CategoryManager::toggle(
+                (int) ($_POST['category_id'] ?? 0),
+                $_POST['field'] ?? '',
+                $_POST['value'] ?? 0
+            );
 
-        if (!$row) {
-            throw new RuntimeException('Категорію не знайдено.');
+            $this->jsonSuccess('Стан категорії змінено.');
+        } catch (Throwable $e) {
+            $this->handleFailure($e);
         }
-
-        return $row;
     }
 
 
-    private function jsonErrorResponse($message, $status)
+    public function delete()
     {
-        http_response_code((int) $status);
+        $this->verifyCsrf();
+        CategoryTranslator::getForCategory(0);
 
-        header(
-            'Content-Type: application/json; charset=UTF-8'
-        );
+        try {
+            CategoryManager::delete(
+                (int) ($_POST['category_id'] ?? 0)
+            );
+
+            $this->jsonSuccess('Категорію видалено.');
+        } catch (Throwable $e) {
+            $this->handleFailure($e);
+        }
+    }
+
+
+    private function verifyCsrf()
+    {
+        if (AdminAccess::verifyCsrf($_POST['_csrf'] ?? '')) {
+            return;
+        }
+
+        $this->jsonError('Сесію форми завершено. Оновіть сторінку.', 419);
+    }
+
+
+    private function jsonSuccess($message, array $extra = [])
+    {
+        header('Content-Type: application/json; charset=UTF-8');
 
         echo json_encode(
-            [
-                'success' => false,
+            array_merge([
+                'success' => true,
                 'message' => (string) $message
-            ],
+            ], $extra),
             JSON_UNESCAPED_UNICODE
         );
+        exit;
+    }
+
+
+    private function handleFailure(Throwable $error)
+    {
+        if (
+            $error instanceof DomainException
+            || $error instanceof InvalidArgumentException
+        ) {
+            $this->jsonError($error->getMessage(), 422);
+        }
+
+        error_log(
+            'Category manager: '
+            . get_class($error)
+            . ': '
+            . $error->getMessage()
+        );
+
+        $this->jsonError(
+            'Не вдалося виконати операцію з категорією. Перевірте журнал помилок.',
+            500
+        );
+    }
+
+
+    private function jsonError($message, $status)
+    {
+        http_response_code((int) $status);
+        header('Content-Type: application/json; charset=UTF-8');
+
+        echo json_encode([
+            'success' => false,
+            'message' => (string) $message
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }

@@ -35,7 +35,11 @@ $pageTitle = $category['name'];
             <div class="category-list">
                 <?php foreach ($children as $child): ?>
                     <a
-                        href="/Anabelka/catalog/<?= htmlspecialchars($child['slug']) ?>"
+                        href="<?= htmlspecialchars(
+                            Category::catalogUrl($child),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                         class="category-item"
                     >
                         <?= htmlspecialchars($child['name']) ?>
