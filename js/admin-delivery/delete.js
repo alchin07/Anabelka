@@ -159,15 +159,15 @@
 
                 deleteModal.hidden = true;
 
-                window.showMessage('Удалено');
-
-                setTimeout(
-                    () => window.location.reload(),
-                    300
+                window.AnabelkaNotify.flash(
+                    'success',
+                    'Удалено'
                 );
 
+                window.location.reload();
+
             } catch (error) {
-                window.showMessage(
+                window.AnabelkaNotify.error(
                     error instanceof Error
                         ? error.message
                         : 'Не удалось удалить.'
