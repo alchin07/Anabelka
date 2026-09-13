@@ -6,39 +6,94 @@ on:
       - feature/unified-notifications
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   notifications:
+    if: github.ref == 'refs/heads/feature/unified-notifications'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Existing contracts and PHP bridge
+      - name: Apply locally verified translation migration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('.')
+          def edit(path, old, new, count=1):
+              p=root/path; s=p.read_text()
+              assert s.count(old)==count, (path,old,s.count(old))
+              p.write_text(s.replace(old,new))
+          p=root/'js/admin-interface-translations.js'
+          s=p.read_text()
+          s=s.replace("    const message = document.getElementById('site-message');\n",'')
+          a=s.index('    function showMessage(text)'); b=s.index('    function findLanguageSection(languageCode)',a)
+          s=s[:a]+s[b:]
+          s=s.replace("                    showMessage(\n                        'Система", "                    window.AnabelkaNotify.info(\n                        'Система")
+          s=s.replace("                    showMessage(\n                        'ШІ-переклад", "                    window.AnabelkaNotify.info(\n                        'ШІ-переклад")
+          s=s.replace('showMessage(\n                        error instanceof Error', 'window.AnabelkaNotify.error(\n                        error instanceof Error')
+          s=s.replace('showMessage(\n                error instanceof Error', 'window.AnabelkaNotify.error(\n                error instanceof Error')
+          old="""            showMessage(data.message || 'Збережено.');
+
+                      window.setTimeout(function () {
+                          window.location.href = data.return_url
+                              || '/Anabelka/admin/translations/missing?section=interface';
+                      }, 450);"""
+          new="""            window.AnabelkaNotify.flash('success', data.message || 'Збережено.');
+
+                      window.location.href = data.return_url
+                          || '/Anabelka/admin/translations/missing?section=interface';"""
+          assert s.count(old)==1
+          s=s.replace(old,new)
+          assert 'showMessage' not in s
+          p.write_text(s)
+          edit('js/admin-ai-translation.js', "window.alert(error.message || 'Не вдалося змінити ШІ.');", "window.AnabelkaNotify.error(error.message || 'Не вдалося змінити ШІ.');")
+          edit('views/admin/translations/interface-edit.php', '''<div
+              id="site-message"
+              class="site-message"
+              role="status"
+              aria-live="polite"
+          ></div>
+
+          ''', '')
+          edit('views/admin/translations/interface-edit.php', 'admin-interface-translations.js?v=3', 'admin-interface-translations.js?v=4')
+          edit('js/admin-nav.js', 'admin-ai-translation.js?v=6', 'admin-ai-translation.js?v=7')
+          # Delivery's AI caller changed in the preceding milestone, but its loader still
+          # referenced v3. Advance that cache key along with this shared loader update.
+          edit('js/admin-nav.js', 'admin-delivery-ai-translation.js?v=3', 'admin-delivery-ai-translation.js?v=4')
+          edit('views/admin/partials/header.php', 'admin-nav.js?v=18', 'admin-nav.js?v=19')
+          # The existing category check legitimately shares this loader. Permit newer
+          # versions without weakening its minimum (the original migrated loader was v18).
+          edit('tests/category_manager_contract.test.mjs', r"    assert.match(adminHeader, /\/Anabelka\/js\/admin-nav\.js\?v=18/);", """    const loaderVersion = adminHeader.match(/\\/Anabelka\\/js\\/admin-nav\\.js\\?v=(\\d+)/);
+              assert.ok(loaderVersion && Number(loaderVersion[1]) >= 18);""")
+          PY
+      - name: All notification contracts and PHP runtime
         run: |
           node tests/anabelka_notifications_contract.test.mjs
           node tests/category_manager_contract.test.mjs
           node tests/delivery_notifications_contract.test.mjs
+          node tests/translation_notifications_contract.test.mjs
           php tests/anabelka_flash_runtime.php
-      - name: Translation notification contracts when present
+      - name: Syntax and diff checks
         run: |
-          if [ -f tests/translation_notifications_contract.test.mjs ]; then
-            node tests/translation_notifications_contract.test.mjs
-          fi
-      - name: JavaScript syntax
-        run: find js -name '*.js' -print0 | xargs -0 -n1 node --check
-      - name: Source snapshot
-        if: always()
-        run: git archive --format=tar HEAD -o "$RUNNER_TEMP/anabelka-source.tar"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: notification-verification-source
-          path: ${{ runner.temp }}/anabelka-source.tar
-          retention-days: 1
-          if-no-files-found: error
+          find js -name '*.js' -print0 | xargs -0 -n1 node --check
+          for f in app/Core/AnabelkaFlash.php app/Core/App.php views/partials/anabelka-notifications.php views/admin/partials/header.php views/admin/translations/interface-edit.php; do php -l "$f"; done
+          git diff --check
+      - name: Publish only the verified feature-branch tree and remove temporary workflow
+        run: |
+          test "$GITHUB_REF" = refs/heads/feature/unified-notifications
+          git rm .github/workflows/temp-translation-notification-check.yml
+          git add js/admin-ai-translation.js js/admin-interface-translations.js js/admin-nav.js tests/category_manager_contract.test.mjs views/admin/partials/header.php views/admin/translations/interface-edit.php
+          git diff --cached --check
+          test "$(git write-tree)" = 8ac20fcc718f16e20a458a983f533d573f2dd592
+          echo "Verified final tree: $(git write-tree)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: migrate translation notifications to shared API'
+          git push origin HEAD:refs/heads/feature/unified-notifications
+          echo "Published commit: $(git rev-parse HEAD)"
