@@ -162,7 +162,7 @@
                 select.value = previous;
                 selectedProvider = previous;
                 updateStatus();
-                window.alert(error.message || 'Не вдалося змінити ШІ.');
+                window.AnabelkaNotify.error(error.message || 'Не вдалося змінити ШІ.');
             }
         });
     }

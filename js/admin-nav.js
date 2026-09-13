@@ -171,7 +171,7 @@
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
             const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=6';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=7';
             script.dataset.adminAiTranslation = '1';
             document.body.appendChild(script);
         }
@@ -219,7 +219,7 @@
 
         if (path === '/Anabelka/admin/delivery') {
             appendScript(
-                '/Anabelka/js/admin-delivery-ai-translation.js?v=3',
+                '/Anabelka/js/admin-delivery-ai-translation.js?v=4',
                 'data-admin-delivery-ai'
             );
 

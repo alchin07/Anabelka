@@ -17,7 +17,6 @@
         'interface-source-value'
     );
 
-    const message = document.getElementById('site-message');
     const saveButton = form.querySelector('.interface-editor-save');
 
     const stateLabels = {
@@ -28,26 +27,6 @@
         approved: 'Схвалено',
         outdated: 'Потрібне оновлення'
     };
-
-
-    function showMessage(text)
-    {
-        if (!message) {
-            window.alert(text);
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-
-        clearTimeout(window.interfaceTranslationMessageTimer);
-        window.interfaceTranslationMessageTimer = setTimeout(
-            function () {
-                message.classList.remove('show');
-            },
-            3500
-        );
-    }
 
 
     function findLanguageSection(languageCode)
@@ -248,7 +227,7 @@
                     || typeof window.AnabelkaAITranslation.suggest
                         !== 'function'
                 ) {
-                    showMessage(
+                    window.AnabelkaNotify.info(
                         'Система ШІ-перекладу ще завантажується. '
                         + 'Спробуйте ще раз.'
                     );
@@ -306,13 +285,13 @@
                     targetField.focus();
                     targetField.select();
 
-                    showMessage(
+                    window.AnabelkaNotify.info(
                         'ШІ-переклад отримано. Перевірте його '
                         + 'та натисніть «Зберегти».'
                     );
 
                 } catch (error) {
-                    showMessage(
+                    window.AnabelkaNotify.error(
                         error instanceof Error
                             ? error.message
                             : 'Не вдалося отримати ШІ-переклад.'
@@ -351,15 +330,13 @@
                 );
             }
 
-            showMessage(data.message || 'Збережено.');
+            window.AnabelkaNotify.flash('success', data.message || 'Збережено.');
 
-            window.setTimeout(function () {
-                window.location.href = data.return_url
-                    || '/Anabelka/admin/translations/missing?section=interface';
-            }, 450);
+            window.location.href = data.return_url
+                || '/Anabelka/admin/translations/missing?section=interface';
 
         } catch (error) {
-            showMessage(
+            window.AnabelkaNotify.error(
                 error instanceof Error
                     ? error.message
                     : 'Не вдалося зберегти переклади.'

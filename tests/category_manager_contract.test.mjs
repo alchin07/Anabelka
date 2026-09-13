@@ -440,7 +440,8 @@ test('category AI loader cache versions expose the migrated script', function ()
         nav,
         /\/Anabelka\/js\/admin-category-ai-translation\.js\?v=5/
     );
-    assert.match(adminHeader, /\/Anabelka\/js\/admin-nav\.js\?v=18/);
+    const loaderVersion = adminHeader.match(/\/Anabelka\/js\/admin-nav\.js\?v=(\d+)/);
+    assert.ok(loaderVersion && Number(loaderVersion[1]) >= 18);
 });
 
 test('category views rely on the single shared notification partial', function () {

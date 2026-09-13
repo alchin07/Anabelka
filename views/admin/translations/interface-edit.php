@@ -264,15 +264,8 @@ $translationStatusOptions = TranslationWorkflow::statusOptions();
     </section>
 </main>
 
-<div
-    id="site-message"
-    class="site-message"
-    role="status"
-    aria-live="polite"
-></div>
-
 <script
-    src="/Anabelka/js/admin-interface-translations.js?v=3"
+    src="/Anabelka/js/admin-interface-translations.js?v=4"
 ></script>
 
 </body>
