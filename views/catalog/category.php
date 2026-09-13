@@ -48,7 +48,9 @@ $pageTitle = $category['name'];
             </div>
         </section>
 
-    <?php elseif (!empty($products)): ?>
+    <?php endif; ?>
+
+    <?php if (!empty($products)): ?>
         <section class="catalog-products">
             <h2><?= htmlspecialchars(
                 Translator::t('public.catalog.products', 'Товари')
@@ -158,7 +160,9 @@ $pageTitle = $category['name'];
             </div>
         </section>
 
-    <?php else: ?>
+    <?php endif; ?>
+
+    <?php if (empty($children) && empty($products)): ?>
         <p><?= htmlspecialchars(
             Translator::t(
                 'public.catalog.empty',

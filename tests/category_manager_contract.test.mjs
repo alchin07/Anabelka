@@ -152,6 +152,90 @@ function flashPage(storage, messageElement) {
     return {timers, window};
 }
 
+function renderCategoryBranches(hasChildren, hasProducts) {
+    const source = read('views/catalog/category.php');
+    const directives = /<\?php\s*(?:(if|elseif)\s*\(([\s\S]*?)\)\s*:|(else)\s*:|(endif)\s*;)\s*\?>/g;
+    const frames = [];
+    let active = true;
+    let cursor = 0;
+    let output = '';
+    let match;
+
+    function evaluate(expression) {
+        const normalized = String(expression || '').replace(/\s+/g, '');
+
+        if (normalized === '!empty($children)') {
+            return hasChildren;
+        }
+        if (normalized === '!empty($products)') {
+            return hasProducts;
+        }
+        if (
+            normalized
+                === 'empty($children)&&empty($products)'
+        ) {
+            return !hasChildren && !hasProducts;
+        }
+
+        // Nested product-card conditions do not affect section visibility.
+        return true;
+    }
+
+    while ((match = directives.exec(source)) !== null) {
+        if (active) {
+            output += source.slice(cursor, match.index);
+        }
+
+        if (match[1] === 'if') {
+            const condition = evaluate(match[2]);
+            const frame = {
+                parentActive: active,
+                matched: condition,
+                active: active && condition
+            };
+
+            frames.push(frame);
+            active = frame.active;
+        } else if (match[1] === 'elseif') {
+            const frame = frames.at(-1);
+            const condition = evaluate(match[2]);
+
+            assert.ok(frame, 'elseif without matching if');
+            frame.active = frame.parentActive
+                && !frame.matched
+                && condition;
+            frame.matched = frame.matched || condition;
+            active = frame.active;
+        } else if (match[3] === 'else') {
+            const frame = frames.at(-1);
+
+            assert.ok(frame, 'else without matching if');
+            frame.active = frame.parentActive && !frame.matched;
+            frame.matched = true;
+            active = frame.active;
+        } else {
+            const frame = frames.pop();
+
+            assert.ok(frame, 'endif without matching if');
+            active = frame.parentActive;
+        }
+
+        cursor = directives.lastIndex;
+    }
+
+    if (active) {
+        output += source.slice(cursor);
+    }
+    assert.equal(frames.length, 0, 'category template has unclosed if');
+
+    return {
+        subcategories: output.includes('class="catalog-categories"'),
+        products: output.includes('class="catalog-products"'),
+        empty: output.includes('У цій категорії поки немає товарів.'),
+        output
+    };
+}
+
 test('canonical catalog route wins before the one-segment legacy route', function () {
     const routes = routesFrom('routes/Web.php');
 
@@ -598,6 +682,51 @@ test('category flash geometry is centered and safe on 320px screens', function (
     assert.match(baseRule, /border[^;]*#5f9b68/i);
     assert.match(errorRule, /background:\s*#fff7f5/i);
     assert.match(errorRule, /border[^;]*#c45757/i);
+});
+
+test('category page renders subcategories and direct products together', function () {
+    const rendered = renderCategoryBranches(true, true);
+
+    assert.equal(rendered.subcategories, true);
+    assert.equal(rendered.products, true);
+    assert.equal(rendered.empty, false);
+    assert.ok(
+        rendered.output.indexOf('class="catalog-categories"')
+            < rendered.output.indexOf('class="catalog-products"')
+    );
+});
+
+test('category page renders only subcategories without direct products', function () {
+    const rendered = renderCategoryBranches(true, false);
+
+    assert.equal(rendered.subcategories, true);
+    assert.equal(rendered.products, false);
+    assert.equal(rendered.empty, false);
+});
+
+test('category page renders only direct products without subcategories', function () {
+    const rendered = renderCategoryBranches(false, true);
+
+    assert.equal(rendered.subcategories, false);
+    assert.equal(rendered.products, true);
+    assert.equal(rendered.empty, false);
+});
+
+test('category page renders empty message only when both lists are empty', function () {
+    const rendered = renderCategoryBranches(false, false);
+
+    assert.equal(rendered.subcategories, false);
+    assert.equal(rendered.products, false);
+    assert.equal(rendered.empty, true);
+});
+
+test('category products are not an elseif branch of subcategories', function () {
+    const source = read('views/catalog/category.php');
+
+    assert.doesNotMatch(
+        source,
+        /<\?php\s+elseif\s*\(\s*!empty\(\$products\)\s*\)\s*:\s*\?>/
+    );
 });
 
 process.stdout.write('category manager contract checks passed\n');
