@@ -171,11 +171,6 @@
 
     </main>
 
-    <div
-        id="site-message"
-        class="site-message"
-    ></div>
-
     <?php require __DIR__
         . '/partials/edit-modal.php'; ?>
 
@@ -192,31 +187,31 @@
         . '/partials/add-option-modal.php'; ?>
 
     <script
-        src="/Anabelka/js/admin-delivery/common.js?v=3"
+        src="/Anabelka/js/admin-delivery/common.js?v=4"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/toggle.js?v=1"
+        src="/Anabelka/js/admin-delivery/toggle.js?v=2"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/edit.js?v=7"
+        src="/Anabelka/js/admin-delivery/edit.js?v=8"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/delete.js?v=2"
+        src="/Anabelka/js/admin-delivery/delete.js?v=3"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/add.js?v=3"
+        src="/Anabelka/js/admin-delivery/add.js?v=4"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/add-service.js?v=1"
+        src="/Anabelka/js/admin-delivery/add-service.js?v=2"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/add-option.js?v=2"
+        src="/Anabelka/js/admin-delivery/add-option.js?v=3"
     ></script>
 
     <script
