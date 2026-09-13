@@ -18,7 +18,11 @@ $router->get('/catalog', 'CatalogController@index');
 $router->get('/search', 'SearchController@index');
 $router->get('/search/suggest', 'SearchController@suggest');
 
-$router->get('/catalog/{slug}', 'CatalogController@category');
+$router->get(
+    '/catalog/{department_slug}/{category_slug}',
+    'CatalogController@category'
+);
+$router->get('/catalog/{slug}', 'CatalogController@legacyCategory');
 
 $router->get('/product/{slug}/variants', 'ProductController@variants');
 $router->get('/product/{slug}', 'ProductController@show');

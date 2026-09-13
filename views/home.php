@@ -54,10 +54,9 @@ $renderSidebarNodes = function (array $nodes, $level = 1) use (&$renderSidebarNo
         $hasChildren = !empty($children);
         $isAdultRoot = !empty($node['is_adult'])
             && (int) ($node['parent_id'] ?? 0) === 0;
-        $slug = (string) ($node['slug'] ?? '');
         $href = $isAdultRoot
-            ? '/Anabelka/18-plus/' . rawurlencode($slug)
-            : '/Anabelka/catalog/' . rawurlencode($slug);
+            ? AdultAccess::gateUrl($node)
+            : Category::catalogUrl($node);
         $childrenId = 'home-sidebar-children-' . $id;
         ?>
         <div
@@ -152,7 +151,7 @@ $renderSidebarNodes = function (array $nodes, $level = 1) use (&$renderSidebarNo
 
             <?php foreach ($standardDirections as $direction): ?>
                 <a
-                    href="/Anabelka/catalog/<?= $escape($direction['slug'] ?? '') ?>"
+                    href="<?= $escape(Category::catalogUrl($direction)) ?>"
                 >
                     <?= $escape($direction['name'] ?? '') ?>
                 </a>
@@ -161,7 +160,7 @@ $renderSidebarNodes = function (array $nodes, $level = 1) use (&$renderSidebarNo
             <?php foreach ($adultDirections as $direction): ?>
                 <a
                     class="home-department-nav-adult"
-                    href="/Anabelka/18-plus/<?= $escape($direction['slug'] ?? '') ?>"
+                    href="<?= $escape(AdultAccess::gateUrl($direction)) ?>"
                 >
                     <span>18+</span>
                     <?= $escape($direction['name'] ?? '') ?>
@@ -262,7 +261,7 @@ $renderSidebarNodes = function (array $nodes, $level = 1) use (&$renderSidebarNo
 
                         <a
                             class="home-direction-card<?= $directionImage === '' ? ' no-image' : '' ?>"
-                            href="/Anabelka/catalog/<?= $escape($direction['slug'] ?? '') ?>"
+                            href="<?= $escape(Category::catalogUrl($direction)) ?>"
                         >
                             <div class="home-direction-media">
                                 <?php if ($directionImage !== ''): ?>
@@ -324,7 +323,7 @@ $renderSidebarNodes = function (array $nodes, $level = 1) use (&$renderSidebarNo
                 <div class="home-adult-links">
                     <?php foreach ($adultDirections as $direction): ?>
                         <a
-                            href="/Anabelka/18-plus/<?= $escape($direction['slug'] ?? '') ?>"
+                            href="<?= $escape(AdultAccess::gateUrl($direction)) ?>"
                         >
                             <?= $escape(
                                 Translator::t(

@@ -25,7 +25,11 @@ $pageTitle = Translator::t('public.catalog.title', 'Каталог');
         <div class="category-list">
             <?php foreach ($categories as $category): ?>
                 <a
-                    href="/Anabelka/catalog/<?= htmlspecialchars($category['slug']) ?>"
+                    href="<?= htmlspecialchars(
+                        Category::catalogUrl($category),
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
                     class="category-item"
                 >
                     <?= htmlspecialchars($category['name']) ?>

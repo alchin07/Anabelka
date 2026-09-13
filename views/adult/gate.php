@@ -67,7 +67,7 @@ $escape = function ($value) {
 
         <?php if (!$accessDenied): ?>
             <form
-                action="/Anabelka/18-plus/<?= $escape($category['slug'] ?? '') ?>"
+                action="<?= $escape(AdultAccess::gateUrl($category)) ?>"
                 method="post"
                 class="adult-gate-actions"
             >
