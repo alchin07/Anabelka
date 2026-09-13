@@ -273,8 +273,28 @@ $router->get(
 );
 
 $router->post(
+    '/admin/categories/create',
+    'AdminCategoryController@create'
+);
+
+$router->post(
     '/admin/categories/update',
     'AdminCategoryController@update'
+);
+
+$router->post(
+    '/admin/categories/move',
+    'AdminCategoryController@move'
+);
+
+$router->post(
+    '/admin/categories/toggle',
+    'AdminCategoryController@toggle'
+);
+
+$router->post(
+    '/admin/categories/delete',
+    'AdminCategoryController@delete'
 );
 
 $router->get(
