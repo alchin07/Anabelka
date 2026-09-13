@@ -600,3 +600,5 @@ $badgeText = static function ($count) {
     ></script>
 
 </header>
+
+<?php require __DIR__ . '/anabelka-notifications.php'; ?>
