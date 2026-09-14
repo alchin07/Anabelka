@@ -3,46 +3,9 @@
     display: none !important;
 }
 
-.public-header-profile-count,
-.public-header-admin-count {
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-}
-
 .public-header-admin-action {
     position: relative;
     overflow: visible;
-}
-
-.public-header-admin-badges {
-    position: absolute;
-    z-index: 3;
-    top: 0;
-    right: 0;
-    width: 18px;
-    height: 18px;
-    pointer-events: none;
-}
-
-.public-header-admin-badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    padding: 0 4px;
-    border: 2px solid #fff;
-    border-radius: 999px;
-    color: #fff;
-    font-size: 10px;
-    font-weight: 900;
-    line-height: 1;
-    white-space: nowrap;
 }
 
 .public-header-admin-message-badge {
