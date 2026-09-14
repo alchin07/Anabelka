@@ -62,6 +62,7 @@ test('shared error renderer and view keep JSON 404s intact and offer navigation'
     assert.match(view, /partials\/header\.php/);
     assert.match(view, /\/Anabelka\/catalog/);
     assert.match(view, /\/Anabelka\//);
+    assert.match(view, /public-error\.css\?v=2/);
 });
 
 test('mobile public error card starts close to the header instead of vertical centering', () => {
