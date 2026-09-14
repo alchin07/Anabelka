@@ -20,6 +20,22 @@ test('warning uses the Anabelka violet palette', () => {
     assert.doesNotMatch(css, /#fff7e6|#6d4c1f|#d4a047/i);
 });
 
+test('notification colors use theme tokens with a dark-theme override', () => {
+    const css = read('css/anabelka-notify.css');
+
+    assert.match(css, /--notify-success-bg\s*:/);
+    assert.match(css, /--notify-error-bg\s*:/);
+    assert.match(css, /--notify-info-bg\s*:/);
+    assert.match(css, /--notify-warning-bg\s*:/);
+    assert.match(css, /\[data-theme=["']dark["']\]/);
+    assert.match(css, /background:\s*var\(--notify-success-bg\)/);
+    assert.match(css, /background:\s*var\(--notify-error-bg\)/);
+    assert.match(css, /background:\s*var\(--notify-info-bg\)/);
+    assert.match(css, /background:\s*var\(--notify-warning-bg\)/);
+    assert.match(css, /box-shadow:\s*var\(--notify-shadow\)/);
+    assert.doesNotMatch(css, /\.site-message\.is-warning\s*\{[^}]*background:\s*#f3e8ff/is);
+});
+
 test('category flash storage has no direct notification sessionStorage write', () => {
     const js = read('js/admin-categories.js');
 
