@@ -3,31 +3,45 @@
     focusable="false"
     aria-hidden="true"
 >
+    <!-- Контур клубники -->
     <path
-        d="M12 20.2S4 15.3 4 8.9C4 6.2 5.9 4.5 8.2 4.5c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 4.5 20 6.2 20 8.9c0 6.4-8 11.3-8 11.3Z"
+        d="M12 21.1S4 16 4 9.7C4 6.9 5.9 5.2 8.2 5.2c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 5.2 20 6.9 20 9.7c0 6.3-8 11.4-8 11.4Z"
         fill="none"
         stroke="currentColor"
         stroke-width="1.8"
         stroke-linejoin="round"
     />
+
+    <!-- Левый листик -->
     <path
-        d="M11.9 5.8C10.5 3 8.4 1.9 6.3 2.3c.2 2.5 2 4.1 5.6 3.5Z"
+        d="M11.8 5.0
+           C10.9 1.5 8.8 0.5 6.0 0.8
+           C6.4 3.7 8.3 5.4 11.8 5.0Z"
         fill="none"
         stroke="currentColor"
         stroke-width="1.8"
+        stroke-linecap="round"
         stroke-linejoin="round"
     />
+
+    <!-- Правый листик -->
     <path
-        d="M12.1 5.8C13.5 3 15.6 1.9 17.7 2.3c-.2 2.5-2 4.1-5.6 3.5Z"
+        d="M12.2 5.0
+           C13.1 1.5 15.2 0.5 18.0 0.8
+           C17.6 3.7 15.7 5.4 12.2 5.0Z"
         fill="none"
         stroke="currentColor"
         stroke-width="1.8"
+        stroke-linecap="round"
         stroke-linejoin="round"
     />
-    <circle cx="8.4" cy="9.7" r="0.65" fill="currentColor" />
-    <circle cx="12" cy="9.7" r="0.65" fill="currentColor" />
-    <circle cx="15.6" cy="9.7" r="0.65" fill="currentColor" />
-    <circle cx="9.2" cy="13.2" r="0.65" fill="currentColor" />
-    <circle cx="12" cy="13.2" r="0.65" fill="currentColor" />
-    <circle cx="14.8" cy="13.2" r="0.65" fill="currentColor" />
+
+    <!-- 6 точек -->
+    <circle cx="8.4" cy="10.9" r="0.65" fill="currentColor" />
+    <circle cx="12" cy="10.9" r="0.65" fill="currentColor" />
+    <circle cx="15.6" cy="10.9" r="0.65" fill="currentColor" />
+
+    <circle cx="9.2" cy="14.4" r="0.65" fill="currentColor" />
+    <circle cx="12" cy="14.4" r="0.65" fill="currentColor" />
+    <circle cx="14.8" cy="14.4" r="0.65" fill="currentColor" />
 </svg>
