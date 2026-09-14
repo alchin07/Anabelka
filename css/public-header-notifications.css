@@ -1,4 +1,15 @@
-.public-header-count[hidden] {
+.public-header-count[hidden],
+.public-header-admin-badge[hidden] {
+    display: none !important;
+}
+
+/*
+ * The four-square slot is only a server-provided placeholder in the current
+ * public header markup. JavaScript promotes it to the admin action only when
+ * the server also rendered the authenticated admin marker in the profile
+ * popover. Visitors therefore never see a public "catalog" shortcut here.
+ */
+.public-header-catalog {
     display: none !important;
 }
 
@@ -12,6 +23,47 @@
 .public-header-admin-count.is-system-error {
     background: #b63e48;
     color: #fff;
+}
+
+.public-header-admin-action {
+    position: relative;
+    overflow: visible;
+}
+
+.public-header-admin-badges {
+    position: absolute;
+    z-index: 3;
+    top: -6px;
+    right: -6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    pointer-events: none;
+}
+
+.public-header-admin-badge {
+    min-width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0 3px;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.public-header-admin-message-badge {
+    background: #2f80ed;
+}
+
+.public-header-admin-system-badge {
+    background: #b63e48;
 }
 
 .public-header-popover a {
@@ -35,7 +87,8 @@
     line-height: 1;
 }
 
-.public-header-admin .public-header-action-icon {
+.public-header-admin .public-header-action-icon,
+.public-header-admin-action .public-header-action-icon {
     color: var(--primary-color, #8A2BE2);
 }
 
