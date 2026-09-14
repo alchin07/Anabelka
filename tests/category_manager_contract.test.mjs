@@ -776,7 +776,73 @@ test('adult gate keeps the return URL contract and uses the Anabelka palette', f
     assert.doesNotMatch(confirmRule, /background:\s*#(?:000|000000)\b/i);
 });
 
-test('public header mobile variant A keeps a full-width single action row', function () {
+test('public header mobile variant A uses one shared top row', function () {
+    const header = read('views/partials/header.php');
+    const css = read('css/public-header.css');
+    const top = htmlElementBlockByClass(
+        header,
+        'div',
+        'public-header-top'
+    );
+    const topStart = header.indexOf(top);
+    const topEnd = topStart + top.length;
+    const searchPosition = header.indexOf('site-search-form');
+    const compactCss = cssMediaBody(css, 430);
+    const compactTopRule = cssRuleBody(
+        compactCss,
+        '.public-header-top'
+    );
+    const compactBrandRule = cssRuleBody(
+        compactCss,
+        '.public-header-brand'
+    );
+    const compactActionsRule = cssRuleBody(
+        compactCss,
+        '.public-header-actions'
+    );
+    const compactSearchRule = cssRuleBody(
+        compactCss,
+        '.public-header .site-search-form'
+    );
+    const orderedControls = [
+        'public-header-logo',
+        'header-favorites',
+        'public-header-profile',
+        'header-cart',
+        'public-header-catalog',
+        'public-header-menu public-header-language'
+    ].map((className) => top.indexOf(className));
+
+    orderedControls.forEach(function (position, index) {
+        assert.ok(position >= 0, `top-row control ${index + 1} was not found`);
+    });
+    assert.deepEqual(
+        orderedControls,
+        [...orderedControls].sort((left, right) => left - right),
+        'mobile controls are not in Logo/Favorites/Profile/Cart/Catalog/Language order'
+    );
+    assert.doesNotMatch(top, /site-search-form/);
+    assert.ok(
+        searchPosition >= topEnd,
+        'search must follow the shared top-row container'
+    );
+    assert.match(compactTopRule, /display:\s*flex/i);
+    assert.match(compactTopRule, /flex-wrap:\s*nowrap/i);
+    assert.match(compactTopRule, /grid-row:\s*1/i);
+    assert.match(compactTopRule, /width:\s*100%/i);
+    assert.match(compactTopRule, /min-width:\s*0/i);
+    assert.doesNotMatch(compactBrandRule, /grid-row\s*:/i);
+    assert.doesNotMatch(compactActionsRule, /grid-row\s*:/i);
+    assert.match(compactActionsRule, /display:\s*flex/i);
+    assert.match(compactActionsRule, /flex-wrap:\s*nowrap/i);
+    assert.doesNotMatch(
+        compactCss,
+        /grid-template-(?:columns|rows):[^;]*(?:repeat\(2|44px\s+44px)/i
+    );
+    assert.match(compactSearchRule, /grid-row:\s*2/i);
+});
+
+test('public header mobile controls remain compact and accessible', function () {
     const header = read('views/partials/header.php');
     const css = read('css/public-header.css');
     const globalCss = read('css/style.css');
@@ -793,6 +859,7 @@ test('public header mobile variant A keeps a full-width single action row', func
     const actionsEnd = header.indexOf('</nav>', actionsPosition);
     const actionsBlock = header.slice(actionsStart, actionsEnd);
     const mainRule = cssRuleBody(css, '.public-header-main');
+    const topRule = cssRuleBody(css, '.public-header-top');
     const brandRule = cssRuleBody(css, '.public-header-brand');
     const shellRule = cssRuleBody(css, '.public-header-shell');
     const actionsRule = cssRuleBody(css, '.public-header-actions');
@@ -815,6 +882,10 @@ test('public header mobile variant A keeps a full-width single action row', func
     const compactMainRule = cssRuleBody(
         compactCss,
         '.public-header-main'
+    );
+    const compactTopRule = cssRuleBody(
+        compactCss,
+        '.public-header-top'
     );
     const compactActionsRule = cssRuleBody(
         compactCss,
@@ -877,15 +948,15 @@ test('public header mobile variant A keeps a full-width single action row', func
 
     assert.ok(logoPosition >= 0);
     assert.ok(favoritePosition > logoPosition);
-    assert.ok(searchPosition > favoritePosition);
-    assert.ok(actionsPosition > searchPosition);
+    assert.ok(actionsPosition > favoritePosition);
+    assert.ok(searchPosition > actionsPosition);
     assert.equal(
         (header.match(/href="\/Anabelka\/favorites"/g) || []).length,
         1
     );
     assert.match(
         header,
-        /<nav[\s\S]*?class="public-header-brand"[\s\S]*?public-header-logo[\s\S]*?header-favorites[\s\S]*?<\/nav>\s*<form\s+class="site-search-form"/
+        /<div\s+class="public-header-top">[\s\S]*?class="public-header-brand"[\s\S]*?public-header-logo[\s\S]*?header-favorites[\s\S]*?class="public-header-actions"[\s\S]*?<\/nav>\s*<\/div>\s*<form\s+class="site-search-form"/
     );
     assert.match(
         header,
@@ -916,10 +987,13 @@ test('public header mobile variant A keeps a full-width single action row', func
         /class="public-header-admin"[\s\S]*?href="\/Anabelka\/admin"|href="\/Anabelka\/admin"[\s\S]*?class="public-header-admin"/
     );
 
+    assert.match(topRule, /display:\s*contents/i);
     assert.match(brandRule, /display:\s*(?:inline-)?flex/i);
     assert.match(brandRule, /align-items:\s*center/i);
     assert.match(brandRule, /min-width:\s*0/i);
     assert.match(brandRule, /max-width:\s*100%/i);
+    assert.match(brandRule, /grid-column:\s*1/i);
+    assert.match(brandRule, /grid-row:\s*1/i);
     assert.match(
         mainRule,
         /grid-template-columns:\s*max-content\s+minmax\(280px,\s*1fr\)\s+auto/i
@@ -927,6 +1001,12 @@ test('public header mobile variant A keeps a full-width single action row', func
     assert.match(shellRule, /padding:\s*10px\s+0\s+8px/i);
     assert.match(mainRule, /gap:\s*12px/i);
     assert.match(actionsRule, /display:\s*flex/i);
+    assert.match(actionsRule, /grid-column:\s*3/i);
+    assert.match(actionsRule, /grid-row:\s*1/i);
+    assert.match(
+        cssRuleBody(css, '.public-header .site-search-form'),
+        /grid-column:\s*2[\s\S]*grid-row:\s*1/i
+    );
     assert.match(actionRule, /height:\s*42px/i);
     assert.match(
         actionFocusRule,
@@ -962,12 +1042,20 @@ test('public header mobile variant A keeps a full-width single action row', func
     assert.match(compactMainRule, /row-gap:\s*3px/i);
     assert.match(compactShellRule, /width:\s*calc\(100%\s*-\s*10px\)/i);
     assert.match(
+        compactTopRule,
+        /--public-header-mobile-control-width:\s*clamp\(36px,\s*10\.3vw,\s*44px\)/i
+    );
+    assert.match(
+        compactTopRule,
+        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*1[^;]*;[^{}]*width:\s*100%[^;]*;[^{}]*min-width:\s*0[^;]*;[^{}]*display:\s*flex[^;]*;[^{}]*flex-wrap:\s*nowrap/is
+    );
+    assert.match(
         compactBrandRule,
-        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*1[^;]*;[^{}]*gap:\s*2px/i
+        /width:\s*auto[^;]*;[^{}]*min-width:\s*0[^;]*;[^{}]*max-width:\s*none[^;]*;[^{}]*flex:\s*0\s+1\s+auto[^;]*;[^{}]*gap:\s*0/i
     );
     assert.match(
         compactLogoRule,
-        /font-size:\s*clamp\(22px,\s*6vw,\s*26px\)/i
+        /font-size:\s*clamp\(19px,\s*5\.5vw,\s*24px\)/i
     );
     assert.match(compactLogoRule, /flex:\s*0\s+0\s+auto/i);
     assert.ok(
@@ -986,15 +1074,24 @@ test('public header mobile variant A keeps a full-width single action row', func
     );
     assert.match(
         compactActionsRule,
-        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*2[^;]*;[^{}]*width:\s*100%[^;]*;[^{}]*display:\s*flex[^;]*;[^{}]*flex-direction:\s*row[^;]*;[^{}]*flex-wrap:\s*nowrap[^;]*;[^{}]*justify-content:\s*flex-start[^;]*;[^{}]*gap:\s*2px/i
+        /width:\s*auto[^;]*;[^{}]*min-width:\s*0[^;]*;[^{}]*flex:\s*0\s+0\s+auto[^;]*;[^{}]*display:\s*flex[^;]*;[^{}]*flex-direction:\s*row[^;]*;[^{}]*flex-wrap:\s*nowrap[^;]*;[^{}]*justify-content:\s*flex-start[^;]*;[^{}]*gap:\s*0/i
     );
-    assert.match(compactActionItemRule, /flex:\s*1\s+1\s+0/i);
+    assert.doesNotMatch(compactActionsRule, /grid-row\s*:/i);
+    assert.match(
+        compactActionItemRule,
+        /width:\s*var\(--public-header-mobile-control-width\)/i
+    );
+    assert.match(
+        compactActionItemRule,
+        /flex:\s*0\s+0\s+var\(--public-header-mobile-control-width\)/i
+    );
     assert.match(compactActionItemRule, /min-width:\s*0/i);
     assert.match(compactActionControlRule, /width:\s*100%/i);
-    assert.match(compactActionControlRule, /min-width:\s*44px/i);
+    assert.match(compactActionControlRule, /min-width:\s*0/i);
+    assert.match(compactActionControlRule, /height:\s*44px/i);
     assert.match(
         compactSearchRule,
-        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*3/i
+        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*2/i
     );
     assert.match(
         compactPopoverRule,
@@ -1002,7 +1099,7 @@ test('public header mobile variant A keeps a full-width single action row', func
     );
     assert.match(
         compactProfilePopoverRule,
-        /left:\s*0[^;]*;[^{}]*right:\s*auto/i
+        /left:\s*auto[^;]*;[^{}]*right:\s*0/i
     );
     assert.ok(
         actionContainerRules.length > 0,
@@ -1031,7 +1128,7 @@ test('public header mobile variant A keeps a full-width single action row', func
         cssMediaBody(homeCss, 600),
         /\.home-page\s*\{[^{}]*padding-top:\s*6px/is
     );
-    assert.match(header, /css\/public-header\.css\?v=7/);
+    assert.match(header, /css\/public-header\.css\?v=8/);
 
     const tinyControlRules = Array.from(
         tinyCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)
@@ -1062,29 +1159,26 @@ test('public header mobile variant A keeps a full-width single action row', func
     assert.ok(shellInsetMatch, 'compact shell inset was not found');
 
     const shellInset = Number(shellInsetMatch[1]);
-    const actionCellWidth = pixelDeclaration(mobileActionRule, 'width');
     const actionCellHeight = pixelDeclaration(mobileActionRule, 'height');
-    const actionsGap = pixelDeclaration(compactActionsRule, 'gap');
     const rowGap = pixelDeclaration(compactMainRule, 'row-gap');
-    const brandGap = pixelDeclaration(compactBrandRule, 'gap');
-    const favoriteWidth = pixelDeclaration(compactFavoriteRule, 'width');
     const popoverWidth = pixelDeclaration(compactPopoverRule, 'width');
-    const minimumActionRowWidth = (4 * actionCellWidth) + (3 * actionsGap);
 
-    assert.ok(actionCellWidth >= 44, 'mobile action cell is below 44px');
     assert.ok(actionCellHeight >= 44, 'mobile action cell is below 44px');
-    assert.ok(favoriteWidth >= 44, 'favorite touch target is below 44px');
+    assert.match(
+        compactFavoriteRule,
+        /width:\s*var\(--public-header-mobile-control-width\)/i
+    );
+    assert.match(compactFavoriteRule, /min-width:\s*0/i);
+    assert.match(compactFavoriteRule, /height:\s*44px/i);
 
     [320, 360, 375, 390, 400, 412, 430].forEach(function (width) {
         const shellWidth = width - shellInset;
-        const distributedActionWidth = (
-            shellWidth - (3 * actionsGap)
-        ) / 4;
-        const fullLogoBudget = 160;
-        const requiredBrandWidth = fullLogoBudget + brandGap + favoriteWidth;
-        const headerHeightWithTitle = favoriteWidth
-            + rowGap
-            + actionCellHeight
+        const controlWidth = Math.min(44, Math.max(36, width * .103));
+        const logoFontSize = Math.min(24, Math.max(19, width * .055));
+        const fullLogoBudget = logoFontSize * 6.2;
+        const requiredTopRowWidth = fullLogoBudget + (5 * controlWidth);
+        const searchInputWidth = shellWidth - 44 - 6;
+        const headerHeightWithTitle = actionCellHeight
             + rowGap
             + 44
             + 5
@@ -1093,21 +1187,16 @@ test('public header mobile variant A keeps a full-width single action row', func
             + 13;
 
         assert.ok(
-            requiredBrandWidth <= shellWidth,
-            `${width}px cannot fit the full logo and favorite row`
+            requiredTopRowWidth <= shellWidth,
+            `${width}px cannot fit Logo/Favorites/Profile/Cart/Catalog/Language`
         );
         assert.ok(
-            minimumActionRowWidth <= shellWidth,
-            `${width}px cannot fit four actions in one row`
+            controlWidth >= 36 && controlWidth <= 44,
+            `${width}px control width is outside the approved compact range`
         );
         assert.ok(
-            distributedActionWidth >= 44,
-            `${width}px distributed action is below 44px`
-        );
-        assert.equal(
-            (4 * distributedActionWidth) + (3 * actionsGap),
-            shellWidth,
-            `${width}px actions do not consume exactly one row`
+            searchInputWidth >= 260,
+            `${width}px search input is too narrow`
         );
         assert.ok(
             popoverWidth <= shellWidth,

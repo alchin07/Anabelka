@@ -153,11 +153,12 @@ $badgeText = static function ($count) {
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-header.css?v=7"
+        href="/Anabelka/css/public-header.css?v=8"
     >
 
     <div class="public-header-shell">
         <div class="public-header-main">
+            <div class="public-header-top">
             <nav
                 class="public-header-brand"
                 aria-label="<?= htmlspecialchars(
@@ -200,89 +201,6 @@ $badgeText = static function ($count) {
                     ><?= $badgeText($favoriteCount) ?></span>
                 </a>
             </nav>
-
-            <form
-                class="site-search-form"
-                action="/Anabelka/search"
-                method="get"
-                role="search"
-                data-search-suggest-endpoint="/Anabelka/search/suggest"
-                data-search-products-label="<?= htmlspecialchars(
-                    Translator::t('search.products', 'Товари')
-                ) ?>"
-                data-search-categories-label="<?= htmlspecialchars(
-                    Translator::t('search.categories', 'Категорії')
-                ) ?>"
-                data-search-empty-label="<?= htmlspecialchars(
-                    Translator::t(
-                        'search.empty',
-                        'Нічого не знайдено. Спробуйте інший запит.'
-                    )
-                ) ?>"
-                data-search-all-label="<?= htmlspecialchars(
-                    Translator::t(
-                        'search.suggest_all',
-                        'Показати всі результати'
-                    )
-                ) ?>"
-            >
-                <input
-                    class="site-search-input"
-                    type="search"
-                    name="q"
-                    maxlength="200"
-                    autocomplete="off"
-                    value="<?= htmlspecialchars($headerSearchQuery) ?>"
-                    placeholder="<?= htmlspecialchars(
-                        Translator::t(
-                            'search.placeholder',
-                            'Пошук товарів, категорій, SKU…'
-                        )
-                    ) ?>"
-                    aria-label="<?= htmlspecialchars(
-                        Translator::t('search.title', 'Пошук')
-                    ) ?>"
-                    aria-autocomplete="list"
-                    aria-controls="site-search-suggestions"
-                    aria-expanded="false"
-                >
-
-                <button class="site-search-button" type="submit">
-                    <svg
-                        class="public-header-search-icon"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                    >
-                        <circle
-                            cx="11"
-                            cy="11"
-                            r="6.5"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        />
-                        <path
-                            d="M16 16L21 21"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                        />
-                    </svg>
-                    <span class="public-header-search-label">
-                        <?= htmlspecialchars(
-                            Translator::t('search.button', 'Знайти')
-                        ) ?>
-                    </span>
-                </button>
-
-                <div
-                    id="site-search-suggestions"
-                    class="site-search-suggestions"
-                    role="listbox"
-                    hidden
-                ></div>
-            </form>
 
             <nav
                 class="public-header-actions"
@@ -534,6 +452,90 @@ $badgeText = static function ($count) {
                     </details>
                 <?php endif; ?>
             </nav>
+            </div>
+
+            <form
+                class="site-search-form"
+                action="/Anabelka/search"
+                method="get"
+                role="search"
+                data-search-suggest-endpoint="/Anabelka/search/suggest"
+                data-search-products-label="<?= htmlspecialchars(
+                    Translator::t('search.products', 'Товари')
+                ) ?>"
+                data-search-categories-label="<?= htmlspecialchars(
+                    Translator::t('search.categories', 'Категорії')
+                ) ?>"
+                data-search-empty-label="<?= htmlspecialchars(
+                    Translator::t(
+                        'search.empty',
+                        'Нічого не знайдено. Спробуйте інший запит.'
+                    )
+                ) ?>"
+                data-search-all-label="<?= htmlspecialchars(
+                    Translator::t(
+                        'search.suggest_all',
+                        'Показати всі результати'
+                    )
+                ) ?>"
+            >
+                <input
+                    class="site-search-input"
+                    type="search"
+                    name="q"
+                    maxlength="200"
+                    autocomplete="off"
+                    value="<?= htmlspecialchars($headerSearchQuery) ?>"
+                    placeholder="<?= htmlspecialchars(
+                        Translator::t(
+                            'search.placeholder',
+                            'Пошук товарів, категорій, SKU…'
+                        )
+                    ) ?>"
+                    aria-label="<?= htmlspecialchars(
+                        Translator::t('search.title', 'Пошук')
+                    ) ?>"
+                    aria-autocomplete="list"
+                    aria-controls="site-search-suggestions"
+                    aria-expanded="false"
+                >
+
+                <button class="site-search-button" type="submit">
+                    <svg
+                        class="public-header-search-icon"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <circle
+                            cx="11"
+                            cy="11"
+                            r="6.5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        />
+                        <path
+                            d="M16 16L21 21"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                    <span class="public-header-search-label">
+                        <?= htmlspecialchars(
+                            Translator::t('search.button', 'Знайти')
+                        ) ?>
+                    </span>
+                </button>
+
+                <div
+                    id="site-search-suggestions"
+                    class="site-search-suggestions"
+                    role="listbox"
+                    hidden
+                ></div>
+            </form>
         </div>
 
         <?php if (!empty($pageTitle)): ?>
