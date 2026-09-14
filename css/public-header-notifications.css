@@ -34,7 +34,7 @@
 }
 
 .public-header-admin-message-badge {
-    background: #2f80ed;
+    background: var(--primary-color, #8A2BE2);
 }
 
 .public-header-admin-system-badge {
