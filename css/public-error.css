@@ -89,16 +89,22 @@
 @media (max-width: 430px) {
     .public-error-page {
         min-height: calc(100vh - 96px);
-        padding: 22px 12px 36px;
+        place-items: start center;
+        padding: 64px 12px 30px;
     }
 
     .public-error-card {
-        padding: 26px 16px;
+        padding: 22px 16px;
         border-radius: 16px;
+    }
+
+    .public-error-card h1 {
+        margin: 14px 0 8px;
     }
 
     .public-error-actions {
         flex-direction: column;
+        margin-top: 20px;
     }
 
     .public-error-actions a {
