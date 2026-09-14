@@ -10,23 +10,37 @@ function read(relativePath) {
     return fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
 }
 
+function ruleBody(css, selector) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = css.match(new RegExp(escaped + '\\s*\\{([^{}]*)\\}', 's'));
+
+    assert.ok(match, `CSS rule ${selector} was not found`);
+    return match[1];
+}
+
 const css = read('css/home-desktop-sidebar.css');
 const icon = read('assets/icons/anabelka-strawberry-white.svg');
 
-assert.match(
+const adultLink = ruleBody(
     css,
-    /\.home-sidebar-node\.is-adult-root\s*>\s*\.home-sidebar-row\s+\.home-sidebar-link\s*\{[^{}]*justify-content:\s*space-between/si
+    '.home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link'
 );
-assert.match(
+const adultName = ruleBody(
     css,
-    /\.home-sidebar-node\.is-adult-root[^{}]*\.home-sidebar-name\s*\{[^{}]*font-family:\s*Georgia[^{}]*font-style:\s*italic[^{}]*order:\s*1/si
+    '.home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-name'
 );
+const adultIcon = ruleBody(css, '.home-sidebar-adult-badge');
+
+assert.match(adultLink, /justify-content:\s*space-between/i);
+assert.match(adultName, /font-family:\s*Georgia/i);
+assert.match(adultName, /font-style:\s*italic/i);
+assert.match(adultName, /order:\s*1/i);
+assert.match(adultIcon, /order:\s*2/i);
+assert.match(adultIcon, /width:\s*28px/i);
+assert.match(adultIcon, /height:\s*28px/i);
+assert.match(adultIcon, /font-size:\s*0/i);
 assert.match(
-    css,
-    /\.home-sidebar-adult-badge\s*\{[^{}]*order:\s*2[^{}]*width:\s*28px[^{}]*height:\s*28px[^{}]*font-size:\s*0/si
-);
-assert.match(
-    css,
+    adultIcon,
     /background-image:\s*url\(['"]?\/Anabelka\/assets\/icons\/anabelka-strawberry-white\.svg['"]?\)/i
 );
 
