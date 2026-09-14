@@ -224,6 +224,10 @@ function flashPage(storage, messageElement) {
 
     window.window = window;
     vm.runInNewContext(
+        read('js/anabelka-notify.js'),
+        {document, window}
+    );
+    vm.runInNewContext(
         read('js/admin-flash-message.js'),
         {document, window}
     );
@@ -729,7 +733,7 @@ test('catalog adult entry renders its database root and recursive database child
         );
     });
     assert.doesNotMatch(view + css, /catalog-adult-child|catalog-adult-top/);
-    assert.match(view, /css\/catalog\.css\?v=10/);
+    assert.match(view, /css\/catalog\.css\?v=11/);
     assert.match(
         css,
         /@media\s*\(max-width:\s*600px\)[\s\S]*?\.catalog-adult-entry\s*\{[^{}]*width:\s*100%/i
@@ -809,7 +813,7 @@ test('public header mobile variant A uses one shared top row', function () {
         'header-favorites',
         'public-header-profile',
         'header-cart',
-        'public-header-catalog',
+        'public-header-admin-action',
         'public-header-menu public-header-language'
     ].map((className) => top.indexOf(className));
 
@@ -969,7 +973,7 @@ test('public header mobile controls remain compact and accessible', function () 
     const actionOrder = [
         'public-header-profile',
         'header-cart',
-        'public-header-catalog',
+        'public-header-admin-action',
         'public-header-menu public-header-language'
     ].map((className) => actionsBlock.indexOf(className));
 
@@ -979,12 +983,12 @@ test('public header mobile controls remain compact and accessible', function () 
     assert.deepEqual(actionOrder, [...actionOrder].sort((a, b) => a - b));
     assert.match(
         actionsBlock,
-        /href="\/Anabelka\/catalog"[\s\S]*?class="public-header-action public-header-catalog"[\s\S]*?aria-label=/
+        /href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin-action"[\s\S]*?aria-label=/
     );
-    assert.match(actionsBlock, /public-header-catalog[\s\S]*?title=/);
+    assert.match(actionsBlock, /public-header-admin-action[\s\S]*?title=/);
     assert.match(
         header,
-        /class="public-header-admin"[\s\S]*?href="\/Anabelka\/admin"|href="\/Anabelka\/admin"[\s\S]*?class="public-header-admin"/
+        /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin-action"/
     );
 
     assert.match(topRule, /display:\s*contents/i);
@@ -1390,20 +1394,35 @@ test('category flash is available after manager reload and translation return', 
     const missingTranslationsView = read('views/admin/translations/missing.php');
 
     [categoryView, missingTranslationsView].forEach(function (view) {
-        assert.match(view, /css\/admin-flash-message\.css\?v=1/);
+        assert.match(view, /css\/anabelka-notify\.css\?v=1/);
         assert.match(view, /id="site-message"[^>]*aria-live="polite"/);
-        assert.match(view, /js\/admin-flash-message\.js\?v=1/);
+        assert.match(view, /js\/anabelka-notify\.js\?v=1/);
+        assert.match(view, /js\/admin-flash-message\.js\?v=2/);
+        assert.ok(
+            view.indexOf('js/anabelka-notify.js?v=1')
+                < view.indexOf('js/admin-flash-message.js?v=2')
+        );
     });
     assert.ok(
-        categoryView.indexOf('js/admin-flash-message.js?v=1')
-            < categoryView.indexOf('js/admin-categories.js?v=2')
+        categoryView.indexOf('js/admin-flash-message.js?v=2')
+            < categoryView.indexOf('js/admin-categories.js?v=3')
     );
 });
 
 test('category flash geometry is centered and safe on 320px screens', function () {
-    const css = read('css/admin-flash-message.css');
-    const baseRule = cssRuleBody(css, '.site-message');
-    const errorRule = cssRuleBody(css, '.site-message.is-error');
+    const css = read('css/anabelka-notify.css');
+    const baseRule = cssRuleBody(
+        css,
+        '.anabelka-notify,\n.site-message'
+    );
+    const successRule = cssRuleBody(
+        css,
+        '.anabelka-notify.is-success,\n.site-message.is-success'
+    );
+    const errorRule = cssRuleBody(
+        css,
+        '.anabelka-notify.is-error,\n.site-message.is-error'
+    );
 
     assert.match(baseRule, /position:\s*fixed/i);
     assert.match(baseRule, /top:\s*50%/i);
@@ -1416,10 +1435,10 @@ test('category flash geometry is centered and safe on 320px screens', function (
     );
     assert.match(baseRule, /box-sizing:\s*border-box/i);
     assert.match(baseRule, /overflow-wrap:\s*anywhere/i);
-    assert.match(baseRule, /background:\s*#fffaf7/i);
-    assert.match(baseRule, /border[^;]*#5f9b68/i);
-    assert.match(errorRule, /background:\s*#fff7f5/i);
-    assert.match(errorRule, /border[^;]*#c45757/i);
+    assert.match(successRule, /background:\s*#8a2be2/i);
+    assert.match(successRule, /color:\s*#fff/i);
+    assert.match(errorRule, /background:\s*#b63e48/i);
+    assert.match(errorRule, /color:\s*#fff/i);
 });
 
 test('category page renders subcategories and direct products together', function () {

@@ -577,7 +577,7 @@ $badgeText = static function ($count) {
 
 <?php if ($currentAdmin): ?>
     <script
-        src="/Anabelka/js/public-header-admin-badges.js?v=1"
+        src="/Anabelka/js/public-header-admin-badges.js?v=2"
         defer
     ></script>
 <?php endif; ?>

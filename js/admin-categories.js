@@ -30,6 +30,17 @@
     function showMessage(message, isError)
     {
         if (
+            window.AnabelkaNotify
+            && typeof window.AnabelkaNotify.show === 'function'
+        ) {
+            window.AnabelkaNotify.show(
+                isError ? 'error' : 'success',
+                message
+            );
+            return;
+        }
+
+        if (
             window.AdminFlashMessage
             && typeof window.AdminFlashMessage.show === 'function'
         ) {
@@ -56,6 +67,17 @@
     function storeSuccessMessage(message)
     {
         if (
+            window.AnabelkaNotify
+            && typeof window.AnabelkaNotify.store === 'function'
+        ) {
+            window.AnabelkaNotify.store(
+                'success',
+                message || 'Збережено.'
+            );
+            return;
+        }
+
+        if (
             window.AdminFlashMessage
             && typeof window.AdminFlashMessage.storeSuccess === 'function'
         ) {
@@ -65,8 +87,12 @@
 
         try {
             window.sessionStorage.setItem(
-                'anabelka-category-success-flash',
-                String(message || 'Збережено.')
+                'anabelka-notify-flash',
+                JSON.stringify({
+                    type: 'success',
+                    message: String(message || 'Збережено.'),
+                    options: {}
+                })
             );
         } catch (error) {
             // Navigation must still complete when browser storage is disabled.

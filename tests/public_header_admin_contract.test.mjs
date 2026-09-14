@@ -103,6 +103,12 @@ test('header cache-busts the admin badge stylesheet after color changes', functi
     assert.match(header, /css\/public-header-notifications\.css\?v=4/);
 });
 
+test('header cache-busts the admin badge script after shared formatting changes', function () {
+    const header = read('views/partials/header.php');
+
+    assert.match(header, /js\/public-header-admin-badges\.js\?v=2/);
+});
+
 test('favorites logic no longer controls admin-header visibility', function () {
     const script = read('js/favorites.js');
 

@@ -12,15 +12,21 @@ function read(relativePath) {
 
 const css = read('css/home-desktop-sidebar.css');
 const icon = read('assets/icons/anabelka-strawberry-white.svg');
+const adultNameRule = css.match(
+    /\.home-sidebar-node\.is-adult-root[^{}]*\.home-sidebar-name\s*\{([^{}]*)\}/i
+);
+const sidebarTitleRule = css.match(
+    /\.home-sidebar-title\s*\{([^{}]*)\}/i
+);
 
 assert.match(
     css,
     /\.home-sidebar-node\.is-adult-root\s*>\s*\.home-sidebar-row\s+\.home-sidebar-link\s*\{[^{}]*justify-content:\s*space-between/si
 );
-assert.match(
-    css,
-    /\.home-sidebar-node\.is-adult-root[^{}]*\.home-sidebar-name\s*\{[^{}]*font-family:\s*Georgia[^{}]*font-style:\s*italic[^{}]*order:\s*1/si
-);
+assert.ok(adultNameRule, 'adult brand name rule was not found');
+assert.match(adultNameRule[1], /font-family:\s*Georgia/i);
+assert.match(adultNameRule[1], /font-style:\s*italic/i);
+assert.match(adultNameRule[1], /order:\s*1/i);
 assert.match(
     css,
     /\.home-sidebar-adult-badge\s*\{[^{}]*order:\s*2[^{}]*width:\s*28px[^{}]*height:\s*28px[^{}]*font-size:\s*0/si
@@ -33,10 +39,10 @@ assert.match(
     css,
     /\.home-sidebar-node\.is-adult-root\s*>\s*\.home-sidebar-row\s+\.home-sidebar-link:focus\s*\{[^{}]*outline:\s*none[^{}]*box-shadow:\s*none/si
 );
-assert.match(
-    css,
-    /\.home-sidebar-title\s*\{[^{}]*margin:\s*0\s+0\s+10px\s+45px[^{}]*width:\s*calc\(100%\s*-\s*45px\)[^{}]*box-sizing:\s*border-box/si
-);
+assert.ok(sidebarTitleRule, 'sidebar title rule was not found');
+assert.match(sidebarTitleRule[1], /margin:\s*0\s+0\s+10px\s+45px/i);
+assert.match(sidebarTitleRule[1], /width:\s*calc\(100%\s*-\s*45px\)/i);
+assert.match(sidebarTitleRule[1], /box-sizing:\s*border-box/i);
 assert.match(
     css,
     /\.home-department-nav-adult:focus\s*\{[^{}]*outline:\s*none[^{}]*box-shadow:\s*none/si

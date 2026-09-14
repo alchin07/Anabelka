@@ -19,6 +19,13 @@
 
     function formatCount(count)
     {
+        if (
+            window.AnabelkaNotify
+            && typeof window.AnabelkaNotify.formatCount === 'function'
+        ) {
+            return window.AnabelkaNotify.formatCount(count);
+        }
+
         const safeCount = Math.max(0, Number(count) || 0);
         return safeCount > 99 ? '99+' : String(safeCount);
     }
