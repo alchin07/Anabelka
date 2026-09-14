@@ -3,16 +3,6 @@
     display: none !important;
 }
 
-/*
- * The four-square slot is only a server-provided placeholder in the current
- * public header markup. JavaScript promotes it to the admin action only when
- * the server also rendered the authenticated admin marker in the profile
- * popover. Visitors therefore never see a public "catalog" shortcut here.
- */
-.public-header-catalog {
-    display: none !important;
-}
-
 .public-header-profile-count,
 .public-header-admin-count {
     min-width: 18px;
