@@ -3,11 +3,19 @@
 
     const endpoint = '/Anabelka/admin/system/error-notifications';
     const adminLink = document.querySelector('.public-header-admin-action');
+    const messageBadge = adminLink
+        ? adminLink.querySelector('.public-header-admin-message-badge')
+        : null;
     const systemBadge = document.getElementById('admin-system-error-count');
 
-    if (!adminLink || !systemBadge) {
+    if (!adminLink || !messageBadge || !systemBadge) {
         return;
     }
+
+    const regularText = (messageBadge.textContent || '').trim();
+    const regularHidden = messageBadge.hidden;
+    const regularAriaLabel = adminLink.getAttribute('aria-label') || 'Адмін-панель';
+    const regularTitle = adminLink.getAttribute('title') || 'Адмін-панель';
 
     function formatCount(count)
     {
@@ -15,33 +23,16 @@
         return safeCount > 99 ? '99+' : String(safeCount);
     }
 
-    function updateAccessibleLabel(systemCount)
+    function restoreRegularBadge()
     {
-        const messageBadge = adminLink.querySelector(
-            '.public-header-admin-message-badge'
-        );
-        const messageCount = Math.max(
-            0,
-            Number(
-                String(messageBadge?.textContent || '').replace(/[^0-9]/g, '')
-            ) || 0
-        );
-        const parts = ['Адмін-панель'];
-
-        if (messageCount > 0) {
-            parts.push('Нових повідомлень: ' + messageCount);
-        }
-
-        if (systemCount > 0) {
-            parts.push('Нових системних помилок: ' + systemCount);
-        }
-
-        const label = parts.join('. ');
-        adminLink.setAttribute('aria-label', label);
-        adminLink.setAttribute('title', label);
+        systemBadge.hidden = true;
+        messageBadge.textContent = regularText;
+        messageBadge.hidden = regularHidden;
+        adminLink.setAttribute('aria-label', regularAriaLabel);
+        adminLink.setAttribute('title', regularTitle);
     }
 
-    updateAccessibleLabel(0);
+    restoreRegularBadge();
 
     fetch(endpoint, {
         method: 'GET',
@@ -61,15 +52,34 @@
         })
         .then(function (data) {
             if (!data || data.ok !== true) {
+                restoreRegularBadge();
                 return;
             }
 
             const count = Math.max(0, Number(data.count) || 0);
-            systemBadge.textContent = formatCount(count);
-            systemBadge.hidden = count <= 0;
-            updateAccessibleLabel(count);
+
+            if (count > 0) {
+                messageBadge.hidden = true;
+                systemBadge.textContent = formatCount(count);
+                systemBadge.hidden = false;
+
+                const label = 'Адмін-панель. Нових системних помилок: ' + count;
+                adminLink.setAttribute('aria-label', label);
+                adminLink.setAttribute('title', label);
+                return;
+            }
+
+            systemBadge.hidden = true;
+            messageBadge.textContent = regularText;
+            messageBadge.hidden = regularHidden;
+            adminLink.setAttribute('aria-label', regularAriaLabel);
+            adminLink.setAttribute('title', regularTitle);
         })
         .catch(function () {
-            // Regular admin notifications remain available if this check fails.
+            systemBadge.hidden = true;
+            messageBadge.textContent = regularText;
+            messageBadge.hidden = regularHidden;
+            adminLink.setAttribute('aria-label', regularAriaLabel);
+            adminLink.setAttribute('title', regularTitle);
         });
 })();
