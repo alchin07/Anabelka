@@ -38,7 +38,9 @@
         display: flex;
         align-items: center;
         min-height: 46px;
-        margin-bottom: 10px;
+        width: calc(100% - 45px);
+        box-sizing: border-box;
+        margin: 0 0 10px 45px;
         padding: 0 13px;
         border-radius: 13px;
         background: var(--primary-color);
@@ -170,10 +172,18 @@
         color: #fff;
     }
 
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
     .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:hover,
     .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:focus-visible {
         border-color: #8A2BE2;
         color: #fff;
+        outline: 2px solid rgba(138, 43, 226, .45);
+        outline-offset: 2px;
+        box-shadow: none;
     }
 
     .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-name {
