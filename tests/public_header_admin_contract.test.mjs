@@ -97,6 +97,12 @@ test('admin notification badge uses the site primary color and system errors kee
     );
 });
 
+test('header cache-busts the admin badge stylesheet after color changes', function () {
+    const header = read('views/partials/header.php');
+
+    assert.match(header, /css\/public-header-notifications\.css\?v=4/);
+});
+
 test('favorites logic no longer controls admin-header visibility', function () {
     const script = read('js/favorites.js');
 
