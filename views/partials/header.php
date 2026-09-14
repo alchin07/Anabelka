@@ -110,6 +110,28 @@ $isProductPage =
         '/Anabelka/product/'
     ) === 0;
 
+$isAdultCatalogContext = !empty($isAdultCatalogContext);
+
+if (!$isAdultCatalogContext && isset($category) && is_array($category)) {
+    $isAdultCatalogContext = !empty($category['effective_adult']);
+}
+
+if (
+    !$isAdultCatalogContext
+    && isset($product)
+    && is_array($product)
+    && !empty($product['category_id'])
+    && class_exists('Category')
+) {
+    $headerProductCategory = Category::findById(
+        (int) $product['category_id']
+    );
+
+    $isAdultCatalogContext =
+        is_array($headerProductCategory)
+        && !empty($headerProductCategory['effective_adult']);
+}
+
 if ($isAdminPage) {
     require __DIR__ . '/../admin/partials/header.php';
     return;
@@ -188,15 +210,19 @@ $badgeText = static function ($count) {
                     ) ?>"
                 >
                     <span class="public-header-action-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24">
-                            <path
-                                d="M12 20.2S4 15.3 4 8.9C4 6.2 5.9 4.5 8.2 4.5c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 4.5 20 6.2 20 8.9c0 6.4-8 11.3-8 11.3Z"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
+                        <?php if ($isAdultCatalogContext): ?>
+                            <?php require __DIR__ . '/anabelka-strawberry-icon.php'; ?>
+                        <?php else: ?>
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M12 20.2S4 15.3 4 8.9C4 6.2 5.9 4.5 8.2 4.5c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 4.5 20 6.2 20 8.9c0 6.4-8 11.3-8 11.3Z"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        <?php endif; ?>
                     </span>
                     <span
                         class="public-header-count header-favorites-count"
@@ -557,7 +583,6 @@ $badgeText = static function ($count) {
 <?php endif; ?>
 
 <?php if ($isCheckoutPage): ?>
-
     <link
         rel="stylesheet"
         href="/Anabelka/css/checkout-delivery.css?v=2"
