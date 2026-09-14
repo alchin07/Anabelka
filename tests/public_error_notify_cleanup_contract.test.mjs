@@ -36,6 +36,41 @@ test('notification colors use theme tokens with a dark-theme override', () => {
     assert.doesNotMatch(css, /\.site-message\.is-warning\s*\{[^}]*background:\s*#f3e8ff/is);
 });
 
+test('shared public and admin headers install one global notification host', () => {
+    const publicHeader = read('views/partials/header.php');
+    const adminHeader = read('views/admin/partials/header.php');
+    const categoryView = read('views/admin/categories/index.php');
+    const sharedPath = path.join(
+        projectRoot,
+        'views/partials/anabelka-notify-global.php'
+    );
+
+    assert.match(publicHeader, /anabelka-notify-global\.php/);
+    assert.match(adminHeader, /anabelka-notify-global\.php/);
+    assert.equal(fs.existsSync(sharedPath), true);
+
+    const shared = fs.readFileSync(sharedPath, 'utf8');
+    assert.match(shared, /id=["']site-message["']/);
+    assert.match(shared, /anabelka-notify\.css\?v=/);
+    assert.match(shared, /anabelka-notify\.js\?v=/);
+    assert.match(shared, /aria-atomic=["']true["']/);
+
+    assert.doesNotMatch(categoryView, /id=["']site-message["']/);
+    assert.doesNotMatch(categoryView, /anabelka-notify\.js/);
+    assert.doesNotMatch(categoryView, /anabelka-notify\.css/);
+});
+
+test('notification accessibility escalates errors and keeps other messages polite', () => {
+    const js = read('js/anabelka-notify.js');
+
+    assert.match(js, /setAttribute\(["']role["']/);
+    assert.match(js, /setAttribute\(["']aria-live["']/);
+    assert.match(js, /["']alert["']/);
+    assert.match(js, /["']assertive["']/);
+    assert.match(js, /["']status["']/);
+    assert.match(js, /["']polite["']/);
+});
+
 test('category flash storage has no direct notification sessionStorage write', () => {
     const js = read('js/admin-categories.js');
 
