@@ -63,3 +63,22 @@ test('shared error renderer and view keep JSON 404s intact and offer navigation'
     assert.match(view, /\/Anabelka\/catalog/);
     assert.match(view, /\/Anabelka\//);
 });
+
+test('mobile public error card starts close to the header instead of vertical centering', () => {
+    const css = read('css/public-error.css');
+    const mobile = css.match(/@media\s*\(max-width:\s*430px\)\s*\{([\s\S]*)\}\s*$/i);
+
+    assert.ok(mobile, 'mobile public-error media query is missing');
+    assert.match(
+        mobile[1],
+        /\.public-error-page\s*\{[^}]*place-items:\s*start\s+center;/is
+    );
+    assert.match(
+        mobile[1],
+        /\.public-error-page\s*\{[^}]*padding:\s*(?:5\d|6\d|7[0-2])px\s+12px\s+(?:2\d|3\d)px;/is
+    );
+    assert.match(
+        mobile[1],
+        /\.public-error-card\s*\{[^}]*padding:\s*22px\s+16px;/is
+    );
+});
