@@ -185,8 +185,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 9px;
-    padding: 22px;
+    gap: 0;
+    padding: 0;
     border: 1px solid rgba(138, 43, 226, .28);
     border-radius: 24px;
     background: linear-gradient(135deg, #8A2BE2, #6519b9);
@@ -195,12 +195,14 @@ body {
 }
 
 .catalog-adult-root {
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 9px;
+    gap: 0;
+    padding: 22px;
     color: #fff;
     text-decoration: none;
 }
@@ -208,8 +210,8 @@ body {
 .catalog-adult-root:hover,
 .catalog-adult-root:focus-visible {
     color: #fff;
-    outline: 3px solid rgba(138, 43, 226, .2);
-    outline-offset: 3px;
+    outline: 3px solid rgba(244, 234, 255, .82);
+    outline-offset: -4px;
 }
 
 .catalog-adult-brand {
@@ -229,6 +231,11 @@ body {
     font-style: italic;
     font-weight: 700;
     line-height: 1;
+}
+
+.catalog-adult-root-meta[hidden],
+.catalog-adult-tree[hidden] {
+    display: none !important;
 }
 
 .catalog-adult-root-meta {
@@ -353,8 +360,12 @@ body {
     .catalog-adult-entry {
         width: 100%;
         max-width: 420px;
-        padding: 18px 16px;
+        padding: 0;
         border-radius: 19px;
+    }
+
+    .catalog-adult-root {
+        padding: 18px 16px;
     }
 
     .catalog-adult-strawberry {
