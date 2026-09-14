@@ -36,42 +36,49 @@ test('public header has no visitor catalog shortcut and renders admin action onl
     assert.equal(directAdminLinks.length, 1, 'admin entry must exist exactly once');
 });
 
-test('admin header action exposes independent notification and system-error badges', function () {
+test('admin action renders one priority badge, not two simultaneous badges', function () {
     const header = read('views/partials/header.php');
 
-    assert.match(header, /public-header-admin-message-badge/);
-    assert.match(header, /public-header-admin-system-badge/);
     assert.match(
         header,
-        /public-header-admin-message-badge[\s\S]*?\$adminNotificationCount/
+        /class="public-header-count public-header-admin-count"[\s\S]*?id="admin-notification-count"[\s\S]*?\$adminNotificationCount/
     );
-    assert.match(
-        header,
-        /id="admin-system-error-count"[\s\S]*?hidden/
-    );
+    assert.doesNotMatch(header, /public-header-admin-badges/);
+    assert.doesNotMatch(header, /public-header-admin-message-badge/);
+    assert.doesNotMatch(header, /public-header-admin-system-badge/);
+    assert.doesNotMatch(header, /id="admin-system-error-count"/);
 });
 
-test('public header system-error script updates only the system badge', function () {
+test('system errors temporarily override the regular admin count and restore it when clear', function () {
     const script = read('js/public-header-admin-badges.js');
 
     assert.match(script, /\/Anabelka\/admin\/system\/error-notifications/);
-    assert.match(script, /getElementById\(['"]admin-system-error-count['"]\)/);
-    assert.match(script, /systemBadge\.textContent\s*=\s*formatCount\(count\)/);
-    assert.match(script, /systemBadge\.hidden\s*=\s*count\s*<=\s*0/);
-    assert.doesNotMatch(script, /public-header-admin-message-badge[\s\S]*?textContent\s*=/);
+    assert.match(script, /getElementById\(['"]admin-notification-count['"]\)/);
+    assert.match(script, /const\s+regularText\s*=\s*\(badge\.textContent\s*\|\|\s*['"]['"]\)\.trim\(\)/);
+    assert.match(script, /const\s+regularHidden\s*=\s*badge\.hidden/);
+    assert.match(
+        script,
+        /if\s*\(count\s*>\s*0\)\s*\{[\s\S]*?badge\.textContent\s*=\s*formatCount\(count\)[\s\S]*?badge\.hidden\s*=\s*false[\s\S]*?classList\.add\(['"]is-system-error['"]\)/
+    );
+    assert.match(
+        script,
+        /badge\.textContent\s*=\s*regularText[\s\S]*?badge\.hidden\s*=\s*regularHidden[\s\S]*?classList\.remove\(['"]is-system-error['"]\)/
+    );
 });
 
-test('admin badge colors preserve blue notifications and the established system-error color', function () {
+test('single admin badge restores the original compact size and approved colors', function () {
     const css = read('css/public-header-notifications.css');
 
     assert.match(
         css,
-        /\.public-header-admin-message-badge\s*\{[^{}]*background:\s*#2f80ed/si
+        /\.public-header-admin-count\s*\{[^{}]*min-width:\s*18px[^{}]*height:\s*18px[^{}]*padding:\s*0\s+4px[^{}]*background:\s*#2f80ed/si
     );
     assert.match(
         css,
-        /\.public-header-admin-system-badge\s*\{[^{}]*background:\s*#b63e48/si
+        /\.public-header-admin-count\.is-system-error\s*\{[^{}]*background:\s*#b63e48[^{}]*color:\s*#fff/si
     );
+    assert.doesNotMatch(css, /\.public-header-admin-badges\s*\{/);
+    assert.doesNotMatch(css, /\.public-header-admin-badge\s*\{/);
 });
 
 test('favorites logic no longer controls admin-header visibility', function () {
@@ -82,10 +89,10 @@ test('favorites logic no longer controls admin-header visibility', function () {
     assert.doesNotMatch(script, /admin-system-error-notifications/);
 });
 
-test('header cache-busts the restored admin badge assets', function () {
+test('header cache-busts the restored single admin badge assets', function () {
     const header = read('views/partials/header.php');
 
-    assert.match(header, /css\/public-header-notifications\.css\?v=3/);
-    assert.match(header, /js\/public-header-admin-badges\.js\?v=1/);
+    assert.match(header, /css\/public-header-notifications\.css\?v=4/);
+    assert.match(header, /js\/public-header-admin-badges\.js\?v=2/);
     assert.match(header, /js\/favorites\.js\?v=3/);
 });
