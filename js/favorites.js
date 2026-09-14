@@ -9,6 +9,126 @@
     const headerCount = document.getElementById('favorite-count');
     const cartHeaderCount = document.getElementById('cart-count');
     const pageCount = document.getElementById('favorite-page-count');
+    const adminSystemErrorEndpoint = '/Anabelka/admin/system/error-notifications';
+
+    const formatHeaderCount = function (count) {
+        const safeCount = Math.max(0, Number(count) || 0);
+        return safeCount > 99 ? '99+' : String(safeCount);
+    };
+
+    const initPublicAdminHeaderAction = function () {
+        const catalogAction = document.querySelector('.public-header-catalog');
+
+        if (!catalogAction) {
+            return;
+        }
+
+        const adminPopoverLink = document.querySelector(
+            '.public-header-profile .public-header-admin'
+        );
+
+        if (!adminPopoverLink) {
+            catalogAction.remove();
+            return;
+        }
+
+        const adminLabel = adminPopoverLink.getAttribute('aria-label')
+            || adminPopoverLink.getAttribute('title')
+            || 'Адмін-панель';
+        const messageSource = adminPopoverLink.querySelector(
+            '#admin-notification-count, .public-header-admin-count'
+        );
+        const messageCount = Math.max(
+            0,
+            Number(
+                String(messageSource?.textContent || '').replace(/[^0-9]/g, '')
+            ) || 0
+        );
+
+        catalogAction.classList.remove('public-header-catalog');
+        catalogAction.classList.add('public-header-admin-action');
+        catalogAction.setAttribute(
+            'href',
+            adminPopoverLink.getAttribute('href') || '/Anabelka/admin'
+        );
+        catalogAction.setAttribute('aria-label', adminLabel);
+        catalogAction.setAttribute('title', adminLabel);
+
+        const actionLabel = catalogAction.querySelector(
+            '.public-header-action-label'
+        );
+
+        if (actionLabel) {
+            actionLabel.textContent = 'Адмін';
+        }
+
+        const badges = document.createElement('span');
+        badges.className = 'public-header-admin-badges';
+        badges.setAttribute('aria-hidden', 'true');
+
+        const messageBadge = document.createElement('span');
+        messageBadge.className = 'public-header-admin-badge public-header-admin-message-badge';
+        messageBadge.textContent = formatHeaderCount(messageCount);
+        messageBadge.hidden = messageCount <= 0;
+
+        const systemBadge = document.createElement('span');
+        systemBadge.className = 'public-header-admin-badge public-header-admin-system-badge';
+        systemBadge.textContent = '0';
+        systemBadge.hidden = true;
+
+        badges.appendChild(messageBadge);
+        badges.appendChild(systemBadge);
+        catalogAction.appendChild(badges);
+
+        const updateAccessibleLabel = function (systemErrorCount) {
+            const parts = [adminLabel];
+
+            if (messageCount > 0) {
+                parts.push('Нових повідомлень: ' + messageCount);
+            }
+
+            if (systemErrorCount > 0) {
+                parts.push('Нових системних помилок: ' + systemErrorCount);
+            }
+
+            const label = parts.join('. ');
+            catalogAction.setAttribute('aria-label', label);
+            catalogAction.setAttribute('title', label);
+        };
+
+        updateAccessibleLabel(0);
+        adminPopoverLink.remove();
+
+        fetch(adminSystemErrorEndpoint, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            cache: 'no-store'
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('System error notification request failed');
+                }
+
+                return response.json();
+            })
+            .then(function (data) {
+                if (!data || data.ok !== true) {
+                    return;
+                }
+
+                const count = Math.max(0, Number(data.count) || 0);
+                systemBadge.textContent = formatHeaderCount(count);
+                systemBadge.hidden = count <= 0;
+                updateAccessibleLabel(count);
+            })
+            .catch(function () {
+                // Звичайний синій бейдж залишається доступним без endpoint помилок.
+            });
+    };
 
     const productSlugFromHref = function (href) {
         try {
@@ -63,10 +183,6 @@
 
             applyButtonState(button, active, label);
         });
-    };
-
-    const formatHeaderCount = function (count) {
-        return count > 99 ? '99+' : String(count);
     };
 
     const syncCartHeaderCount = function () {
@@ -330,6 +446,8 @@
     };
 
     const initialize = function () {
+        initPublicAdminHeaderAction();
+
         fetch(stateEndpoint, {
             method: 'GET',
             headers: {
