@@ -36,28 +36,24 @@ test('notification colors use theme tokens with a dark-theme override', () => {
     assert.doesNotMatch(css, /\.site-message\.is-warning\s*\{[^}]*background:\s*#f3e8ff/is);
 });
 
-test('shared public and admin headers install one global notification host', () => {
-    const publicHeader = read('views/partials/header.php');
-    const adminHeader = read('views/admin/partials/header.php');
-    const categoryView = read('views/admin/categories/index.php');
-    const sharedPath = path.join(
+test('front controller globally installs notification assets and host', () => {
+    const index = read('index.php');
+    const bootstrapPath = path.join(
         projectRoot,
-        'views/partials/anabelka-notify-global.php'
+        'app/Core/NotificationBootstrap.php'
     );
 
-    assert.match(publicHeader, /anabelka-notify-global\.php/);
-    assert.match(adminHeader, /anabelka-notify-global\.php/);
-    assert.equal(fs.existsSync(sharedPath), true);
+    assert.match(index, /NotificationBootstrap\.php/);
+    assert.match(index, /NotificationBootstrap::register/);
+    assert.equal(fs.existsSync(bootstrapPath), true);
 
-    const shared = fs.readFileSync(sharedPath, 'utf8');
-    assert.match(shared, /id=["']site-message["']/);
-    assert.match(shared, /anabelka-notify\.css\?v=/);
-    assert.match(shared, /anabelka-notify\.js\?v=/);
-    assert.match(shared, /aria-atomic=["']true["']/);
-
-    assert.doesNotMatch(categoryView, /id=["']site-message["']/);
-    assert.doesNotMatch(categoryView, /anabelka-notify\.js/);
-    assert.doesNotMatch(categoryView, /anabelka-notify\.css/);
+    const bootstrap = fs.readFileSync(bootstrapPath, 'utf8');
+    assert.match(bootstrap, /anabelka-notify\.css\?v=/);
+    assert.match(bootstrap, /anabelka-notify\.js\?v=/);
+    assert.match(bootstrap, /id=["']site-message["']/);
+    assert.match(bootstrap, /aria-atomic=["']true["']/);
+    assert.match(bootstrap, /<\/head>/i);
+    assert.match(bootstrap, /<body/i);
 });
 
 test('notification accessibility escalates errors and keeps other messages polite', () => {
@@ -65,10 +61,12 @@ test('notification accessibility escalates errors and keeps other messages polit
 
     assert.match(js, /setAttribute\(["']role["']/);
     assert.match(js, /setAttribute\(["']aria-live["']/);
+    assert.match(js, /setAttribute\(["']aria-atomic["']/);
     assert.match(js, /["']alert["']/);
     assert.match(js, /["']assertive["']/);
     assert.match(js, /["']status["']/);
     assert.match(js, /["']polite["']/);
+    assert.match(js, /DOMContentLoaded/);
 });
 
 test('category flash storage has no direct notification sessionStorage write', () => {
