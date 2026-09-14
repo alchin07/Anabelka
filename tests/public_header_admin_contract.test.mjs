@@ -20,35 +20,45 @@ function test(name, callback) {
     }
 }
 
-test('catalog placeholder is hidden unless promoted to the authenticated admin action', function () {
-    const script = read('js/favorites.js');
-    const css = read('css/public-header-notifications.css');
+test('public header has no visitor catalog shortcut and renders admin action only from server admin state', function () {
+    const header = read('views/partials/header.php');
 
-    assert.match(css, /\.public-header-catalog\s*\{[^{}]*display:\s*none\s*!important/si);
-    assert.match(script, /document\.querySelector\(['"]\.public-header-catalog['"]\)/);
-    assert.match(script, /document\.querySelector\(['"]\.public-header-profile\s+\.public-header-admin['"]\)/);
-    assert.match(script, /if\s*\(\s*!adminPopoverLink\s*\)\s*\{[\s\S]*?catalogAction\.remove\(\)/);
-    assert.match(script, /catalogAction\.classList\.remove\(['"]public-header-catalog['"]\)/);
-    assert.match(script, /catalogAction\.classList\.add\(['"]public-header-admin-action['"]\)/);
-    assert.match(script, /catalogAction\.setAttribute\(['"]href['"],\s*adminPopoverLink\.getAttribute\(['"]href['"]\)\s*\|\|\s*['"]\/Anabelka\/admin['"]\)/);
+    assert.doesNotMatch(
+        header,
+        /href="\/Anabelka\/catalog"[\s\S]*?public-header-(?:catalog|admin-action)/
+    );
+    assert.match(
+        header,
+        /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin-action"[\s\S]*?<\?php\s+endif;\s*\?>/
+    );
+
+    const directAdminLinks = header.match(/href="\/Anabelka\/admin"/g) || [];
+    assert.equal(directAdminLinks.length, 1, 'admin entry must exist exactly once');
 });
 
-test('promoted admin action keeps a single direct admin entry and removes the popover duplicate', function () {
-    const script = read('js/favorites.js');
+test('admin header action exposes independent notification and system-error badges', function () {
+    const header = read('views/partials/header.php');
 
-    assert.match(script, /catalogAction\.setAttribute\(['"]aria-label['"],\s*adminLabel\)/);
-    assert.match(script, /catalogAction\.setAttribute\(['"]title['"],\s*adminLabel\)/);
-    assert.match(script, /adminPopoverLink\.remove\(\)/);
+    assert.match(header, /public-header-admin-message-badge/);
+    assert.match(header, /public-header-admin-system-badge/);
+    assert.match(
+        header,
+        /public-header-admin-message-badge[\s\S]*?\$adminNotificationCount/
+    );
+    assert.match(
+        header,
+        /id="admin-system-error-count"[\s\S]*?hidden/
+    );
 });
 
-test('admin action has independent message and system-error badges', function () {
-    const script = read('js/favorites.js');
+test('public header system-error script updates only the system badge', function () {
+    const script = read('js/public-header-admin-badges.js');
 
-    assert.match(script, /public-header-admin-message-badge/);
-    assert.match(script, /public-header-admin-system-badge/);
-    assert.match(script, /admin-notification-count/);
     assert.match(script, /\/Anabelka\/admin\/system\/error-notifications/);
+    assert.match(script, /getElementById\(['"]admin-system-error-count['"]\)/);
+    assert.match(script, /systemBadge\.textContent\s*=\s*formatCount\(count\)/);
     assert.match(script, /systemBadge\.hidden\s*=\s*count\s*<=\s*0/);
+    assert.doesNotMatch(script, /public-header-admin-message-badge[\s\S]*?textContent\s*=/);
 });
 
 test('admin badge colors preserve blue notifications and the established system-error color', function () {
@@ -64,9 +74,10 @@ test('admin badge colors preserve blue notifications and the established system-
     );
 });
 
-test('system errors do not replace the regular admin notification badge', function () {
+test('favorites logic no longer controls admin-header visibility', function () {
     const script = read('js/favorites.js');
 
-    assert.doesNotMatch(script, /messageBadge\.textContent\s*=\s*formatHeaderCount\(count\)/);
-    assert.match(script, /systemBadge\.textContent\s*=\s*formatHeaderCount\(count\)/);
+    assert.doesNotMatch(script, /initPublicAdminHeaderAction/);
+    assert.doesNotMatch(script, /\.public-header-catalog/);
+    assert.doesNotMatch(script, /admin-system-error-notifications/);
 });
