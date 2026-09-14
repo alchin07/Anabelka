@@ -10,14 +10,8 @@ function read(relativePath) {
     return fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
 }
 
-const home = read('views/home.php');
 const css = read('css/home-desktop-sidebar.css');
-
-assert.match(home, /class="home-sidebar-brand-name"/);
-assert.match(home, /class="home-sidebar-brand-strawberry"/);
-assert.match(home, /anabelka-strawberry-icon\.php/);
-assert.doesNotMatch(home, /home-sidebar-adult-badge/);
-assert.match(home, /home-desktop-sidebar\.css\?v=3/);
+const icon = read('assets/icons/anabelka-strawberry-white.svg');
 
 assert.match(
     css,
@@ -25,11 +19,20 @@ assert.match(
 );
 assert.match(
     css,
-    /\.home-sidebar-brand-name\s*\{[^{}]*font-family:\s*Georgia[^{}]*font-style:\s*italic/si
+    /\.home-sidebar-node\.is-adult-root[^{}]*\.home-sidebar-name\s*\{[^{}]*font-family:\s*Georgia[^{}]*font-style:\s*italic[^{}]*order:\s*1/si
 );
 assert.match(
     css,
-    /\.home-sidebar-brand-strawberry\s*\{[^{}]*width:\s*28px[^{}]*height:\s*28px/si
+    /\.home-sidebar-adult-badge\s*\{[^{}]*order:\s*2[^{}]*width:\s*28px[^{}]*height:\s*28px[^{}]*font-size:\s*0/si
 );
+assert.match(
+    css,
+    /background-image:\s*url\(['"]?\/Anabelka\/assets\/icons\/anabelka-strawberry-white\.svg['"]?\)/i
+);
+
+assert.match(icon, /viewBox="0 0 24 24"/);
+assert.equal((icon.match(/<circle\b/g) ?? []).length, 6);
+assert.match(icon, /stroke="#fff"/i);
+assert.match(icon, /fill="#fff"/i);
 
 process.stdout.write('home desktop adult brand contract passed\n');
