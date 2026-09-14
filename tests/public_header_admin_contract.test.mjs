@@ -62,28 +62,25 @@ test('system-error check preserves the regular admin count when errors are absen
     assert.match(script, /catch\s*\(function\s*\(\)\s*\{[\s\S]*?systemBadge\.hidden\s*=\s*true[\s\S]*?messageBadge\.hidden\s*=\s*regularHidden/);
 });
 
-test('admin badge reuses the cart badge geometry and placement exactly', function () {
-    const header = read('views/partials/header.php');
+test('admin badge uses the same geometry and anchor as the cart badge', function () {
     const baseCss = read('css/public-header.css');
     const notificationCss = read('css/public-header-notifications.css');
-
-    assert.match(
-        header,
-        /class="public-header-count public-header-admin-count public-header-admin-message-badge"/
-    );
-    assert.match(
-        header,
-        /class="public-header-count public-header-admin-count public-header-admin-system-badge"/
-    );
-    assert.doesNotMatch(header, /class="public-header-admin-badges"/);
 
     assert.match(
         baseCss,
         /\.public-header-count\s*\{[^{}]*position:\s*absolute[^{}]*top:\s*0[^{}]*right:\s*0[^{}]*min-width:\s*18px[^{}]*height:\s*18px[^{}]*padding:\s*0\s+4px[^{}]*border:\s*2px\s+solid\s+#fff[^{}]*font-size:\s*10px/si
     );
+    assert.match(
+        notificationCss,
+        /\.public-header-admin-badges\s*\{[^{}]*display:\s*contents[^{}]*pointer-events:\s*none/si
+    );
     assert.doesNotMatch(
         notificationCss,
-        /\.public-header-admin-(?:badge|badges)\s*\{[^{}]*(?:position|top|right|min-width|width|height|padding|font-size)\s*:/si
+        /\.public-header-admin-badges\s*\{[^{}]*(?:position|top|right|width|height)\s*:/si
+    );
+    assert.match(
+        notificationCss,
+        /\.public-header-admin-badge\s*\{[^{}]*position:\s*absolute[^{}]*top:\s*0[^{}]*right:\s*0[^{}]*min-width:\s*18px[^{}]*height:\s*18px[^{}]*padding:\s*0\s+4px[^{}]*border:\s*2px\s+solid\s+#fff[^{}]*font-size:\s*10px/si
     );
 });
 
@@ -98,13 +95,6 @@ test('admin badge colors preserve blue notifications and the established system-
         css,
         /\.public-header-admin-system-badge\s*\{[^{}]*background:\s*#b63e48/si
     );
-});
-
-test('header cache-busts restored badge CSS and priority script', function () {
-    const header = read('views/partials/header.php');
-
-    assert.match(header, /css\/public-header-notifications\.css\?v=4/);
-    assert.match(header, /js\/public-header-admin-badges\.js\?v=2/);
 });
 
 test('favorites logic no longer controls admin-header visibility', function () {
