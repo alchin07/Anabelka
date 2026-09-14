@@ -84,12 +84,12 @@ test('admin badge uses the same geometry and anchor as the cart badge', function
     );
 });
 
-test('admin badge colors preserve blue notifications and the established system-error color', function () {
+test('admin notification badge uses the site primary color and system errors keep their established color', function () {
     const css = read('css/public-header-notifications.css');
 
     assert.match(
         css,
-        /\.public-header-admin-message-badge\s*\{[^{}]*background:\s*#2f80ed/si
+        /\.public-header-admin-message-badge\s*\{[^{}]*background:\s*var\(--primary-color,\s*#8a2be2\)/si
     );
     assert.match(
         css,
