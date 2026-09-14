@@ -51,6 +51,15 @@
         return durations[type];
     }
 
+    function configureAccessibility(element, type)
+    {
+        const isError = type === 'error';
+
+        element.setAttribute('role', isError ? 'alert' : 'status');
+        element.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+        element.setAttribute('aria-atomic', 'true');
+    }
+
     function show(type, message, options)
     {
         const element = document.getElementById('site-message');
@@ -63,6 +72,7 @@
         const normalizedType = normalizeType(type);
         const normalizedOptions = normalizeOptions(options);
 
+        configureAccessibility(element, normalizedType);
         element.textContent = text;
         element.classList.add('anabelka-notify');
         types.forEach(function (availableType) {
@@ -145,6 +155,18 @@
         return safeCount > 99 ? '99+' : String(safeCount);
     }
 
+    function consumeWhenReady()
+    {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', consume, {
+                once: true
+            });
+            return;
+        }
+
+        consume();
+    }
+
     window.AnabelkaNotify = {
         success(message, options) {
             return show('success', message, options);
@@ -164,5 +186,5 @@
         formatCount: formatCount
     };
 
-    consume();
+    consumeWhenReady();
 }());
