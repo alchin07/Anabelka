@@ -81,3 +81,11 @@ test('favorites logic no longer controls admin-header visibility', function () {
     assert.doesNotMatch(script, /\.public-header-catalog/);
     assert.doesNotMatch(script, /admin-system-error-notifications/);
 });
+
+test('header cache-busts the restored admin badge assets', function () {
+    const header = read('views/partials/header.php');
+
+    assert.match(header, /css\/public-header-notifications\.css\?v=3/);
+    assert.match(header, /js\/public-header-admin-badges\.js\?v=1/);
+    assert.match(header, /js\/favorites\.js\?v=3/);
+});
