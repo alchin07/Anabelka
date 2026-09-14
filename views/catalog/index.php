@@ -71,7 +71,7 @@ $renderAdultTree = function (array $nodes, $level = 1) use (
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=10">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=11">
 </head>
 <body>
 
