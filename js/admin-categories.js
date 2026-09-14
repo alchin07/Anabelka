@@ -82,20 +82,6 @@
             && typeof window.AdminFlashMessage.storeSuccess === 'function'
         ) {
             window.AdminFlashMessage.storeSuccess(message);
-            return;
-        }
-
-        try {
-            window.sessionStorage.setItem(
-                'anabelka-notify-flash',
-                JSON.stringify({
-                    type: 'success',
-                    message: String(message || 'Збережено.'),
-                    options: {}
-                })
-            );
-        } catch (error) {
-            // Navigation must still complete when browser storage is disabled.
         }
     }
 
