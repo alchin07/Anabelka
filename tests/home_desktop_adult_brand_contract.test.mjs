@@ -11,7 +11,6 @@ function read(relativePath) {
 }
 
 const css = read('css/home-desktop-sidebar.css');
-const homeCss = read('css/home.css');
 const icon = read('assets/icons/anabelka-strawberry-white.svg');
 
 assert.match(
@@ -36,10 +35,10 @@ assert.match(
 );
 assert.match(
     css,
-    /\.home-sidebar-title\s*\{[^{}]*margin-left:\s*45px[^{}]*width:\s*calc\(100%\s*-\s*45px\)[^{}]*box-sizing:\s*border-box/si
+    /\.home-sidebar-title\s*\{[^{}]*margin:\s*0\s+0\s+10px\s+45px[^{}]*width:\s*calc\(100%\s*-\s*45px\)[^{}]*box-sizing:\s*border-box/si
 );
 assert.match(
-    homeCss,
+    css,
     /\.home-department-nav-adult:focus\s*\{[^{}]*outline:\s*none[^{}]*box-shadow:\s*none/si
 );
 
