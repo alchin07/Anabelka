@@ -550,9 +550,9 @@ test('adult visibility is explicit and inherited without name heuristics', funct
     assert.doesNotMatch(homePage, /looksAdult|18-plus'\s*,|adult'\s*,|інтим|ерот/i);
 });
 
-test('catalog root renders data-driven adult categories after standard roots', function () {
+test('catalog root renders the real localized category tree with adult roots last', function () {
+    const controller = read('app/Controllers/CatalogController.php');
     const view = read('views/catalog/index.php');
-    const category = read('app/Models/Category.php');
     const standardLoop = view.indexOf(
         'foreach ($standardCategories as $category)'
     );
@@ -564,15 +564,39 @@ test('catalog root renders data-driven adult categories after standard roots', f
         view.indexOf('?>')
     );
 
+    assert.match(
+        controller,
+        /CategoryTranslator::localizeTree\([\s\S]*?Category::navigationTree\(\)/
+    );
+    const translator = read('app/Models/CategoryTranslator.php');
+    assert.match(
+        translator,
+        /public\s+static\s+function\s+localizeTree\([\s\S]*?getForCategoriesByLanguage\([\s\S]*?\$node\['children'\][\s\S]*?\$apply\(\$children\)/
+    );
+    assert.match(
+        translator,
+        /function\s+getForCategoriesByLanguage\([\s\S]*?WHERE\s+category_id\s+IN\s*\([\s\S]*?AND\s+language_code\s*=\s*:language_code[\s\S]*?status\s+IN\s*\('approved',\s*'outdated'\)/i
+    );
+    const treeLocalizer = translator.slice(
+        translator.indexOf('public static function localizeTree'),
+        translator.indexOf('private static function getForCategoriesByLanguage')
+    );
+    assert.doesNotMatch(
+        treeLocalizer,
+        /self::localize\(/
+    );
+    assert.doesNotMatch(
+        controller.slice(
+            controller.indexOf('public function index()'),
+            controller.indexOf('public function category(')
+        ),
+        /Category::all\(\)/
+    );
     assert.match(view, /\$standardCategories\s*=\s*\[\]/);
     assert.match(view, /\$adultCategories\s*=\s*\[\]/);
     assert.match(
         view,
         /foreach\s*\(\$categories\s+as\s+\$category\)[\s\S]*?\$category\['parent_id'\][\s\S]*?continue;[\s\S]*?!empty\(\$category\['is_adult'\]\)[\s\S]*?\$adultCategories\[\]\s*=\s*\$category[\s\S]*?\$standardCategories\[\]\s*=\s*\$category/
-    );
-    assert.match(
-        category,
-        /public\s+static\s+function\s+all\(\)[\s\S]*?\$category\['parent_id'\]\s*!==\s*null[\s\S]*?continue;/
     );
     assert.doesNotMatch(partitionBlock, /effective_adult/);
     assert.ok(standardLoop >= 0, 'standard category loop was not found');
@@ -586,7 +610,7 @@ test('catalog root renders data-driven adult categories after standard roots', f
 
     assert.match(standardBlock, /Category::catalogUrl\(\$category\)/);
     assert.match(adultBlock, /AdultAccess::gateUrl\(\$category\)/);
-    assert.match(adultBlock, /\$category\['name'\]/);
+    assert.match(adultBlock, /\$category\['children'\]/);
     assert.doesNotMatch(adultBlock, /\$category\['id'\]\s*={2,3}\s*\d+/);
     assert.doesNotMatch(
         adultBlock,
@@ -595,21 +619,23 @@ test('catalog root renders data-driven adult categories after standard roots', f
     assert.doesNotMatch(adultBlock, /href=['"]\/Anabelka\/18-plus\//);
 });
 
-test('catalog adult entry nests the database category below an unboxed Anabelka strawberry brand', function () {
+test('catalog adult entry renders its database root and recursive database children', function () {
     const view = read('views/catalog/index.php');
     const css = read('css/catalog.css');
     const homeCss = read('css/home.css');
     const sidebarCss = read('css/home-desktop-sidebar.css');
     const translations = read('app/Models/PublicInterfaceTranslator.php');
     const entryRule = cssRuleBody(css, '.catalog-adult-entry');
+    const rootRule = cssRuleBody(css, '.catalog-adult-root');
     const brandRule = cssRuleBody(css, '.catalog-adult-brand');
-    const childRule = cssRuleBody(css, '.catalog-adult-child');
+    const treeRule = cssRuleBody(css, '.catalog-adult-tree');
+    const nodeRule = cssRuleBody(css, '.catalog-adult-node-link');
     const badgeRule = cssRuleBody(css, '.catalog-adult-badge');
     const listRule = cssRuleBody(css, '.catalog-adult-list');
     const structuralView = view.replace(/<\?[\s\S]*?\?>/g, 'PHP_VALUE');
     const entryBlock = htmlElementBlockByClass(
         structuralView,
-        'a',
+        'article',
         'catalog-adult-entry'
     );
     const brandBlock = htmlElementBlockByClass(
@@ -622,15 +648,10 @@ test('catalog adult entry nests the database category below an unboxed Anabelka 
         'span',
         'catalog-adult-strawberry'
     );
-    const childBlock = htmlElementBlockByClass(
-        entryBlock,
-        'span',
-        'catalog-adult-child'
-    );
-    const categoryBlock = htmlElementBlockByClass(
-        childBlock,
-        'span',
-        'catalog-adult-category-name'
+    const treeBlock = htmlElementBlockByClass(
+        structuralView,
+        'ul',
+        'catalog-adult-tree'
     );
     const strawberryRules = Array.from(
         css.matchAll(/([^{}]+)\{([^{}]*)\}/g)
@@ -638,9 +659,23 @@ test('catalog adult entry nests the database category below an unboxed Anabelka 
         return match[1].includes('.catalog-adult-strawberry');
     });
 
-    assert.match(view, /class="catalog-adult-brand-name"[^>]*>\s*Анабелька\s*</);
     assert.match(view, /class="catalog-adult-strawberry"/);
-    assert.match(view, /class="catalog-adult-category-name"[\s\S]*?\$category\['name'\]/);
+    assert.match(
+        view,
+        /<article\s+class="catalog-adult-entry"\s+aria-labelledby="<\?=\s*\$escape\(\$rootLabelId\)\s*\?>"/
+    );
+    assert.match(
+        view,
+        /class="catalog-adult-brand-name"\s+id="<\?=\s*\$escape\(\$rootLabelId\)\s*\?>"/
+    );
+    assert.match(
+        view,
+        /class="catalog-adult-brand-name"[\s\S]*?\$category\['name'\]/
+    );
+    assert.doesNotMatch(
+        entryBlock,
+        /catalog-adult-brand-name[^>]*>\s*Анабелька\s*</
+    );
     assert.match(view, /class="catalog-adult-action"[\s\S]*?public\.catalog\.adult_enter/);
     assert.equal(
         (translations.match(/'public\.catalog\.adult_enter'\s*=>/g) || []).length,
@@ -654,20 +689,29 @@ test('catalog adult entry nests the database category below an unboxed Anabelka 
     assert.match(entryRule, /flex-direction:\s*column/i);
     assert.match(entryRule, /#8a2be2/i);
     assert.match(entryRule, /#6519b9/i);
+    assert.match(rootRule, /display:\s*flex/i);
+    assert.match(rootRule, /text-decoration:\s*none/i);
     assert.match(badgeRule, /background:\s*#f4eaff/i);
     assert.match(badgeRule, /color:\s*#6519b9/i);
-    assert.match(brandBlock, /catalog-adult-brand-name[\s\S]*?Анабелька/);
-    assert.match(brandBlock, /Анабелька[\s\S]*?catalog-adult-strawberry/);
-    assert.doesNotMatch(brandBlock, /catalog-adult-child/);
-    assert.match(childBlock, /catalog-adult-badge[\s\S]*?18\+/);
+    assert.match(brandBlock, /catalog-adult-brand-name[\s\S]*?PHP_VALUE/);
+    assert.match(brandBlock, /PHP_VALUE[\s\S]*?catalog-adult-strawberry/);
+    assert.match(entryBlock, /catalog-adult-badge[\s\S]*?18\+/);
     assert.match(
-        childBlock,
-        /catalog-adult-badge[\s\S]*?catalog-adult-category-name[\s\S]*?catalog-adult-action/
+        view,
+        /\$renderAdultTree\s*=\s*null[\s\S]*?function\s*\(array\s+\$nodes[\s\S]*?foreach\s*\(\$nodes\s+as\s+\$node\)[\s\S]*?\$node\['children'\][\s\S]*?\$renderAdultTree\(\$children/
     );
-    assert.match(categoryBlock, /PHP_VALUE/);
-    assert.ok(
-        entryBlock.indexOf(brandBlock) < entryBlock.indexOf(childBlock),
-        'dynamic adult category must follow the branded parent heading'
+    assert.match(
+        view,
+        /catalog-adult-node-link[\s\S]*?AdultAccess::gateUrl\(\$node\)[\s\S]*?\$node\['name'\]/
+    );
+    assert.match(entryBlock, /PHP_VALUE/);
+    assert.match(treeBlock, /PHP_VALUE/);
+    assert.match(treeRule, /list-style:\s*none/i);
+    assert.match(treeRule, /border-left:\s*\d+px\s+solid/i);
+    assert.match(nodeRule, /min-height:\s*44px/i);
+    assert.match(
+        css,
+        /\.catalog-adult-tree\s+\.catalog-adult-tree\s+\.catalog-adult-tree\s*\{[^{}]*width:\s*100%[^{}]*margin-left:\s*0[^{}]*padding-left:\s*0[^{}]*border-left:\s*0/is
     );
     assert.doesNotMatch(
         strawberryBlock.slice(0, strawberryBlock.indexOf('>') + 1),
@@ -684,11 +728,8 @@ test('catalog adult entry nests the database category below an unboxed Anabelka 
             /(?:^|;)\s*(?:background|border|border-radius|box-shadow|padding)\s*:/i
         );
     });
-    assert.match(childRule, /margin-left:\s*\d+px/i);
-    assert.match(childRule, /padding-left:\s*\d+px/i);
-    assert.match(childRule, /border-left:\s*\d+px\s+solid/i);
-    assert.doesNotMatch(view + css, /catalog-adult-top/);
-    assert.match(view, /css\/catalog\.css\?v=9/);
+    assert.doesNotMatch(view + css, /catalog-adult-child|catalog-adult-top/);
+    assert.match(view, /css\/catalog\.css\?v=10/);
     assert.match(
         css,
         /@media\s*\(max-width:\s*600px\)[\s\S]*?\.catalog-adult-entry\s*\{[^{}]*width:\s*100%/i
@@ -735,7 +776,7 @@ test('adult gate keeps the return URL contract and uses the Anabelka palette', f
     assert.doesNotMatch(confirmRule, /background:\s*#(?:000|000000)\b/i);
 });
 
-test('public header keeps favorites by logo and mobile actions in one flex row', function () {
+test('public header mobile variant A keeps a full-width single action row', function () {
     const header = read('views/partials/header.php');
     const css = read('css/public-header.css');
     const globalCss = read('css/style.css');
@@ -778,6 +819,14 @@ test('public header keeps favorites by logo and mobile actions in one flex row',
     const compactActionsRule = cssRuleBody(
         compactCss,
         '.public-header-actions'
+    );
+    const compactActionItemRule = cssRuleBody(
+        compactCss,
+        '.public-header-actions > *'
+    );
+    const compactActionControlRule = cssRuleBody(
+        compactCss,
+        '.public-header-actions > .public-header-action,\n    .public-header-actions > .public-header-menu > .public-header-action'
     );
     const compactFavoriteRule = cssRuleBody(
         compactCss,
@@ -937,8 +986,12 @@ test('public header keeps favorites by logo and mobile actions in one flex row',
     );
     assert.match(
         compactActionsRule,
-        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*2[^;]*;[^{}]*width:\s*100%[^;]*;[^{}]*display:\s*flex[^;]*;[^{}]*flex-direction:\s*row[^;]*;[^{}]*flex-wrap:\s*nowrap[^;]*;[^{}]*justify-content:\s*flex-end[^;]*;[^{}]*gap:\s*2px/i
+        /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*2[^;]*;[^{}]*width:\s*100%[^;]*;[^{}]*display:\s*flex[^;]*;[^{}]*flex-direction:\s*row[^;]*;[^{}]*flex-wrap:\s*nowrap[^;]*;[^{}]*justify-content:\s*flex-start[^;]*;[^{}]*gap:\s*2px/i
     );
+    assert.match(compactActionItemRule, /flex:\s*1\s+1\s+0/i);
+    assert.match(compactActionItemRule, /min-width:\s*0/i);
+    assert.match(compactActionControlRule, /width:\s*100%/i);
+    assert.match(compactActionControlRule, /min-width:\s*44px/i);
     assert.match(
         compactSearchRule,
         /grid-column:\s*1[^;]*;[^{}]*grid-row:\s*3/i
@@ -978,7 +1031,7 @@ test('public header keeps favorites by logo and mobile actions in one flex row',
         cssMediaBody(homeCss, 600),
         /\.home-page\s*\{[^{}]*padding-top:\s*6px/is
     );
-    assert.match(header, /css\/public-header\.css\?v=6/);
+    assert.match(header, /css\/public-header\.css\?v=7/);
 
     const tinyControlRules = Array.from(
         tinyCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)
@@ -1016,7 +1069,7 @@ test('public header keeps favorites by logo and mobile actions in one flex row',
     const brandGap = pixelDeclaration(compactBrandRule, 'gap');
     const favoriteWidth = pixelDeclaration(compactFavoriteRule, 'width');
     const popoverWidth = pixelDeclaration(compactPopoverRule, 'width');
-    const actionRowWidth = (4 * actionCellWidth) + (3 * actionsGap);
+    const minimumActionRowWidth = (4 * actionCellWidth) + (3 * actionsGap);
 
     assert.ok(actionCellWidth >= 44, 'mobile action cell is below 44px');
     assert.ok(actionCellHeight >= 44, 'mobile action cell is below 44px');
@@ -1024,9 +1077,11 @@ test('public header keeps favorites by logo and mobile actions in one flex row',
 
     [320, 360, 375, 390, 400, 412, 430].forEach(function (width) {
         const shellWidth = width - shellInset;
+        const distributedActionWidth = (
+            shellWidth - (3 * actionsGap)
+        ) / 4;
         const fullLogoBudget = 160;
         const requiredBrandWidth = fullLogoBudget + brandGap + favoriteWidth;
-        const profileLeft = shellWidth - actionRowWidth;
         const headerHeightWithTitle = favoriteWidth
             + rowGap
             + actionCellHeight
@@ -1042,16 +1097,21 @@ test('public header keeps favorites by logo and mobile actions in one flex row',
             `${width}px cannot fit the full logo and favorite row`
         );
         assert.ok(
-            actionRowWidth <= shellWidth,
+            minimumActionRowWidth <= shellWidth,
             `${width}px cannot fit four actions in one row`
         );
         assert.ok(
-            profileLeft + popoverWidth <= shellWidth,
-            `${width}px profile popover exceeds the right shell edge`
+            distributedActionWidth >= 44,
+            `${width}px distributed action is below 44px`
+        );
+        assert.equal(
+            (4 * distributedActionWidth) + (3 * actionsGap),
+            shellWidth,
+            `${width}px actions do not consume exactly one row`
         );
         assert.ok(
-            profileLeft >= 0,
-            `${width}px profile popover starts outside the shell`
+            popoverWidth <= shellWidth,
+            `${width}px profile popover exceeds the shell`
         );
         assert.ok(
             headerHeightWithTitle <= 164,

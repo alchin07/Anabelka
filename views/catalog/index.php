@@ -17,6 +17,48 @@ foreach ($categories as $category) {
         $standardCategories[] = $category;
     }
 }
+
+$escape = static function ($value) {
+    return htmlspecialchars(
+        (string) $value,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+};
+
+$renderAdultTree = null;
+$renderAdultTree = function (array $nodes, $level = 1) use (
+    &$renderAdultTree,
+    $escape
+) {
+    if (empty($nodes)) {
+        return;
+    }
+    ?>
+    <ul class="catalog-adult-tree" data-level="<?= (int) $level ?>">
+        <?php foreach ($nodes as $node): ?>
+            <?php
+            $children = is_array($node['children'] ?? null)
+                ? $node['children']
+                : [];
+            ?>
+            <li class="catalog-adult-node">
+                <a
+                    class="catalog-adult-node-link"
+                    href="<?= $escape(AdultAccess::gateUrl($node)) ?>"
+                >
+                    <span class="catalog-adult-node-name">
+                        <?= $escape($node['name'] ?? '') ?>
+                    </span>
+                    <span class="catalog-adult-node-arrow" aria-hidden="true">→</span>
+                </a>
+
+                <?php $renderAdultTree($children, $level + 1); ?>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+    <?php
+};
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -25,7 +67,7 @@ foreach ($categories as $category) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=9">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=10">
 </head>
 <body>
 
@@ -55,62 +97,72 @@ foreach ($categories as $category) {
         <?php if (!empty($adultCategories)): ?>
             <div class="catalog-adult-list" aria-label="18+">
                 <?php foreach ($adultCategories as $category): ?>
-                    <a
-                        href="<?= htmlspecialchars(
-                            AdultAccess::gateUrl($category),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
+                    <?php
+                    $rootLabelId = 'catalog-adult-root-'
+                        . (int) ($category['id'] ?? 0);
+                    ?>
+                    <article
                         class="catalog-adult-entry"
+                        aria-labelledby="<?= $escape($rootLabelId) ?>"
                     >
-                        <span class="catalog-adult-brand">
-                            <span class="catalog-adult-brand-name">Анабелька</span>
+                        <a
+                            href="<?= $escape(AdultAccess::gateUrl($category)) ?>"
+                            class="catalog-adult-root"
+                        >
+                            <span class="catalog-adult-brand">
+                                <span
+                                    class="catalog-adult-brand-name"
+                                    id="<?= $escape($rootLabelId) ?>"
+                                >
+                                    <?= $escape($category['name'] ?? '') ?>
+                                </span>
 
-                            <span
-                                class="catalog-adult-strawberry"
-                                aria-hidden="true"
-                            >
-                                <svg viewBox="0 0 72 72" focusable="false">
-                                    <path
-                                        d="M21 24c-7 4-9 13-5 24 4 11 14 19 20 21 6-2 16-10 20-21 4-11 2-20-5-24-8-5-22-5-30 0Z"
-                                        fill="#f4eaff"
-                                    />
-                                    <path
-                                        d="M36 24c-4-8-10-11-17-10 2 7 8 11 17 10Zm0 0c4-8 10-11 17-10-2 7-8 11-17 10Zm0 0c-1-8 2-14 7-18 3 7 1 13-7 18Z"
-                                        fill="#ffffff"
-                                    />
-                                    <g fill="#8A2BE2">
-                                        <circle cx="27" cy="37" r="2" />
-                                        <circle cx="44" cy="37" r="2" />
-                                        <circle cx="35.5" cy="46" r="2" />
-                                        <circle cx="27.5" cy="52" r="2" />
-                                        <circle cx="44" cy="52" r="2" />
-                                        <circle cx="36" cy="59" r="2" />
-                                    </g>
-                                </svg>
-                            </span>
-                        </span>
-
-                        <span class="catalog-adult-child">
-                            <span class="catalog-adult-category-line">
-                                <span class="catalog-adult-badge">18+</span>
-
-                                <span class="catalog-adult-category-name">
-                                    <?= htmlspecialchars($category['name']) ?>
+                                <span
+                                    class="catalog-adult-strawberry"
+                                    aria-hidden="true"
+                                >
+                                    <svg viewBox="0 0 72 72" focusable="false">
+                                        <path
+                                            d="M21 24c-7 4-9 13-5 24 4 11 14 19 20 21 6-2 16-10 20-21 4-11 2-20-5-24-8-5-22-5-30 0Z"
+                                            fill="#f4eaff"
+                                        />
+                                        <path
+                                            d="M36 24c-4-8-10-11-17-10 2 7 8 11 17 10Zm0 0c4-8 10-11 17-10-2 7-8 11-17 10Zm0 0c-1-8 2-14 7-18 3 7 1 13-7 18Z"
+                                            fill="#ffffff"
+                                        />
+                                        <g fill="#8A2BE2">
+                                            <circle cx="27" cy="37" r="2" />
+                                            <circle cx="44" cy="37" r="2" />
+                                            <circle cx="35.5" cy="46" r="2" />
+                                            <circle cx="27.5" cy="52" r="2" />
+                                            <circle cx="44" cy="52" r="2" />
+                                            <circle cx="36" cy="59" r="2" />
+                                        </g>
+                                    </svg>
                                 </span>
                             </span>
 
-                            <span class="catalog-adult-action">
-                                <?= htmlspecialchars(
-                                    Translator::t(
-                                        'public.catalog.adult_enter',
-                                        'Увійти до розділу'
-                                    )
-                                ) ?>
-                                <span aria-hidden="true">→</span>
+                            <span class="catalog-adult-root-meta">
+                                <span class="catalog-adult-badge">18+</span>
+
+                                <span class="catalog-adult-action">
+                                    <?= $escape(
+                                        Translator::t(
+                                            'public.catalog.adult_enter',
+                                            'Увійти до розділу'
+                                        )
+                                    ) ?>
+                                    <span aria-hidden="true">→</span>
+                                </span>
                             </span>
-                        </span>
-                    </a>
+                        </a>
+
+                        <?php $renderAdultTree(
+                            is_array($category['children'] ?? null)
+                                ? $category['children']
+                                : []
+                        ); ?>
+                    </article>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>

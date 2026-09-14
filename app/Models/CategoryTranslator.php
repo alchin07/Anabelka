@@ -310,4 +310,124 @@ class CategoryTranslator
 
         return $categories;
     }
+
+
+    public static function localizeTree(array $nodes, $languageCode)
+    {
+        $languageCode = strtolower(trim((string) $languageCode));
+
+        if (
+            empty($nodes)
+            || $languageCode === ''
+            || $languageCode === Language::SOURCE_CODE
+        ) {
+            return $nodes;
+        }
+
+        $categoryIds = [];
+        $collectIds = null;
+        $collectIds = function (array $tree) use (
+            &$collectIds,
+            &$categoryIds
+        ) {
+            foreach ($tree as $node) {
+                $categoryId = (int) ($node['id'] ?? 0);
+
+                if ($categoryId > 0) {
+                    $categoryIds[$categoryId] = $categoryId;
+                }
+
+                $children = is_array($node['children'] ?? null)
+                    ? $node['children']
+                    : [];
+
+                if (!empty($children)) {
+                    $collectIds($children);
+                }
+            }
+        };
+        $collectIds($nodes);
+
+        $translations = self::getForCategoriesByLanguage(
+            array_values($categoryIds),
+            $languageCode
+        );
+        $apply = null;
+        $apply = function (array $tree) use (&$apply, $translations) {
+            foreach ($tree as &$node) {
+                $categoryId = (int) ($node['id'] ?? 0);
+                $translation = $translations[$categoryId] ?? null;
+                $children = is_array($node['children'] ?? null)
+                    ? $node['children']
+                    : [];
+
+                if (is_array($translation)) {
+                    $node['name'] = $translation['name'];
+                    $node['description'] = $translation['description'];
+                }
+
+                $node['children'] = $apply($children);
+            }
+            unset($node);
+
+            return $tree;
+        };
+
+        return $apply($nodes);
+    }
+
+
+    private static function getForCategoriesByLanguage(
+        array $categoryIds,
+        $languageCode
+    ) {
+        self::ensureTable();
+
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map('intval', $categoryIds),
+            function ($categoryId) {
+                return $categoryId > 0;
+            }
+        )));
+        $languageCode = strtolower(trim((string) $languageCode));
+
+        if (empty($categoryIds) || $languageCode === '') {
+            return [];
+        }
+
+        $placeholders = [];
+        $params = [
+            'language_code' => $languageCode
+        ];
+
+        foreach ($categoryIds as $index => $categoryId) {
+            $key = 'tree_category_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $categoryId;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT
+                category_id,
+                name,
+                description
+            FROM category_translations
+            WHERE category_id IN (" . implode(', ', $placeholders) . ")
+              AND language_code = :language_code
+              AND status IN ('approved', 'outdated')
+            ORDER BY category_id ASC
+        ");
+        $stmt->execute($params);
+        $translations = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $translation) {
+            $categoryId = (int) ($translation['category_id'] ?? 0);
+
+            if ($categoryId > 0) {
+                $translations[$categoryId] = $translation;
+            }
+        }
+
+        return $translations;
+    }
 }

@@ -5,8 +5,8 @@ class CatalogController extends Controller
     public function index()
     {
         $currentLanguage = Translator::currentLanguage();
-        $categories = CategoryTranslator::localizeList(
-            Category::all(),
+        $categories = CategoryTranslator::localizeTree(
+            Category::navigationTree(),
             $currentLanguage['code'] ?? Language::SOURCE_CODE
         );
 
