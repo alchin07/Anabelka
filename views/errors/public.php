@@ -15,7 +15,7 @@ $escape = static function ($value) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($errorTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
-    <link rel="stylesheet" href="/Anabelka/css/public-error.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/public-error.css?v=2">
 </head>
 <body>
 <?php require __DIR__ . '/../partials/header.php'; ?>
