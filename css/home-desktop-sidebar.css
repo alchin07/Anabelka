@@ -163,23 +163,43 @@
     }
 
     .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link {
+        justify-content: space-between;
+        gap: 10px;
         border-color: #8A2BE2;
         background: linear-gradient(135deg, #8A2BE2, #6519b9);
         color: #fff;
     }
 
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:hover,
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:focus-visible {
+        border-color: #8A2BE2;
+        color: #fff;
+    }
+
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-name {
+        order: 1;
+        min-width: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 20px;
+        font-style: italic;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
     .home-sidebar-adult-badge {
-        flex: 0 0 auto;
-        display: inline-grid;
-        min-width: 31px;
-        height: 24px;
-        place-items: center;
-        padding: 0 6px;
-        border-radius: 999px;
-        background: #f4eaff;
-        color: #6519b9;
-        font-size: 11px;
-        font-weight: 900;
+        order: 2;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 28px;
+        display: block;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent url('/Anabelka/assets/icons/anabelka-strawberry-white.svg') center / contain no-repeat;
+        color: transparent;
+        font-size: 0;
+        line-height: 0;
     }
 }
 
