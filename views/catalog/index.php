@@ -125,24 +125,7 @@ $renderAdultTree = function (array $nodes, $level = 1) use (
                                     class="catalog-adult-strawberry"
                                     aria-hidden="true"
                                 >
-                                    <svg viewBox="0 0 72 72" focusable="false">
-                                        <path
-                                            d="M21 24c-7 4-9 13-5 24 4 11 14 19 20 21 6-2 16-10 20-21 4-11 2-20-5-24-8-5-22-5-30 0Z"
-                                            fill="#f4eaff"
-                                        />
-                                        <path
-                                            d="M36 24c-4-8-10-11-17-10 2 7 8 11 17 10Zm0 0c4-8 10-11 17-10-2 7-8 11-17 10Zm0 0c-1-8 2-14 7-18 3 7 1 13-7 18Z"
-                                            fill="#ffffff"
-                                        />
-                                        <g fill="#8A2BE2">
-                                            <circle cx="27" cy="37" r="2" />
-                                            <circle cx="44" cy="37" r="2" />
-                                            <circle cx="35.5" cy="46" r="2" />
-                                            <circle cx="27.5" cy="52" r="2" />
-                                            <circle cx="44" cy="52" r="2" />
-                                            <circle cx="36" cy="59" r="2" />
-                                        </g>
-                                    </svg>
+                                    <?php require __DIR__ . '/../partials/anabelka-strawberry-icon.php'; ?>
                                 </span>
                             </span>
 
