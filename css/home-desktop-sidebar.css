@@ -2,6 +2,17 @@
     display: none;
 }
 
+.home-department-nav-adult:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.home-department-nav-adult:focus-visible {
+    outline: 2px solid rgba(138, 43, 226, .45);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
 @media (min-width: 1050px) {
     .home-shell {
         position: relative;
