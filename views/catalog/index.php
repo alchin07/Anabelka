@@ -35,7 +35,11 @@ $renderAdultTree = function (array $nodes, $level = 1) use (
         return;
     }
     ?>
-    <ul class="catalog-adult-tree" data-level="<?= (int) $level ?>">
+    <ul
+        class="catalog-adult-tree"
+        data-level="<?= (int) $level ?>"
+        hidden
+    >
         <?php foreach ($nodes as $node): ?>
             <?php
             $children = is_array($node['children'] ?? null)
@@ -142,7 +146,7 @@ $renderAdultTree = function (array $nodes, $level = 1) use (
                                 </span>
                             </span>
 
-                            <span class="catalog-adult-root-meta">
+                            <span class="catalog-adult-root-meta" hidden>
                                 <span class="catalog-adult-badge">18+</span>
 
                                 <span class="catalog-adult-action">
