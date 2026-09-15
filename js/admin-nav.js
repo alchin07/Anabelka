@@ -120,7 +120,7 @@
         if (!document.querySelector('link[data-admin-ai-translation]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';
-            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=3';
+            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=4';
             stylesheet.dataset.adminAiTranslation = '1';
             document.head.appendChild(stylesheet);
         }
@@ -146,14 +146,49 @@
             switcher.className = 'ai-provider-switcher';
             switcher.hidden = true;
 
-            const label = document.createElement('label');
-            label.htmlFor = 'ai-provider-select';
+            const label = document.createElement('span');
+            label.className = 'ai-provider-caption';
             label.textContent = 'ШІ-переклад';
 
             const select = document.createElement('select');
             select.id = 'ai-provider-select';
-            select.className = 'ai-provider-select';
-            select.setAttribute('aria-label', 'Провайдер ШІ-перекладу');
+            select.className = 'ai-provider-select ai-provider-native-select';
+            select.setAttribute('aria-hidden', 'true');
+            select.tabIndex = -1;
+
+            const picker = document.createElement('div');
+            picker.className = 'ai-provider-picker';
+
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.id = 'ai-provider-trigger';
+            trigger.className = 'ai-provider-trigger';
+            trigger.setAttribute('aria-haspopup', 'listbox');
+            trigger.setAttribute('aria-controls', 'ai-provider-options');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.setAttribute('aria-label', 'Провайдер ШІ-перекладу');
+
+            const triggerLabel = document.createElement('span');
+            triggerLabel.id = 'ai-provider-trigger-label';
+            triggerLabel.className = 'ai-provider-trigger-label';
+            triggerLabel.textContent = 'ШІ';
+
+            const chevron = document.createElement('span');
+            chevron.className = 'ai-provider-chevron';
+            chevron.setAttribute('aria-hidden', 'true');
+            chevron.textContent = '⌄';
+
+            const options = document.createElement('div');
+            options.id = 'ai-provider-options';
+            options.className = 'ai-provider-options';
+            options.setAttribute('role', 'listbox');
+            options.setAttribute('aria-label', 'Провайдер ШІ-перекладу');
+            options.hidden = true;
+
+            trigger.appendChild(triggerLabel);
+            trigger.appendChild(chevron);
+            picker.appendChild(trigger);
+            picker.appendChild(options);
 
             const status = document.createElement('span');
             status.id = 'ai-provider-status';
@@ -162,6 +197,7 @@
 
             switcher.appendChild(label);
             switcher.appendChild(select);
+            switcher.appendChild(picker);
             switcher.appendChild(status);
         }
 
@@ -171,7 +207,7 @@
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
             const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=6';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=7';
             script.dataset.adminAiTranslation = '1';
             document.body.appendChild(script);
         }
