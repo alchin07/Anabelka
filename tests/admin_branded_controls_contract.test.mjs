@@ -91,21 +91,21 @@ test('all user-page select groups are marked for the reusable branded select wit
     assert.match(selectJs, /\.admin-user-rank-form\s+select\[name=["']rank_id["']\]/);
 });
 
-test('category modals use branded selects and refresh dynamic options', () => {
-    const view = read('views/admin/categories/index.php');
-    const categoryJs = read('js/admin-categories.js');
+test('category modal select groups are branded including dynamic move options', () => {
     const selectJs = read('js/anabelka-select.js');
+    const selectCss = read('css/anabelka-select.css');
 
-    assert.match(view, /id=["']category-create-department["'][^>]*data-anabelka-select/);
-    assert.match(view, /id=["']category-move-parent["'][^>]*data-anabelka-select/);
-    assert.match(view, /id=["']category-move-department["'][^>]*data-anabelka-select/);
-    assert.match(view, /name=["']translation_status\[[^\]]+\]["'][^>]*data-anabelka-select/);
-
-    assert.match(categoryJs, /AnabelkaSelect\.refresh\(statusField\)/);
-    assert.match(categoryJs, /AnabelkaSelect\.refresh\(createDepartment\)/);
-    assert.match(categoryJs, /AnabelkaSelect\.refresh\(moveParent\)/);
-    assert.match(categoryJs, /AnabelkaSelect\.refresh\(moveDepartment\)/);
+    assert.match(selectJs, /\/Anabelka\/admin\/categories/);
+    assert.match(selectJs, /#category-create-department/);
+    assert.match(selectJs, /#category-move-parent/);
+    assert.match(selectJs, /#category-move-department/);
+    assert.match(selectJs, /\.category-translation-status\s+select/);
 
     assert.match(selectJs, /function\s+renderOptions\s*\(/);
-    assert.match(selectJs, /refresh[\s\S]*renderOptions/);
+    assert.match(selectJs, /MutationObserver/);
+    assert.match(selectJs, /childList\s*:\s*true/);
+    assert.match(selectJs, /syncAll/);
+
+    assert.match(selectCss, /max-height:\s*min\(/);
+    assert.match(selectCss, /overflow-y:\s*auto/);
 });
