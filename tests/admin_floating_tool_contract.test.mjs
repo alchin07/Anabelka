@@ -35,6 +35,7 @@ test('admin floating tools use one reusable drag-and-persist module', () => {
     assert.match(js, /Math\.max/);
     assert.match(js, /Math\.min/);
     assert.match(js, /resize/);
+    assert.match(js, /initialRect\.width[\s\S]*initialRect\.height/);
 
     assert.match(css, /\.anabelka-floating-drag-handle/);
     assert.match(css, /touch-action:\s*none/);
