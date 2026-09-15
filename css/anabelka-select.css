@@ -1,0 +1,187 @@
+.anabelka-select {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.anabelka-select-native {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.anabelka-select-trigger {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border: 1px solid #d8c8e8;
+    border-radius: 12px;
+    background: #fff;
+    color: #342d38;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.anabelka-select-trigger:hover {
+    border-color: #8A2BE2;
+}
+
+.anabelka-select-trigger:focus-visible,
+.anabelka-select.is-open .anabelka-select-trigger {
+    outline: none;
+    border-color: #8A2BE2;
+    box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.16);
+}
+
+.anabelka-select-trigger:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+}
+
+.anabelka-select-trigger-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.anabelka-select-chevron {
+    flex: 0 0 auto;
+    color: #6519b9;
+    font-size: 18px;
+    line-height: 1;
+    transition: transform 0.16s ease;
+}
+
+.anabelka-select.is-open .anabelka-select-chevron {
+    transform: rotate(180deg);
+}
+
+.anabelka-select-options {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 16000;
+    max-height: min(320px, 52vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    padding: 6px;
+    border: 1px solid #d8c8e8;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 14px 34px rgba(58, 24, 88, 0.18);
+}
+
+.anabelka-select.is-up .anabelka-select-options {
+    top: auto;
+    bottom: calc(100% + 6px);
+}
+
+.anabelka-select-options[hidden] {
+    display: none !important;
+}
+
+.anabelka-select-option {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 10px 38px 10px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #342d38;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    position: relative;
+}
+
+.anabelka-select-option:hover,
+.anabelka-select-option:focus-visible {
+    outline: none;
+    background: #faf7ff;
+}
+
+.anabelka-select-option[aria-selected="true"] {
+    background: #f4eaff;
+    color: #6519b9;
+    font-weight: 800;
+}
+
+.anabelka-select-option[aria-selected="true"]::after {
+    content: '✓';
+    position: absolute;
+    right: 12px;
+    color: #8A2BE2;
+    font-weight: 900;
+}
+
+.anabelka-select-option:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+[data-theme="dark"] .anabelka-select-trigger,
+.theme-dark .anabelka-select-trigger,
+[data-theme="dark"] .anabelka-select-options,
+.theme-dark .anabelka-select-options {
+    background: #2a202d;
+    color: #f6effa;
+    border-color: #6f4d82;
+}
+
+[data-theme="dark"] .anabelka-select-option,
+.theme-dark .anabelka-select-option {
+    color: #f6effa;
+}
+
+[data-theme="dark"] .anabelka-select-option:hover,
+[data-theme="dark"] .anabelka-select-option:focus-visible,
+.theme-dark .anabelka-select-option:hover,
+.theme-dark .anabelka-select-option:focus-visible {
+    background: #382a3d;
+}
+
+[data-theme="dark"] .anabelka-select-option[aria-selected="true"],
+.theme-dark .anabelka-select-option[aria-selected="true"] {
+    background: #4b2b63;
+    color: #f3e8ff;
+}
+
+@media (max-width: 650px) {
+    .anabelka-select-trigger {
+        min-height: 46px;
+        padding: 10px 12px;
+        border-radius: 11px;
+    }
+
+    .anabelka-select-options {
+        max-height: min(300px, 48vh);
+        border-radius: 12px;
+        padding: 5px;
+    }
+
+    .anabelka-select-option {
+        min-height: 46px;
+        padding: 11px 38px 11px 12px;
+    }
+}
