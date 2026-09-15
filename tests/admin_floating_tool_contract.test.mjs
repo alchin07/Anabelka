@@ -54,3 +54,11 @@ test('AI provider panel registers as a reusable floating tool', () => {
     assert.match(ai, /(?:AnabelkaFloatingTool|floatingTool)\.register/);
     assert.match(ai, /storageKey:\s*['"]ai-provider['"]/);
 });
+
+test('admin header cache-busts the nav loader that enables floating AI tools', () => {
+    const header = read('views/admin/partials/header.php');
+    const nav = read('js/admin-nav.js');
+
+    assert.match(header, /admin-nav\.js\?v=19/);
+    assert.match(nav, /admin-ai-translation\.js\?v=8/);
+});
