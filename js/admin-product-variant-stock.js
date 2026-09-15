@@ -19,6 +19,12 @@
         return;
     }
 
+    const oldBlock = section.querySelector('.product-variant-stock-block');
+
+    if (oldBlock) {
+        oldBlock.remove();
+    }
+
     const block = document.createElement('section');
     block.className = 'product-variant-stock-block';
     block.innerHTML = [
@@ -40,10 +46,13 @@
     const totalLabel = block.querySelector('[data-variant-total]');
     const sizeHint = form.querySelector('[data-size-stock-hint]');
     const cache = new Map();
+
     let loadedProductId = 0;
     let loadedRows = [];
     let hasStoredMatrix = false;
     let matrixTouched = false;
+    let lastDimensionSignature = '';
+    let isLoadingProduct = false;
 
     const style = document.createElement('style');
     style.textContent = [
@@ -69,8 +78,10 @@
         '.product-variant-stock-stepper button:active{transform:translateY(1px)}',
         '.product-variant-stock-stepper button:focus-visible,.product-variant-stock-input:focus{outline:3px solid rgba(138,43,226,.16);outline-offset:1px;border-color:#8A2BE2}',
         '.product-variant-stock-input{box-sizing:border-box;width:100%;height:44px;min-width:0;padding:7px 8px;border:1px solid #d8cedf;border-radius:11px;background:#fff;color:#33263a;text-align:center;font:inherit;font-weight:800}',
-        '.product-size-row.is-variant-summary [data-size-stock]{background:#f8f4fb;color:#6519b9;font-weight:800}',
-        '@media(max-width:650px){.product-variant-stock-head{flex-direction:column}.product-variant-stock-color-row{grid-template-columns:1fr}.product-variant-stock-stepper{width:100%;grid-template-columns:46px minmax(0,1fr) 46px}.product-variant-stock-stepper button{width:46px;height:46px}.product-variant-stock-input{height:46px}}'
+        '.product-size-row.is-variant-summary{grid-template-columns:minmax(0,1fr) auto 37px}',
+        '.product-size-row.is-variant-summary [data-variant-stock-hidden="1"]{display:none!important}',
+        '.product-variant-size-summary{align-self:end;display:flex;align-items:center;justify-content:flex-end;min-height:38px;padding:0 3px 8px;color:#6519b9;font-size:12px;font-weight:900;line-height:1.15;white-space:nowrap}',
+        '@media(max-width:650px){.product-variant-stock-head{flex-direction:column}.product-variant-stock-color-row{grid-template-columns:1fr}.product-variant-stock-stepper{width:100%;grid-template-columns:46px minmax(0,1fr) 46px}.product-variant-stock-stepper button{width:46px;height:46px}.product-variant-stock-input{height:46px}.product-size-row.is-variant-summary{grid-template-columns:minmax(0,1fr) auto 34px}}'
     ].join('\n');
     document.head.appendChild(style);
 
@@ -86,13 +97,18 @@
 
     function normalizeStockValue(value)
     {
-        const digits = String(value || '').replace(/[^0-9]/g, '');
+        return String(value || '').replace(/[^0-9]/g, '');
+    }
+
+    function stockNumber(value)
+    {
+        const digits = normalizeStockValue(value);
 
         if (digits === '') {
-            return '';
+            return 0;
         }
 
-        return String(Math.max(0, Number(digits)));
+        return Math.max(0, parseInt(digits, 10) || 0);
     }
 
     function currentSizes()
@@ -114,7 +130,7 @@
     {
         const roots = [imageList, uploadPreview].filter(Boolean);
         const result = [];
-        const seen = new Set();
+        const seenNames = new Set();
 
         roots.forEach(function (root) {
             root.querySelectorAll('.product-image-color-fields').forEach(function (group) {
@@ -122,19 +138,14 @@
                 const hexInput = group.querySelector('[data-image-color-hex]');
                 const name = nameInput ? String(nameInput.value || '').trim() : '';
                 const hex = hexInput ? String(hexInput.value || '').trim().toLowerCase() : '';
+                const key = textKey(name);
 
-                if (!name) {
+                if (!name || seenNames.has(key)) {
                     return;
                 }
 
-                const key = colorKey(name, hex);
-
-                if (seen.has(key)) {
-                    return;
-                }
-
-                seen.add(key);
-                result.push({name: name, hex: hex, key: key});
+                seenNames.add(key);
+                result.push({ name: name, hex: hex, key: key });
             });
         });
 
@@ -146,20 +157,27 @@
         cardsWrap.querySelectorAll('[data-variant-stock-input]').forEach(function (input) {
             cache.set(
                 String(input.dataset.variantKey || ''),
-                Math.max(0, Math.floor(Number(input.value || 0)))
+                stockNumber(input.value)
             );
         });
     }
 
     function seedLoadedRows()
     {
+        const loadedTotals = new Map();
+
         loadedRows.forEach(function (row) {
             const key = textKey(row.size_name)
                 + '||'
-                + colorKey(row.color_name, row.color_hex);
+                + textKey(row.color_name);
+            const stock = Math.max(0, Number(row.stock || 0));
 
+            loadedTotals.set(key, (loadedTotals.get(key) || 0) + stock);
+        });
+
+        loadedTotals.forEach(function (stock, key) {
             if (!cache.has(key)) {
-                cache.set(key, Math.max(0, Number(row.stock || 0)));
+                cache.set(key, stock);
             }
         });
     }
@@ -169,7 +187,8 @@
         const size = textKey(sizeName);
         const name = textKey(color.name);
         const hex = String(color.hex || '').trim().toLowerCase();
-        let nameMatch = null;
+        let nameMatch = 0;
+        let hasNameMatch = false;
         let hexMatch = null;
 
         loadedRows.forEach(function (row) {
@@ -181,8 +200,9 @@
             const rowHex = String(row.color_hex || '').trim().toLowerCase();
             const stock = Math.max(0, Number(row.stock || 0));
 
-            if (nameMatch === null && rowName === name) {
-                nameMatch = stock;
+            if (rowName === name) {
+                nameMatch += stock;
+                hasNameMatch = true;
             }
 
             if (hexMatch === null && hex !== '' && rowHex === hex) {
@@ -190,7 +210,7 @@
             }
         });
 
-        if (nameMatch !== null) {
+        if (hasNameMatch) {
             return nameMatch;
         }
 
@@ -212,6 +232,7 @@
             const stock = row.querySelector('[data-size-stock]');
             const label = stock ? stock.closest('label') : null;
             const labelText = label ? label.querySelector('span') : null;
+            const summary = row.querySelector('[data-variant-size-summary]');
 
             if (row.classList.contains('is-variant-summary')) {
                 row.classList.remove('is-variant-summary');
@@ -223,6 +244,28 @@
                     ? stockModeField.value !== 'by_size'
                     : false;
                 stock.removeAttribute('aria-readonly');
+            }
+
+            if (label && label.dataset.variantOriginalHidden !== undefined) {
+                label.hidden = label.dataset.variantOriginalHidden === '1';
+                label.removeAttribute('data-variant-stock-hidden');
+
+                const originalDisplay = label.dataset.variantOriginalDisplay || '';
+                const originalPriority = label.dataset.variantOriginalDisplayPriority || '';
+
+                if (originalDisplay === '') {
+                    label.style.removeProperty('display');
+                } else {
+                    label.style.setProperty('display', originalDisplay, originalPriority);
+                }
+
+                delete label.dataset.variantOriginalHidden;
+                delete label.dataset.variantOriginalDisplay;
+                delete label.dataset.variantOriginalDisplayPriority;
+            }
+
+            if (summary) {
+                summary.remove();
             }
 
             if (
@@ -242,6 +285,7 @@
             if (sizeHint.textContent !== restoredHint) {
                 sizeHint.textContent = restoredHint;
             }
+
             delete sizeHint.dataset.variantMatrixHint;
         }
     }
@@ -269,6 +313,7 @@
             }
 
             const nextValue = String(sizeTotals.get(key));
+            let summary = row.querySelector('[data-variant-size-summary]');
 
             if (stock.value !== nextValue) {
                 stock.value = nextValue;
@@ -285,13 +330,36 @@
             if (!row.classList.contains('is-variant-summary')) {
                 row.classList.add('is-variant-summary');
             }
-            if (labelText && labelText.textContent !== 'Підсумок') {
-                labelText.textContent = 'Підсумок';
+
+            if (label) {
+                if (label.dataset.variantOriginalHidden === undefined) {
+                    label.dataset.variantOriginalHidden = label.hidden ? '1' : '0';
+                    label.dataset.variantOriginalDisplay = label.style.getPropertyValue('display') || '';
+                    label.dataset.variantOriginalDisplayPriority = label.style.getPropertyPriority('display') || '';
+                }
+
+                label.hidden = true;
+                label.setAttribute('data-variant-stock-hidden', '1');
+                label.style.setProperty('display', 'none', 'important');
+            }
+
+            if (!summary) {
+                summary = document.createElement('span');
+                summary.className = 'product-variant-size-summary';
+                summary.dataset.variantSizeSummary = '';
+                const removeButton = row.querySelector('[data-size-remove]');
+                row.insertBefore(summary, removeButton || null);
+            }
+
+            const summaryText = 'Усього: ' + nextValue + ' шт.';
+
+            if (summary.textContent !== summaryText) {
+                summary.textContent = summaryText;
             }
         });
 
         if (sizeHint) {
-            const matrixHint = 'Підсумок за розміром рахується з матриці нижче.';
+            const matrixHint = 'Кількість редагується тільки в матриці нижче. Підсумок за розміром рахується автоматично.';
 
             if (sizeHint.textContent !== matrixHint) {
                 sizeHint.textContent = matrixHint;
@@ -308,7 +376,7 @@
         let total = 0;
 
         cardsWrap.querySelectorAll('[data-variant-stock-input]').forEach(function (input) {
-            const stock = Math.max(0, Math.floor(Number(input.value || 0)));
+            const stock = stockNumber(input.value);
             const sizeKey = textKey(input.dataset.sizeName || '');
 
             cache.set(String(input.dataset.variantKey || ''), stock);
@@ -337,13 +405,12 @@
 
     function adjustStock(input, delta)
     {
-        const current = Math.max(0, Math.floor(Number(input.value || 0)));
+        const current = stockNumber(input.value);
         const next = Math.max(0, current + delta);
 
         input.value = String(next);
         matrixTouched = true;
         updateTotals();
-        input.focus();
     }
 
     function buildColorRow(sizeName, color)
@@ -376,7 +443,10 @@
         decrease.type = 'button';
         decrease.setAttribute('data-variant-decrease', '');
         decrease.textContent = '−';
-        decrease.setAttribute('aria-label', 'Зменшити залишок: ' + sizeName + ', ' + color.name);
+        decrease.setAttribute(
+            'aria-label',
+            'Зменшити залишок: ' + sizeName + ', ' + color.name
+        );
 
         input.type = 'text';
         input.inputMode = 'numeric';
@@ -390,26 +460,31 @@
         input.dataset.colorName = color.name;
         input.dataset.colorHex = color.hex;
         input.value = String(stock);
-        input.setAttribute('aria-label', 'Залишок: ' + sizeName + ', ' + color.name);
+        input.setAttribute(
+            'aria-label',
+            'Залишок: ' + sizeName + ', ' + color.name
+        );
 
         increase.type = 'button';
         increase.setAttribute('data-variant-increase', '');
         increase.textContent = '+';
-        increase.setAttribute('aria-label', 'Збільшити залишок: ' + sizeName + ', ' + color.name);
+        increase.setAttribute(
+            'aria-label',
+            'Збільшити залишок: ' + sizeName + ', ' + color.name
+        );
 
         decrease.addEventListener('click', function () {
             adjustStock(input, -1);
         });
+
         increase.addEventListener('click', function () {
             adjustStock(input, 1);
         });
+
         input.addEventListener('focus', function () {
-            window.requestAnimationFrame(function () {
-                if (document.activeElement === input) {
-                    input.select();
-                }
-            });
+            input.select();
         });
+
         input.addEventListener('input', function () {
             const normalized = normalizeStockValue(input.value);
 
@@ -420,9 +495,12 @@
             matrixTouched = true;
             updateTotals();
         });
+
         input.addEventListener('blur', function () {
             const normalized = normalizeStockValue(input.value);
-            input.value = normalized === '' ? '0' : normalized;
+            input.value = normalized === ''
+                ? '0'
+                : String(stockNumber(normalized));
             updateTotals();
         });
 
@@ -435,7 +513,7 @@
         return row;
     }
 
-    function render(options)
+    function renderMatrix(options)
     {
         const preferLoadedRows = Boolean(options && options.preferLoadedRows);
 
@@ -468,7 +546,7 @@
             ? 'Кожна комбінація «розмір + колір» має власний залишок.'
             : 'Старі залишки ще не розподілені за кольорами. Введіть кількість у картках, щоб перейти на облік «розмір + колір».';
 
-        cardsWrap.innerHTML = '';
+        const fragment = document.createDocumentFragment();
 
         sizes.forEach(function (sizeName) {
             const card = document.createElement('section');
@@ -496,10 +574,47 @@
             head.appendChild(sizeTotal);
             card.appendChild(head);
             card.appendChild(colorList);
-            cardsWrap.appendChild(card);
+            fragment.appendChild(card);
         });
 
+        cardsWrap.replaceChildren(fragment);
         updateTotals();
+    }
+
+    function dimensionSignature()
+    {
+        return JSON.stringify({
+            productId: Number(productIdField.value || 0),
+            sizes: currentSizes().map(textKey),
+            colors: currentColors().map(function (color) {
+                return colorKey(color.name, color.hex);
+            })
+        });
+    }
+
+    function rebuildIfDimensionsChanged(force, options)
+    {
+        if (isLoadingProduct && !force) {
+            return false;
+        }
+
+        const nextSignature = dimensionSignature();
+
+        if (!force && nextSignature === lastDimensionSignature) {
+            return false;
+        }
+
+        const preferLoadedRows = Boolean(options && options.preferLoadedRows);
+
+        if (!preferLoadedRows) {
+            cacheCurrentInputs();
+        } else {
+            cache.clear();
+        }
+
+        lastDimensionSignature = nextSignature;
+        renderMatrix({ preferLoadedRows: preferLoadedRows });
+        return true;
     }
 
     function matrixRows()
@@ -511,7 +626,7 @@
                 size_name: String(input.dataset.sizeName || ''),
                 color_name: String(input.dataset.colorName || ''),
                 color_hex: String(input.dataset.colorHex || ''),
-                stock: Math.max(0, Math.floor(Number(input.value || 0)))
+                stock: stockNumber(input.value)
             };
         });
     }
@@ -519,65 +634,67 @@
     async function loadForProduct(productId)
     {
         productId = Number(productId || 0);
-
-        if (productId <= 0) {
-            loadedProductId = 0;
-            loadedRows = [];
-            hasStoredMatrix = false;
-            matrixTouched = false;
-            cache.clear();
-            render({preferLoadedRows: true});
-            return;
-        }
-
-        if (loadedProductId === productId) {
-            render();
-            return;
-        }
-
+        isLoadingProduct = true;
         loadedProductId = productId;
         loadedRows = [];
         hasStoredMatrix = false;
         matrixTouched = false;
         cache.clear();
 
-        try {
-            const response = await fetch(
-                '/Anabelka/admin/products/variant-stock?product_id=' + encodeURIComponent(productId),
-                {headers: {'X-Requested-With': 'XMLHttpRequest'}}
-            );
-            const data = await response.json();
+        if (productId > 0) {
+            try {
+                const response = await fetch(
+                    '/Anabelka/admin/products/variant-stock?product_id='
+                    + encodeURIComponent(productId),
+                    { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+                );
+                const data = await response.json();
 
-            if (response.ok && data.success && Array.isArray(data.rows)) {
-                loadedRows = data.rows;
-                hasStoredMatrix = loadedRows.length > 0;
+                if (response.ok && data.success && Array.isArray(data.rows)) {
+                    loadedRows = data.rows;
+                    hasStoredMatrix = loadedRows.length > 0;
+                }
+            } catch (error) {
+                loadedRows = [];
+                hasStoredMatrix = false;
             }
-        } catch (error) {
-            loadedRows = [];
-            hasStoredMatrix = false;
         }
 
-        cache.clear();
-        render({preferLoadedRows: true});
+        isLoadingProduct = false;
+        lastDimensionSignature = '';
+        rebuildIfDimensionsChanged(true, { preferLoadedRows: true });
     }
 
     document.addEventListener('click', function (event) {
         const edit = event.target.closest('[data-product-edit]');
+        const create = event.target.closest('[data-product-create]');
 
         if (edit) {
+            isLoadingProduct = true;
             window.setTimeout(function () {
                 loadForProduct(edit.dataset.productId || 0);
             }, 80);
         }
 
+        if (create) {
+            isLoadingProduct = true;
+            window.setTimeout(function () {
+                loadForProduct(0);
+            }, 80);
+        }
+
         if (event.target.closest('[data-color-picker-apply], [data-color-picker-clear]')) {
-            window.setTimeout(render, 30);
+            window.setTimeout(function () {
+                rebuildIfDimensionsChanged(false);
+            }, 30);
         }
     });
 
     form.addEventListener('input', function (event) {
         if (event.target.matches('[data-size-name]')) {
-            window.setTimeout(render, 0);
+            window.setTimeout(function () {
+                rebuildIfDimensionsChanged(false);
+            }, 0);
         }
     });
 
@@ -586,25 +703,28 @@
             event.target.matches('#product-image-input')
             || event.target.matches('#product-edit-stock-mode')
         ) {
-            window.setTimeout(render, 50);
+            window.setTimeout(function () {
+                rebuildIfDimensionsChanged(false);
+            }, 50);
         }
     });
 
     const sizeObserver = new MutationObserver(function () {
-        window.setTimeout(render, 0);
+        rebuildIfDimensionsChanged(false);
     });
-    sizeObserver.observe(sizeList, {childList: true});
+    sizeObserver.observe(sizeList, { childList: true });
 
     const sourceObserver = new MutationObserver(function () {
-        window.setTimeout(render, 0);
+        rebuildIfDimensionsChanged(false);
     });
-    sourceObserver.observe(imageList, {childList: true, subtree: true});
+    sourceObserver.observe(imageList, { childList: true, subtree: true });
 
     if (uploadPreview) {
-        sourceObserver.observe(uploadPreview, {childList: true, subtree: true});
+        sourceObserver.observe(uploadPreview, { childList: true, subtree: true });
     }
 
     const nativeFetch = window.fetch.bind(window);
+
     window.fetch = async function (input, init) {
         const response = await nativeFetch(input, init);
         const url = typeof input === 'string'
@@ -619,7 +739,9 @@
         ) {
             try {
                 const data = await response.clone().json();
-                const productId = Number(data.product_id || productIdField.value || 0);
+                const productId = Number(
+                    data.product_id || productIdField.value || 0
+                );
                 const csrf = form.querySelector('input[name="csrf_token"]');
                 const rows = matrixRows();
                 const shouldSaveMatrix = hasStoredMatrix || matrixTouched;
@@ -641,7 +763,7 @@
                         {
                             method: 'POST',
                             body: payload,
-                            headers: {'X-Requested-With': 'XMLHttpRequest'}
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
                         }
                     );
 
@@ -655,6 +777,15 @@
                         );
                     }
 
+                    loadedProductId = productId;
+                    loadedRows = rows.map(function (row) {
+                        return {
+                            size_name: row.size_name,
+                            color_name: row.color_name,
+                            color_hex: row.color_hex,
+                            stock: row.stock
+                        };
+                    });
                     hasStoredMatrix = true;
                     matrixTouched = false;
                     updateTotals();
@@ -662,7 +793,8 @@
             } catch (error) {
                 if (window.AnabelkaNotify) {
                     window.AnabelkaNotify.error(
-                        error.message || 'Не вдалося зберегти залишки за кольорами.'
+                        error.message
+                        || 'Не вдалося зберегти залишки за кольорами.'
                     );
                 } else {
                     const message = document.getElementById('site-message');
@@ -683,7 +815,8 @@
         if (!editor.hidden) {
             loadForProduct(productIdField.value || 0);
         } else {
-            render();
+            lastDimensionSignature = '';
+            rebuildIfDimensionsChanged(true, { preferLoadedRows: true });
         }
     }, 350);
 }());
