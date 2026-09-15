@@ -90,3 +90,22 @@ test('all user-page select groups are marked for the reusable branded select wit
     assert.match(selectJs, /\.admin-users-filters\s+select\[name=["']status["']\]/);
     assert.match(selectJs, /\.admin-user-rank-form\s+select\[name=["']rank_id["']\]/);
 });
+
+test('category modals use branded selects and refresh dynamic options', () => {
+    const view = read('views/admin/categories/index.php');
+    const categoryJs = read('js/admin-categories.js');
+    const selectJs = read('js/anabelka-select.js');
+
+    assert.match(view, /id=["']category-create-department["'][^>]*data-anabelka-select/);
+    assert.match(view, /id=["']category-move-parent["'][^>]*data-anabelka-select/);
+    assert.match(view, /id=["']category-move-department["'][^>]*data-anabelka-select/);
+    assert.match(view, /name=["']translation_status\[[^\]]+\]["'][^>]*data-anabelka-select/);
+
+    assert.match(categoryJs, /AnabelkaSelect\.refresh\(statusField\)/);
+    assert.match(categoryJs, /AnabelkaSelect\.refresh\(createDepartment\)/);
+    assert.match(categoryJs, /AnabelkaSelect\.refresh\(moveParent\)/);
+    assert.match(categoryJs, /AnabelkaSelect\.refresh\(moveDepartment\)/);
+
+    assert.match(selectJs, /function\s+renderOptions\s*\(/);
+    assert.match(selectJs, /refresh[\s\S]*renderOptions/);
+});
