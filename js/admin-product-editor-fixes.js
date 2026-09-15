@@ -114,7 +114,9 @@
         });
 
         const productIdField = document.getElementById('product-edit-id');
-        const variantTable = form.querySelector('[data-variant-table]');
+        const variantRoot = form.querySelector(
+            '[data-variant-cards], [data-variant-table]'
+        );
         let activeVariantKey = '';
         let restoreFocusUntil = 0;
         let clearFocusTimer = null;
@@ -155,7 +157,7 @@
         function restoreVariantFocus()
         {
             if (
-                !variantTable
+                !variantRoot
                 || !activeVariantKey
                 || Date.now() > restoreFocusUntil
             ) {
@@ -169,7 +171,7 @@
             }
 
             const input = Array.from(
-                variantTable.querySelectorAll('[data-variant-stock-input]')
+                variantRoot.querySelectorAll('[data-variant-stock-input]')
             ).find(function (item) {
                 return String(item.dataset.variantKey || '') === activeVariantKey;
             });
@@ -187,15 +189,15 @@
             }, 0);
         }
 
-        if (variantTable) {
-            prepareVariantInputs(variantTable);
+        if (variantRoot) {
+            prepareVariantInputs(variantRoot);
 
             const variantObserver = new MutationObserver(function () {
-                prepareVariantInputs(variantTable);
+                prepareVariantInputs(variantRoot);
                 restoreVariantFocus();
             });
 
-            variantObserver.observe(variantTable, {
+            variantObserver.observe(variantRoot, {
                 childList: true,
                 subtree: true
             });
