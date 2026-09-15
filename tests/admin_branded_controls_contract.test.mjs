@@ -74,17 +74,19 @@ test('admin pages load the reusable branded select component', () => {
     assert.match(selectCss, /\.anabelka-select/);
 });
 
-test('all user-page selects use the reusable branded select without changing field names', () => {
+test('all user-page select groups are marked for the reusable branded select without changing field names', () => {
     const users = read('views/admin/users/index.php');
+    const selectJs = read('js/anabelka-select.js');
 
-    const enhanced = users.match(/<select\b[^>]*data-anabelka-select[^>]*>/g) || [];
-    assert.equal(enhanced.length, 5);
+    assert.match(users, /name=["']invite_channel["']/);
+    assert.match(users, /name=["']invite_rank_id["']/);
+    assert.match(users, /name=["']rank_id["']/);
+    assert.match(users, /name=["']status["']/);
 
-    assert.match(users, /<select\b[^>]*name=["']invite_channel["'][^>]*data-anabelka-select/);
-    assert.match(users, /<select\b[^>]*name=["']invite_rank_id["'][^>]*data-anabelka-select/);
-    assert.match(users, /<select\b[^>]*name=["']rank_id["'][^>]*data-anabelka-select/);
-    assert.match(users, /<select\b[^>]*name=["']status["'][^>]*data-anabelka-select/);
-
-    const rankForms = users.match(/<select\b[^>]*name=["']rank_id["'][^>]*data-anabelka-select[^>]*>/g) || [];
-    assert.ok(rankForms.length >= 2);
+    assert.match(selectJs, /\/Anabelka\/admin\/users/);
+    assert.match(selectJs, /select\[name=["']invite_channel["']\]/);
+    assert.match(selectJs, /select\[name=["']invite_rank_id["']\]/);
+    assert.match(selectJs, /\.admin-users-filters\s+select\[name=["']rank_id["']\]/);
+    assert.match(selectJs, /\.admin-users-filters\s+select\[name=["']status["']\]/);
+    assert.match(selectJs, /\.admin-user-rank-form\s+select\[name=["']rank_id["']\]/);
 });
