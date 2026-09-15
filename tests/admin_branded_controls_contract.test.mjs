@@ -110,3 +110,22 @@ test('category modal select groups are branded including dynamic move options', 
     assert.match(selectCss, /max-height:\s*min\(/);
     assert.match(selectCss, /overflow-y:\s*auto/);
 });
+
+test('category modal stays above the floating AI provider switcher', () => {
+    const categoryCss = read('css/admin-categories.css');
+    const aiCss = read('css/admin-ai-translation.css');
+
+    const categoryMatch = categoryCss.match(
+        /\.category-modal\s*\{[^}]*z-index:\s*(\d+)/is
+    );
+    const aiMatch = aiCss.match(
+        /\.admin-ai-top-slot\s*\{[^}]*z-index:\s*(\d+)/is
+    );
+
+    assert.ok(categoryMatch, 'category modal z-index is missing');
+    assert.ok(aiMatch, 'AI provider z-index is missing');
+    assert.ok(
+        Number(categoryMatch[1]) > Number(aiMatch[1]),
+        'category modal must render above the AI provider switcher'
+    );
+});
