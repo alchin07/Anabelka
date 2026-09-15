@@ -71,6 +71,7 @@ test('admin pages load the reusable branded select component', () => {
     assert.match(selectJs, /aria-selected/);
     assert.match(selectJs, /Escape/);
     assert.match(selectJs, /dispatchEvent\(new Event\(['"]change['"]/);
+    assert.match(selectJs, /select\.addEventListener\(['"]focus['"]/);
     assert.match(selectCss, /\.anabelka-select/);
 });
 
