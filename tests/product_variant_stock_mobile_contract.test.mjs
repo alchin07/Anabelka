@@ -43,8 +43,23 @@ test('variant stock editor calculates per-size and grand totals and mirrors size
     assert.match(js, /Підсумок за розміром/);
 });
 
-test('admin header cache-busts the new mobile variant stock editor', () => {
+test('mobile manual input preparation targets the new card matrix with legacy fallback', () => {
+    const fixes = read('js/admin-product-editor-fixes.js');
+
+    assert.match(
+        fixes,
+        /\[data-variant-cards\][^\n]*\[data-variant-table\]|\[data-variant-cards\][\s\S]{0,120}\[data-variant-table\]/
+    );
+    assert.match(fixes, /input\.type\s*=\s*['"]text['"]/);
+    assert.match(fixes, /input\.inputMode\s*=\s*['"]numeric['"]/);
+    assert.match(fixes, /input\.pattern\s*=\s*['"]\[0-9\]\*['"]/);
+    assert.match(fixes, /replace\(\/\[\^0-9\]\\/g,\s*['"]['"]\)/);
+    assert.match(fixes, /MutationObserver/);
+});
+
+test('admin header cache-busts the mobile variant stock and input fix scripts', () => {
     const header = read('views/admin/partials/header.php');
 
     assert.match(header, /admin-product-variant-stock\.js\?v=3/);
+    assert.match(header, /admin-product-editor-fixes\.js\?v=2/);
 });
