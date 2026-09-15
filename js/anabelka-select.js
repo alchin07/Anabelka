@@ -306,6 +306,10 @@
             sync(instance);
         });
 
+        select.addEventListener('focus', function () {
+            trigger.focus();
+        });
+
         if (select.form) {
             select.form.addEventListener('reset', function () {
                 window.setTimeout(function () {
