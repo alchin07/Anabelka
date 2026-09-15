@@ -202,7 +202,9 @@
             const label = stock ? stock.closest('label') : null;
             const labelText = label ? label.querySelector('span') : null;
 
-            row.classList.remove('is-variant-summary');
+            if (row.classList.contains('is-variant-summary')) {
+                row.classList.remove('is-variant-summary');
+            }
 
             if (stock && stock.dataset.variantSummary === '1') {
                 delete stock.dataset.variantSummary;
@@ -212,15 +214,23 @@
                 stock.removeAttribute('aria-readonly');
             }
 
-            if (labelText && labelText.dataset.variantOriginalText) {
+            if (
+                labelText
+                && labelText.dataset.variantOriginalText
+                && labelText.textContent !== labelText.dataset.variantOriginalText
+            ) {
                 labelText.textContent = labelText.dataset.variantOriginalText;
             }
         });
 
         if (sizeHint && sizeHint.dataset.variantMatrixHint === '1') {
-            sizeHint.textContent = stockModeField && stockModeField.value === 'by_size'
+            const restoredHint = stockModeField && stockModeField.value === 'by_size'
                 ? 'Вкажіть окрему кількість для кожного розміру.'
                 : 'Для загального залишку кількість задається вище.';
+
+            if (sizeHint.textContent !== restoredHint) {
+                sizeHint.textContent = restoredHint;
+            }
             delete sizeHint.dataset.variantMatrixHint;
         }
     }
@@ -247,20 +257,38 @@
                 labelText.dataset.variantOriginalText = labelText.textContent || 'Залишок';
             }
 
-            stock.value = String(sizeTotals.get(key));
-            stock.readOnly = true;
-            stock.dataset.variantSummary = '1';
-            stock.setAttribute('aria-readonly', 'true');
-            row.classList.add('is-variant-summary');
+            const nextValue = String(sizeTotals.get(key));
 
-            if (labelText) {
+            if (stock.value !== nextValue) {
+                stock.value = nextValue;
+            }
+            if (!stock.readOnly) {
+                stock.readOnly = true;
+            }
+            if (stock.dataset.variantSummary !== '1') {
+                stock.dataset.variantSummary = '1';
+            }
+            if (stock.getAttribute('aria-readonly') !== 'true') {
+                stock.setAttribute('aria-readonly', 'true');
+            }
+            if (!row.classList.contains('is-variant-summary')) {
+                row.classList.add('is-variant-summary');
+            }
+
+            if (labelText && labelText.textContent !== 'Підсумок') {
                 labelText.textContent = 'Підсумок';
             }
         });
 
         if (sizeHint) {
-            sizeHint.textContent = 'Підсумок за розміром рахується з матриці нижче.';
-            sizeHint.dataset.variantMatrixHint = '1';
+            const matrixHint = 'Підсумок за розміром рахується з матриці нижче.';
+
+            if (sizeHint.textContent !== matrixHint) {
+                sizeHint.textContent = matrixHint;
+            }
+            if (sizeHint.dataset.variantMatrixHint !== '1') {
+                sizeHint.dataset.variantMatrixHint = '1';
+            }
         }
     }
 
@@ -281,13 +309,18 @@
         cardsWrap.querySelectorAll('[data-variant-size-card]').forEach(function (card) {
             const sizeKey = String(card.dataset.variantSizeKey || '');
             const totalNode = card.querySelector('[data-variant-size-total]');
+            const nextText = String(sizeTotals.get(sizeKey) || 0) + ' шт.';
 
-            if (totalNode) {
-                totalNode.textContent = String(sizeTotals.get(sizeKey) || 0) + ' шт.';
+            if (totalNode && totalNode.textContent !== nextText) {
+                totalNode.textContent = nextText;
             }
         });
 
-        totalLabel.textContent = total + ' шт.';
+        const grandTotalText = total + ' шт.';
+
+        if (totalLabel.textContent !== grandTotalText) {
+            totalLabel.textContent = grandTotalText;
+        }
         syncLegacySizeTotals(sizeTotals);
     }
 
@@ -533,14 +566,18 @@
         }
     });
 
-    const observer = new MutationObserver(function () {
+    const sizeObserver = new MutationObserver(function () {
         window.setTimeout(render, 0);
     });
-    observer.observe(sizeList, { childList: true, subtree: true });
-    observer.observe(imageList, { childList: true, subtree: true });
+    sizeObserver.observe(sizeList, { childList: true });
+
+    const sourceObserver = new MutationObserver(function () {
+        window.setTimeout(render, 0);
+    });
+    sourceObserver.observe(imageList, { childList: true, subtree: true });
 
     if (uploadPreview) {
-        observer.observe(uploadPreview, { childList: true, subtree: true });
+        sourceObserver.observe(uploadPreview, { childList: true, subtree: true });
     }
 
     const nativeFetch = window.fetch.bind(window);
