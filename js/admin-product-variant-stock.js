@@ -84,6 +84,17 @@
         return textKey(name) + '|' + String(hex || '').trim().toLowerCase();
     }
 
+    function normalizeStockValue(value)
+    {
+        const digits = String(value || '').replace(/[^0-9]/g, '');
+
+        if (digits === '') {
+            return '';
+        }
+
+        return String(Math.max(0, Number(digits)));
+    }
+
     function currentSizes()
     {
         return Array.from(sizeList.querySelectorAll('.product-size-row'))
@@ -123,7 +134,7 @@
                 }
 
                 seen.add(key);
-                result.push({ name: name, hex: hex, key: key });
+                result.push({name: name, hex: hex, key: key});
             });
         });
 
@@ -274,7 +285,6 @@
             if (!row.classList.contains('is-variant-summary')) {
                 row.classList.add('is-variant-summary');
             }
-
             if (labelText && labelText.textContent !== 'Підсумок') {
                 labelText.textContent = 'Підсумок';
             }
@@ -321,6 +331,7 @@
         if (totalLabel.textContent !== grandTotalText) {
             totalLabel.textContent = grandTotalText;
         }
+
         syncLegacySizeTotals(sizeTotals);
     }
 
@@ -363,14 +374,15 @@
 
         stepper.className = 'product-variant-stock-stepper';
         decrease.type = 'button';
-        decrease.dataset.variantDecrease = '';
+        decrease.setAttribute('data-variant-decrease', '');
         decrease.textContent = '−';
         decrease.setAttribute('aria-label', 'Зменшити залишок: ' + sizeName + ', ' + color.name);
 
-        input.type = 'number';
-        input.min = '0';
-        input.step = '1';
+        input.type = 'text';
         input.inputMode = 'numeric';
+        input.pattern = '[0-9]*';
+        input.autocomplete = 'off';
+        input.enterKeyHint = 'next';
         input.className = 'product-variant-stock-input';
         input.dataset.variantStockInput = '';
         input.dataset.variantKey = key;
@@ -381,7 +393,7 @@
         input.setAttribute('aria-label', 'Залишок: ' + sizeName + ', ' + color.name);
 
         increase.type = 'button';
-        increase.dataset.variantIncrease = '';
+        increase.setAttribute('data-variant-increase', '');
         increase.textContent = '+';
         increase.setAttribute('aria-label', 'Збільшити залишок: ' + sizeName + ', ' + color.name);
 
@@ -391,14 +403,26 @@
         increase.addEventListener('click', function () {
             adjustStock(input, 1);
         });
+        input.addEventListener('focus', function () {
+            window.requestAnimationFrame(function () {
+                if (document.activeElement === input) {
+                    input.select();
+                }
+            });
+        });
         input.addEventListener('input', function () {
+            const normalized = normalizeStockValue(input.value);
+
+            if (normalized !== input.value) {
+                input.value = normalized;
+            }
+
             matrixTouched = true;
             updateTotals();
         });
         input.addEventListener('blur', function () {
-            input.value = String(
-                Math.max(0, Math.floor(Number(input.value || 0)))
-            );
+            const normalized = normalizeStockValue(input.value);
+            input.value = normalized === '' ? '0' : normalized;
             updateTotals();
         });
 
@@ -502,7 +526,7 @@
             hasStoredMatrix = false;
             matrixTouched = false;
             cache.clear();
-            render({ preferLoadedRows: true });
+            render({preferLoadedRows: true});
             return;
         }
 
@@ -520,7 +544,7 @@
         try {
             const response = await fetch(
                 '/Anabelka/admin/products/variant-stock?product_id=' + encodeURIComponent(productId),
-                { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+                {headers: {'X-Requested-With': 'XMLHttpRequest'}}
             );
             const data = await response.json();
 
@@ -534,7 +558,7 @@
         }
 
         cache.clear();
-        render({ preferLoadedRows: true });
+        render({preferLoadedRows: true});
     }
 
     document.addEventListener('click', function (event) {
@@ -569,15 +593,15 @@
     const sizeObserver = new MutationObserver(function () {
         window.setTimeout(render, 0);
     });
-    sizeObserver.observe(sizeList, { childList: true });
+    sizeObserver.observe(sizeList, {childList: true});
 
     const sourceObserver = new MutationObserver(function () {
         window.setTimeout(render, 0);
     });
-    sourceObserver.observe(imageList, { childList: true, subtree: true });
+    sourceObserver.observe(imageList, {childList: true, subtree: true});
 
     if (uploadPreview) {
-        sourceObserver.observe(uploadPreview, { childList: true, subtree: true });
+        sourceObserver.observe(uploadPreview, {childList: true, subtree: true});
     }
 
     const nativeFetch = window.fetch.bind(window);
@@ -617,7 +641,7 @@
                         {
                             method: 'POST',
                             body: payload,
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                            headers: {'X-Requested-With': 'XMLHttpRequest'}
                         }
                     );
 
