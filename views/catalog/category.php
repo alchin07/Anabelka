@@ -35,7 +35,11 @@ $pageTitle = $category['name'];
             <div class="category-list">
                 <?php foreach ($children as $child): ?>
                     <a
-                        href="/Anabelka/catalog/<?= htmlspecialchars($child['slug']) ?>"
+                        href="<?= htmlspecialchars(
+                            Category::catalogUrl($child),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                         class="category-item"
                     >
                         <?= htmlspecialchars($child['name']) ?>
@@ -44,7 +48,9 @@ $pageTitle = $category['name'];
             </div>
         </section>
 
-    <?php elseif (!empty($products)): ?>
+    <?php endif; ?>
+
+    <?php if (!empty($products)): ?>
         <section class="catalog-products">
             <h2><?= htmlspecialchars(
                 Translator::t('public.catalog.products', 'Товари')
@@ -154,7 +160,9 @@ $pageTitle = $category['name'];
             </div>
         </section>
 
-    <?php else: ?>
+    <?php endif; ?>
+
+    <?php if (empty($children) && empty($products)): ?>
         <p><?= htmlspecialchars(
             Translator::t(
                 'public.catalog.empty',

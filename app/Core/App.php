@@ -13,6 +13,7 @@ class App
         require_once __DIR__ . '/Router.php';
         require_once __DIR__ . '/Database.php';
 
+        require_once __DIR__ . '/../Models/Department.php';
         require_once __DIR__ . '/../Models/Category.php';
         require_once __DIR__ . '/../Models/CategoryTranslator.php';
         require_once __DIR__ . '/../Models/ProductImage.php';
@@ -91,6 +92,7 @@ class App
         require_once __DIR__ . '/../Services/DeepLTranslationProvider.php';
         require_once __DIR__ . '/../Services/AITranslationService.php';
         require_once __DIR__ . '/../Services/TranslationDashboardService.php';
+        require_once __DIR__ . '/../Services/CategoryManager.php';
         require_once __DIR__ . '/../Services/EmailVerificationMailer.php';
         require_once __DIR__ . '/../Services/EmailVerificationService.php';
         require_once __DIR__ . '/../Services/PasswordResetService.php';

@@ -2,6 +2,17 @@
     display: none;
 }
 
+.home-department-nav-adult:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.home-department-nav-adult:focus-visible {
+    outline: 2px solid rgba(138, 43, 226, .45);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
 @media (min-width: 1050px) {
     .home-shell {
         position: relative;
@@ -38,7 +49,9 @@
         display: flex;
         align-items: center;
         min-height: 46px;
-        margin-bottom: 10px;
+        width: calc(100% - 45px);
+        box-sizing: border-box;
+        margin: 0 0 10px 45px;
         padding: 0 13px;
         border-radius: 13px;
         background: var(--primary-color);
@@ -163,23 +176,55 @@
     }
 
     .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link {
-        border-color: #4a414e;
-        background: #2a232d;
+        justify-content: space-between;
+        gap: 10px;
+        border-color: #8A2BE2;
+        background: linear-gradient(135deg, #8A2BE2, #6519b9);
         color: #fff;
     }
 
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:hover,
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-link:focus-visible {
+        border-color: #8A2BE2;
+        color: #fff;
+        outline: 2px solid rgba(138, 43, 226, .45);
+        outline-offset: 2px;
+        box-shadow: none;
+    }
+
+    .home-sidebar-node.is-adult-root > .home-sidebar-row .home-sidebar-name {
+        order: 1;
+        min-width: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 20px;
+        font-style: italic;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
     .home-sidebar-adult-badge {
-        flex: 0 0 auto;
-        display: inline-grid;
-        min-width: 31px;
-        height: 24px;
-        place-items: center;
-        padding: 0 6px;
-        border-radius: 999px;
-        background: #fff;
-        color: #2a232d;
-        font-size: 11px;
-        font-weight: 900;
+        order: 2;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 28px;
+        display: block;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background-color: transparent;
+        background-image: url('/Anabelka/assets/icons/anabelka-strawberry-white.svg');
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        color: transparent;
+        font-size: 0;
+        line-height: 0;
     }
 }
 

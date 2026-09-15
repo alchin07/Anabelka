@@ -15,9 +15,13 @@ class ProductController extends Controller
             (int) ($product['category_id'] ?? 0)
         );
 
+        if (!$productCategory) {
+            http_response_code(404);
+            die('Категорію товару не знайдено');
+        }
+
         if (
-            $productCategory
-            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            !empty($productCategory['effective_adult'])
             && !AdultAccess::isConfirmed()
         ) {
             $returnUrl = $_SERVER['REQUEST_URI']
@@ -26,7 +30,7 @@ class ProductController extends Controller
             header(
                 'Location: '
                 . AdultAccess::gateUrl(
-                    (string) ($productCategory['slug'] ?? ''),
+                    $productCategory,
                     $returnUrl
                 )
             );
@@ -41,8 +45,7 @@ class ProductController extends Controller
                 die('Категория товара не найдена');
             }
 
-            $url = '/Anabelka/catalog/'
-                . rawurlencode((string) $category['slug'])
+            $url = Category::catalogUrl($category)
                 . '?highlight_product='
                 . rawurlencode((string) $product['slug']);
 
@@ -163,16 +166,22 @@ class ProductController extends Controller
             (int) ($product['category_id'] ?? 0)
         );
 
+        if (!$productCategory) {
+            $this->json([
+                'success' => false,
+                'message' => 'Категорію товару не знайдено'
+            ], 404);
+        }
+
         if (
-            $productCategory
-            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            !empty($productCategory['effective_adult'])
             && !AdultAccess::isConfirmed()
         ) {
             $this->json([
                 'success' => false,
                 'message' => 'Потрібне підтвердження віку.',
                 'gate_url' => AdultAccess::gateUrl(
-                    (string) ($productCategory['slug'] ?? ''),
+                    $productCategory,
                     '/Anabelka/product/' . rawurlencode((string) $slug)
                 )
             ], 403);

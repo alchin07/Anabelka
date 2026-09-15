@@ -109,8 +109,7 @@ class SearchController extends Controller
             $categoryItems[] = [
                 'id' => (int) ($category['id'] ?? 0),
                 'name' => (string) ($category['name'] ?? ''),
-                'url' => '/Anabelka/catalog/'
-                    . rawurlencode((string) ($category['slug'] ?? ''))
+                'url' => Category::catalogUrl($category)
             ];
         }
 

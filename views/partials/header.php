@@ -110,6 +110,28 @@ $isProductPage =
         '/Anabelka/product/'
     ) === 0;
 
+$isAdultCatalogContext = !empty($isAdultCatalogContext);
+
+if (!$isAdultCatalogContext && isset($category) && is_array($category)) {
+    $isAdultCatalogContext = !empty($category['effective_adult']);
+}
+
+if (
+    !$isAdultCatalogContext
+    && isset($product)
+    && is_array($product)
+    && !empty($product['category_id'])
+    && class_exists('Category')
+) {
+    $headerProductCategory = Category::findById(
+        (int) $product['category_id']
+    );
+
+    $isAdultCatalogContext =
+        is_array($headerProductCategory)
+        && !empty($headerProductCategory['effective_adult']);
+}
+
 if ($isAdminPage) {
     require __DIR__ . '/../admin/partials/header.php';
     return;
@@ -124,6 +146,7 @@ $currentUserName = trim((string) (
     $_SESSION['user_name'] ?? ''
 ));
 $currentUri = $_SERVER['REQUEST_URI'] ?? '/Anabelka/';
+$favoritesLabel = Translator::t('header.favorites', 'Обране');
 $favoriteCount = count($favoriteProductIds);
 $adminNotificationCount = max(
     0,
@@ -151,128 +174,55 @@ $badgeText = static function ($count) {
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-header.css?v=2"
+        href="/Anabelka/css/public-header.css?v=8"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/public-header-notifications.css?v=4"
     >
 
     <div class="public-header-shell">
         <div class="public-header-main">
-            <a
-                href="/Anabelka/"
-                class="catalog-logo public-header-logo"
-                aria-label="Анабелька"
-            >
-                Анабелька
-            </a>
-
-            <form
-                class="site-search-form"
-                action="/Anabelka/search"
-                method="get"
-                role="search"
-                data-search-suggest-endpoint="/Anabelka/search/suggest"
-                data-search-products-label="<?= htmlspecialchars(
-                    Translator::t('search.products', 'Товари')
-                ) ?>"
-                data-search-categories-label="<?= htmlspecialchars(
-                    Translator::t('search.categories', 'Категорії')
-                ) ?>"
-                data-search-empty-label="<?= htmlspecialchars(
-                    Translator::t(
-                        'search.empty',
-                        'Нічого не знайдено. Спробуйте інший запит.'
-                    )
-                ) ?>"
-                data-search-all-label="<?= htmlspecialchars(
-                    Translator::t(
-                        'search.suggest_all',
-                        'Показати всі результати'
-                    )
-                ) ?>"
-            >
-                <input
-                    class="site-search-input"
-                    type="search"
-                    name="q"
-                    maxlength="200"
-                    autocomplete="off"
-                    value="<?= htmlspecialchars($headerSearchQuery) ?>"
-                    placeholder="<?= htmlspecialchars(
-                        Translator::t(
-                            'search.placeholder',
-                            'Пошук товарів, категорій, SKU…'
-                        )
-                    ) ?>"
-                    aria-label="<?= htmlspecialchars(
-                        Translator::t('search.title', 'Пошук')
-                    ) ?>"
-                    aria-autocomplete="list"
-                    aria-controls="site-search-suggestions"
-                    aria-expanded="false"
-                >
-
-                <button class="site-search-button" type="submit">
-                    <svg
-                        class="public-header-search-icon"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                    >
-                        <circle
-                            cx="11"
-                            cy="11"
-                            r="6.5"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        />
-                        <path
-                            d="M16 16L21 21"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                        />
-                    </svg>
-                    <span class="public-header-search-label">
-                        <?= htmlspecialchars(
-                            Translator::t('search.button', 'Знайти')
-                        ) ?>
-                    </span>
-                </button>
-
-                <div
-                    id="site-search-suggestions"
-                    class="site-search-suggestions"
-                    role="listbox"
-                    hidden
-                ></div>
-            </form>
-
+            <div class="public-header-top">
             <nav
-                class="public-header-actions"
-                aria-label="Навігація користувача"
+                class="public-header-brand"
+                aria-label="<?= htmlspecialchars(
+                    'Анабелька — ' . $favoritesLabel
+                ) ?>"
             >
+                <a
+                    href="/Anabelka/"
+                    class="catalog-logo public-header-logo"
+                    aria-label="Анабелька"
+                >
+                    Анабелька
+                </a>
+
                 <a
                     href="/Anabelka/favorites"
                     class="public-header-action header-favorites"
                     aria-label="<?= htmlspecialchars(
-                        Translator::t('header.favorites', 'Обране')
+                        $favoritesLabel
+                    ) ?>"
+                    title="<?= htmlspecialchars(
+                        $favoritesLabel
                     ) ?>"
                 >
                     <span class="public-header-action-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24">
-                            <path
-                                d="M12 20.2S4 15.3 4 8.9C4 6.2 5.9 4.5 8.2 4.5c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 4.5 20 6.2 20 8.9c0 6.4-8 11.3-8 11.3Z"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-                    </span>
-                    <span class="public-header-action-label">
-                        <?= htmlspecialchars(
-                            Translator::t('header.favorites', 'Обране')
-                        ) ?>
+                        <?php if ($isAdultCatalogContext): ?>
+                            <?php require __DIR__ . '/anabelka-strawberry-icon.php'; ?>
+                        <?php else: ?>
+                            <svg viewBox="0 0 24 24">
+                                <path
+                                    d="M12 20.2S4 15.3 4 8.9C4 6.2 5.9 4.5 8.2 4.5c1.5 0 2.9.8 3.8 2 0 0 1.5-2 3.8-2C18.1 4.5 20 6.2 20 8.9c0 6.4-8 11.3-8 11.3Z"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        <?php endif; ?>
                     </span>
                     <span
                         class="public-header-count header-favorites-count"
@@ -280,7 +230,12 @@ $badgeText = static function ($count) {
                         <?= $favoriteCount > 0 ? '' : 'hidden' ?>
                     ><?= $badgeText($favoriteCount) ?></span>
                 </a>
+            </nav>
 
+            <nav
+                class="public-header-actions"
+                aria-label="Навігація користувача"
+            >
                 <details class="public-header-menu public-header-profile">
                     <summary
                         class="public-header-action"
@@ -429,7 +384,7 @@ $badgeText = static function ($count) {
                 <?php if ($currentAdmin): ?>
                     <a
                         href="/Anabelka/admin"
-                        class="public-header-action public-header-admin"
+                        class="public-header-action public-header-admin-action"
                         aria-label="Адмін-панель"
                         title="Адмін-панель"
                     >
@@ -442,11 +397,17 @@ $badgeText = static function ($count) {
                             </svg>
                         </span>
                         <span class="public-header-action-label">Адмін</span>
-                        <span
-                            class="public-header-count public-header-admin-count"
-                            id="admin-notification-count"
-                            <?= $adminNotificationCount > 0 ? '' : 'hidden' ?>
-                        ><?= $badgeText($adminNotificationCount) ?></span>
+                        <span class="public-header-admin-badges" aria-hidden="true">
+                            <span
+                                class="public-header-admin-badge public-header-admin-message-badge"
+                                <?= $adminNotificationCount > 0 ? '' : 'hidden' ?>
+                            ><?= $badgeText($adminNotificationCount) ?></span>
+                            <span
+                                class="public-header-admin-badge public-header-admin-system-badge"
+                                id="admin-system-error-count"
+                                hidden
+                            >0</span>
+                        </span>
                     </a>
                 <?php endif; ?>
 
@@ -516,6 +477,90 @@ $badgeText = static function ($count) {
                     </details>
                 <?php endif; ?>
             </nav>
+            </div>
+
+            <form
+                class="site-search-form"
+                action="/Anabelka/search"
+                method="get"
+                role="search"
+                data-search-suggest-endpoint="/Anabelka/search/suggest"
+                data-search-products-label="<?= htmlspecialchars(
+                    Translator::t('search.products', 'Товари')
+                ) ?>"
+                data-search-categories-label="<?= htmlspecialchars(
+                    Translator::t('search.categories', 'Категорії')
+                ) ?>"
+                data-search-empty-label="<?= htmlspecialchars(
+                    Translator::t(
+                        'search.empty',
+                        'Нічого не знайдено. Спробуйте інший запит.'
+                    )
+                ) ?>"
+                data-search-all-label="<?= htmlspecialchars(
+                    Translator::t(
+                        'search.suggest_all',
+                        'Показати всі результати'
+                    )
+                ) ?>"
+            >
+                <input
+                    class="site-search-input"
+                    type="search"
+                    name="q"
+                    maxlength="200"
+                    autocomplete="off"
+                    value="<?= htmlspecialchars($headerSearchQuery) ?>"
+                    placeholder="<?= htmlspecialchars(
+                        Translator::t(
+                            'search.placeholder',
+                            'Пошук товарів, категорій, SKU…'
+                        )
+                    ) ?>"
+                    aria-label="<?= htmlspecialchars(
+                        Translator::t('search.title', 'Пошук')
+                    ) ?>"
+                    aria-autocomplete="list"
+                    aria-controls="site-search-suggestions"
+                    aria-expanded="false"
+                >
+
+                <button class="site-search-button" type="submit">
+                    <svg
+                        class="public-header-search-icon"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <circle
+                            cx="11"
+                            cy="11"
+                            r="6.5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        />
+                        <path
+                            d="M16 16L21 21"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                        />
+                    </svg>
+                    <span class="public-header-search-label">
+                        <?= htmlspecialchars(
+                            Translator::t('search.button', 'Знайти')
+                        ) ?>
+                    </span>
+                </button>
+
+                <div
+                    id="site-search-suggestions"
+                    class="site-search-suggestions"
+                    role="listbox"
+                    hidden
+                ></div>
+            </form>
         </div>
 
         <?php if (!empty($pageTitle)): ?>
@@ -530,8 +575,14 @@ $badgeText = static function ($count) {
         defer
     ></script>
 
-<?php if ($isCheckoutPage): ?>
+<?php if ($currentAdmin): ?>
+    <script
+        src="/Anabelka/js/public-header-admin-badges.js?v=2"
+        defer
+    ></script>
+<?php endif; ?>
 
+<?php if ($isCheckoutPage): ?>
     <link
         rel="stylesheet"
         href="/Anabelka/css/checkout-delivery.css?v=2"
@@ -583,7 +634,7 @@ $badgeText = static function ($count) {
 
     <script
         id="favorites-script"
-        src="/Anabelka/js/favorites.js?v=2"
+        src="/Anabelka/js/favorites.js?v=3"
         data-endpoint="/Anabelka/favorites/toggle"
         data-state-endpoint="/Anabelka/favorites/state"
         data-add-label="<?= htmlspecialchars(

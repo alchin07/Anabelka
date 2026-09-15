@@ -2,6 +2,67 @@
 PublicInterfaceTranslator::seed();
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('public.catalog.title', 'Каталог');
+$categories = is_array($categories ?? null) ? $categories : [];
+$standardCategories = [];
+$adultCategories = [];
+
+foreach ($categories as $category) {
+    if (($category['parent_id'] ?? null) !== null) {
+        continue;
+    }
+
+    if (!empty($category['is_adult'])) {
+        $adultCategories[] = $category;
+    } else {
+        $standardCategories[] = $category;
+    }
+}
+
+$escape = static function ($value) {
+    return htmlspecialchars(
+        (string) $value,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+};
+
+$renderAdultTree = null;
+$renderAdultTree = function (array $nodes, $level = 1) use (
+    &$renderAdultTree,
+    $escape
+) {
+    if (empty($nodes)) {
+        return;
+    }
+    ?>
+    <ul
+        class="catalog-adult-tree"
+        data-level="<?= (int) $level ?>"
+        hidden
+    >
+        <?php foreach ($nodes as $node): ?>
+            <?php
+            $children = is_array($node['children'] ?? null)
+                ? $node['children']
+                : [];
+            ?>
+            <li class="catalog-adult-node">
+                <a
+                    class="catalog-adult-node-link"
+                    href="<?= $escape(AdultAccess::gateUrl($node)) ?>"
+                >
+                    <span class="catalog-adult-node-name">
+                        <?= $escape($node['name'] ?? '') ?>
+                    </span>
+                    <span class="catalog-adult-node-arrow" aria-hidden="true">→</span>
+                </a>
+
+                <?php $renderAdultTree($children, $level + 1); ?>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+    <?php
+};
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -10,7 +71,7 @@ $pageTitle = Translator::t('public.catalog.title', 'Каталог');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=11">
 </head>
 <body>
 
@@ -23,15 +84,75 @@ $pageTitle = Translator::t('public.catalog.title', 'Каталог');
         ) ?></h2>
 
         <div class="category-list">
-            <?php foreach ($categories as $category): ?>
+            <?php foreach ($standardCategories as $category): ?>
                 <a
-                    href="/Anabelka/catalog/<?= htmlspecialchars($category['slug']) ?>"
+                    href="<?= htmlspecialchars(
+                        Category::catalogUrl($category),
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
                     class="category-item"
                 >
                     <?= htmlspecialchars($category['name']) ?>
                 </a>
             <?php endforeach; ?>
         </div>
+
+        <?php if (!empty($adultCategories)): ?>
+            <div class="catalog-adult-list" aria-label="18+">
+                <?php foreach ($adultCategories as $category): ?>
+                    <?php
+                    $rootLabelId = 'catalog-adult-root-'
+                        . (int) ($category['id'] ?? 0);
+                    ?>
+                    <article
+                        class="catalog-adult-entry"
+                        aria-labelledby="<?= $escape($rootLabelId) ?>"
+                    >
+                        <a
+                            href="<?= $escape(AdultAccess::gateUrl($category)) ?>"
+                            class="catalog-adult-root"
+                        >
+                            <span class="catalog-adult-brand">
+                                <span
+                                    class="catalog-adult-brand-name"
+                                    id="<?= $escape($rootLabelId) ?>"
+                                >
+                                    <?= $escape($category['name'] ?? '') ?>
+                                </span>
+
+                                <span
+                                    class="catalog-adult-strawberry"
+                                    aria-hidden="true"
+                                >
+                                    <?php require __DIR__ . '/../partials/anabelka-strawberry-icon.php'; ?>
+                                </span>
+                            </span>
+
+                            <span class="catalog-adult-root-meta" hidden>
+                                <span class="catalog-adult-badge">18+</span>
+
+                                <span class="catalog-adult-action">
+                                    <?= $escape(
+                                        Translator::t(
+                                            'public.catalog.adult_enter',
+                                            'Увійти до розділу'
+                                        )
+                                    ) ?>
+                                    <span aria-hidden="true">→</span>
+                                </span>
+                            </span>
+                        </a>
+
+                        <?php $renderAdultTree(
+                            is_array($category['children'] ?? null)
+                                ? $category['children']
+                                : []
+                        ); ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </section>
 
     <section class="catalog-products">

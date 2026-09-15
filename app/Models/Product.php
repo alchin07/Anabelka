@@ -85,9 +85,18 @@ class Product
             'slug' => $slug
         ]);
 
-        return $stmt->fetch(
-            PDO::FETCH_ASSOC
-        );
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (
+            $product
+            && !Category::isEffectivelyActive(
+                (int) ($product['category_id'] ?? 0)
+            )
+        ) {
+            return false;
+        }
+
+        return $product;
     }
 
 
@@ -112,9 +121,18 @@ class Product
             'id' => (int) $id
         ]);
 
-        return $stmt->fetch(
-            PDO::FETCH_ASSOC
-        );
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (
+            $product
+            && !Category::isEffectivelyActive(
+                (int) ($product['category_id'] ?? 0)
+            )
+        ) {
+            return false;
+        }
+
+        return $product;
     }
 
 
