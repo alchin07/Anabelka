@@ -22,6 +22,32 @@ test('variant stock editor uses vertical mobile cards instead of a horizontal ta
     assert.doesNotMatch(js, /overflow-x:\s*auto/);
 });
 
+test('variant stock matrix owns its stable manual inputs', () => {
+    const matrix = read('js/admin-product-variant-stock.js');
+    const fixes = read('js/admin-product-editor-fixes.js');
+
+    assert.match(matrix, /input\.type\s*=\s*['"]text['"]/);
+    assert.match(matrix, /input\.inputMode\s*=\s*['"]numeric['"]/);
+    assert.match(matrix, /input\.pattern\s*=\s*['"]\[0-9\]\*['"]/);
+    assert.match(matrix, /input\.select\(\)/);
+
+    assert.doesNotMatch(fixes, /data-variant-stock-input/);
+    assert.doesNotMatch(fixes, /variantRoot/);
+    assert.doesNotMatch(fixes, /activeVariantKey/);
+    assert.doesNotMatch(fixes, /restoreVariantFocus/);
+});
+
+test('typing stock updates values and totals without rendering the matrix', () => {
+    const matrix = read('js/admin-product-variant-stock.js');
+    const inputHandler = matrix.match(
+        /input\.addEventListener\(['"]input['"],\s*function\s*\(\)\s*\{[\s\S]*?\n\s*\}\);/
+    )?.[0] || '';
+
+    assert.notEqual(inputHandler, '');
+    assert.doesNotMatch(inputHandler, /\brender\s*\(/);
+    assert.match(inputHandler, /updateTotals\s*\(/);
+});
+
 test('variant stock editor exposes touch-friendly minus input plus controls', () => {
     const js = read('js/admin-product-variant-stock.js');
 
@@ -41,20 +67,6 @@ test('variant stock editor calculates per-size and grand totals and mirrors size
     assert.match(js, /data-size-stock/);
     assert.match(js, /readOnly\s*=\s*true/);
     assert.match(js, /Підсумок за розміром/);
-});
-
-test('mobile manual input preparation targets the new card matrix with legacy fallback', () => {
-    const fixes = read('js/admin-product-editor-fixes.js');
-
-    assert.match(
-        fixes,
-        /\[data-variant-cards\][^\n]*\[data-variant-table\]|\[data-variant-cards\][\s\S]{0,120}\[data-variant-table\]/
-    );
-    assert.match(fixes, /input\.type\s*=\s*['"]text['"]/);
-    assert.match(fixes, /input\.inputMode\s*=\s*['"]numeric['"]/);
-    assert.match(fixes, /input\.pattern\s*=\s*['"]\[0-9\]\*['"]/);
-    assert.ok(fixes.includes("replace(/[^0-9]/g, '')"));
-    assert.match(fixes, /MutationObserver/);
 });
 
 test('typing stock does not rebuild the matrix through the size-list observer', () => {
@@ -78,7 +90,7 @@ test('summary mirroring avoids rewriting unchanged DOM while the matrix input is
     assert.match(js, /if\s*\(totalNode\.textContent\s*!==\s*nextText\)/);
 });
 
-test('admin header cache-busts the mobile variant stock and input fix scripts', () => {
+test('admin header keeps current cache-busting versions before stable matrix rollout', () => {
     const header = read('views/admin/partials/header.php');
 
     assert.match(header, /admin-product-variant-stock\.js\?v=4/);
