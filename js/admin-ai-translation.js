@@ -7,10 +7,97 @@
     const trigger = document.getElementById('ai-provider-trigger');
     const triggerLabel = document.getElementById('ai-provider-trigger-label');
     const optionsList = document.getElementById('ai-provider-options');
+    const floatingRoot = document.getElementById('admin-ai-top-slot');
 
     let providers = {};
     let selectedProvider = '';
     let isSaving = false;
+    let floatingAssetsPromise = null;
+
+    function ensureFloatingAssets() {
+        if (!document.querySelector('link[data-anabelka-floating-tool]')) {
+            const stylesheet = document.createElement('link');
+            stylesheet.rel = 'stylesheet';
+            stylesheet.href = '/Anabelka/css/anabelka-floating-tool.css?v=1';
+            stylesheet.dataset.anabelkaFloatingTool = '1';
+            document.head.appendChild(stylesheet);
+        }
+
+        if (window.AnabelkaFloatingTool) {
+            return Promise.resolve(window.AnabelkaFloatingTool);
+        }
+
+        if (floatingAssetsPromise) {
+            return floatingAssetsPromise;
+        }
+
+        floatingAssetsPromise = new Promise(function (resolve) {
+            let script = document.querySelector(
+                'script[data-anabelka-floating-tool]'
+            );
+
+            function finish() {
+                resolve(window.AnabelkaFloatingTool || null);
+            }
+
+            if (script) {
+                script.addEventListener('load', finish, {once: true});
+                script.addEventListener('error', function () {
+                    resolve(null);
+                }, {once: true});
+                return;
+            }
+
+            script = document.createElement('script');
+            script.src = '/Anabelka/js/anabelka-floating-tool.js?v=1';
+            script.dataset.anabelkaFloatingTool = '1';
+            script.addEventListener('load', finish, {once: true});
+            script.addEventListener('error', function () {
+                resolve(null);
+            }, {once: true});
+            document.body.appendChild(script);
+        });
+
+        return floatingAssetsPromise;
+    }
+
+    function prepareFloatingSwitcher() {
+        if (!switcher || !floatingRoot) {
+            return;
+        }
+
+        floatingRoot.setAttribute('data-anabelka-floating-tool', '');
+        floatingRoot.setAttribute('data-anabelka-floating-key', 'ai-provider');
+
+        if (!switcher.querySelector('[data-anabelka-drag-handle]')) {
+            const handle = document.createElement('button');
+            handle.type = 'button';
+            handle.className = 'anabelka-floating-drag-handle';
+            handle.setAttribute('data-anabelka-drag-handle', '');
+            handle.setAttribute('aria-label', 'Перемістити панель ШІ');
+            handle.title = 'Перемістити панель ШІ';
+            handle.textContent = '⠿';
+            switcher.insertBefore(handle, switcher.firstChild);
+        }
+
+        ensureFloatingAssets();
+    }
+
+    function activateFloatingSwitcher() {
+        if (!floatingRoot) {
+            return;
+        }
+
+        ensureFloatingAssets().then(function (floatingTool) {
+            if (!floatingTool) {
+                return;
+            }
+
+            floatingTool.register(floatingRoot, {
+                storageKey: 'ai-provider'
+            });
+        });
+    }
 
     function setStatus(text) {
         if (status) {
@@ -197,6 +284,7 @@
 
         if (switcher) {
             switcher.hidden = false;
+            activateFloatingSwitcher();
         }
 
         updateStatus();
@@ -407,5 +495,6 @@
         }
     };
 
+    prepareFloatingSwitcher();
     loadProviders();
 })();
