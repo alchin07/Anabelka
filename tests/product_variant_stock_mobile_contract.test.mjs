@@ -67,6 +67,19 @@ test('variant stock editor calculates per-size and grand totals and mirrors size
     assert.match(js, /data-size-stock/);
     assert.match(js, /readOnly\s*=\s*true/);
     assert.match(js, /Підсумок за розміром/);
+    assert.match(js, /data-variant-size-summary/);
+    assert.match(js, /Усього:/);
+    assert.match(js, /data-variant-stock-hidden/);
+    assert.match(js, /grid-template-columns:minmax\(0,1fr\) auto 34px/);
+});
+
+test('duplicate color names collapse into one matrix color', () => {
+    const js = read('js/admin-product-variant-stock.js');
+
+    assert.match(js, /const\s+seenNames\s*=\s*new Set\(\)/);
+    assert.match(js, /const\s+key\s*=\s*textKey\(name\)/);
+    assert.match(js, /seenNames\.has\(key\)/);
+    assert.match(js, /seenNames\.add\(key\)/);
 });
 
 test('matrix rebuilds only when product dimensions change', () => {
@@ -107,14 +120,13 @@ test('summary mirroring avoids rewriting unchanged DOM while the matrix input is
     const js = read('js/admin-product-variant-stock.js');
 
     assert.match(js, /if\s*\(stock\.value\s*!==\s*nextValue\)/);
-    assert.match(js, /if\s*\(labelText\.textContent\s*!==\s*['"]Підсумок['"]\)/);
     assert.match(js, /if\s*\(sizeHint\.textContent\s*!==\s*matrixHint\)/);
     assert.match(js, /if\s*\(totalNode\.textContent\s*!==\s*nextText\)/);
 });
 
-test('admin header keeps current cache-busting versions before stable matrix rollout', () => {
+test('admin header cache-busts stable matrix v8', () => {
     const header = read('views/admin/partials/header.php');
 
-    assert.match(header, /admin-product-variant-stock\.js\?v=4/);
-    assert.match(header, /admin-product-editor-fixes\.js\?v=2/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=8/);
+    assert.match(header, /admin-product-editor-fixes\.js\?v=3/);
 });
