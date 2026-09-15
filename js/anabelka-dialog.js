@@ -232,12 +232,16 @@
             form.dataset.anabelkaConfirmed = '1';
 
             if (typeof form.requestSubmit === 'function') {
-                form.requestSubmit(submitter || undefined);
+                if (submitter) {
+                    form.requestSubmit(submitter);
+                } else {
+                    form.requestSubmit();
+                }
                 return;
             }
 
             delete form.dataset.anabelkaConfirmed;
-            form.submit();
+            HTMLFormElement.prototype.submit.call(form);
         });
     });
 
