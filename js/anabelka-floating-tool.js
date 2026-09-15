@@ -130,6 +130,11 @@
             return null;
         }
 
+        const initialRect = root.getBoundingClientRect();
+        if (initialRect.width <= 0 && initialRect.height <= 0) {
+            return null;
+        }
+
         const storageKey = storageKeyFor(root, settings);
         const margin = Math.max(0, Number(settings.margin) || 6);
         let activePointerId = null;
