@@ -57,9 +57,30 @@ test('mobile manual input preparation targets the new card matrix with legacy fa
     assert.match(fixes, /MutationObserver/);
 });
 
+test('typing stock does not rebuild the matrix through the size-list observer', () => {
+    const js = read('js/admin-product-variant-stock.js');
+
+    assert.match(js, /const\s+sizeObserver\s*=\s*new MutationObserver/);
+    assert.match(js, /sizeObserver\.observe\(sizeList,\s*\{\s*childList:\s*true\s*\}\s*\)/);
+    assert.doesNotMatch(
+        js,
+        /observe\(sizeList,\s*\{[^}]*subtree:\s*true[^}]*\}\s*\)/
+    );
+    assert.match(js, /const\s+sourceObserver\s*=\s*new MutationObserver/);
+});
+
+test('summary mirroring avoids rewriting unchanged DOM while the matrix input is focused', () => {
+    const js = read('js/admin-product-variant-stock.js');
+
+    assert.match(js, /if\s*\(stock\.value\s*!==\s*nextValue\)/);
+    assert.match(js, /if\s*\(labelText\.textContent\s*!==\s*['"]Підсумок['"]\)/);
+    assert.match(js, /if\s*\(sizeHint\.textContent\s*!==\s*matrixHint\)/);
+    assert.match(js, /if\s*\(totalNode\.textContent\s*!==\s*nextText\)/);
+});
+
 test('admin header cache-busts the mobile variant stock and input fix scripts', () => {
     const header = read('views/admin/partials/header.php');
 
-    assert.match(header, /admin-product-variant-stock\.js\?v=3/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=4/);
     assert.match(header, /admin-product-editor-fixes\.js\?v=2/);
 });
