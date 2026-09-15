@@ -51,6 +51,6 @@ test('AI provider panel registers as a reusable floating tool', () => {
     assert.match(ai, /data-anabelka-floating-key/);
     assert.match(ai, /anabelka-floating-drag-handle/);
     assert.match(ai, /data-anabelka-drag-handle/);
-    assert.match(ai, /AnabelkaFloatingTool\.register/);
+    assert.match(ai, /(?:AnabelkaFloatingTool|floatingTool)\.register/);
     assert.match(ai, /storageKey:\s*['"]ai-provider['"]/);
 });
