@@ -319,6 +319,27 @@
         ).map(enhance).filter(Boolean);
     }
 
+    function markUserPageSelects()
+    {
+        const path = window.location.pathname.replace(/\/$/, '');
+
+        if (path !== '/Anabelka/admin/users') {
+            return;
+        }
+
+        [
+            'select[name="invite_channel"]',
+            'select[name="invite_rank_id"]',
+            '.admin-users-filters select[name="rank_id"]',
+            '.admin-users-filters select[name="status"]',
+            '.admin-user-rank-form select[name="rank_id"]'
+        ].forEach(function (selector) {
+            document.querySelectorAll(selector).forEach(function (select) {
+                select.setAttribute('data-anabelka-select', '');
+            });
+        });
+    }
+
     document.addEventListener('click', function (event) {
         if (openInstance && !openInstance.wrapper.contains(event.target)) {
             close(openInstance, false);
@@ -356,6 +377,7 @@
 
     function init()
     {
+        markUserPageSelects();
         enhanceAll(document);
     }
 
