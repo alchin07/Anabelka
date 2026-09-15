@@ -53,7 +53,7 @@ test('mobile manual input preparation targets the new card matrix with legacy fa
     assert.match(fixes, /input\.type\s*=\s*['"]text['"]/);
     assert.match(fixes, /input\.inputMode\s*=\s*['"]numeric['"]/);
     assert.match(fixes, /input\.pattern\s*=\s*['"]\[0-9\]\*['"]/);
-    assert.match(fixes, /replace\(\/\[\^0-9\]\]\/g,/);
+    assert.ok(fixes.includes("replace(/[^0-9]/g, '')"));
     assert.match(fixes, /MutationObserver/);
 });
 
