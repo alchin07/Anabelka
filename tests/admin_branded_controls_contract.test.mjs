@@ -56,3 +56,35 @@ test('AI provider chooser uses branded listbox and AnabelkaNotify for errors', (
     assert.match(css, /\.ai-provider-trigger/);
     assert.match(css, /\.ai-provider-options/);
 });
+
+test('admin pages load the reusable branded select component', () => {
+    const header = read('views/admin/partials/header.php');
+    const selectJs = read('js/anabelka-select.js');
+    const selectCss = read('css/anabelka-select.css');
+
+    assert.match(header, /anabelka-select\.css\?v=/);
+    assert.match(header, /anabelka-select\.js\?v=/);
+    assert.match(selectJs, /window\.AnabelkaSelect/);
+    assert.match(selectJs, /data-anabelka-select/);
+    assert.match(selectJs, /aria-haspopup/);
+    assert.match(selectJs, /listbox/);
+    assert.match(selectJs, /aria-selected/);
+    assert.match(selectJs, /Escape/);
+    assert.match(selectJs, /dispatchEvent\(new Event\(['"]change['"]/);
+    assert.match(selectCss, /\.anabelka-select/);
+});
+
+test('all user-page selects use the reusable branded select without changing field names', () => {
+    const users = read('views/admin/users/index.php');
+
+    const enhanced = users.match(/<select\b[^>]*data-anabelka-select[^>]*>/g) || [];
+    assert.equal(enhanced.length, 5);
+
+    assert.match(users, /<select\b[^>]*name=["']invite_channel["'][^>]*data-anabelka-select/);
+    assert.match(users, /<select\b[^>]*name=["']invite_rank_id["'][^>]*data-anabelka-select/);
+    assert.match(users, /<select\b[^>]*name=["']rank_id["'][^>]*data-anabelka-select/);
+    assert.match(users, /<select\b[^>]*name=["']status["'][^>]*data-anabelka-select/);
+
+    const rankForms = users.match(/<select\b[^>]*name=["']rank_id["'][^>]*data-anabelka-select[^>]*>/g) || [];
+    assert.ok(rankForms.length >= 2);
+});
