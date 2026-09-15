@@ -7,6 +7,8 @@
 
     let sequence = 0;
     let openInstance = null;
+    const instances = new WeakMap();
+    const allInstances = new Set();
 
     function optionButtons(instance)
     {
@@ -81,6 +83,7 @@
             close(openInstance, false);
         }
 
+        sync(instance);
         updatePlacement(instance);
         instance.list.hidden = false;
         instance.trigger.setAttribute('aria-expanded', 'true');
@@ -127,6 +130,39 @@
         }
     }
 
+    function renderOptions(instance)
+    {
+        const wasOpen = instance.trigger.getAttribute('aria-expanded') === 'true';
+
+        instance.list.innerHTML = '';
+
+        Array.from(instance.select.options).forEach(function (option, index) {
+            const button = document.createElement('button');
+
+            button.type = 'button';
+            button.className = 'anabelka-select-option';
+            button.dataset.optionIndex = String(index);
+            button.setAttribute('role', 'option');
+            button.setAttribute('aria-selected', option.selected ? 'true' : 'false');
+            button.disabled = option.disabled || instance.select.disabled;
+            button.textContent = option.textContent.trim();
+
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                choose(instance, index);
+            });
+
+            instance.list.appendChild(button);
+        });
+
+        sync(instance);
+
+        if (wasOpen) {
+            updatePlacement(instance);
+        }
+    }
+
     function focusRelative(instance, direction)
     {
         const buttons = optionButtons(instance);
@@ -162,11 +198,12 @@
 
     function enhance(select)
     {
-        if (
-            !(select instanceof HTMLSelectElement)
-            || select.dataset.anabelkaSelectReady === '1'
-        ) {
+        if (!(select instanceof HTMLSelectElement)) {
             return null;
+        }
+
+        if (select.dataset.anabelkaSelectReady === '1') {
+            return instances.get(select) || null;
         }
 
         select.dataset.anabelkaSelectReady = '1';
@@ -199,26 +236,6 @@
         list.setAttribute('aria-label', labelTextFor(select));
         list.hidden = true;
 
-        Array.from(select.options).forEach(function (option, index) {
-            const button = document.createElement('button');
-
-            button.type = 'button';
-            button.className = 'anabelka-select-option';
-            button.dataset.optionIndex = String(index);
-            button.setAttribute('role', 'option');
-            button.setAttribute('aria-selected', option.selected ? 'true' : 'false');
-            button.disabled = option.disabled || select.disabled;
-            button.textContent = option.textContent.trim();
-
-            button.addEventListener('click', function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                choose(instance, index);
-            });
-
-            list.appendChild(button);
-        });
-
         trigger.appendChild(triggerLabel);
         trigger.appendChild(chevron);
         wrapper.appendChild(trigger);
@@ -236,8 +253,13 @@
             wrapper: wrapper,
             trigger: trigger,
             triggerLabel: triggerLabel,
-            list: list
+            list: list,
+            observer: null
         };
+
+        instances.set(select, instance);
+        allInstances.add(instance);
+        renderOptions(instance);
 
         trigger.addEventListener('click', function (event) {
             event.preventDefault();
@@ -304,7 +326,17 @@
             });
         }
 
-        sync(instance);
+        instance.observer = new MutationObserver(function () {
+            renderOptions(instance);
+        });
+        instance.observer.observe(select, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: ['disabled', 'selected', 'label']
+        });
+
         return instance;
     }
 
@@ -319,24 +351,43 @@
         ).map(enhance).filter(Boolean);
     }
 
-    function markUserPageSelects()
+    function markSelects(selectors)
     {
-        const path = window.location.pathname.replace(/\/$/, '');
-
-        if (path !== '/Anabelka/admin/users') {
-            return;
-        }
-
-        [
-            'select[name="invite_channel"]',
-            'select[name="invite_rank_id"]',
-            '.admin-users-filters select[name="rank_id"]',
-            '.admin-users-filters select[name="status"]',
-            '.admin-user-rank-form select[name="rank_id"]'
-        ].forEach(function (selector) {
+        selectors.forEach(function (selector) {
             document.querySelectorAll(selector).forEach(function (select) {
                 select.setAttribute('data-anabelka-select', '');
             });
+        });
+    }
+
+    function markPageSelects()
+    {
+        const path = window.location.pathname.replace(/\/$/, '');
+
+        if (path === '/Anabelka/admin/users') {
+            markSelects([
+                'select[name="invite_channel"]',
+                'select[name="invite_rank_id"]',
+                '.admin-users-filters select[name="rank_id"]',
+                '.admin-users-filters select[name="status"]',
+                '.admin-user-rank-form select[name="rank_id"]'
+            ]);
+        }
+
+        if (path === '/Anabelka/admin/categories') {
+            markSelects([
+                '#category-create-department',
+                '#category-move-parent',
+                '#category-move-department',
+                '.category-translation-status select'
+            ]);
+        }
+    }
+
+    function syncAll()
+    {
+        allInstances.forEach(function (instance) {
+            sync(instance);
         });
     }
 
@@ -344,6 +395,12 @@
         if (openInstance && !openInstance.wrapper.contains(event.target)) {
             close(openInstance, false);
         }
+
+        window.requestAnimationFrame(syncAll);
+    });
+
+    document.addEventListener('input', function () {
+        window.requestAnimationFrame(syncAll);
     });
 
     window.addEventListener('resize', function () {
@@ -356,28 +413,24 @@
         enhance: enhance,
         enhanceAll: enhanceAll,
         refresh: function (select) {
-            if (select && select.dataset.anabelkaSelectReady === '1') {
-                const wrapper = select.closest('.anabelka-select');
-                const trigger = wrapper?.querySelector('.anabelka-select-trigger');
-                const list = wrapper?.querySelector('.anabelka-select-options');
-
-                if (trigger && list) {
-                    const instance = {
-                        select: select,
-                        wrapper: wrapper,
-                        trigger: trigger,
-                        triggerLabel: trigger.querySelector('.anabelka-select-trigger-label'),
-                        list: list
-                    };
-                    sync(instance);
-                }
+            if (!(select instanceof HTMLSelectElement)) {
+                return false;
             }
+
+            const instance = instances.get(select) || enhance(select);
+
+            if (!instance) {
+                return false;
+            }
+
+            renderOptions(instance);
+            return true;
         }
     };
 
     function init()
     {
-        markUserPageSelects();
+        markPageSelects();
         enhanceAll(document);
     }
 
