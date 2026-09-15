@@ -69,7 +69,22 @@ test('variant stock editor calculates per-size and grand totals and mirrors size
     assert.match(js, /Підсумок за розміром/);
 });
 
-test('typing stock does not rebuild the matrix through the size-list observer', () => {
+test('matrix rebuilds only when product dimensions change', () => {
+    const matrix = read('js/admin-product-variant-stock.js');
+
+    assert.match(matrix, /let\s+lastDimensionSignature\s*=\s*['"]["']/);
+    assert.match(matrix, /function\s+dimensionSignature\s*\(/);
+    assert.match(matrix, /function\s+rebuildIfDimensionsChanged\s*\(/);
+    assert.match(matrix, /nextSignature\s*===\s*lastDimensionSignature/);
+    assert.match(matrix, /rebuildIfDimensionsChanged\(false\)/);
+    assert.match(matrix, /rebuildIfDimensionsChanged\(true\)/);
+    assert.doesNotMatch(
+        matrix,
+        /new MutationObserver\(function\s*\(\)\s*\{\s*window\.setTimeout\(render,\s*0\)/
+    );
+});
+
+test('size observer is structural and totals are updated in place', () => {
     const js = read('js/admin-product-variant-stock.js');
 
     assert.match(js, /const\s+sizeObserver\s*=\s*new MutationObserver/);
@@ -79,6 +94,13 @@ test('typing stock does not rebuild the matrix through the size-list observer', 
         /observe\(sizeList,\s*\{[^}]*subtree:\s*true[^}]*\}\s*\)/
     );
     assert.match(js, /const\s+sourceObserver\s*=\s*new MutationObserver/);
+
+    const totals = js.match(
+        /function\s+updateTotals\s*\(\)\s*\{[\s\S]*?\n\s*\}/
+    )?.[0] || '';
+    assert.notEqual(totals, '');
+    assert.doesNotMatch(totals, /\brender\s*\(/);
+    assert.doesNotMatch(totals, /rebuildIfDimensionsChanged\s*\(/);
 });
 
 test('summary mirroring avoids rewriting unchanged DOM while the matrix input is focused', () => {
