@@ -40,3 +40,16 @@ test('admin floating tools use one reusable drag-and-persist module', () => {
     assert.match(css, /touch-action:\s*none/);
     assert.match(css, /cursor:\s*grab/);
 });
+
+test('AI provider panel registers as a reusable floating tool', () => {
+    const ai = read('js/admin-ai-translation.js');
+
+    assert.match(ai, /anabelka-floating-tool\.css\?v=/);
+    assert.match(ai, /anabelka-floating-tool\.js\?v=/);
+    assert.match(ai, /data-anabelka-floating-tool/);
+    assert.match(ai, /data-anabelka-floating-key/);
+    assert.match(ai, /anabelka-floating-drag-handle/);
+    assert.match(ai, /data-anabelka-drag-handle/);
+    assert.match(ai, /AnabelkaFloatingTool\.register/);
+    assert.match(ai, /storageKey:\s*['"]ai-provider['"]/);
+});
