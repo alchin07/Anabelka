@@ -35,7 +35,7 @@
 
 - [ ] **Step 1: Write failing ownership/focus tests**
 
-Add assertions equivalent to:
+Add:
 
 ```js
 const matrix = read('js/admin-product-variant-stock.js');
@@ -52,7 +52,7 @@ assert.doesNotMatch(fixes, /activeVariantKey/);
 assert.doesNotMatch(fixes, /restoreVariantFocus/);
 ```
 
-Add a second contract that extracts the body of the matrix stock input handler and asserts it does not call `render(`:
+Add a second contract that extracts the matrix stock input handler and rejects any rebuild call:
 
 ```js
 const inputHandler = matrix.match(
@@ -60,7 +60,8 @@ const inputHandler = matrix.match(
 )?.[0] || '';
 
 assert.notEqual(inputHandler, '');
-assert.doesNotMatch(inputHandler, /\brender\s*\(/);
+assert.doesNotMatch(inputHandler, /\brenderMatrix\s*\(/);
+assert.doesNotMatch(inputHandler, /\brebuildIfDimensionsChanged\s*\(/);
 assert.match(inputHandler, /updateTotals\s*\(/);
 ```
 
@@ -72,7 +73,7 @@ Run:
 node tests/product_variant_stock_mobile_contract.test.mjs
 ```
 
-Expected: failure because `admin-product-editor-fixes.js` still owns variant focus/input retagging and the matrix still creates number inputs.
+Expected: FAIL because `admin-product-editor-fixes.js` still owns variant focus/input retagging and the matrix still creates number inputs.
 
 - [ ] **Step 3: Commit the RED test**
 
@@ -91,23 +92,40 @@ git commit -m "test: lock stable variant stock input ownership"
 - Test: `tests/product_variant_stock_mobile_contract.test.mjs`
 
 **Interfaces:**
-- Consumes: existing `buildColorRow(sizeName, color)` and `updateTotals()` in `admin-product-variant-stock.js`.
+- Consumes: existing matrix row construction and `updateTotals()` in `admin-product-variant-stock.js`.
 - Produces: stable `[data-variant-stock-input]` nodes with browser-native focus behavior.
 
 - [ ] **Step 1: Remove variant-specific focus code from `admin-product-editor-fixes.js`**
 
-Delete the entire variant block beginning with:
+Delete the block beginning with:
 
 ```js
 const productIdField = document.getElementById('product-edit-id');
-const variantRoot = form.querySelector(...);
+const variantRoot = form.querySelector(
+    '[data-variant-cards], [data-variant-table]'
+);
 ```
 
-through the variant `focusin`, `focusout`, and numeric-cleaning `input` listeners. Keep unrelated size-stock and translation editor fixes unchanged.
+and remove its `prepareVariantInput`, `prepareVariantInputs`, `restoreVariantFocus`, variant observer, and the variant-specific `focusin`, `focusout`, and numeric-cleaning `input` listeners. Keep unrelated size-stock and translation editor fixes unchanged.
 
-- [ ] **Step 2: Create stable text/numeric inputs directly in `buildColorRow()`**
+- [ ] **Step 2: Add one normalization helper to `admin-product-variant-stock.js`**
 
-Replace number-input setup with:
+```js
+function normalizeStockValue(value)
+{
+    const digits = String(value || '').replace(/[^0-9]/g, '');
+
+    if (digits === '') {
+        return '';
+    }
+
+    return String(Math.max(0, Number(digits)));
+}
+```
+
+- [ ] **Step 3: Create stable text/numeric inputs directly in the matrix row builder**
+
+Use:
 
 ```js
 input.type = 'text';
@@ -121,19 +139,7 @@ input.dataset.variantStockInput = '';
 
 Do not set `min` or `step`.
 
-- [ ] **Step 3: Normalize input without replacing the node**
-
-Use a dedicated helper:
-
-```js
-function normalizeStockValue(value)
-{
-    const digits = String(value || '').replace(/[^0-9]/g, '');
-    return digits === '' ? '' : String(Math.max(0, Number(digits)));
-}
-```
-
-The input handler must mutate only `input.value`, `matrixTouched`, cache/totals:
+- [ ] **Step 4: Normalize input without replacing the node**
 
 ```js
 input.addEventListener('input', function () {
@@ -148,7 +154,7 @@ input.addEventListener('input', function () {
 });
 ```
 
-- [ ] **Step 4: Select the current value on direct focus**
+- [ ] **Step 5: Select the current value on direct focus**
 
 ```js
 input.addEventListener('focus', function () {
@@ -160,9 +166,7 @@ input.addEventListener('focus', function () {
 });
 ```
 
-This lets typing replace the existing `0`/count immediately.
-
-- [ ] **Step 5: Normalize empty values only on blur**
+- [ ] **Step 6: Normalize empty values only on blur**
 
 ```js
 input.addEventListener('blur', function () {
@@ -172,19 +176,31 @@ input.addEventListener('blur', function () {
 });
 ```
 
-- [ ] **Step 6: Keep `+/-` on the same node**
+- [ ] **Step 7: Keep `+/-` on the same node without forcing focus**
 
-`adjustStock(input, delta)` must update `input.value`, call `updateTotals()`, and may call `input.focus()` on the existing node. It must not call `render()`.
+Use:
 
-- [ ] **Step 7: Run the ownership tests**
+```js
+function adjustStock(input, delta)
+{
+    const current = Math.max(0, Number(normalizeStockValue(input.value) || 0));
+    input.value = String(Math.max(0, current + delta));
+    matrixTouched = true;
+    updateTotals();
+}
+```
+
+Do not call `renderMatrix()`, `rebuildIfDimensionsChanged()`, or `input.focus()` from `adjustStock()`.
+
+- [ ] **Step 8: Run the ownership tests**
 
 ```bash
 node tests/product_variant_stock_mobile_contract.test.mjs
 ```
 
-Expected: ownership/focus assertions pass; later dimension-rebuild assertions may still fail until Task 3.
+Expected: ownership/focus assertions pass; dimension-rebuild assertions are added in Task 3.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add js/admin-product-variant-stock.js js/admin-product-editor-fixes.js tests/product_variant_stock_mobile_contract.test.mjs
@@ -200,22 +216,17 @@ git commit -m "refactor: make stock matrix own stable inputs"
 - Modify: `tests/product_variant_stock_mobile_contract.test.mjs`
 
 **Interfaces:**
-- Consumes: `currentSizes()`, `currentColors()`, `cacheCurrentInputs()`, and `render()`.
-- Produces: a dimension signature and guarded rebuild path.
+- Consumes: `currentSizes()`, `currentColors()`, `cacheCurrentInputs()`.
+- Produces: `dimensionSignature()`, `renderMatrix(options)`, and `rebuildIfDimensionsChanged(options)`.
 
 - [ ] **Step 1: Add failing dimension-rebuild contract**
 
-Add assertions requiring these identifiers:
-
 ```js
 assert.match(matrix, /function\s+dimensionSignature\s*\(/);
+assert.match(matrix, /function\s+renderMatrix\s*\(/);
 assert.match(matrix, /function\s+rebuildIfDimensionsChanged\s*\(/);
 assert.match(matrix, /lastDimensionSignature/);
-```
 
-Guard against the old unconditional size observer:
-
-```js
 assert.doesNotMatch(
     matrix,
     /new MutationObserver\(function\s*\(\)\s*\{\s*window\.setTimeout\(render,\s*0\)/
@@ -228,11 +239,9 @@ assert.doesNotMatch(
 node tests/product_variant_stock_mobile_contract.test.mjs
 ```
 
-Expected: failure because guarded dimension signatures do not exist yet.
+Expected: FAIL because the dimension-signature rebuild boundary does not exist yet.
 
 - [ ] **Step 3: Add dimension signature**
-
-Implement:
 
 ```js
 let lastDimensionSignature = '';
@@ -249,72 +258,111 @@ function dimensionSignature()
 }
 ```
 
-- [ ] **Step 4: Add guarded rebuild**
+- [ ] **Step 4: Rename the current DOM-building `render()` to `renderMatrix(options)`**
+
+At the beginning of `renderMatrix` use only the caller-provided cache policy:
 
 ```js
-function rebuildIfDimensionsChanged(force)
+function renderMatrix(options)
 {
+    const preferLoadedRows = Boolean(options && options.preferLoadedRows);
+
+    if (!preferLoadedRows) {
+        cacheCurrentInputs();
+    }
+
+    seedLoadedRows();
+    // Existing card construction continues here.
+}
+```
+
+No stock input handler, `updateTotals()`, or `adjustStock()` may call `renderMatrix()`.
+
+- [ ] **Step 5: Add guarded rebuild entry point**
+
+```js
+function rebuildIfDimensionsChanged(options)
+{
+    const settings = options || {};
     const nextSignature = dimensionSignature();
+    const force = Boolean(settings.force);
 
     if (!force && nextSignature === lastDimensionSignature) {
         return false;
     }
 
-    cacheCurrentInputs();
     lastDimensionSignature = nextSignature;
-    render({ preferLoadedRows: false, force: true });
+    renderMatrix({
+        preferLoadedRows: Boolean(settings.preferLoadedRows)
+    });
     return true;
 }
 ```
 
-Adjust `render()` so normal total/input updates do not call it; only explicit dimension/product events do.
-
-- [ ] **Step 5: Route structural events through the guard**
-
-Use:
+- [ ] **Step 6: Route size-name changes through the guard**
 
 ```js
 form.addEventListener('input', function (event) {
     if (event.target.matches('[data-size-name]')) {
         window.setTimeout(function () {
-            rebuildIfDimensionsChanged(false);
+            rebuildIfDimensionsChanged({ force: false });
         }, 0);
     }
 });
 ```
 
-Size list observer stays structural only:
+- [ ] **Step 7: Keep the size observer structural only**
 
 ```js
 const sizeObserver = new MutationObserver(function () {
-    rebuildIfDimensionsChanged(false);
+    rebuildIfDimensionsChanged({ force: false });
 });
-sizeObserver.observe(sizeList, { childList: true });
+
+sizeObserver.observe(sizeList, {
+    childList: true
+});
 ```
 
-Color/image events call `rebuildIfDimensionsChanged(false)` instead of unconditional `render()`.
+No `subtree`, `attributes`, or `characterData` observation is allowed on `sizeList`.
 
-- [ ] **Step 6: Force one rebuild when product changes**
+- [ ] **Step 8: Guard color/image rebuilds by signature**
 
-At the end of `loadForProduct(productId)`, after loading rows and clearing cache:
+Replace direct color-picker and source observer rebuilds with:
+
+```js
+window.setTimeout(function () {
+    rebuildIfDimensionsChanged({ force: false });
+}, 0);
+```
+
+The existing source observer may continue to watch image/upload structural changes, but every callback must pass through `rebuildIfDimensionsChanged()`.
+
+- [ ] **Step 9: Force one loaded-row rebuild when a product changes**
+
+At the end of `loadForProduct(productId)`, after `loadedRows` is set and `cache.clear()` runs:
 
 ```js
 lastDimensionSignature = '';
-rebuildIfDimensionsChanged(true);
+rebuildIfDimensionsChanged({
+    force: true,
+    preferLoadedRows: true
+});
 ```
 
-- [ ] **Step 7: Confirm total updates are in-place only**
+For a new product (`productId <= 0`), use the same forced call after clearing loaded state.
 
-`updateTotals()` may update:
-- `input.value` normalization;
-- per-size total text;
-- grand total text;
-- legacy `size_stock[]` summary value/readOnly state;
-- hint text.
+- [ ] **Step 10: Keep total updates strictly in-place**
 
-It must not call `render()` or `rebuildIfDimensionsChanged()`.
+`updateTotals()` may only:
+- update the cache;
+- update per-size total text when text differs;
+- update grand total text when text differs;
+- update legacy `size_stock[]` summary value/readOnly state when values differ;
+- update the summary hint when text differs.
 
-- [ ] **Step 8: Run tests**
+It must not call `renderMatrix()` or `rebuildIfDimensionsChanged()`.
+
+- [ ] **Step 11: Run tests**
 
 ```bash
 node tests/product_variant_stock_mobile_contract.test.mjs
@@ -322,7 +370,7 @@ node tests/product_variant_stock_mobile_contract.test.mjs
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
 git add js/admin-product-variant-stock.js tests/product_variant_stock_mobile_contract.test.mjs
