@@ -350,6 +350,28 @@ $badgeText = static function ($count) {
                                 ) ?>
                             </a>
                         <?php endif; ?>
+
+                        <?php if ($currentAdmin): ?>
+                            <a
+                                href="/Anabelka/admin"
+                                class="public-header-admin-popover-link"
+                                aria-label="Адмін-панель"
+                                title="Адмін-панель"
+                            >
+                                <span>Адмін-панель</span>
+                                <span class="public-header-admin-badges" aria-hidden="true">
+                                    <span
+                                        class="public-header-admin-badge public-header-admin-message-badge"
+                                        <?= $adminNotificationCount > 0 ? '' : 'hidden' ?>
+                                    ><?= $badgeText($adminNotificationCount) ?></span>
+                                    <span
+                                        class="public-header-admin-badge public-header-admin-system-badge"
+                                        id="admin-system-error-count"
+                                        hidden
+                                    >0</span>
+                                </span>
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </details>
 
@@ -386,35 +408,30 @@ $badgeText = static function ($count) {
                     ><?= $badgeText($cartCount) ?></span>
                 </a>
 
-                <?php if ($currentAdmin): ?>
-                    <a
-                        href="/Anabelka/admin"
-                        class="public-header-action public-header-admin-action"
-                        aria-label="Адмін-панель"
-                        title="Адмін-панель"
-                    >
-                        <span class="public-header-action-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24">
-                                <rect x="4" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                                <rect x="14" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                                <rect x="4" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                                <rect x="14" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
-                            </svg>
-                        </span>
-                        <span class="public-header-action-label">Адмін</span>
-                        <span class="public-header-admin-badges" aria-hidden="true">
-                            <span
-                                class="public-header-admin-badge public-header-admin-message-badge"
-                                <?= $adminNotificationCount > 0 ? '' : 'hidden' ?>
-                            ><?= $badgeText($adminNotificationCount) ?></span>
-                            <span
-                                class="public-header-admin-badge public-header-admin-system-badge"
-                                id="admin-system-error-count"
-                                hidden
-                            >0</span>
-                        </span>
-                    </a>
-                <?php endif; ?>
+                <a
+                    href="/Anabelka/catalog"
+                    class="public-header-action public-header-catalog"
+                    aria-label="<?= htmlspecialchars(
+                        Translator::t('public.catalog.title', 'Каталог')
+                    ) ?>"
+                    title="<?= htmlspecialchars(
+                        Translator::t('public.catalog.title', 'Каталог')
+                    ) ?>"
+                >
+                    <span class="public-header-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="4" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                            <rect x="14" y="4" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                            <rect x="4" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                            <rect x="14" y="14" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+                        </svg>
+                    </span>
+                    <span class="public-header-action-label">
+                        <?= htmlspecialchars(
+                            Translator::t('public.catalog.title', 'Каталог')
+                        ) ?>
+                    </span>
+                </a>
 
                 <?php if (!empty($activeLanguages)): ?>
                     <details class="public-header-menu public-header-language">
