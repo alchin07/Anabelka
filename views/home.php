@@ -291,7 +291,7 @@ $assetUrl = function ($path) {
                                 'home.empty_products',
                                 'Нових товарів поки немає.'
                             )
-                        ?>
+                        ) ?>
                     </div>
                 <?php else: ?>
                     <div class="home-product-grid">
