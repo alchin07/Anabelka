@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a useful content rail to the right side of the Anabelka home page on desktop, backed by real news and product-review modules, while keeping the approved mobile home compact and exposing the same content through separate mobile-friendly pages.
+Add a useful content rail to the right side of the Anabelka home page on wide desktop, backed by real news and product-review modules, while keeping the approved mobile home compact and exposing the same content through separate mobile-friendly pages.
 
 ## Approved product decision
 
@@ -14,7 +14,7 @@ Add a useful content rail to the right side of the Anabelka home page on desktop
 
 ## Existing context and constraints
 
-The public desktop already has a global left catalog sidebar rendered through `views/partials/header.php`. The home page is the only page that receives the new right rail. Other public pages keep the current two-column desktop structure.
+The public desktop already has a global left catalog sidebar rendered through `views/partials/header.php`. The home page is the only page that receives the new right rail. Other public pages keep the current desktop structure.
 
 The site is multilingual. Ukrainian remains the source language. News content supports localized text with fallback to the Ukrainian source. User-written product reviews are user-generated content and are displayed as written; this step does not machine-translate them.
 
@@ -24,7 +24,7 @@ All mutating admin and customer actions use the existing CSRF pattern. No existi
 
 The right rail is implemented inside the home page's own layout rather than by changing the global public body grid. This keeps the global left catalog sidebar reusable on every public page while allowing only the home page to split its main area into two internal columns.
 
-At desktop width (`min-width: 1050px`):
+At wide desktop width (`min-width: 1250px`):
 
 - global column 1 remains the existing left catalog sidebar;
 - global column 2 remains the public `<main>` area;
@@ -33,9 +33,11 @@ At desktop width (`min-width: 1050px`):
   - right rail: approximately 260–300 px;
   - a compact 18–24 px gap.
 
+The 1250 px threshold is deliberate: enabling the rail at the existing 1050 px left-sidebar breakpoint would squeeze the current home hero and product/category grids too aggressively. A normal 1366/1440 laptop/desktop gets the approved three-column composition.
+
 The right rail is `position: sticky` with a safe top offset and its own bounded vertical overflow when needed. It must never overlap the public header or left catalog sidebar.
 
-At widths below `1050px`, the right rail is hidden and the home content returns to one column. No news/review/certificate cards are inserted into the mobile home feed.
+Below `1250px`, the right rail is hidden and the home content remains one internal column. No news/review/certificate cards are inserted into the mobile home feed.
 
 ## Right-rail composition
 
@@ -112,6 +114,7 @@ The desktop home right rail contains three stacked cards in this order.
 - Other active-language translations are optional and fall back to Ukrainian source content.
 - Public queries select only `status='published'` and `published_at <= NOW()`.
 - News admin is added to the existing admin navigation.
+- Admin access receives a dedicated news-management permission through the existing `AdminAccess` permission system rather than relying only on page hiding.
 - AI translation integration with the global missing-translation workflow is deliberately not expanded in this step; the schema and translation metadata make that later integration straightforward.
 
 ## Product-review module
@@ -136,11 +139,11 @@ The existing `GET /product/{slug}` page also renders approved reviews for that p
 
 - `id` INT UNSIGNED primary key
 - `product_id` INT UNSIGNED, foreign key to `products(id)` with delete cascade
-- `user_id` INT UNSIGNED, foreign key to the customer users table with delete cascade
+- `user_id` INT UNSIGNED, foreign key to `users(id)` with delete cascade
 - `rating` TINYINT UNSIGNED, application-validated from 1 through 5
 - `body` TEXT
 - `status` VARCHAR(20), application-constrained to `pending`, `approved`, `rejected`
-- `moderated_by_admin_id` INT UNSIGNED nullable
+- `moderated_by_admin_id` INT UNSIGNED nullable, foreign key to `admin_users(id)` with `ON DELETE SET NULL`
 - `moderated_at` DATETIME nullable
 - `created_at`, `updated_at`
 - unique key `(product_id, user_id)` so one customer cannot spam multiple reviews for the same product
@@ -156,7 +159,7 @@ The existing `GET /product/{slug}` page also renders approved reviews for that p
 - Public product pages show only approved reviews.
 - General home/right-rail and `/reviews` queries exclude products under effectively adult categories.
 - Adult product pages may show their own approved reviews only within the existing adult-access flow.
-- Admin moderation is added to the existing admin navigation.
+- Admin moderation is added to the existing admin navigation and receives a dedicated review-moderation permission through `AdminAccess`.
 
 ## Gift-certificate information surface
 
@@ -170,21 +173,19 @@ The page explains the planned Anabelka electronic gift certificate concept and c
 
 No certificate database table is created in this step. This prevents the temporary marketing surface from constraining the later secure certificate-commerce design.
 
-## Mobile navigation
+## Mobile and compact-screen navigation
 
 The approved mobile header variant A remains unchanged: Logo → Favorites → Profile → Cart → Catalog → Language in one row, followed by search.
 
 No seventh top-row control is added.
 
-On mobile/tablet below `1050px`, add a compact “Useful / More” navigation group to the public catalog navigation surface with three links:
+Below `1250px`, the desktop right rail is absent. At the top of `/catalog`, a compact links-only “Useful / More” navigation group exposes:
 
 - News → `/news`
 - Customer reviews → `/reviews`
 - Gift certificates → `/gift-certificates`
 
-This navigation group is links-only, not the desktop right-rail content. The three destination pages are responsive and usable directly on mobile.
-
-If the current catalog action is a direct link rather than a popover, the group lives at the top of `/catalog`; it must not force a redesign of the approved header row.
+This group is navigation only, not a copy of the desktop news/review/certificate cards. It is designed to fit the mobile/tablet catalog page without changing the approved header row. The three destination pages are independently responsive and directly addressable.
 
 ## Home controller/data flow
 
@@ -209,12 +210,12 @@ Before applying it on the working database:
 3. apply it manually in the maintenance workflow;
 4. verify tables, keys, and sample read queries.
 
-No existing category/product/order table columns are altered by this feature; only the new tables and their foreign keys/indexes are added.
+No existing category/product/order table columns are altered by this feature; only the new tables and their foreign keys/indexes are added. The review moderation foreign key targets the existing `admin_users` table created by `AdminAccess`.
 
 ## Security and moderation
 
 - CSRF validation on every POST route.
-- Admin authorization on all `/admin/news*` and `/admin/reviews*` routes.
+- Admin authorization and explicit permissions on all `/admin/news*` and `/admin/reviews*` routes.
 - Customer authentication for review submission.
 - Server-side rating/body validation.
 - Escape user-generated review text and customer display names.
@@ -242,16 +243,17 @@ Create:
 - `views/home/partials/right-rail.php`
 - focused CSS for home right rail, news/review pages, and admin management
 - `database/migrations/2026-09-16_home_content_modules.sql`
-- contract/runtime tests for news visibility, review moderation/adult filtering, desktop rail, and mobile navigation.
+- contract/runtime tests for news visibility, review moderation/adult filtering, desktop rail, and compact-screen navigation.
 
 Modify:
 
 - `app/Core/App.php` for model/controller availability following existing bootstrap conventions
+- `app/Models/AdminAccess.php` for news/review permission definitions
 - `app/Controllers/HomeController.php`
 - `app/Controllers/ProductController.php`
 - `views/home.php`
 - `views/product/show.php`
-- `views/catalog/index.php` for the mobile utility navigation group
+- `views/catalog/index.php` for the compact utility navigation group
 - `views/admin/partials/header.php` for News/Reviews admin navigation
 - `routes/Web.php`
 - translation seed/model files needed for the new interface labels.
@@ -270,21 +272,23 @@ Required automated coverage includes:
 6. approved reviews render on their product;
 7. one-review-per-user-per-product invariant;
 8. home and `/reviews` exclude effectively adult products;
-9. admin moderation changes only allowed states;
-10. home right rail is present and sticky only at desktop layout sizes;
-11. mobile home does not contain duplicated news/review/certificate content blocks;
-12. mobile catalog navigation exposes the three destination links without altering the approved six-control header row;
+9. admin moderation changes only allowed states and requires the correct admin permission;
+10. home right rail is present and sticky only from 1250 px upward;
+11. narrower/mobile home does not contain duplicated news/review/certificate content blocks;
+12. `/catalog` exposes the three compact-screen destination links without altering the approved six-control header row;
 13. gift-certificate page makes no purchase/activation claims or order writes;
-14. existing category-manager, public-header, catalog sidebar, product matrix, cart/checkout, notifications, and adult-gate contracts continue to pass.
+14. home view performs no per-item news/review queries;
+15. existing category-manager, public-header, catalog sidebar, product matrix, cart/checkout, notifications, and adult-gate contracts continue to pass.
 
 ## Manual review after implementation
 
 When laptop access is available:
 
 - desktop 1366/1440 widths: verify left catalog, main content, and right rail proportions;
-- confirm both side rails remain usable while scrolling without overlapping the header;
+- 1050–1249 widths: verify the home remains readable without the right rail and `/catalog` exposes the utility links;
+- confirm both desktop side rails remain usable while scrolling without overlapping the header;
 - verify news/review cards do not squeeze the main product/category grids;
 - mobile 320/360/390/430 widths: verify the approved header row is unchanged and no right-rail content is inserted into the home feed;
-- open the catalog navigation group and each `/news`, `/reviews`, `/gift-certificates` page;
+- open the catalog utility group and each `/news`, `/reviews`, `/gift-certificates` page;
 - submit a test product review, confirm it is pending, approve it in admin, and confirm it appears on the product and eligible public surfaces;
 - verify an adult-category review never appears on the general home or `/reviews` page.
