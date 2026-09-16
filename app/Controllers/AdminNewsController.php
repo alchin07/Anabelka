@@ -55,14 +55,17 @@ class AdminNewsController extends Controller
     {
         $this->verifyCsrf();
         $newsId = (int) ($_POST['news_id'] ?? 0);
+        $db = Database::connect();
 
         try {
+            $activeLanguages = Language::active();
+            $db->beginTransaction();
             SiteNews::update($newsId, $_POST);
             $translations = is_array($_POST['translations'] ?? null)
                 ? $_POST['translations']
                 : [];
 
-            foreach (Language::active() as $language) {
+            foreach ($activeLanguages as $language) {
                 $code = strtolower(trim((string) ($language['code'] ?? '')));
                 if ($code === '' || $code === Language::SOURCE_CODE) {
                     continue;
@@ -77,9 +80,14 @@ class AdminNewsController extends Controller
                 );
             }
 
+            $db->commit();
             AdminAccess::audit('news.update', ['news_id' => $newsId]);
             $this->flash('success', 'Новину та переклади збережено.');
         } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
             $this->handleFailure($e, 'Не вдалося зберегти новину.');
         }
 
