@@ -110,6 +110,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdultController.php';
         require_once __DIR__ . '/../Controllers/SearchController.php';
         require_once __DIR__ . '/../Controllers/NewsController.php';
+        require_once __DIR__ . '/../Controllers/GiftCertificateController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
         require_once __DIR__ . '/../Controllers/CartColorController.php';
         require_once __DIR__ . '/../Controllers/FavoriteController.php';
