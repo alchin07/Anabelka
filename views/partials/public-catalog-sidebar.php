@@ -8,6 +8,7 @@ $publicCatalogLabel = Translator::t(
     'public.catalog.title',
     'Каталог'
 );
+$adultAccessConfirmed = AdultAccess::isConfirmed();
 
 $sidebarEscape = static function ($value) {
     return htmlspecialchars(
@@ -20,16 +21,22 @@ $sidebarEscape = static function ($value) {
 $renderPublicCatalogSidebarNodes = null;
 $renderPublicCatalogSidebarNodes = function (array $nodes, $level = 1) use (
     &$renderPublicCatalogSidebarNodes,
-    $sidebarEscape
+    $sidebarEscape,
+    $adultAccessConfirmed
 ) {
     foreach ($nodes as $node) {
         $id = (int) ($node['id'] ?? 0);
+        $isAdultRoot = !empty($node['is_adult'])
+            && (int) ($node['parent_id'] ?? 0) === 0;
         $children = is_array($node['children'] ?? null)
             ? $node['children']
             : [];
+
+        if ($isAdultRoot && !$adultAccessConfirmed) {
+            $children = [];
+        }
+
         $hasChildren = !empty($children);
-        $isAdultRoot = !empty($node['is_adult'])
-            && (int) ($node['parent_id'] ?? 0) === 0;
         $href = $isAdultRoot
             ? AdultAccess::gateUrl($node)
             : Category::catalogUrl($node);
