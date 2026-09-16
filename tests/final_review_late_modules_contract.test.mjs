@@ -90,7 +90,7 @@ const desktopRail = mediaBlock(railCss, 1250);
 
 assert.match(
     desktopRail,
-    /\.home-direction-grid\s*,\s*\.home-product-grid\s*\{[^{}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(190px,\s*1fr\)\)/s,
+    /\.home-direction-grid\s*,\s*\.home-product-grid\s*\{[^{}]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(190px,\s*1fr\)\)/s,
     'home product/direction grids must adapt when the 280px right rail appears'
 );
 
