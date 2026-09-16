@@ -176,8 +176,7 @@ class ProductReview
                 pr.created_at,
                 p.name AS product_name,
                 p.slug AS product_slug,
-                u.name AS customer_name,
-                u.email AS customer_email
+                u.name AS customer_name
             FROM product_reviews pr
             INNER JOIN products p ON p.id = pr.product_id
             INNER JOIN users u ON u.id = pr.user_id
