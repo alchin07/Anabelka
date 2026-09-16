@@ -22,7 +22,9 @@ $adminPageLabelMap = [
     'Поиск' => 'Пошук',
     'Пользователи' => 'Користувачі',
     'Администраторы' => 'Адміністратори',
-    'Журнал действий' => 'Журнал дій'
+    'Журнал действий' => 'Журнал дій',
+    'Новости' => 'Новини',
+    'Отзывы' => 'Відгуки'
 ];
 
 $adminPageLabel = $adminPageLabelMap[$adminPageLabel]
@@ -132,6 +134,8 @@ $canRanks = $adminCan('ranks.view');
 $canProducts = $adminCan('products.view');
 $canCategories = $adminCan('categories.view');
 $canDelivery = $adminCan('delivery.view');
+$canNews = $adminCan('news.view');
+$canReviews = $adminCan('reviews.view');
 $canLanguages = $adminCan('languages.view');
 $canTranslations = $adminCan('translations.view');
 $canAiTranslation = $adminCan('ai_translation.view');
@@ -317,6 +321,28 @@ $canAudit = $adminCan('audit.view');
                     data-admin-route="/Anabelka/admin/delivery"
                 >
                     <span>Доставка</span>
+                </a>
+            <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if ($canNews || $canReviews): ?>
+            <span class="admin-nav-group-title">Контент</span>
+
+            <?php if ($canNews): ?>
+                <a
+                    href="/Anabelka/admin/news"
+                    data-admin-route="/Anabelka/admin/news"
+                >
+                    <span>Новини</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canReviews): ?>
+                <a
+                    href="/Anabelka/admin/reviews"
+                    data-admin-route="/Anabelka/admin/reviews"
+                >
+                    <span>Відгуки</span>
                 </a>
             <?php endif; ?>
         <?php endif; ?>
