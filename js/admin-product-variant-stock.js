@@ -46,12 +46,15 @@
     const totalLabel = block.querySelector('[data-variant-total]');
     const sizeHint = form.querySelector('[data-size-stock-hint]');
     const cache = new Map();
+    const tokenCache = new Map();
 
     let loadedProductId = 0;
     let loadedRows = [];
     let hasStoredMatrix = false;
     let matrixTouched = false;
     let lastDimensionSignature = '';
+    let lastDimensionState = null;
+    let dimensionTokenSequence = 0;
     let isLoadingProduct = false;
 
     const style = document.createElement('style');
@@ -111,22 +114,42 @@
         return Math.max(0, parseInt(digits, 10) || 0);
     }
 
-    function currentSizes()
+    function stableDimensionToken(element, prefix)
     {
-        return Array.from(sizeList.querySelectorAll('.product-size-row'))
-            .map(function (row) {
-                const input = row.querySelector('[data-size-name]');
-                return input ? String(input.value || '').trim() : '';
-            })
-            .filter(Boolean)
-            .filter(function (name, index, all) {
-                return all.findIndex(function (item) {
-                    return textKey(item) === textKey(name);
-                }) === index;
-            });
+        if (!element.dataset.variantDimensionToken) {
+            dimensionTokenSequence += 1;
+            element.dataset.variantDimensionToken = prefix
+                + ':'
+                + dimensionTokenSequence;
+        }
+
+        return element.dataset.variantDimensionToken;
     }
 
-    function currentColors()
+    function sizeDimensions()
+    {
+        const result = [];
+        const seen = new Set();
+
+        sizeList.querySelectorAll('.product-size-row').forEach(function (row) {
+            const input = row.querySelector('[data-size-name]');
+            const name = input ? String(input.value || '').trim() : '';
+            const key = textKey(name);
+
+            if (!name || seen.has(key)) {
+                return;
+            }
+
+            const token = stableDimensionToken(row, 'size-row');
+
+            seen.add(key);
+            result.push({ name: name, key: key, token: token });
+        });
+
+        return result;
+    }
+
+    function colorDimensions()
     {
         const roots = [imageList, uploadPreview].filter(Boolean);
         const result = [];
@@ -145,20 +168,109 @@
                 }
 
                 seenNames.add(key);
-                result.push({ name: name, hex: hex, key: key });
+                result.push({
+                    name: name,
+                    hex: hex,
+                    key: key,
+                    token: stableDimensionToken(group, 'color')
+                });
             });
         });
 
         return result;
     }
 
+    function dimensionState()
+    {
+        return {
+            sizes: sizeDimensions(),
+            colors: colorDimensions()
+        };
+    }
+
+    function currentSizes()
+    {
+        return sizeDimensions().map(function (size) {
+            return size.name;
+        });
+    }
+
+    function currentColors()
+    {
+        return colorDimensions();
+    }
+
+    function rekeyCacheForDimensionChanges(previous, next)
+    {
+        if (!previous || !next) {
+            return;
+        }
+
+        const nextSizesByKey = new Map();
+        const nextSizesByToken = new Map();
+        const nextColorsByKey = new Map();
+        const nextColorsByToken = new Map();
+
+        next.sizes.forEach(function (size) {
+            nextSizesByKey.set(size.key, size);
+            nextSizesByToken.set(size.token, size);
+        });
+        next.colors.forEach(function (color) {
+            nextColorsByKey.set(color.key, color);
+            nextColorsByToken.set(color.token, color);
+        });
+
+        const deleteAfter = new Set();
+
+        previous.sizes.forEach(function (oldSize) {
+            const targetSize = nextSizesByKey.get(oldSize.key)
+                || nextSizesByToken.get(oldSize.token);
+
+            if (!targetSize) {
+                return;
+            }
+
+            previous.colors.forEach(function (oldColor) {
+                const targetColor = nextColorsByKey.get(oldColor.key)
+                    || nextColorsByToken.get(oldColor.token);
+
+                if (!targetColor) {
+                    return;
+                }
+
+                const oldKey = oldSize.key + '||' + oldColor.key;
+                const newKey = targetSize.key + '||' + targetColor.key;
+
+                if (oldKey === newKey || !cache.has(oldKey)) {
+                    return;
+                }
+
+                if (!cache.has(newKey)) {
+                    cache.set(newKey, cache.get(oldKey));
+                }
+                deleteAfter.add(oldKey);
+            });
+        });
+
+        deleteAfter.forEach(function (key) {
+            cache.delete(key);
+        });
+    }
+
     function cacheCurrentInputs()
     {
         cardsWrap.querySelectorAll('[data-variant-stock-input]').forEach(function (input) {
-            cache.set(
-                String(input.dataset.variantKey || ''),
-                stockNumber(input.value)
-            );
+            const stock = stockNumber(input.value);
+            const key = String(input.dataset.variantKey || '');
+            const tokenKey = String(input.dataset.variantTokenKey || '');
+
+            if (key !== '') {
+                cache.set(key, stock);
+            }
+
+            if (tokenKey !== '') {
+                tokenCache.set(tokenKey, stock);
+            }
         });
     }
 
@@ -413,8 +525,9 @@
         updateTotals();
     }
 
-    function buildColorRow(sizeName, color)
+    function buildColorRow(size, color)
     {
+        const sizeName = size.name;
         const row = document.createElement('div');
         const meta = document.createElement('div');
         const dot = document.createElement('span');
@@ -423,12 +536,16 @@
         const decrease = document.createElement('button');
         const input = document.createElement('input');
         const increase = document.createElement('button');
-        const key = textKey(sizeName) + '||' + color.key;
+        const key = size.key + '||' + color.key;
+        const tokenKey = size.token + '||' + color.token;
         const stock = cache.has(key)
             ? Math.max(0, Number(cache.get(key) || 0))
-            : loadedStockFallback(sizeName, color);
+            : tokenCache.has(tokenKey)
+                ? Math.max(0, Number(tokenCache.get(tokenKey) || 0))
+                : loadedStockFallback(sizeName, color);
 
         cache.set(key, stock);
+        tokenCache.set(tokenKey, stock);
 
         row.className = 'product-variant-stock-color-row';
         meta.className = 'product-variant-stock-color-meta';
@@ -456,6 +573,7 @@
         input.className = 'product-variant-stock-input';
         input.dataset.variantStockInput = '';
         input.dataset.variantKey = key;
+        input.dataset.variantTokenKey = tokenKey;
         input.dataset.sizeName = sizeName;
         input.dataset.colorName = color.name;
         input.dataset.colorHex = color.hex;
@@ -523,8 +641,8 @@
 
         seedLoadedRows();
 
-        const sizes = currentSizes();
-        const colors = currentColors();
+        const sizes = sizeDimensions();
+        const colors = colorDimensions();
 
         if (sizes.length === 0) {
             note.textContent = 'Спочатку додайте хоча б один розмір.';
@@ -548,7 +666,8 @@
 
         const fragment = document.createDocumentFragment();
 
-        sizes.forEach(function (sizeName) {
+        sizes.forEach(function (size) {
+            const sizeName = size.name;
             const card = document.createElement('section');
             const head = document.createElement('div');
             const title = document.createElement('strong');
@@ -557,7 +676,8 @@
 
             card.className = 'product-variant-stock-card';
             card.dataset.variantSizeCard = '';
-            card.dataset.variantSizeKey = textKey(sizeName);
+            card.dataset.variantSizeKey = size.key;
+            card.dataset.variantSizeToken = size.token;
             head.className = 'product-variant-stock-card-head';
             title.className = 'product-variant-stock-card-size';
             title.textContent = sizeName;
@@ -567,7 +687,7 @@
             colorList.className = 'product-variant-stock-color-list';
 
             colors.forEach(function (color) {
-                colorList.appendChild(buildColorRow(sizeName, color));
+                colorList.appendChild(buildColorRow(size, color));
             });
 
             head.appendChild(title);
@@ -581,12 +701,16 @@
         updateTotals();
     }
 
-    function dimensionSignature()
+    function dimensionSignature(state)
     {
+        const dimensions = state || dimensionState();
+
         return JSON.stringify({
             productId: Number(productIdField.value || 0),
-            sizes: currentSizes().map(textKey),
-            colors: currentColors().map(function (color) {
+            sizes: dimensions.sizes.map(function (size) {
+                return size.key;
+            }),
+            colors: dimensions.colors.map(function (color) {
                 return colorKey(color.name, color.hex);
             })
         });
@@ -598,7 +722,8 @@
             return false;
         }
 
-        const nextSignature = dimensionSignature();
+        const nextState = dimensionState();
+        const nextSignature = dimensionSignature(nextState);
 
         if (!force && nextSignature === lastDimensionSignature) {
             return false;
@@ -608,10 +733,13 @@
 
         if (!preferLoadedRows) {
             cacheCurrentInputs();
+            rekeyCacheForDimensionChanges(lastDimensionState, nextState);
         } else {
             cache.clear();
+            tokenCache.clear();
         }
 
+        lastDimensionState = nextState;
         lastDimensionSignature = nextSignature;
         renderMatrix({ preferLoadedRows: preferLoadedRows });
         return true;
@@ -640,6 +768,7 @@
         hasStoredMatrix = false;
         matrixTouched = false;
         cache.clear();
+        tokenCache.clear();
 
         if (productId > 0) {
             try {
@@ -662,6 +791,7 @@
 
         isLoadingProduct = false;
         lastDimensionSignature = '';
+        lastDimensionState = null;
         rebuildIfDimensionsChanged(true, { preferLoadedRows: true });
     }
 
@@ -692,6 +822,16 @@
 
     form.addEventListener('input', function (event) {
         if (event.target.matches('[data-size-name]')) {
+            const row = event.target.closest('.product-size-row');
+            const idInput = row ? row.querySelector('[data-size-id]') : null;
+
+            // A size value is shared by all products. Once the name is edited,
+            // do not keep sending the old attribute_value id: the server must
+            // resolve or create the newly typed value for this product only.
+            if (idInput && idInput.value !== '0') {
+                idInput.value = '0';
+            }
+
             window.setTimeout(function () {
                 rebuildIfDimensionsChanged(false);
             }, 0);
@@ -725,6 +865,21 @@
 
     const nativeFetch = window.fetch.bind(window);
 
+    function variantSaveError(error)
+    {
+        const detail = error && error.message
+            ? String(error.message).trim()
+            : '';
+        const suffix = detail !== ''
+            ? ' ' + detail
+            : '';
+
+        return new Error(
+            'Товар збережено, але залишки за розміром і кольором не збережено.'
+            + suffix
+        );
+    }
+
     window.fetch = async function (input, init) {
         const response = await nativeFetch(input, init);
         const url = typeof input === 'string'
@@ -742,6 +897,11 @@
                 const productId = Number(
                     data.product_id || productIdField.value || 0
                 );
+
+                if (data.success && productId > 0) {
+                    productIdField.value = String(productId);
+                }
+
                 const csrf = form.querySelector('input[name="csrf_token"]');
                 const rows = matrixRows();
                 const shouldSaveMatrix = hasStoredMatrix || matrixTouched;
@@ -750,7 +910,6 @@
                     data.success
                     && productId > 0
                     && csrf
-                    && rows.length > 0
                     && shouldSaveMatrix
                 ) {
                     const payload = new FormData();
@@ -786,25 +945,12 @@
                             stock: row.stock
                         };
                     });
-                    hasStoredMatrix = true;
+                    hasStoredMatrix = rows.length > 0;
                     matrixTouched = false;
                     updateTotals();
                 }
             } catch (error) {
-                if (window.AnabelkaNotify) {
-                    window.AnabelkaNotify.error(
-                        error.message
-                        || 'Не вдалося зберегти залишки за кольорами.'
-                    );
-                } else {
-                    const message = document.getElementById('site-message');
-
-                    if (message) {
-                        message.textContent = error.message
-                            || 'Не вдалося зберегти залишки за кольорами.';
-                        message.classList.add('show');
-                    }
-                }
+                throw variantSaveError(error);
             }
         }
 
