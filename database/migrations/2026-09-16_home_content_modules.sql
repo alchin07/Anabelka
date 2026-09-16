@@ -1,6 +1,18 @@
 -- Anabelka: news and product-review content modules
 -- Manual migration. Review and back up the working database before applying.
 -- This migration creates new tables only; it does not ALTER existing tables.
+--
+-- 1. Run database/preflight/2026-09-16_home_content_modules_preflight.sql.
+-- 2. For a first clean rollout, preflight must report migration_state =
+--    not_started and confirm products.id, users.id and admin_users.id exist.
+-- 3. If preflight reports a partial state / partially applied migration, STOP.
+--    Do not rerun this entire file. Inspect the existing target table(s),
+--    compare their columns/indexes/FKs with this file, and execute only the
+--    missing CREATE TABLE statement(s) manually after a verified backup.
+--    Do not drop or overwrite an existing table automatically.
+-- 4. After the migration completes, run
+--    database/postflight/2026-09-16_home_content_modules_postflight.sql and
+--    verify all three tables, expected indexes, and all four foreign keys.
 
 CREATE TABLE site_news (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
