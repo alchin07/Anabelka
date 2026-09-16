@@ -1,4 +1,5 @@
 <?php
+ContentInterfaceTranslator::seed();
 $reviews = is_array($reviews ?? null) ? $reviews : [];
 $canReview = !empty($canReview);
 $reviewCsrfToken = (string) ($reviewCsrfToken ?? '');
