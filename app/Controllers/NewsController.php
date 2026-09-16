@@ -5,6 +5,7 @@ class NewsController extends Controller
     public function index()
     {
         PublicInterfaceTranslator::seed();
+        ContentInterfaceTranslator::seed();
         $currentLanguage = Translator::currentLanguage();
         $languageCode = $currentLanguage['code'] ?? Language::SOURCE_CODE;
         $newsItems = [];
@@ -25,6 +26,7 @@ class NewsController extends Controller
     public function show($slug)
     {
         PublicInterfaceTranslator::seed();
+        ContentInterfaceTranslator::seed();
         $currentLanguage = Translator::currentLanguage();
         $languageCode = $currentLanguage['code'] ?? Language::SOURCE_CODE;
         $news = null;
