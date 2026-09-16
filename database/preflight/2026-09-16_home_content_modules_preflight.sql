@@ -36,22 +36,15 @@ ORDER BY TABLE_NAME;
 
 SELECT
     CASE
-        WHEN SUM(TABLE_NAME IN (
-            'site_news',
-            'site_news_translations',
-            'product_reviews'
-        )) = 0 THEN 'not_started'
-        WHEN SUM(TABLE_NAME IN (
-            'site_news',
-            'site_news_translations',
-            'product_reviews'
-        )) = 3 THEN 'all_tables_present'
+        WHEN COUNT(*) = 0 THEN 'not_started'
+        WHEN COUNT(*) = 3 THEN 'all_tables_present'
         ELSE 'partial_state'
     END AS migration_state,
-    SUM(TABLE_NAME = 'site_news') AS site_news_present,
-    SUM(TABLE_NAME = 'site_news_translations')
+    COALESCE(SUM(TABLE_NAME = 'site_news'), 0) AS site_news_present,
+    COALESCE(SUM(TABLE_NAME = 'site_news_translations'), 0)
         AS site_news_translations_present,
-    SUM(TABLE_NAME = 'product_reviews') AS product_reviews_present
+    COALESCE(SUM(TABLE_NAME = 'product_reviews'), 0)
+        AS product_reviews_present
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME IN (
