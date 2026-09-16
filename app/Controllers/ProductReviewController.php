@@ -5,6 +5,7 @@ class ProductReviewController extends Controller
     public function index()
     {
         PublicInterfaceTranslator::seed();
+        ContentInterfaceTranslator::seed();
         $currentLanguage = Translator::currentLanguage();
         $reviews = [];
 
