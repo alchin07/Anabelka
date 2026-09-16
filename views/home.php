@@ -7,6 +7,8 @@ $pageTitle = '';
 $directions = is_array($directions ?? null) ? $directions : [];
 $navigationTree = is_array($navigationTree ?? null) ? $navigationTree : [];
 $latestProducts = is_array($latestProducts ?? null) ? $latestProducts : [];
+$homeNews = is_array($homeNews ?? null) ? $homeNews : [];
+$homeReviews = is_array($homeReviews ?? null) ? $homeReviews : [];
 $standardDirections = [];
 $adultDirections = [];
 
@@ -53,6 +55,7 @@ $assetUrl = function ($path) {
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/home.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/home-right-rail.css?v=1">
 </head>
 <body>
 
@@ -60,341 +63,345 @@ $assetUrl = function ($path) {
 
 <main class="home-page">
     <div class="home-shell">
-        <nav class="home-department-nav" aria-label="Напрямки магазину">
-            <a class="home-department-nav-main" href="/Anabelka/catalog">
-                <?= $escape(
-                    Translator::t('home.nav_catalog', 'Каталог')
-                ) ?>
-            </a>
-
-            <?php foreach ($standardDirections as $direction): ?>
-                <a
-                    href="<?= $escape(Category::catalogUrl($direction)) ?>"
-                >
-                    <?= $escape($direction['name'] ?? '') ?>
+        <div class="home-primary-content">
+            <nav class="home-department-nav" aria-label="Напрямки магазину">
+                <a class="home-department-nav-main" href="/Anabelka/catalog">
+                    <?= $escape(
+                        Translator::t('home.nav_catalog', 'Каталог')
+                    ) ?>
                 </a>
-            <?php endforeach; ?>
 
-            <?php foreach ($adultDirections as $direction): ?>
-                <a
-                    class="home-department-nav-adult"
-                    href="<?= $escape(AdultAccess::gateUrl($direction)) ?>"
-                >
-                    <span>18+</span>
-                    <?= $escape($direction['name'] ?? '') ?>
-                </a>
-            <?php endforeach; ?>
-        </nav>
-
-        <section class="home-hero">
-            <div class="home-hero-content">
-                <div class="home-eyebrow">
-                    <?= $escape(
-                        Translator::t('home.hero_eyebrow', 'Анабелька')
-                    ) ?>
-                </div>
-
-                <h1>
-                    <?= $escape(
-                        Translator::t(
-                            'home.hero_title',
-                            'Для щоденного комфорту, дому, відпочинку та особливих моментів'
-                        )
-                    ) ?>
-                </h1>
-
-                <p class="home-hero-text">
-                    <?= $escape(
-                        Translator::t(
-                            'home.hero_text',
-                            'Білизна, панчішно-шкарпеткові вироби, домашній одяг, купальники та інші напрямки в одному магазині.'
-                        )
-                    ) ?>
-                </p>
-
-                <div class="home-hero-actions">
-                    <a class="home-button is-primary" href="/Anabelka/catalog">
-                        <?= $escape(
-                            Translator::t(
-                                'home.hero_catalog',
-                                'Перейти до каталогу'
-                            )
-                        ) ?>
+                <?php foreach ($standardDirections as $direction): ?>
+                    <a
+                        href="<?= $escape(Category::catalogUrl($direction)) ?>"
+                    >
+                        <?= $escape($direction['name'] ?? '') ?>
                     </a>
-                </div>
-            </div>
+                <?php endforeach; ?>
 
-            <div class="home-hero-mark" aria-hidden="true">
-                <div class="home-hero-mark-inner">A</div>
-            </div>
-        </section>
+                <?php foreach ($adultDirections as $direction): ?>
+                    <a
+                        class="home-department-nav-adult"
+                        href="<?= $escape(AdultAccess::gateUrl($direction)) ?>"
+                    >
+                        <span>18+</span>
+                        <?= $escape($direction['name'] ?? '') ?>
+                    </a>
+                <?php endforeach; ?>
+            </nav>
 
-        <section class="home-section">
-            <div class="home-section-head">
-                <div class="home-section-title">
-                    <h2>
+            <section class="home-hero">
+                <div class="home-hero-content">
+                    <div class="home-eyebrow">
+                        <?= $escape(
+                            Translator::t('home.hero_eyebrow', 'Анабелька')
+                        ) ?>
+                    </div>
+
+                    <h1>
                         <?= $escape(
                             Translator::t(
-                                'home.directions_title',
-                                'Напрямки магазину'
+                                'home.hero_title',
+                                'Для щоденного комфорту, дому, відпочинку та особливих моментів'
                             )
                         ) ?>
-                    </h2>
-                    <p>
+                    </h1>
+
+                    <p class="home-hero-text">
                         <?= $escape(
                             Translator::t(
-                                'home.directions_text',
-                                'Оберіть потрібний розділ і переходьте до категорій та товарів.'
+                                'home.hero_text',
+                                'Білизна, панчішно-шкарпеткові вироби, домашній одяг, купальники та інші напрямки в одному магазині.'
                             )
                         ) ?>
                     </p>
-                </div>
 
-                <a class="home-section-link" href="/Anabelka/catalog">
-                    <?= $escape(
-                        Translator::t('home.all_catalog', 'Увесь каталог')
-                    ) ?> →
-                </a>
-            </div>
-
-            <?php if (empty($standardDirections)): ?>
-                <div class="home-empty">
-                    <?= $escape(
-                        Translator::t(
-                            'home.empty_directions',
-                            'Напрямки магазину ще не налаштовані.'
-                        )
-                    ) ?>
-                </div>
-            <?php else: ?>
-                <div class="home-direction-grid">
-                    <?php foreach ($standardDirections as $direction): ?>
-                        <?php
-                        $directionImage = $assetUrl($direction['image'] ?? '');
-                        $directionName = trim((string) ($direction['name'] ?? ''));
-                        $directionLetter = function_exists('mb_substr')
-                            ? mb_substr($directionName, 0, 1, 'UTF-8')
-                            : substr($directionName, 0, 1);
-                        ?>
-
-                        <a
-                            class="home-direction-card<?= $directionImage === '' ? ' no-image' : '' ?>"
-                            href="<?= $escape(Category::catalogUrl($direction)) ?>"
-                        >
-                            <div class="home-direction-media">
-                                <?php if ($directionImage !== ''): ?>
-                                    <img
-                                        src="<?= $escape($directionImage) ?>"
-                                        alt="<?= $escape($directionName) ?>"
-                                        loading="lazy"
-                                    >
-                                <?php else: ?>
-                                    <div class="home-direction-placeholder">
-                                        <?= $escape($directionLetter) ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="home-direction-overlay">
-                                <strong><?= $escape($directionName) ?></strong>
-                                <span>
-                                    <?= $escape(
-                                        Translator::t(
-                                            'home.direction_open',
-                                            'Відкрити розділ'
-                                        )
-                                    ) ?> →
-                                </span>
-                            </div>
+                    <div class="home-hero-actions">
+                        <a class="home-button is-primary" href="/Anabelka/catalog">
+                            <?= $escape(
+                                Translator::t(
+                                    'home.hero_catalog',
+                                    'Перейти до каталогу'
+                                )
+                            ) ?>
                         </a>
-                    <?php endforeach; ?>
+                    </div>
                 </div>
-            <?php endif; ?>
-        </section>
 
-        <?php if (!empty($adultDirections)): ?>
-            <section class="home-adult-section" aria-label="18+">
-                <div class="home-adult-copy">
-                    <span class="home-adult-badge">18+</span>
+                <div class="home-hero-mark" aria-hidden="true">
+                    <div class="home-hero-mark-inner">A</div>
+                </div>
+            </section>
 
-                    <div>
+            <section class="home-section">
+                <div class="home-section-head">
+                    <div class="home-section-title">
                         <h2>
                             <?= $escape(
                                 Translator::t(
-                                    'home.adult_entry_title',
-                                    'Інтимні товари'
+                                    'home.directions_title',
+                                    'Напрямки магазину'
                                 )
                             ) ?>
                         </h2>
-
                         <p>
                             <?= $escape(
                                 Translator::t(
-                                    'home.adult_entry_text',
-                                    'Окремий приватний розділ для повнолітніх.'
+                                    'home.directions_text',
+                                    'Оберіть потрібний розділ і переходьте до категорій та товарів.'
                                 )
                             ) ?>
                         </p>
                     </div>
-                </div>
 
-                <div class="home-adult-links">
-                    <?php foreach ($adultDirections as $direction): ?>
-                        <a
-                            href="<?= $escape(AdultAccess::gateUrl($direction)) ?>"
-                        >
-                            <?= $escape(
-                                Translator::t(
-                                    'home.adult_open',
-                                    'Перейти до розділу 18+'
-                                )
-                            ) ?> →
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-            </section>
-        <?php endif; ?>
-
-        <section class="home-section">
-            <div class="home-section-head">
-                <div class="home-section-title">
-                    <h2>
+                    <a class="home-section-link" href="/Anabelka/catalog">
                         <?= $escape(
-                            Translator::t('home.latest_title', 'Новинки')
-                        ) ?>
-                    </h2>
-                    <p>
+                            Translator::t('home.all_catalog', 'Увесь каталог')
+                        ) ?> →
+                    </a>
+                </div>
+
+                <?php if (empty($standardDirections)): ?>
+                    <div class="home-empty">
                         <?= $escape(
                             Translator::t(
-                                'home.latest_text',
-                                'Останні товари, додані до каталогу.'
+                                'home.empty_directions',
+                                'Напрямки магазину ще не налаштовані.'
                             )
                         ) ?>
-                    </p>
-                </div>
+                    </div>
+                <?php else: ?>
+                    <div class="home-direction-grid">
+                        <?php foreach ($standardDirections as $direction): ?>
+                            <?php
+                            $directionImage = $assetUrl($direction['image'] ?? '');
+                            $directionName = trim((string) ($direction['name'] ?? ''));
+                            $directionLetter = function_exists('mb_substr')
+                                ? mb_substr($directionName, 0, 1, 'UTF-8')
+                                : substr($directionName, 0, 1);
+                            ?>
 
-                <a class="home-section-link" href="/Anabelka/catalog">
-                    <?= $escape(
-                        Translator::t('home.all_catalog', 'Увесь каталог')
-                    ) ?> →
-                </a>
-            </div>
+                            <a
+                                class="home-direction-card<?= $directionImage === '' ? ' no-image' : '' ?>"
+                                href="<?= $escape(Category::catalogUrl($direction)) ?>"
+                            >
+                                <div class="home-direction-media">
+                                    <?php if ($directionImage !== ''): ?>
+                                        <img
+                                            src="<?= $escape($directionImage) ?>"
+                                            alt="<?= $escape($directionName) ?>"
+                                            loading="lazy"
+                                        >
+                                    <?php else: ?>
+                                        <div class="home-direction-placeholder">
+                                            <?= $escape($directionLetter) ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
 
-            <?php if (empty($latestProducts)): ?>
-                <div class="home-empty">
-                    <?= $escape(
-                        Translator::t(
-                            'home.empty_products',
-                            'Нових товарів поки немає.'
-                        )
-                    ) ?>
-                </div>
-            <?php else: ?>
-                <div class="home-product-grid">
-                    <?php foreach ($latestProducts as $product): ?>
-                        <?php
-                        $productImage = $assetUrl($product['main_image'] ?? '');
-                        $currentPrice = Product::getCurrentPrice($product);
-                        $oldPrice = (float) ($product['old_price'] ?? 0);
-                        $variants = is_array($product['color_variants'] ?? null)
-                            ? $product['color_variants']
-                            : [];
-                        ?>
+                                <div class="home-direction-overlay">
+                                    <strong><?= $escape($directionName) ?></strong>
+                                    <span>
+                                        <?= $escape(
+                                            Translator::t(
+                                                'home.direction_open',
+                                                'Відкрити розділ'
+                                            )
+                                        ) ?> →
+                                    </span>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
 
-                        <a
-                            class="home-product-card"
-                            href="/Anabelka/product/<?= $escape($product['slug'] ?? '') ?>"
-                            aria-label="<?= $escape(
+            <?php if (!empty($adultDirections)): ?>
+                <section class="home-adult-section" aria-label="18+">
+                    <div class="home-adult-copy">
+                        <span class="home-adult-badge">18+</span>
+
+                        <div>
+                            <h2>
+                                <?= $escape(
+                                    Translator::t(
+                                        'home.adult_entry_title',
+                                        'Інтимні товари'
+                                    )
+                                ) ?>
+                            </h2>
+
+                            <p>
+                                <?= $escape(
+                                    Translator::t(
+                                        'home.adult_entry_text',
+                                        'Окремий приватний розділ для повнолітніх.'
+                                    )
+                                ) ?>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="home-adult-links">
+                        <?php foreach ($adultDirections as $direction): ?>
+                            <a
+                                href="<?= $escape(AdultAccess::gateUrl($direction)) ?>"
+                            >
+                                <?= $escape(
+                                    Translator::t(
+                                        'home.adult_open',
+                                        'Перейти до розділу 18+'
+                                    )
+                                ) ?> →
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+            <?php endif; ?>
+
+            <section class="home-section">
+                <div class="home-section-head">
+                    <div class="home-section-title">
+                        <h2>
+                            <?= $escape(
+                                Translator::t('home.latest_title', 'Новинки')
+                            ) ?>
+                        </h2>
+                        <p>
+                            <?= $escape(
                                 Translator::t(
-                                    'home.product_open',
-                                    'Переглянути товар'
+                                    'home.latest_text',
+                                    'Останні товари, додані до каталогу.'
                                 )
-                                . ': '
-                                . ($product['name'] ?? '')
-                            ) ?>"
-                        >
-                            <div class="home-product-image">
-                                <?php if ($productImage !== ''): ?>
-                                    <img
-                                        src="<?= $escape($productImage) ?>"
-                                        alt="<?= $escape($product['name'] ?? '') ?>"
-                                        loading="lazy"
-                                    >
-                                <?php else: ?>
-                                    <span>Анабелька</span>
-                                <?php endif; ?>
-                            </div>
+                            ) ?>
+                        </p>
+                    </div>
 
-                            <div class="home-product-body">
-                                <h3><?= $escape($product['name'] ?? '') ?></h3>
+                    <a class="home-section-link" href="/Anabelka/catalog">
+                        <?= $escape(
+                            Translator::t('home.all_catalog', 'Увесь каталог')
+                        ) ?> →
+                    </a>
+                </div>
 
-                                <?php if (!empty($variants)): ?>
-                                    <div class="home-product-colors" aria-hidden="true">
-                                        <?php foreach (array_slice($variants, 0, 6) as $variant): ?>
-                                            <?php
-                                            $hex = strtolower(trim((string) ($variant['color_hex'] ?? '')));
-                                            if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
-                                                $hex = '#b8b0bd';
-                                            }
-                                            ?>
-                                            <span
-                                                class="home-product-color"
-                                                style="background:<?= $escape($hex) ?>"
-                                            ></span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
+                <?php if (empty($latestProducts)): ?>
+                    <div class="home-empty">
+                        <?= $escape(
+                            Translator::t(
+                                'home.empty_products',
+                                'Нових товарів поки немає.'
+                            )
+                        ?>
+                    </div>
+                <?php else: ?>
+                    <div class="home-product-grid">
+                        <?php foreach ($latestProducts as $product): ?>
+                            <?php
+                            $productImage = $assetUrl($product['main_image'] ?? '');
+                            $currentPrice = Product::getCurrentPrice($product);
+                            $oldPrice = (float) ($product['old_price'] ?? 0);
+                            $variants = is_array($product['color_variants'] ?? null)
+                                ? $product['color_variants']
+                                : [];
+                            ?>
 
-                                <div class="home-product-price">
-                                    <strong>
-                                        <?= number_format(
-                                            (float) $currentPrice,
-                                            2,
-                                            ',',
-                                            ' '
-                                        ) ?> €
-                                    </strong>
+                            <a
+                                class="home-product-card"
+                                href="/Anabelka/product/<?= $escape($product['slug'] ?? '') ?>"
+                                aria-label="<?= $escape(
+                                    Translator::t(
+                                        'home.product_open',
+                                        'Переглянути товар'
+                                    )
+                                    . ': '
+                                    . ($product['name'] ?? '')
+                                ) ?>"
+                            >
+                                <div class="home-product-image">
+                                    <?php if ($productImage !== ''): ?>
+                                        <img
+                                            src="<?= $escape($productImage) ?>"
+                                            alt="<?= $escape($product['name'] ?? '') ?>"
+                                            loading="lazy"
+                                        >
+                                    <?php else: ?>
+                                        <span>Анабелька</span>
+                                    <?php endif; ?>
+                                </div>
 
-                                    <?php if ($oldPrice > (float) $currentPrice): ?>
-                                        <del>
+                                <div class="home-product-body">
+                                    <h3><?= $escape($product['name'] ?? '') ?></h3>
+
+                                    <?php if (!empty($variants)): ?>
+                                        <div class="home-product-colors" aria-hidden="true">
+                                            <?php foreach (array_slice($variants, 0, 6) as $variant): ?>
+                                                <?php
+                                                $hex = strtolower(trim((string) ($variant['color_hex'] ?? '')));
+                                                if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
+                                                    $hex = '#b8b0bd';
+                                                }
+                                                ?>
+                                                <span
+                                                    class="home-product-color"
+                                                    style="background:<?= $escape($hex) ?>"
+                                                ></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <div class="home-product-price">
+                                        <strong>
                                             <?= number_format(
-                                                $oldPrice,
+                                                (float) $currentPrice,
                                                 2,
                                                 ',',
                                                 ' '
                                             ) ?> €
-                                        </del>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </section>
+                                        </strong>
 
-        <section class="home-info-row" aria-label="Інформація магазину">
-            <div class="home-info-item">
-                <?= $escape(
-                    Translator::t('home.footer_delivery', 'Доставка')
-                ) ?>
-            </div>
-            <div class="home-info-item">
-                <?= $escape(
-                    Translator::t('home.footer_payment', 'Оплата')
-                ) ?>
-            </div>
-            <div class="home-info-item">
-                <?= $escape(
-                    Translator::t('home.footer_returns', 'Повернення')
-                ) ?>
-            </div>
-            <div class="home-info-item">
-                <?= $escape(
-                    Translator::t('home.footer_contacts', 'Контакти')
-                ) ?>
-            </div>
-        </section>
+                                        <?php if ($oldPrice > (float) $currentPrice): ?>
+                                            <del>
+                                                <?= number_format(
+                                                    $oldPrice,
+                                                    2,
+                                                    ',',
+                                                    ' '
+                                                ) ?> €
+                                            </del>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <section class="home-info-row" aria-label="Інформація магазину">
+                <div class="home-info-item">
+                    <?= $escape(
+                        Translator::t('home.footer_delivery', 'Доставка')
+                    ) ?>
+                </div>
+                <div class="home-info-item">
+                    <?= $escape(
+                        Translator::t('home.footer_payment', 'Оплата')
+                    ) ?>
+                </div>
+                <div class="home-info-item">
+                    <?= $escape(
+                        Translator::t('home.footer_returns', 'Повернення')
+                    ) ?>
+                </div>
+                <div class="home-info-item">
+                    <?= $escape(
+                        Translator::t('home.footer_contacts', 'Контакти')
+                    ) ?>
+                </div>
+            </section>
+        </div>
+
+        <?php require __DIR__ . '/home/partials/right-rail.php'; ?>
     </div>
 </main>
 </body>
