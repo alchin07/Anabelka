@@ -182,6 +182,11 @@ $badgeText = static function ($count) {
         href="/Anabelka/css/public-header-notifications.css?v=4"
     >
 
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/public-catalog-sidebar.css?v=1"
+    >
+
     <div class="public-header-shell">
         <div class="public-header-main">
             <div class="public-header-top">
@@ -651,3 +656,9 @@ $badgeText = static function ($count) {
     ></script>
 
 </header>
+
+<?php require __DIR__ . '/public-catalog-sidebar.php'; ?>
+<script
+    src="/Anabelka/js/public-catalog-sidebar.js?v=1"
+    defer
+></script>
