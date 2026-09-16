@@ -21,6 +21,9 @@ class App
         require_once __DIR__ . '/../Models/Product.php';
         require_once __DIR__ . '/../Models/ProductDepartmentSync.php';
         require_once __DIR__ . '/../Models/ProductTranslator.php';
+        require_once __DIR__ . '/../Models/SiteNews.php';
+        require_once __DIR__ . '/../Models/SiteNewsTranslator.php';
+        require_once __DIR__ . '/../Models/ProductReview.php';
         require_once __DIR__ . '/../Models/HomePage.php';
         require_once __DIR__ . '/../Models/HomeInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/AdultAccess.php';
