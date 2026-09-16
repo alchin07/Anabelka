@@ -98,6 +98,17 @@ for (const [label, sql] of [
     }
 }
 
+assert.match(
+    preflight,
+    /WHEN\s+COUNT\(\*\)\s*=\s*0\s+THEN\s+'not_started'/i,
+    'clean preflight must classify an empty target-table set as not_started'
+);
+assert.match(
+    postflight,
+    /WHEN\s+COUNT\(\*\)\s*=\s*3\s+THEN\s+'all_tables_present'/i,
+    'postflight must require all three target tables'
+);
+
 for (const referencedTable of ['products', 'users', 'admin_users']) {
     assert.match(
         preflight,
