@@ -260,7 +260,6 @@ function renderCategoryBranches(hasChildren, hasProducts) {
             return !hasChildren && !hasProducts;
         }
 
-        // Nested product-card conditions do not affect section visibility.
         return true;
     }
 
@@ -627,7 +626,7 @@ test('catalog adult entry renders its database root and recursive database child
     const view = read('views/catalog/index.php');
     const css = read('css/catalog.css');
     const homeCss = read('css/home.css');
-    const sidebarCss = read('css/home-desktop-sidebar.css');
+    const sidebarCss = read('css/public-catalog-sidebar.css');
     const translations = read('app/Models/PublicInterfaceTranslator.php');
     const entryRule = cssRuleBody(css, '.catalog-adult-entry');
     const rootRule = cssRuleBody(css, '.catalog-adult-root');
@@ -813,7 +812,7 @@ test('public header mobile variant A uses one shared top row', function () {
         'header-favorites',
         'public-header-profile',
         'header-cart',
-        'public-header-admin-action',
+        'public-header-catalog',
         'public-header-menu public-header-language'
     ].map((className) => top.indexOf(className));
 
@@ -973,7 +972,7 @@ test('public header mobile controls remain compact and accessible', function () 
     const actionOrder = [
         'public-header-profile',
         'header-cart',
-        'public-header-admin-action',
+        'public-header-catalog',
         'public-header-menu public-header-language'
     ].map((className) => actionsBlock.indexOf(className));
 
@@ -983,12 +982,12 @@ test('public header mobile controls remain compact and accessible', function () 
     assert.deepEqual(actionOrder, [...actionOrder].sort((a, b) => a - b));
     assert.match(
         actionsBlock,
-        /href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin-action"[\s\S]*?aria-label=/
+        /href="\/Anabelka\/catalog"[\s\S]*?class="public-header-action public-header-catalog"[\s\S]*?aria-label=/
     );
-    assert.match(actionsBlock, /public-header-admin-action[\s\S]*?title=/);
+    assert.match(actionsBlock, /public-header-catalog[\s\S]*?title=/);
     assert.match(
         header,
-        /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin-action"/
+        /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-admin-popover-link"/
     );
 
     assert.match(topRule, /display:\s*contents/i);
