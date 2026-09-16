@@ -140,13 +140,43 @@ class ProductController extends Controller
             $currentLanguage['code'] ?? Language::SOURCE_CODE
         );
 
+        $reviews = [];
+        $canReview = false;
+        $reviewCsrfToken = '';
+        $reviewFlash = is_array($_SESSION['product_review_flash'] ?? null)
+            ? $_SESSION['product_review_flash']
+            : null;
+        unset($_SESSION['product_review_flash']);
+
+        try {
+            $reviews = ProductReview::approvedForProduct($productId);
+            $reviewUserId = CustomerAccount::currentId();
+
+            if ($reviewUserId > 0) {
+                $canReview = !ProductReview::hasReview(
+                    $productId,
+                    $reviewUserId
+                );
+                $reviewCsrfToken = CustomerAccount::csrfToken();
+            }
+        } catch (Throwable $e) {
+            error_log('Product reviews: ' . $e->getMessage());
+            $reviews = [];
+            $canReview = false;
+            $reviewCsrfToken = '';
+        }
+
         $this->view('product/show', [
             'product' => $product,
             'attributes' => $attributes,
             'images' => $images,
             'prices' => $prices,
             'currentRankSlug' => $currentRankSlug,
-            'badges' => $badges
+            'badges' => $badges,
+            'reviews' => $reviews,
+            'canReview' => $canReview,
+            'reviewCsrfToken' => $reviewCsrfToken,
+            'reviewFlash' => $reviewFlash
         ]);
     }
 
