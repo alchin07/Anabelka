@@ -194,28 +194,50 @@ class ProductController extends Controller
         $imageColors = $variantsByProduct[$productId] ?? [];
         $rows = ProductVariantStock::forProduct($productId);
         $usesVariantStock = !empty($rows);
+        $normalizeColorName = static function ($name) {
+            $name = trim((string) $name);
+
+            return function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+        };
+        $matrixColorsByName = [];
+
+        foreach ($rows as $row) {
+            $normalizedName = $normalizeColorName(
+                $row['color_name'] ?? ''
+            );
+
+            if ($normalizedName !== '' && !isset($matrixColorsByName[$normalizedName])) {
+                $matrixColorsByName[$normalizedName] = $row;
+            }
+        }
+
         $colors = [];
         $seenColors = [];
 
         foreach ($imageColors as $variant) {
             $name = trim((string) ($variant['name'] ?? ''));
             $hex = strtolower(trim((string) ($variant['hex'] ?? '')));
+            $normalizedName = $normalizeColorName($name);
 
-            if ($name === '') {
+            if ($normalizedName === '' || isset($seenColors[$normalizedName])) {
                 continue;
             }
 
-            $key = ProductVariantStock::colorKey($name, $hex);
+            $matrixColor = $matrixColorsByName[$normalizedName] ?? null;
+            $key = is_array($matrixColor)
+                ? (string) ($matrixColor['color_key'] ?? '')
+                : ProductVariantStock::colorKey($name, $hex);
+            $matrixHex = is_array($matrixColor)
+                ? strtolower(trim((string) ($matrixColor['color_hex'] ?? '')))
+                : '';
 
-            if (isset($seenColors[$key])) {
-                continue;
-            }
-
-            $seenColors[$key] = true;
+            $seenColors[$normalizedName] = true;
             $colors[] = [
                 'key' => $key,
                 'name' => $name,
-                'hex' => $hex,
+                'hex' => $matrixHex !== '' ? $matrixHex : $hex,
                 'image' => (string) ($variant['path'] ?? ''),
                 'image_id' => (int) ($variant['image_id'] ?? 0)
             ];
