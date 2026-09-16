@@ -20,36 +20,34 @@ function test(name, callback) {
     }
 }
 
-test('public header keeps Catalog in the visitor row and exposes Admin from the profile popover', function () {
+test('public header exposes Admin only in the top row for an active admin session', function () {
     const header = read('views/partials/header.php');
+    const topStart = header.indexOf('<div class="public-header-top">');
+    const searchStart = header.indexOf('<form\n                class="site-search-form"');
 
-    assert.match(
-        header,
-        /href="\/Anabelka\/catalog"[\s\S]*?class="public-header-action public-header-catalog"/
-    );
-    const catalogLinks = header.match(/href="\/Anabelka\/catalog"/g) || [];
-    assert.equal(catalogLinks.length, 1, 'top-row Catalog entry must exist exactly once');
+    assert.ok(topStart >= 0 && searchStart > topStart);
+    const top = header.slice(topStart, searchStart);
 
+    assert.doesNotMatch(top, /href="\/Anabelka\/catalog"/);
+    assert.doesNotMatch(top, /public-header-catalog/);
     assert.match(
-        header,
-        /<details class="public-header-menu public-header-profile">[\s\S]*?<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-admin-popover-link"[\s\S]*?<\?php\s+endif;\s*\?>[\s\S]*?<\/details>/
-    );
-    assert.doesNotMatch(
-        header,
-        /class="public-header-action public-header-admin-action"/
+        top,
+        /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin public-header-admin-action"[\s\S]*?<\?php\s+endif;\s*\?>/
     );
 
     const directAdminLinks = header.match(/href="\/Anabelka\/admin"/g) || [];
     assert.equal(directAdminLinks.length, 1, 'admin entry must exist exactly once');
+    assert.doesNotMatch(header, /public-header-admin-popover-link/);
 });
 
-test('admin popover link keeps regular and system counters mutually exclusive', function () {
+test('admin top-row action keeps regular and system counters mutually exclusive', function () {
     const header = read('views/partials/header.php');
     const script = read('js/public-header-admin-badges.js');
 
     assert.match(header, /public-header-admin-message-badge[\s\S]*?\$adminNotificationCount/);
     assert.match(header, /public-header-admin-system-badge[\s\S]*?id="admin-system-error-count"/);
-    assert.match(script, /querySelector\(['"]\.public-header-admin-popover-link['"]\)/);
+    assert.match(script, /querySelector\(['"]\.public-header-admin-action['"]\)/);
+    assert.doesNotMatch(script, /public-header-admin-popover-link/);
     assert.match(script, /const\s+regularHidden\s*=\s*messageBadge\.hidden/);
     assert.match(
         script,
@@ -80,7 +78,7 @@ test('admin badge keeps the established compact counter geometry', function () {
     );
     assert.match(
         notificationCss,
-        /\.public-header-admin-popover-link\s*\{[^{}]*position:\s*relative[^{}]*overflow:\s*visible/si
+        /\.public-header-admin-action\s*\{[^{}]*position:\s*relative[^{}]*overflow:\s*visible/si
     );
     assert.match(
         notificationCss,
@@ -105,16 +103,16 @@ test('admin notification badge uses the site primary color and system errors kee
     );
 });
 
-test('header cache-busts the admin badge stylesheet after popover relocation', function () {
+test('header cache-busts the admin badge stylesheet after top-row restoration', function () {
     const header = read('views/partials/header.php');
 
-    assert.match(header, /css\/public-header-notifications\.css\?v=5/);
+    assert.match(header, /css\/public-header-notifications\.css\?v=6/);
 });
 
-test('header cache-busts the admin badge script after popover relocation', function () {
+test('header cache-busts the admin badge script after top-row restoration', function () {
     const header = read('views/partials/header.php');
 
-    assert.match(header, /js\/public-header-admin-badges\.js\?v=3/);
+    assert.match(header, /js\/public-header-admin-badges\.js\?v=4/);
 });
 
 test('favorites logic no longer controls admin-header visibility', function () {
