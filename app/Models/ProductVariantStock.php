@@ -57,6 +57,7 @@ class ProductVariantStock
         $placeholders = implode(',', array_fill(0, count($productIds), '?'));
         $stmt = $db->prepare("
             SELECT
+                stock.id,
                 stock.product_id,
                 stock.size_value_id,
                 values_list.value AS size_name,
@@ -68,22 +69,54 @@ class ProductVariantStock
             JOIN attribute_values AS values_list
                 ON values_list.id = stock.size_value_id
             WHERE stock.product_id IN ({$placeholders})
-            ORDER BY stock.product_id, values_list.id, stock.color_name
+            ORDER BY stock.product_id, values_list.id, stock.id
         ");
         $stmt->execute($productIds);
 
-        $result = [];
+        $aggregated = [];
+        $canonicalColors = [];
 
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $productId = (int) $row['product_id'];
-            $result[$productId][] = [
-                'size_value_id' => (int) $row['size_value_id'],
-                'size_name' => (string) $row['size_name'],
-                'color_key' => (string) $row['color_key'],
-                'color_name' => (string) $row['color_name'],
-                'color_hex' => (string) ($row['color_hex'] ?? ''),
-                'stock' => (int) $row['stock']
-            ];
+            $sizeId = (int) $row['size_value_id'];
+            $logicalKey = self::logicalColorKey($row['color_name'] ?? '');
+
+            if ($logicalKey === '') {
+                continue;
+            }
+
+            if (!isset($canonicalColors[$productId][$logicalKey])) {
+                $canonicalColors[$productId][$logicalKey] = [
+                    'color_key' => (string) $row['color_key'],
+                    'color_name' => (string) $row['color_name'],
+                    'color_hex' => (string) ($row['color_hex'] ?? '')
+                ];
+            }
+
+            $groupKey = $sizeId . '|' . $logicalKey;
+
+            if (!isset($aggregated[$productId][$groupKey])) {
+                $color = $canonicalColors[$productId][$logicalKey];
+                $aggregated[$productId][$groupKey] = [
+                    'size_value_id' => $sizeId,
+                    'size_name' => (string) $row['size_name'],
+                    'color_key' => $color['color_key'],
+                    'color_name' => $color['color_name'],
+                    'color_hex' => $color['color_hex'],
+                    'stock' => 0
+                ];
+            }
+
+            $aggregated[$productId][$groupKey]['stock'] += max(
+                0,
+                (int) $row['stock']
+            );
+        }
+
+        $result = [];
+
+        foreach ($aggregated as $productId => $rows) {
+            $result[(int) $productId] = array_values($rows);
         }
 
         return $result;
@@ -137,22 +170,33 @@ class ProductVariantStock
             return 0;
         }
 
-        $db = Database::connect();
-        $stmt = $db->prepare("
-            SELECT stock
+        $stmt = Database::connect()->prepare("
+            SELECT color_key, color_name, stock
             FROM product_variant_stock
             WHERE product_id = :product_id
               AND size_value_id = :size_value_id
-              AND color_key = :color_key
-            LIMIT 1
+            ORDER BY id ASC
         ");
         $stmt->execute([
             'product_id' => $productId,
-            'size_value_id' => $sizeValueId,
-            'color_key' => $colorKey
+            'size_value_id' => $sizeValueId
         ]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $logicalKey = self::logicalKeyForRequestedColor($rows, $colorKey);
 
-        return max(0, (int) $stmt->fetchColumn());
+        if ($logicalKey === '') {
+            return 0;
+        }
+
+        $stock = 0;
+
+        foreach ($rows as $row) {
+            if (self::logicalColorKey($row['color_name'] ?? '') === $logicalKey) {
+                $stock += max(0, (int) ($row['stock'] ?? 0));
+            }
+        }
+
+        return $stock;
     }
 
 
@@ -166,34 +210,44 @@ class ProductVariantStock
             return null;
         }
 
-        $db = Database::connect();
-        $stmt = $db->prepare("
-            SELECT
-                color_key,
-                color_name,
-                color_hex,
-                SUM(stock) AS stock
+        $stmt = Database::connect()->prepare("
+            SELECT color_key, color_name, color_hex, stock
             FROM product_variant_stock
             WHERE product_id = :product_id
-              AND color_key = :color_key
-            GROUP BY color_key, color_name, color_hex
-            LIMIT 1
+            ORDER BY id ASC
         ");
-        $stmt->execute([
-            'product_id' => $productId,
-            'color_key' => $colorKey
-        ]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute(['product_id' => $productId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $logicalKey = self::logicalKeyForRequestedColor($rows, $colorKey);
 
-        if (!$row) {
+        if ($logicalKey === '') {
+            return null;
+        }
+
+        $representative = null;
+        $stock = 0;
+
+        foreach ($rows as $row) {
+            if (self::logicalColorKey($row['color_name'] ?? '') !== $logicalKey) {
+                continue;
+            }
+
+            if ($representative === null || (string) $row['color_key'] === $colorKey) {
+                $representative = $row;
+            }
+
+            $stock += max(0, (int) ($row['stock'] ?? 0));
+        }
+
+        if (!$representative) {
             return null;
         }
 
         return [
-            'color_key' => (string) $row['color_key'],
-            'color_name' => (string) $row['color_name'],
-            'color_hex' => (string) ($row['color_hex'] ?? ''),
-            'stock' => (int) ($row['stock'] ?? 0)
+            'color_key' => (string) $representative['color_key'],
+            'color_name' => (string) $representative['color_name'],
+            'color_hex' => (string) ($representative['color_hex'] ?? ''),
+            'stock' => $stock
         ];
     }
 
@@ -207,31 +261,38 @@ class ProductVariantStock
             return [];
         }
 
-        $db = Database::connect();
-        $stmt = $db->prepare("
-            SELECT
-                color_key,
-                color_name,
-                color_hex,
-                SUM(stock) AS stock
+        $stmt = Database::connect()->prepare("
+            SELECT color_key, color_name, color_hex, stock
             FROM product_variant_stock
             WHERE product_id = :product_id
-            GROUP BY color_key, color_name, color_hex
-            ORDER BY MIN(id) ASC
+            ORDER BY id ASC
         ");
         $stmt->execute(['product_id' => $productId]);
+        $aggregated = [];
 
-        return array_map(
-            function ($row) {
-                return [
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $logicalKey = self::logicalColorKey($row['color_name'] ?? '');
+
+            if ($logicalKey === '') {
+                continue;
+            }
+
+            if (!isset($aggregated[$logicalKey])) {
+                $aggregated[$logicalKey] = [
                     'color_key' => (string) $row['color_key'],
                     'color_name' => (string) $row['color_name'],
                     'color_hex' => (string) ($row['color_hex'] ?? ''),
-                    'stock' => (int) ($row['stock'] ?? 0)
+                    'stock' => 0
                 ];
-            },
-            $stmt->fetchAll(PDO::FETCH_ASSOC)
-        );
+            }
+
+            $aggregated[$logicalKey]['stock'] += max(
+                0,
+                (int) ($row['stock'] ?? 0)
+            );
+        }
+
+        return array_values($aggregated);
     }
 
 
@@ -265,12 +326,49 @@ class ProductVariantStock
             $sizeMap[$key] = (int) $row['id'];
         }
 
+        $normalized = [];
+
+        foreach ($matrix as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $sizeName = trim((string) ($row['size_name'] ?? ''));
+            $colorName = trim((string) ($row['color_name'] ?? ''));
+            $colorHex = strtolower(trim((string) ($row['color_hex'] ?? '')));
+            $stock = max(0, (int) ($row['stock'] ?? 0));
+            $sizeId = $sizeMap[self::textKey($sizeName)] ?? 0;
+            $logicalKey = self::logicalColorKey($colorName);
+
+            if ($sizeId <= 0 || $logicalKey === '') {
+                continue;
+            }
+
+            if (!preg_match('/^#[0-9a-f]{6}$/', $colorHex)) {
+                $colorHex = null;
+            }
+
+            $groupKey = $sizeId . '|' . $logicalKey;
+
+            if (!isset($normalized[$groupKey])) {
+                $normalized[$groupKey] = [
+                    'size_value_id' => $sizeId,
+                    'color_key' => self::colorKey($colorName, $colorHex ?: ''),
+                    'color_name' => $colorName,
+                    'color_hex' => $colorHex,
+                    'stock' => 0
+                ];
+            }
+
+            $normalized[$groupKey]['stock'] += $stock;
+        }
+
         $db->prepare("
             DELETE FROM product_variant_stock
             WHERE product_id = :product_id
         ")->execute(['product_id' => $productId]);
 
-        if (empty($matrix) || empty($sizeMap)) {
+        if (empty($normalized) || empty($sizeMap)) {
             return;
         }
 
@@ -297,37 +395,19 @@ class ProductVariantStock
         $total = 0;
         $sizeTotals = [];
 
-        foreach ($matrix as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-
-            $sizeName = trim((string) ($row['size_name'] ?? ''));
-            $colorName = trim((string) ($row['color_name'] ?? ''));
-            $colorHex = strtolower(trim((string) ($row['color_hex'] ?? '')));
-            $stock = max(0, (int) ($row['stock'] ?? 0));
-            $sizeId = $sizeMap[self::textKey($sizeName)] ?? 0;
-
-            if ($sizeId <= 0 || $colorName === '') {
-                continue;
-            }
-
-            if (!preg_match('/^#[0-9a-f]{6}$/', $colorHex)) {
-                $colorHex = null;
-            }
-
-            $colorKey = self::colorKey($colorName, $colorHex ?: '');
+        foreach ($normalized as $row) {
             $insert->execute([
                 'product_id' => $productId,
-                'size_value_id' => $sizeId,
-                'color_key' => $colorKey,
-                'color_name' => $colorName,
-                'color_hex' => $colorHex,
-                'stock' => $stock
+                'size_value_id' => $row['size_value_id'],
+                'color_key' => $row['color_key'],
+                'color_name' => $row['color_name'],
+                'color_hex' => $row['color_hex'],
+                'stock' => $row['stock']
             ]);
 
-            $total += $stock;
-            $sizeTotals[$sizeId] = ($sizeTotals[$sizeId] ?? 0) + $stock;
+            $total += $row['stock'];
+            $sizeId = (int) $row['size_value_id'];
+            $sizeTotals[$sizeId] = ($sizeTotals[$sizeId] ?? 0) + $row['stock'];
         }
 
         $updateSize = $db->prepare("
@@ -360,6 +440,38 @@ class ProductVariantStock
     public static function colorKey($name, $hex)
     {
         return self::textKey($name) . '|' . strtolower(trim((string) $hex));
+    }
+
+
+    private static function logicalKeyForRequestedColor(array $rows, $colorKey)
+    {
+        $colorKey = trim((string) $colorKey);
+
+        foreach ($rows as $row) {
+            if ((string) ($row['color_key'] ?? '') === $colorKey) {
+                return self::logicalColorKey($row['color_name'] ?? '');
+            }
+        }
+
+        $pipe = strpos($colorKey, '|');
+        $fallback = $pipe === false
+            ? $colorKey
+            : substr($colorKey, 0, $pipe);
+        $fallback = self::textKey($fallback);
+
+        foreach ($rows as $row) {
+            if (self::logicalColorKey($row['color_name'] ?? '') === $fallback) {
+                return $fallback;
+            }
+        }
+
+        return '';
+    }
+
+
+    private static function logicalColorKey($name)
+    {
+        return self::textKey($name);
     }
 
 
