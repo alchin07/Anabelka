@@ -140,17 +140,21 @@ test('existing matrix can be cleared by saving an empty row list', () => {
     assert.match(js, /hasStoredMatrix\s*=\s*rows\.length\s*>\s*0/);
 });
 
-test('dimension rename rekeys cached quantities before structural rebuild', () => {
+test('dimension rename preserves stock through stable tokens and releases the old size id', () => {
     const js = read('js/admin-product-variant-stock.js');
 
+    assert.match(js, /const\s+tokenCache\s*=\s*new Map\(\)/);
+    assert.match(js, /function\s+stableDimensionToken\s*\(/);
     assert.match(js, /function\s+dimensionState\s*\(/);
     assert.match(js, /function\s+rekeyCacheForDimensionChanges\s*\(/);
     assert.match(js, /rekeyCacheForDimensionChanges\(lastDimensionState,\s*nextState\)/);
+    assert.match(js, /input\.dataset\.variantTokenKey\s*=\s*tokenKey/);
+    assert.match(js, /idInput\.value\s*=\s*['"]0['"]/);
 });
 
-test('admin header cache-busts stable matrix v9', () => {
+test('admin header cache-busts verified stable matrix v11', () => {
     const header = read('views/admin/partials/header.php');
 
-    assert.match(header, /admin-product-variant-stock\.js\?v=9/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=11/);
     assert.match(header, /admin-product-editor-fixes\.js\?v=3/);
 });
