@@ -325,7 +325,7 @@ test('category reload and translation-return pages load the shared module once b
     );
 });
 
-test('notification CSS preserves centered type colors without horizontal overflow', function () {
+test('notification CSS preserves centered themed colors without horizontal overflow', function () {
     const css = readIfPresent('css/anabelka-notify.css');
 
     assert.match(css, /position:\s*fixed/i);
@@ -338,22 +338,34 @@ test('notification CSS preserves centered type colors without horizontal overflo
     );
     assert.match(css, /box-sizing:\s*border-box/i);
     assert.match(css, /overflow-wrap:\s*anywhere/i);
+
+    assert.match(css, /--notify-success-bg:\s*var\(--purple,\s*#8a2be2\)/i);
+    assert.match(css, /--notify-success-text:\s*var\(--white,\s*#fff\)/i);
+    assert.match(css, /--notify-error-bg:\s*#b63e48/i);
+    assert.match(css, /--notify-error-text:\s*var\(--white,\s*#fff\)/i);
+    assert.match(css, /--notify-info-bg:\s*var\(--purple-light,\s*#f4eaff\)/i);
+    assert.match(css, /--notify-info-text:\s*var\(--purple-dark,\s*#6519b9\)/i);
+    assert.match(css, /--notify-warning-bg:\s*#f3e8ff/i);
+    assert.match(css, /--notify-warning-text:\s*var\(--purple-dark,\s*#6519b9\)/i);
+    assert.match(css, /--notify-warning-border:\s*var\(--purple,\s*#8a2be2\)/i);
+
     assert.match(
         css,
-        /\.site-message\.is-success\s*\{[^{}]*background:\s*#8a2be2[^{}]*color:\s*#fff/is
+        /\.site-message\.is-success\s*\{[^{}]*background:\s*var\(--notify-success-bg\)[^{}]*color:\s*var\(--notify-success-text\)[^{}]*border:\s*1px\s+solid\s+var\(--notify-success-border\)/is
     );
     assert.match(
         css,
-        /\.site-message\.is-error\s*\{[^{}]*background:\s*#b63e48[^{}]*color:\s*#fff/is
+        /\.site-message\.is-error\s*\{[^{}]*background:\s*var\(--notify-error-bg\)[^{}]*color:\s*var\(--notify-error-text\)[^{}]*border:\s*1px\s+solid\s+var\(--notify-error-border\)/is
     );
     assert.match(
         css,
-        /\.site-message\.is-info\s*\{[^{}]*background:\s*#f4eaff[^{}]*color:\s*#6519b9[^{}]*border[^;]*#8a2be2/is
+        /\.site-message\.is-info\s*\{[^{}]*background:\s*var\(--notify-info-bg\)[^{}]*color:\s*var\(--notify-info-text\)[^{}]*border:\s*1px\s+solid\s+var\(--notify-info-border\)/is
     );
     assert.match(
         css,
-        /\.site-message\.is-warning\s*\{[^{}]*background:\s*#fff7e6[^{}]*color:\s*#6d4c1f[^{}]*border[^;]*#d4a047/is
+        /\.site-message\.is-warning\s*\{[^{}]*background:\s*var\(--notify-warning-bg\)[^{}]*color:\s*var\(--notify-warning-text\)[^{}]*border:\s*1px\s+solid\s+var\(--notify-warning-border\)/is
     );
+    assert.match(css, /\[data-theme="dark"\][\s\S]*?\.theme-dark\s*\{/i);
     assert.doesNotMatch(css, /#302437/i);
 
     const expectedMaxWidths = new Map([
@@ -393,7 +405,7 @@ async function runHeaderBadges(sharedFormatter) {
     };
     const document = {
         querySelector(selector) {
-            return selector === '.public-header-admin-action'
+            return selector === '.public-header-admin-popover-link'
                 ? adminLink
                 : null;
         },
