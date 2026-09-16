@@ -90,7 +90,10 @@ test('matrix rebuilds only when product dimensions change', () => {
     assert.match(matrix, /function\s+rebuildIfDimensionsChanged\s*\(/);
     assert.match(matrix, /nextSignature\s*===\s*lastDimensionSignature/);
     assert.match(matrix, /rebuildIfDimensionsChanged\(false\)/);
-    assert.match(matrix, /rebuildIfDimensionsChanged\(true\)/);
+    assert.match(
+        matrix,
+        /rebuildIfDimensionsChanged\(true,\s*\{\s*preferLoadedRows:\s*true\s*\}\)/
+    );
     assert.doesNotMatch(
         matrix,
         /new MutationObserver\(function\s*\(\)\s*\{\s*window\.setTimeout\(render,\s*0\)/
