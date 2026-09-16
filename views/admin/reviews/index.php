@@ -59,7 +59,6 @@ $statusLabels = [
                     <div class="admin-review-head">
                         <div>
                             <strong><?= $escape($review['customer_name'] ?? '') ?></strong>
-                            <div class="admin-review-meta"><?= $escape($review['customer_email'] ?? '') ?></div>
                             <a href="/Anabelka/product/<?= rawurlencode((string) ($review['product_slug'] ?? '')) ?>#product-reviews">
                                 <?= $escape($review['product_name'] ?? '') ?>
                             </a>
