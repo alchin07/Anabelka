@@ -46,27 +46,10 @@ class HomePage
 
     public static function localizedNavigationTree($languageCode)
     {
-        $localize = function (array $nodes) use (&$localize, $languageCode) {
-            foreach ($nodes as &$node) {
-                $children = is_array($node['children'] ?? null)
-                    ? $node['children']
-                    : [];
-
-                unset($node['children']);
-
-                $node = CategoryTranslator::localize(
-                    $node,
-                    $languageCode
-                );
-
-                $node['children'] = $localize($children);
-            }
-            unset($node);
-
-            return $nodes;
-        };
-
-        return $localize(self::navigationTree());
+        return CategoryTranslator::localizeTree(
+            self::navigationTree(),
+            $languageCode
+        );
     }
 
 
