@@ -10,18 +10,18 @@ function read(relativePath) {
     return fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
 }
 
-const css = read('css/home-desktop-sidebar.css');
+const css = read('css/public-catalog-sidebar.css');
 const icon = read('assets/icons/anabelka-strawberry-white.svg');
 const adultNameRule = css.match(
-    /\.home-sidebar-node\.is-adult-root[^{}]*\.home-sidebar-name\s*\{([^{}]*)\}/i
+    /\.public-catalog-sidebar-node\.is-adult-root[\s\S]*?\.public-catalog-sidebar-name\s*\{([^{}]*)\}/i
 );
 const sidebarTitleRule = css.match(
-    /\.home-sidebar-title\s*\{([^{}]*)\}/i
+    /\.public-catalog-sidebar-title\s*\{([^{}]*)\}/i
 );
 
 assert.match(
     css,
-    /\.home-sidebar-node\.is-adult-root\s*>\s*\.home-sidebar-row\s+\.home-sidebar-link\s*\{[^{}]*justify-content:\s*space-between/si
+    /\.public-catalog-sidebar-node\.is-adult-root[\s\S]*?>\s*\.public-catalog-sidebar-row[\s\S]*?\.public-catalog-sidebar-link\s*\{[^{}]*justify-content:\s*space-between/si
 );
 assert.ok(adultNameRule, 'adult brand name rule was not found');
 assert.match(adultNameRule[1], /font-family:\s*Georgia/i);
@@ -29,7 +29,7 @@ assert.match(adultNameRule[1], /font-style:\s*italic/i);
 assert.match(adultNameRule[1], /order:\s*1/i);
 assert.match(
     css,
-    /\.home-sidebar-adult-badge\s*\{[^{}]*order:\s*2[^{}]*width:\s*28px[^{}]*height:\s*28px[^{}]*font-size:\s*0/si
+    /\.public-catalog-sidebar-adult-badge\s*\{[^{}]*order:\s*2[^{}]*width:\s*28px[^{}]*height:\s*28px[^{}]*font-size:\s*0/si
 );
 assert.match(
     css,
@@ -37,7 +37,7 @@ assert.match(
 );
 assert.match(
     css,
-    /\.home-sidebar-node\.is-adult-root\s*>\s*\.home-sidebar-row\s+\.home-sidebar-link:focus\s*\{[^{}]*outline:\s*none[^{}]*box-shadow:\s*none/si
+    /\.public-catalog-sidebar-node\.is-adult-root[\s\S]*?>\s*\.public-catalog-sidebar-row[\s\S]*?\.public-catalog-sidebar-link:focus\s*\{[^{}]*outline:\s*none[^{}]*box-shadow:\s*none/si
 );
 assert.ok(sidebarTitleRule, 'sidebar title rule was not found');
 assert.match(sidebarTitleRule[1], /margin:\s*0\s+0\s+10px\s+45px/i);
