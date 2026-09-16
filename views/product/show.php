@@ -29,6 +29,11 @@
         href="/Anabelka/css/product-gallery.css?v=1"
     >
 
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/reviews.css?v=1"
+    >
+
 </head>
 
 <body>
@@ -507,6 +512,8 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
             </form>
 
         </section>
+
+        <?php require __DIR__ . '/partials/reviews.php'; ?>
 
     </main>
 
