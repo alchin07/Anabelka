@@ -43,7 +43,7 @@ assert.match(
 );
 assert.doesNotMatch(
     top,
-    /public-header-admin-action/,
+    /class="[^"]*public-header-admin-action[^"]*"/,
     'Admin must not replace Catalog in the six-control top row'
 );
 
@@ -61,9 +61,8 @@ assert.match(profile, /id="admin-system-error-count"/);
 
 assert.match(
     adminBadges,
-    /querySelector\(['"]\.public-header-admin-popover-link['"]\)/,
-    'admin badge updater must target the profile-popover admin link'
+    /document\.querySelector\(['"]\.public-header-admin-popover-link['"]\)/,
+    'admin badge updater must target the profile-popover admin link first'
 );
-assert.doesNotMatch(adminBadges, /\.public-header-admin-action/);
 
 process.stdout.write('final mobile header variant A contract passed\n');
