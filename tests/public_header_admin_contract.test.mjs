@@ -20,28 +20,36 @@ function test(name, callback) {
     }
 }
 
-test('public header has no visitor catalog shortcut and renders admin action only from server admin state', function () {
+test('public header keeps Catalog in the visitor row and exposes Admin from the profile popover', function () {
     const header = read('views/partials/header.php');
 
-    assert.doesNotMatch(
-        header,
-        /href="\/Anabelka\/catalog"[\s\S]*?public-header-(?:catalog|admin-action)/
-    );
     assert.match(
         header,
-        /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin-action"[\s\S]*?<\?php\s+endif;\s*\?>/
+        /href="\/Anabelka\/catalog"[\s\S]*?class="public-header-action public-header-catalog"/
+    );
+    const catalogLinks = header.match(/href="\/Anabelka\/catalog"/g) || [];
+    assert.equal(catalogLinks.length, 1, 'top-row Catalog entry must exist exactly once');
+
+    assert.match(
+        header,
+        /<details class="public-header-menu public-header-profile">[\s\S]*?<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-admin-popover-link"[\s\S]*?<\?php\s+endif;\s*\?>[\s\S]*?<\/details>/
+    );
+    assert.doesNotMatch(
+        header,
+        /class="public-header-action public-header-admin-action"/
     );
 
     const directAdminLinks = header.match(/href="\/Anabelka\/admin"/g) || [];
     assert.equal(directAdminLinks.length, 1, 'admin entry must exist exactly once');
 });
 
-test('admin action keeps regular and system counters mutually exclusive', function () {
+test('admin popover link keeps regular and system counters mutually exclusive', function () {
     const header = read('views/partials/header.php');
     const script = read('js/public-header-admin-badges.js');
 
     assert.match(header, /public-header-admin-message-badge[\s\S]*?\$adminNotificationCount/);
     assert.match(header, /public-header-admin-system-badge[\s\S]*?id="admin-system-error-count"/);
+    assert.match(script, /querySelector\(['"]\.public-header-admin-popover-link['"]\)/);
     assert.match(script, /const\s+regularHidden\s*=\s*messageBadge\.hidden/);
     assert.match(
         script,
@@ -62,7 +70,7 @@ test('system-error check preserves the regular admin count when errors are absen
     assert.match(script, /catch\s*\(function\s*\(\)\s*\{[\s\S]*?systemBadge\.hidden\s*=\s*true[\s\S]*?messageBadge\.hidden\s*=\s*regularHidden/);
 });
 
-test('admin badge uses the same geometry and anchor as the cart badge', function () {
+test('admin badge keeps the established compact counter geometry', function () {
     const baseCss = read('css/public-header.css');
     const notificationCss = read('css/public-header-notifications.css');
 
@@ -72,11 +80,11 @@ test('admin badge uses the same geometry and anchor as the cart badge', function
     );
     assert.match(
         notificationCss,
-        /\.public-header-admin-badges\s*\{[^{}]*display:\s*contents[^{}]*pointer-events:\s*none/si
+        /\.public-header-admin-popover-link\s*\{[^{}]*position:\s*relative[^{}]*overflow:\s*visible/si
     );
-    assert.doesNotMatch(
+    assert.match(
         notificationCss,
-        /\.public-header-admin-badges\s*\{[^{}]*(?:position|top|right|width|height)\s*:/si
+        /\.public-header-admin-badges\s*\{[^{}]*display:\s*contents[^{}]*pointer-events:\s*none/si
     );
     assert.match(
         notificationCss,
@@ -97,16 +105,16 @@ test('admin notification badge uses the site primary color and system errors kee
     );
 });
 
-test('header cache-busts the admin badge stylesheet after color changes', function () {
+test('header cache-busts the admin badge stylesheet after popover relocation', function () {
     const header = read('views/partials/header.php');
 
-    assert.match(header, /css\/public-header-notifications\.css\?v=4/);
+    assert.match(header, /css\/public-header-notifications\.css\?v=5/);
 });
 
-test('header cache-busts the admin badge script after shared formatting changes', function () {
+test('header cache-busts the admin badge script after popover relocation', function () {
     const header = read('views/partials/header.php');
 
-    assert.match(header, /js\/public-header-admin-badges\.js\?v=2/);
+    assert.match(header, /js\/public-header-admin-badges\.js\?v=3/);
 });
 
 test('favorites logic no longer controls admin-header visibility', function () {
