@@ -372,7 +372,9 @@ class AdminAccess
             '/admin/ai-translation' => ['ai_translation.view', 'ai_translation.manage'],
             '/admin/categories' => ['categories.view', 'categories.manage'],
             '/admin/products' => ['products.view', 'products.manage'],
-            '/admin/delivery' => ['delivery.view', 'delivery.manage']
+            '/admin/delivery' => ['delivery.view', 'delivery.manage'],
+            '/admin/news' => ['news.view', 'news.manage'],
+            '/admin/reviews' => ['reviews.view', 'reviews.manage']
         ];
 
         foreach ($areas as $prefix => $permissions) {
@@ -490,6 +492,10 @@ class AdminAccess
             ['translations.manage', 'Керування перекладами', 'translations', 111],
             ['ai_translation.view', 'Перегляд налаштувань ШІ', 'translations', 120],
             ['ai_translation.manage', 'Керування ШІ-перекладом', 'translations', 121],
+            ['news.view', 'Перегляд новин', 'content', 122],
+            ['news.manage', 'Керування новинами', 'content', 123],
+            ['reviews.view', 'Перегляд відгуків', 'content', 124],
+            ['reviews.manage', 'Модерація відгуків', 'content', 125],
             ['administrators.view', 'Перегляд адміністраторів', 'security', 130],
             ['administrators.manage', 'Керування адміністраторами', 'security', 131],
             ['audit.view', 'Перегляд журналу дій', 'security', 140]
@@ -574,7 +580,11 @@ class AdminAccess
                 'languages.view',
                 'translations.view',
                 'translations.manage',
-                'ai_translation.view'
+                'ai_translation.view',
+                'news.view',
+                'news.manage',
+                'reviews.view',
+                'reviews.manage'
             ]
         ];
 
