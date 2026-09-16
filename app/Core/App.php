@@ -106,6 +106,7 @@ class App
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
         require_once __DIR__ . '/../Controllers/ProductController.php';
+        require_once __DIR__ . '/../Controllers/ProductReviewController.php';
         require_once __DIR__ . '/../Controllers/AdultController.php';
         require_once __DIR__ . '/../Controllers/SearchController.php';
         require_once __DIR__ . '/../Controllers/NewsController.php';
@@ -131,6 +132,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminUserRankController.php';
         require_once __DIR__ . '/../Controllers/AdminAdministratorController.php';
         require_once __DIR__ . '/../Controllers/AdminNewsController.php';
+        require_once __DIR__ . '/../Controllers/AdminReviewController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';
