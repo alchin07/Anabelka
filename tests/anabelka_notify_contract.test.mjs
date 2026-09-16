@@ -45,9 +45,17 @@ function createClassList() {
 }
 
 function createMessageElement() {
+    const attributes = new Map();
+
     return {
         textContent: '',
-        classList: createClassList()
+        classList: createClassList(),
+        setAttribute(name, value) {
+            attributes.set(name, String(value));
+        },
+        getAttribute(name) {
+            return attributes.get(name) ?? null;
+        }
     };
 }
 
