@@ -15,15 +15,17 @@ Make the existing desktop catalog tree from the home page available on every pub
 
 ## Architecture
 
-The public header is the common entry point for the public site. It will own the global sidebar integration because every public view already requires `views/partials/header.php`, while the same file exits early to the separate admin header for admin requests.
+The public header is the common entry point for the public site. It owns the global sidebar integration because every public view already requires `views/partials/header.php`, while the same file exits early to the separate admin header for admin requests.
 
-The sidebar itself will be a dedicated reusable partial: `views/partials/public-catalog-sidebar.php`. Tree data will come from the existing `HomePage::navigationTree()` rules, but localization will be moved into a reusable model method so the home controller and global sidebar do not duplicate recursive localization logic.
+The sidebar itself is a dedicated reusable partial: `views/partials/public-catalog-sidebar.php`. Tree data comes from the existing `HomePage::navigationTree()` rules. `HomePage::localizedNavigationTree()` delegates tree localization to `CategoryTranslator::localizeTree()`, which gathers category IDs and loads translations for the active language in one batch query before applying them in memory. This avoids an N+1 translation query on every public page.
 
-The home page will stop rendering its own sidebar. There must be only one sidebar instance in the DOM.
+The home controller and global sidebar therefore share one localized-tree path. On the home page the already prepared `$navigationTree` is reused by the sidebar partial so the same tree is not built twice in one request.
+
+The home page no longer renders its own sidebar. There must be only one sidebar instance in the DOM.
 
 ## Desktop layout
 
-A new generic stylesheet `css/public-catalog-sidebar.css` will turn public `body` into a two-column CSS grid only at `min-width: 1050px`:
+The generic stylesheet `css/public-catalog-sidebar.css` turns public `body` into a two-column CSS grid only at `min-width: 1050px`:
 
 - row 1: public header spans both columns;
 - row 2, column 1: catalog sidebar;
@@ -37,7 +39,7 @@ The desktop-only home department strip remains hidden because the persistent sid
 
 ## Rendering and navigation
 
-`views/partials/public-catalog-sidebar.php` renders the same recursive structure currently embedded in `views/home.php`:
+`views/partials/public-catalog-sidebar.php` renders the same recursive structure previously embedded in `views/home.php`:
 
 - all levels begin on the same left tree axis;
 - categories with children have collapse controls;
@@ -57,11 +59,11 @@ Create:
 - `tests/public_catalog_sidebar_contract.test.mjs`
 
 Modify:
-- `app/Models/HomePage.php` — add reusable localized navigation-tree method.
+- `app/Models/HomePage.php` — add reusable localized navigation-tree method using the batched `CategoryTranslator::localizeTree()` path.
 - `app/Controllers/HomeController.php` — use the reusable localization method and stop owning private sidebar localization code.
 - `views/partials/header.php` — load/render the global public sidebar only after the admin early-return path.
 - `views/home.php` — remove the old embedded sidebar and its private renderer/assets.
-- existing home desktop sidebar contract coverage if required by renamed generic assets.
+- existing home desktop sidebar contract coverage for the renamed generic component.
 
 Remove after migration:
 - `css/home-desktop-sidebar.css`
@@ -69,15 +71,16 @@ Remove after migration:
 
 ## Verification
 
-Add a Node contract test that fails before implementation and verifies:
+The Node contract test verifies:
 
 1. the public header loads the generic sidebar CSS/JS and renders the sidebar partial;
 2. admin requests return before public sidebar rendering;
 3. `views/home.php` no longer contains a second sidebar or private recursive renderer;
 4. sidebar links use the canonical category/adult routing helpers;
-5. desktop CSS uses a two-column public layout at `1050px+`, with the header spanning both columns, sidebar in column 1, direct public `<main>` in column 2, and sticky sidebar behavior;
-6. the sidebar is hidden below the desktop breakpoint;
-7. the existing collapse storage key is preserved;
-8. current category-manager, public-header, adult-brand, product-color, matrix/mobile, notification, and public-error contracts continue to pass.
+5. localized sidebar trees use `CategoryTranslator::localizeTree()` and do not call `CategoryTranslator::localize()` per node;
+6. desktop CSS uses a two-column public layout at `1050px+`, with the header spanning both columns, sidebar in column 1, direct public `<main>` in column 2, and sticky sidebar behavior;
+7. the sidebar is hidden below the desktop breakpoint;
+8. the existing collapse storage key is preserved;
+9. existing public-header and adult-brand contracts continue to protect prior behavior.
 
-Because the connected environment does not provide the live KSWEB/PHP runtime or a browser binary, final pixel-level desktop review on the laptop remains a later manual check. Static contracts must still protect layout structure and prevent mobile/admin regressions.
+The connected container cannot clone GitHub because outbound DNS to `github.com` is unavailable, so a repository-wide test-suite run is not possible from this session. Targeted Node syntax/contract checks and PHP lint are run against the changed component sources, while final pixel-level desktop review remains a later laptop check.
