@@ -179,7 +179,7 @@ $badgeText = static function ($count) {
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-header-notifications.css?v=4"
+        href="/Anabelka/css/public-header-notifications.css?v=5"
     >
 
     <link
@@ -599,7 +599,7 @@ $badgeText = static function ($count) {
 
 <?php if ($currentAdmin): ?>
     <script
-        src="/Anabelka/js/public-header-admin-badges.js?v=2"
+        src="/Anabelka/js/public-header-admin-badges.js?v=3"
         defer
     ></script>
 <?php endif; ?>
