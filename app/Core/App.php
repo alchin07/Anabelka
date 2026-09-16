@@ -108,6 +108,7 @@ class App
         require_once __DIR__ . '/../Controllers/ProductController.php';
         require_once __DIR__ . '/../Controllers/AdultController.php';
         require_once __DIR__ . '/../Controllers/SearchController.php';
+        require_once __DIR__ . '/../Controllers/NewsController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
         require_once __DIR__ . '/../Controllers/CartColorController.php';
         require_once __DIR__ . '/../Controllers/FavoriteController.php';
@@ -129,6 +130,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminUserController.php';
         require_once __DIR__ . '/../Controllers/AdminUserRankController.php';
         require_once __DIR__ . '/../Controllers/AdminAdministratorController.php';
+        require_once __DIR__ . '/../Controllers/AdminNewsController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';
@@ -148,6 +150,7 @@ class App
         require __DIR__ . '/../../routes/Legal.php';
         require __DIR__ . '/../../routes/PasswordReset.php';
         require __DIR__ . '/../../routes/SocialAuth.php';
+        require __DIR__ . '/../../routes/Content.php';
         require __DIR__ . '/../../routes/Web.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
