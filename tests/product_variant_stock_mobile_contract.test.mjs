@@ -124,9 +124,33 @@ test('summary mirroring avoids rewriting unchanged DOM while the matrix input is
     assert.match(js, /if\s*\(totalNode\.textContent\s*!==\s*nextText\)/);
 });
 
-test('admin header cache-busts stable matrix v8', () => {
+test('variant save failure is propagated to the product editor instead of swallowed', () => {
+    const js = read('js/admin-product-variant-stock.js');
+
+    assert.match(js, /function\s+variantSaveError\s*\(/);
+    assert.match(js, /throw\s+variantSaveError\s*\(/);
+    assert.match(js, /productIdField\.value\s*=\s*String\(productId\)/);
+});
+
+test('existing matrix can be cleared by saving an empty row list', () => {
+    const js = read('js/admin-product-variant-stock.js');
+
+    assert.match(js, /const\s+shouldSaveMatrix\s*=\s*hasStoredMatrix\s*\|\|\s*matrixTouched/);
+    assert.doesNotMatch(js, /&&\s*rows\.length\s*>\s*0\s*&&\s*shouldSaveMatrix/);
+    assert.match(js, /hasStoredMatrix\s*=\s*rows\.length\s*>\s*0/);
+});
+
+test('dimension rename rekeys cached quantities before structural rebuild', () => {
+    const js = read('js/admin-product-variant-stock.js');
+
+    assert.match(js, /function\s+dimensionState\s*\(/);
+    assert.match(js, /function\s+rekeyCacheForDimensionChanges\s*\(/);
+    assert.match(js, /rekeyCacheForDimensionChanges\(lastDimensionState,\s*nextState\)/);
+});
+
+test('admin header cache-busts stable matrix v9', () => {
     const header = read('views/admin/partials/header.php');
 
-    assert.match(header, /admin-product-variant-stock\.js\?v=8/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=9/);
     assert.match(header, /admin-product-editor-fixes\.js\?v=3/);
 });
