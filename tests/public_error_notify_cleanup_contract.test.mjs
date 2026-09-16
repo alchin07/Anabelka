@@ -51,7 +51,7 @@ test('front controller globally installs notification assets and host', () => {
     assert.match(bootstrap, /anabelka-notify\.css\?v=/);
     assert.match(bootstrap, /anabelka-notify\.js\?v=/);
     assert.match(bootstrap, /id=["']site-message["']/);
-    assert.match(bootstrap, /aria-atomic=["']true["']/);
+    assert.match(bootstrap, /aria-atomic=\\?["']true\\?["']/);
     assert.match(bootstrap, /<\/head>/i);
     assert.match(bootstrap, /<body/i);
 });
