@@ -3,10 +3,9 @@
     display: none !important;
 }
 
-.public-header-admin-popover-link {
+.public-header-admin-action {
     position: relative;
     overflow: visible;
-    padding-right: 38px !important;
 }
 
 .public-header-admin-badges {
