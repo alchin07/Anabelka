@@ -121,7 +121,7 @@ test('summary mirroring avoids rewriting unchanged DOM while the matrix input is
 
     assert.match(js, /if\s*\(stock\.value\s*!==\s*nextValue\)/);
     assert.match(js, /if\s*\(sizeHint\.textContent\s*!==\s*matrixHint\)/);
-    assert.match(js, /if\s*\(totalNode\.textContent\s*!==\s*nextText\)/);
+    assert.match(js, /if\s*\(totalNode\s*&&\s*totalNode\.textContent\s*!==\s*nextText\)/);
 });
 
 test('variant save failure is propagated to the product editor instead of swallowed', () => {
