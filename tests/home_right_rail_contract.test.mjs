@@ -56,13 +56,12 @@ for (const href of ['/Anabelka/news', '/Anabelka/reviews', '/Anabelka/gift-certi
     assert.match(catalogView, new RegExp(`href=["']${href.replaceAll('/', '\\/')}["']`));
 }
 assert.match(catalogView, /catalog-utility-links/);
-assert.match(catalogView, /@media|catalog-utility-links/i);
 
-const topRowOrder = ['public-header-logo', 'header-favorites', 'public-header-profile', 'header-cart', 'public-header-catalog', 'public-header-language'];
-for (const token of topRowOrder) {
+for (const token of ['public-header-top', 'public-header-logo', 'header-favorites', 'public-header-profile', 'header-cart', 'public-header-language']) {
     assert.match(publicHeader, new RegExp(token));
 }
 assert.doesNotMatch(publicHeader, /public-header-(?:news|reviews|certificate)/);
+assert.doesNotMatch(publicHeader, /href="\/Anabelka\/(?:news|reviews|gift-certificates)"/);
 
 for (const key of [
     'home.news_title',
