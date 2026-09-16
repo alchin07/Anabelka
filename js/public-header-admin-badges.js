@@ -2,8 +2,7 @@
     'use strict';
 
     const endpoint = '/Anabelka/admin/system/error-notifications';
-    const adminLink = document.querySelector('.public-header-admin-popover-link')
-        || document.querySelector('.public-header-admin-action');
+    const adminLink = document.querySelector('.public-header-admin-action');
     const messageBadge = adminLink
         ? adminLink.querySelector('.public-header-admin-message-badge')
         : null;
