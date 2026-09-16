@@ -6,6 +6,8 @@ $router->get('/news/{slug}', 'NewsController@show');
 $router->get('/reviews', 'ProductReviewController@index');
 $router->post('/product/{slug}/reviews', 'ProductReviewController@store');
 
+$router->get('/gift-certificates', 'GiftCertificateController@index');
+
 $router->get('/admin/news', 'AdminNewsController@index');
 $router->post('/admin/news/create', 'AdminNewsController@create');
 $router->post('/admin/news/update', 'AdminNewsController@update');
