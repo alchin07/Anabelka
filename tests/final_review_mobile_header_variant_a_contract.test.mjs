@@ -24,45 +24,46 @@ const controls = [
     'header-favorites',
     'public-header-profile',
     'header-cart',
-    'public-header-catalog',
+    'public-header-admin-action',
     'public-header-menu public-header-language'
 ].map(className => top.indexOf(className));
 
 controls.forEach((position, index) => {
-    assert.ok(position >= 0, `variant A control ${index + 1} is missing`);
+    assert.ok(position >= 0, `admin variant control ${index + 1} is missing`);
 });
 assert.deepEqual(
     controls,
     [...controls].sort((left, right) => left - right),
-    'mobile variant A order must be Logo → Favorites → Profile → Cart → Catalog → Language'
+    'admin mobile order must be Logo → Favorites → Profile → Cart → Admin → Language'
+);
+
+assert.doesNotMatch(
+    top,
+    /href="\/Anabelka\/catalog"|public-header-catalog/,
+    'Catalog must not occupy the approved admin icon slot'
 );
 assert.match(
     top,
-    /href="\/Anabelka\/catalog"[\s\S]*?class="public-header-action public-header-catalog"/,
-    'Catalog must be a permanent top-row action for every visitor'
+    /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-action public-header-admin public-header-admin-action"[\s\S]*?<\?php\s+endif;\s*\?>/,
+    'Admin action must render only for an active admin session'
 );
-assert.doesNotMatch(
-    top,
-    /class="[^"]*public-header-admin-action[^"]*"/,
-    'Admin must not replace Catalog in the six-control top row'
-);
+assert.match(top, /public-header-admin-message-badge/);
+assert.match(top, /id="admin-system-error-count"/);
 
 const profileStart = header.indexOf('<details class="public-header-menu public-header-profile">');
 const profileEnd = header.indexOf('</details>', profileStart);
 assert.ok(profileStart >= 0 && profileEnd > profileStart, 'profile menu must exist');
 const profile = header.slice(profileStart, profileEnd);
-assert.match(
+assert.doesNotMatch(
     profile,
-    /<\?php\s+if\s*\(\$currentAdmin\)\s*:\s*\?>[\s\S]*?href="\/Anabelka\/admin"[\s\S]*?class="public-header-admin-popover-link"/,
-    'admin access must remain available from the profile popover for an active admin session'
+    /href="\/Anabelka\/admin"|public-header-admin-popover-link/,
+    'Admin access must not be duplicated inside the profile popover'
 );
-assert.match(profile, /public-header-admin-message-badge/);
-assert.match(profile, /id="admin-system-error-count"/);
 
 assert.match(
     adminBadges,
-    /document\.querySelector\(['"]\.public-header-admin-popover-link['"]\)/,
-    'admin badge updater must target the profile-popover admin link first'
+    /document\.querySelector\(['"]\.public-header-admin-action['"]\)/,
+    'admin badge updater must target the conditional top-row admin action'
 );
 
-process.stdout.write('final mobile header variant A contract passed\n');
+process.stdout.write('final mobile header admin-action contract passed\n');
