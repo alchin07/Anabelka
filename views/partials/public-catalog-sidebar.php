@@ -4,6 +4,10 @@ $sidebarLanguageCode = $currentLanguage['code']
 $publicCatalogTree = isset($navigationTree) && is_array($navigationTree)
     ? $navigationTree
     : HomePage::localizedNavigationTree($sidebarLanguageCode);
+$publicCatalogLabel = Translator::t(
+    'public.catalog.title',
+    'Каталог'
+);
 
 $sidebarEscape = static function ($value) {
     return htmlspecialchars(
@@ -98,18 +102,14 @@ $renderPublicCatalogSidebarNodes = function (array $nodes, $level = 1) use (
 
 <aside
     class="public-catalog-sidebar"
-    aria-label="<?= $sidebarEscape(
-        Translator::t('home.nav_catalog', 'Каталог')
-    ) ?>"
+    aria-label="<?= $sidebarEscape($publicCatalogLabel) ?>"
 >
     <div class="public-catalog-sidebar-panel">
         <a
             class="public-catalog-sidebar-title"
             href="/Anabelka/catalog"
         >
-            <?= $sidebarEscape(
-                Translator::t('home.nav_catalog', 'Каталог')
-            ) ?>
+            <?= $sidebarEscape($publicCatalogLabel) ?>
         </a>
 
         <?php if (!empty($publicCatalogTree)): ?>
