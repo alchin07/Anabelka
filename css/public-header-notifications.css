@@ -3,9 +3,10 @@
     display: none !important;
 }
 
-.public-header-admin-action {
+.public-header-admin-popover-link {
     position: relative;
     overflow: visible;
+    padding-right: 38px !important;
 }
 
 .public-header-admin-badges {
@@ -62,8 +63,7 @@
     line-height: 1;
 }
 
-.public-header-admin .public-header-action-icon,
-.public-header-admin-action .public-header-action-icon {
+.public-header-admin .public-header-action-icon {
     color: var(--primary-color, #8A2BE2);
 }
 
