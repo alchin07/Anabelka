@@ -1,0 +1,114 @@
+.admin-reviews-page {
+    width: min(1180px, calc(100% - 28px));
+    margin: 0 auto;
+    padding: 22px 0 50px;
+}
+
+.admin-reviews-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.admin-reviews-filters a {
+    padding: 8px 12px;
+    border: 1px solid #d9c7e9;
+    border-radius: 10px;
+    background: #fff;
+    color: #6519b9;
+    font-weight: 800;
+}
+
+.admin-reviews-filters a.is-active {
+    border-color: #8A2BE2;
+    background: #8A2BE2;
+    color: #fff;
+}
+
+.admin-review-flash,
+.admin-review-warning {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.admin-review-flash.is-success {
+    border: 1px solid #b9ddc4;
+    background: #f2fbf5;
+    color: #27623a;
+}
+
+.admin-review-flash.is-error,
+.admin-review-warning {
+    border: 1px solid #e7b9c1;
+    background: #fff0f2;
+    color: #8e3748;
+}
+
+.admin-review-list {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-review-card {
+    padding: 16px;
+    border: 1px solid #eadcf7;
+    border-radius: 15px;
+    background: #fff;
+}
+
+.admin-review-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 14px;
+}
+
+.admin-review-meta {
+    color: #746b78;
+    font-size: 13px;
+}
+
+.admin-review-stars {
+    color: #c48500;
+    letter-spacing: 1px;
+}
+
+.admin-review-body {
+    margin: 12px 0;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.admin-review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.admin-review-actions form {
+    display: inline-flex;
+}
+
+.admin-review-actions button {
+    min-height: 38px;
+    padding: 0 13px;
+    border: 1px solid #8A2BE2;
+    border-radius: 10px;
+    background: #fff;
+    color: #6519b9;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-review-actions .is-primary {
+    background: #8A2BE2;
+    color: #fff;
+}
+
+.admin-review-actions .is-danger {
+    border-color: #b63e48;
+    color: #b63e48;
+}
