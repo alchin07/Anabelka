@@ -78,6 +78,7 @@ class App
         require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
         require_once __DIR__ . '/../Models/Translator.php';
         require_once __DIR__ . '/../Models/PublicInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/ContentInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/ProductInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/DeliveryTranslator.php';
         require_once __DIR__ . '/../Models/SearchInterfaceTranslator.php';
