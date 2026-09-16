@@ -38,6 +38,16 @@ assert.match(
     'HomePage must expose reusable localized navigation tree data'
 );
 assert.match(
+    homePage,
+    /CategoryTranslator::localizeTree\s*\(/,
+    'global sidebar tree translation must use the batched tree localizer'
+);
+assert.doesNotMatch(
+    homePage,
+    /CategoryTranslator::localize\s*\(/,
+    'global sidebar tree must not translate categories one-by-one'
+);
+assert.match(
     homeController,
     /HomePage::localizedNavigationTree\s*\(/,
     'HomeController must reuse the shared localization helper'
