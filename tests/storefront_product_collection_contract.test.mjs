@@ -48,6 +48,11 @@ assert.match(modelSource, /ProductTranslator::localizeList\s*\(/);
 assert.match(modelSource, /ProductImage::colorVariantsForProducts\s*\(/);
 assert.match(modelSource, /ORDER\s+BY\s+q\.id\s+DESC/i);
 assert.match(modelSource, /LIMIT\s+:limit\s+OFFSET\s+:offset/i);
+assert.match(
+    modelSource,
+    /NOT\s*\(\s*q\.active_discount_percent\s*>\s*0\s*OR\s*q\.old_price\s*>\s*q\.current_price\s*\)/i,
+    'new arrivals must exclude every product that qualifies for Discounts'
+);
 assert.doesNotMatch(
     modelSource,
     /Product::getCurrentPrice\s*\(/,
