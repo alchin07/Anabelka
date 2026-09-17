@@ -54,7 +54,7 @@ $assetUrl = function ($path) {
     <title>Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/home.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/home.css?v=5">
     <link rel="stylesheet" href="/Anabelka/css/home-right-rail.css?v=1">
 </head>
 <body>
@@ -336,7 +336,7 @@ $assetUrl = function ($path) {
                                         <div class="home-product-colors" aria-hidden="true">
                                             <?php foreach (array_slice($variants, 0, 6) as $variant): ?>
                                                 <?php
-                                                $hex = strtolower(trim((string) ($variant['color_hex'] ?? '')));
+                                                $hex = strtolower(trim((string) ($variant['hex'] ?? '')));
                                                 if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
                                                     $hex = '#b8b0bd';
                                                 }
@@ -376,6 +376,25 @@ $assetUrl = function ($path) {
                     </div>
                 <?php endif; ?>
             </section>
+
+            <details class="home-useful-menu">
+                <summary>
+                    <?= $escape(
+                        Translator::t('home.useful_title', 'Корисне')
+                    ) ?>
+                </summary>
+                <nav aria-label="<?= $escape(Translator::t('home.useful_title', 'Корисне')) ?>">
+                    <a href="/Anabelka/news">
+                        <?= $escape(Translator::t('home.utility_news', 'Новини')) ?>
+                    </a>
+                    <a href="/Anabelka/reviews">
+                        <?= $escape(Translator::t('home.utility_reviews', 'Відгуки покупців')) ?>
+                    </a>
+                    <a href="/Anabelka/gift-certificates">
+                        <?= $escape(Translator::t('home.utility_gifts', 'Подарункові сертифікати')) ?>
+                    </a>
+                </nav>
+            </details>
 
             <section class="home-info-row" aria-label="Інформація магазину">
                 <div class="home-info-item">
