@@ -219,12 +219,12 @@ $router->post(
 
 $router->get(
     '/admin/translations',
-    'AdminTranslationController@index'
+    'AdminMobileNavigationTranslationController@index'
 );
 
 $router->get(
     '/admin/translations/missing',
-    'AdminTranslationController@missing'
+    'AdminMobileNavigationTranslationController@missing'
 );
 
 $router->get(
