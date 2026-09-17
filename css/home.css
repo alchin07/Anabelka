@@ -19,6 +19,25 @@
     background: #fff;
     box-shadow: 0 6px 20px rgba(74, 44, 92, .05);
     scrollbar-width: thin;
+    scrollbar-color: #c9a7e8 #f4eaff;
+}
+
+.home-department-nav::-webkit-scrollbar {
+    height: 5px;
+}
+
+.home-department-nav::-webkit-scrollbar-track {
+    background: #f4eaff;
+    border-radius: 999px;
+}
+
+.home-department-nav::-webkit-scrollbar-thumb {
+    background: #c9a7e8;
+    border-radius: 999px;
+}
+
+.home-department-nav::-webkit-scrollbar-thumb:hover {
+    background: #8A2BE2;
 }
 
 .home-department-nav a {
