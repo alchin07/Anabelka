@@ -136,6 +136,7 @@ $canCategories = $adminCan('categories.view');
 $canDelivery = $adminCan('delivery.view');
 $canNews = $adminCan('news.view');
 $canReviews = $adminCan('reviews.view');
+$canMobileNavigation = $adminCan('mobile_navigation.view');
 $canLanguages = $adminCan('languages.view');
 $canTranslations = $adminCan('translations.view');
 $canAiTranslation = $adminCan('ai_translation.view');
@@ -325,7 +326,7 @@ $canAudit = $adminCan('audit.view');
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($canNews || $canReviews): ?>
+        <?php if ($canNews || $canReviews || $canMobileNavigation): ?>
             <span class="admin-nav-group-title">Контент</span>
 
             <?php if ($canNews): ?>
@@ -343,6 +344,15 @@ $canAudit = $adminCan('audit.view');
                     data-admin-route="/Anabelka/admin/reviews"
                 >
                     <span>Відгуки</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canMobileNavigation): ?>
+                <a
+                    href="/Anabelka/admin/mobile-navigation"
+                    data-admin-route="/Anabelka/admin/mobile-navigation"
+                >
+                    <span>Мобільне меню</span>
                 </a>
             <?php endif; ?>
         <?php endif; ?>
