@@ -52,10 +52,13 @@ assert.match(railCss, /gap:\s*20px/i);
 assert.match(railCss, /\.home-right-rail\s*\{[^{}]*display:\s*block[^{}]*position:\s*sticky/si);
 assert.doesNotMatch(railCss, /@media\s*\(min-width:\s*1050px\)[\s\S]*?\.home-right-rail\s*\{[^{}]*display:\s*block/si);
 
+assert.match(homeView, /<details\s+class="home-useful-menu"/);
 for (const href of ['/Anabelka/news', '/Anabelka/reviews', '/Anabelka/gift-certificates']) {
-    assert.match(catalogView, new RegExp(`href=["']${href.replaceAll('/', '\\/')}["']`));
+    const escapedHref = href.replaceAll('/', '\\/');
+    assert.match(homeView, new RegExp(`href=["']${escapedHref}["']`));
+    assert.doesNotMatch(catalogView, new RegExp(`href=["']${escapedHref}["']`));
 }
-assert.match(catalogView, /catalog-utility-links/);
+assert.doesNotMatch(catalogView, /catalog-utility-links/);
 
 for (const token of ['public-header-top', 'public-header-logo', 'header-favorites', 'public-header-profile', 'header-cart', 'public-header-language']) {
     assert.match(publicHeader, new RegExp(token));
@@ -70,7 +73,11 @@ for (const key of [
     'home.all_reviews',
     'home.gift_title',
     'home.gift_text',
-    'home.gift_more'
+    'home.gift_more',
+    'home.useful_title',
+    'home.utility_news',
+    'home.utility_reviews',
+    'home.utility_gifts'
 ]) {
     assert.match(homeTranslations, new RegExp(key.replace('.', '\\.')));
 }
