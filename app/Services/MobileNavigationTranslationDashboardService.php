@@ -33,11 +33,11 @@ class MobileNavigationTranslationDashboardService extends TranslationDashboardSe
 
             $data['coverage'][] = [
                 'section' => self::SECTION,
-                'label' => 'Мобільне меню',
+                'label' => 'Мобільне меню — потрібна міграція',
                 'entity_count' => 0,
-                'required' => 0,
+                'required' => 1,
                 'translated' => 0,
-                'missing' => 0,
+                'missing' => 1,
                 'percent' => 0,
                 'url' => self::EDITOR_URL,
                 'unavailable' => true
@@ -63,8 +63,9 @@ class MobileNavigationTranslationDashboardService extends TranslationDashboardSe
         );
 
         try {
+            $allItems = $this->missingMobileNavigation();
             $items = $this->filterItems(
-                $this->missingMobileNavigation(),
+                $allItems,
                 $normalizedFilters
             );
 
@@ -74,7 +75,7 @@ class MobileNavigationTranslationDashboardService extends TranslationDashboardSe
                 'sectionUrl' => self::EDITOR_URL,
                 'targetLanguages' => $targetLanguages,
                 'items' => $items,
-                'totalItems' => count($this->missingMobileNavigation()),
+                'totalItems' => count($allItems),
                 'filters' => $normalizedFilters
             ];
         } catch (Throwable $e) {
@@ -170,6 +171,18 @@ class MobileNavigationTranslationDashboardService extends TranslationDashboardSe
                     !empty($row['translation_has_content'])
                 );
         }
+
+        foreach ($items as &$item) {
+            $focusLanguage = strtolower(
+                trim((string) (($item['missing_languages'][0] ?? '')))
+            );
+
+            if ($focusLanguage !== '') {
+                $item['url'] .= '&focus_language='
+                    . rawurlencode($focusLanguage);
+            }
+        }
+        unset($item);
 
         return array_values($items);
     }
