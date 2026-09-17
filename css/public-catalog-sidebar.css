@@ -180,7 +180,7 @@
         border: 1px solid var(--public-sidebar-border);
         border-radius: 14px;
         color: var(--public-sidebar-text);
-        background: #faf7ff;
+        background: #fbf8fd;
         font-size: 14px;
         font-weight: 700;
         line-height: 1.25;
@@ -188,31 +188,51 @@
 
     .public-catalog-sidebar-row[data-level="2"]
         .public-catalog-sidebar-link {
-        background: #f2e8fc;
+        background: #f5ecfa;
     }
 
     .public-catalog-sidebar-row[data-level="3"]
         .public-catalog-sidebar-link {
-        background: #e7d7f6;
+        background: #ecddf5;
     }
 
     .public-catalog-sidebar-row[data-level="4"]
         .public-catalog-sidebar-link {
-        background: #dcc4f2;
+        background: #e3d0ef;
     }
 
     .public-catalog-sidebar-row[data-level="5"]
         .public-catalog-sidebar-link {
-        background: #d1b2ed;
+        background: #d8bee9;
     }
 
     .public-catalog-sidebar-row[data-level="6"]
-        .public-catalog-sidebar-link,
+        .public-catalog-sidebar-link {
+        background: #cdaade;
+    }
+
     .public-catalog-sidebar-row[data-level="7"]
-        .public-catalog-sidebar-link,
+        .public-catalog-sidebar-link {
+        background: #c19ad5;
+    }
+
     .public-catalog-sidebar-row[data-level="8"]
         .public-catalog-sidebar-link {
-        background: #d1b2ed;
+        background: #b88dce;
+    }
+
+    .public-catalog-sidebar-row[data-level="9"]
+        .public-catalog-sidebar-link {
+        background: #af80c7;
+    }
+
+    .public-catalog-sidebar-row[data-level="10"]
+        .public-catalog-sidebar-link,
+    .public-catalog-sidebar-row[data-level="11"]
+        .public-catalog-sidebar-link,
+    .public-catalog-sidebar-row[data-level="12"]
+        .public-catalog-sidebar-link {
+        background: #af80c7;
     }
 
     .public-catalog-sidebar-link:hover,
