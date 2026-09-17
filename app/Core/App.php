@@ -99,6 +99,7 @@ class App
         require_once __DIR__ . '/../Services/DeepLTranslationProvider.php';
         require_once __DIR__ . '/../Services/AITranslationService.php';
         require_once __DIR__ . '/../Services/TranslationDashboardService.php';
+        require_once __DIR__ . '/../Services/MobileNavigationTranslationDashboardService.php';
         require_once __DIR__ . '/../Services/CategoryManager.php';
         require_once __DIR__ . '/../Services/EmailVerificationMailer.php';
         require_once __DIR__ . '/../Services/EmailVerificationService.php';
@@ -149,6 +150,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminProductVariantController.php';
         require_once __DIR__ . '/../Controllers/AdminAITranslationController.php';
         require_once __DIR__ . '/../Controllers/AdminTranslationController.php';
+        require_once __DIR__ . '/../Controllers/AdminMobileNavigationTranslationController.php';
 
         $router = new Router();
 
