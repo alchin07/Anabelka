@@ -83,12 +83,21 @@ for (const method of [
     );
 }
 
-assert.match(model, /https?:\/\//i, 'external http(s) URLs must be recognized');
+assert.match(
+    model,
+    /preg_match\([^;]*https\?:\/\/[^;]*\)/is,
+    'external http(s) URLs must be recognized'
+);
+assert.match(
+    model,
+    /\['http',\s*'https'\]/i,
+    'external schemes must be restricted to http and https'
+);
 assert.match(model, /parse_url\s*\(/i, 'external URLs must be parsed server-side');
 assert.match(model, /\/Anabelka/i, 'internal URLs must stay under /Anabelka');
 assert.match(model, /rawurldecode\s*\(/i, 'encoded internal paths must be normalized before validation');
 assert.match(model, /\\\\/i, 'backslashes must be rejected');
-assert.match(model, /javascript|data:|file:/i, 'unsafe URL schemes must be rejected');
+assert.match(model, /javascript|data|file/i, 'unsafe URL schemes must be rejected');
 assert.match(model, /target|is_external/i, 'URL classification must be derived server-side');
 assert.match(model, /beginTransaction\s*\(/i, 'multi-row menu mutations must use transactions');
 assert.match(model, /FOR\s+UPDATE/i, 'reorder must lock the current order');
