@@ -6,6 +6,8 @@ const required = [
     'app/Controllers/StorefrontPageController.php',
     'views/storefront/discounts.php',
     'views/storefront/new.php',
+    'views/storefront/delivery-payment.php',
+    'views/storefront/contacts.php',
     'views/storefront/partials/product-card.php',
     'views/storefront/partials/pagination.php',
     'css/storefront-pages.css'
@@ -27,6 +29,14 @@ assert.match(
     routes,
     /\$router->get\('\/new',\s*'StorefrontPageController@newArrivals'\)/
 );
+assert.match(
+    routes,
+    /\$router->get\('\/delivery-payment',\s*'StorefrontPageController@deliveryPayment'\)/
+);
+assert.match(
+    routes,
+    /\$router->get\('\/contacts',\s*'StorefrontPageController@contacts'\)/
+);
 
 const controller = fs.readFileSync(
     'app/Controllers/StorefrontPageController.php',
@@ -34,10 +44,17 @@ const controller = fs.readFileSync(
 );
 assert.match(controller, /StorefrontProductCollection::page\(\s*'discounts'/);
 assert.match(controller, /StorefrontProductCollection::page\(\s*'new'/);
+assert.match(controller, /public\s+function\s+deliveryPayment\s*\(/);
+assert.match(controller, /public\s+function\s+contacts\s*\(/);
 assert.match(controller, /ContentInterfaceTranslator::seed\(\)/);
 
 const discounts = fs.readFileSync('views/storefront/discounts.php', 'utf8');
 const newest = fs.readFileSync('views/storefront/new.php', 'utf8');
+const deliveryPayment = fs.readFileSync(
+    'views/storefront/delivery-payment.php',
+    'utf8'
+);
+const contacts = fs.readFileSync('views/storefront/contacts.php', 'utf8');
 const card = fs.readFileSync('views/storefront/partials/product-card.php', 'utf8');
 const pagination = fs.readFileSync('views/storefront/partials/pagination.php', 'utf8');
 const css = fs.readFileSync('css/storefront-pages.css', 'utf8');
@@ -60,5 +77,19 @@ assert.match(pagination, /aria-current="page"/);
 assert.match(pagination, /collectionPath/);
 assert.match(css, /\.storefront-page/);
 assert.match(css, /repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+
+const deliveryIndex = deliveryPayment.indexOf('id="delivery"');
+const paymentIndex = deliveryPayment.indexOf('id="payment"');
+const returnsIndex = deliveryPayment.indexOf('id="returns"');
+assert.ok(deliveryIndex >= 0, 'delivery section must exist');
+assert.ok(paymentIndex > deliveryIndex, 'payment must follow delivery');
+assert.ok(returnsIndex > paymentIndex, 'returns must follow payment');
+assert.match(deliveryPayment, /Translator::t\(/);
+assert.match(contacts, /Translator::t\(/);
+assert.doesNotMatch(
+    contacts,
+    /href="(?:tel:|mailto:)[^"]+"/,
+    'contacts page must not invent phone or email links'
+);
 
 process.stdout.write('storefront pages contract passed\n');
