@@ -29,16 +29,3 @@ $router->post(
     '/admin/mobile-navigation/delete',
     'AdminMobileNavigationController@delete'
 );
-
-// These registrations intentionally come after routes/Web.php in App.php.
-// Router uses the latest exact-path registration, so the extended dashboard
-// becomes live without duplicating the existing interface-edit/save routes.
-$router->get(
-    '/admin/translations',
-    'AdminMobileNavigationTranslationController@index'
-);
-
-$router->get(
-    '/admin/translations/missing',
-    'AdminMobileNavigationTranslationController@missing'
-);
