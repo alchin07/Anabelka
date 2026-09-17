@@ -32,7 +32,17 @@ class ContentInterfaceTranslator
                 'reviews.rating' => 'Оцінка',
                 'reviews.body' => 'Ваш відгук',
                 'reviews.submit' => 'Надіслати на модерацію',
-                'reviews.login_to_review' => 'Увійдіть, щоб залишити відгук'
+                'reviews.login_to_review' => 'Увійдіть, щоб залишити відгук',
+                'storefront.discounts.title' => 'Знижки',
+                'storefront.discounts.intro' => 'Товари Анабельки з актуальними знижками.',
+                'storefront.discounts.empty' => 'Товарів зі знижкою поки немає.',
+                'storefront.new.title' => 'Новинки',
+                'storefront.new.intro' => 'Найновіші товари Анабельки без розділів 18+.',
+                'storefront.new.empty' => 'Нових товарів поки немає.',
+                'storefront.pagination.previous' => 'Назад',
+                'storefront.pagination.next' => 'Далі',
+                'storefront.error_title' => 'Розділ тимчасово недоступний',
+                'storefront.error_message' => 'Спробуйте відкрити сторінку трохи пізніше.'
             ],
             'ru' => [
                 'news.title' => 'Новости',
@@ -51,7 +61,17 @@ class ContentInterfaceTranslator
                 'reviews.rating' => 'Оценка',
                 'reviews.body' => 'Ваш отзыв',
                 'reviews.submit' => 'Отправить на модерацию',
-                'reviews.login_to_review' => 'Войдите, чтобы оставить отзыв'
+                'reviews.login_to_review' => 'Войдите, чтобы оставить отзыв',
+                'storefront.discounts.title' => 'Скидки',
+                'storefront.discounts.intro' => 'Товары Анабельки с актуальными скидками.',
+                'storefront.discounts.empty' => 'Товаров со скидкой пока нет.',
+                'storefront.new.title' => 'Новинки',
+                'storefront.new.intro' => 'Самые новые товары Анабельки без разделов 18+.',
+                'storefront.new.empty' => 'Новых товаров пока нет.',
+                'storefront.pagination.previous' => 'Назад',
+                'storefront.pagination.next' => 'Далее',
+                'storefront.error_title' => 'Раздел временно недоступен',
+                'storefront.error_message' => 'Попробуйте открыть страницу немного позже.'
             ],
             'en' => [
                 'news.title' => 'News',
@@ -70,7 +90,17 @@ class ContentInterfaceTranslator
                 'reviews.rating' => 'Rating',
                 'reviews.body' => 'Your review',
                 'reviews.submit' => 'Submit for moderation',
-                'reviews.login_to_review' => 'Sign in to leave a review'
+                'reviews.login_to_review' => 'Sign in to leave a review',
+                'storefront.discounts.title' => 'Discounts',
+                'storefront.discounts.intro' => 'Anabelka products with current discounts.',
+                'storefront.discounts.empty' => 'There are no discounted products yet.',
+                'storefront.new.title' => 'New arrivals',
+                'storefront.new.intro' => 'The newest Anabelka products excluding 18+ sections.',
+                'storefront.new.empty' => 'There are no new products yet.',
+                'storefront.pagination.previous' => 'Previous',
+                'storefront.pagination.next' => 'Next',
+                'storefront.error_title' => 'Section temporarily unavailable',
+                'storefront.error_message' => 'Please try opening this page again a little later.'
             ]
         ];
 
