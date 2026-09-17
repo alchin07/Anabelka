@@ -34,4 +34,24 @@ assert.equal(results[3], 20);
 assert.equal(results[4], 15);
 assert.equal(results[5], null);
 
-process.stdout.write('storefront product collection pure-rule contract passed\n');
+const modelSource = fs.readFileSync(modelPath, 'utf8');
+
+assert.match(
+    modelSource,
+    /public\s+static\s+function\s+page\s*\(/,
+    'collection model must expose the paginated page() API'
+);
+assert.match(modelSource, /Category::visibleCategoryIds\s*\(/);
+assert.match(modelSource, /Category::adultCategoryIds\s*\(/);
+assert.match(modelSource, /Product::getCurrentRankSlug\s*\(/);
+assert.match(modelSource, /ProductTranslator::localizeList\s*\(/);
+assert.match(modelSource, /ProductImage::colorVariantsForProducts\s*\(/);
+assert.match(modelSource, /ORDER\s+BY\s+q\.id\s+DESC/i);
+assert.match(modelSource, /LIMIT\s+:limit\s+OFFSET\s+:offset/i);
+assert.doesNotMatch(
+    modelSource,
+    /Product::getCurrentPrice\s*\(/,
+    'pagination must not use per-product current-price queries'
+);
+
+process.stdout.write('storefront product collection contract passed\n');
