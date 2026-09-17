@@ -64,6 +64,8 @@ class App
         require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
         require_once __DIR__ . '/../Models/Language.php';
         require_once __DIR__ . '/../Models/TranslationWorkflow.php';
+        require_once __DIR__ . '/../Models/MobileNavigationTranslator.php';
+        require_once __DIR__ . '/../Models/MobileNavigation.php';
         require_once __DIR__ . '/../Models/AppSetting.php';
         require_once __DIR__ . '/../Models/UserRank.php';
         require_once __DIR__ . '/../Models/UserRankTranslator.php';
