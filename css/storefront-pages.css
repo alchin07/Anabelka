@@ -32,6 +32,35 @@
     text-align: center;
 }
 
+.storefront-info-stack {
+    display: grid;
+    gap: 12px;
+}
+
+.storefront-info-card {
+    padding: 18px;
+    border: 1px solid #eadcf7;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(101, 25, 185, 0.05);
+}
+
+.storefront-info-card h2 {
+    margin: 0 0 8px;
+    color: #6519b9;
+    font-size: 20px;
+}
+
+.storefront-info-card p {
+    margin: 0;
+    color: #6f6677;
+    line-height: 1.55;
+}
+
+.storefront-contacts-card {
+    max-width: 720px;
+}
+
 .storefront-product-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
