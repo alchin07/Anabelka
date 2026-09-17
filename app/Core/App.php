@@ -163,8 +163,8 @@ class App
         require __DIR__ . '/../../routes/SocialAuth.php';
         require __DIR__ . '/../../routes/Content.php';
         require __DIR__ . '/../../routes/StorefrontPages.php';
-        require __DIR__ . '/../../routes/MobileNavigation.php';
         require __DIR__ . '/../../routes/Web.php';
+        require __DIR__ . '/../../routes/MobileNavigation.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
         require __DIR__ . '/../../routes/Favorites.php';
