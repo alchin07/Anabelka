@@ -100,4 +100,38 @@ class StorefrontPageController extends Controller
             'collectionPath' => '/Anabelka/new'
         ]);
     }
+
+
+    public function deliveryPayment()
+    {
+        PublicInterfaceTranslator::seed();
+        ContentInterfaceTranslator::seed();
+
+        $currentLanguage = Translator::currentLanguage();
+
+        $this->view('storefront/delivery-payment', [
+            'currentLanguage' => $currentLanguage,
+            'pageTitle' => Translator::t(
+                'storefront.delivery_payment.title',
+                'Доставка, оплата і повернення'
+            )
+        ]);
+    }
+
+
+    public function contacts()
+    {
+        PublicInterfaceTranslator::seed();
+        ContentInterfaceTranslator::seed();
+
+        $currentLanguage = Translator::currentLanguage();
+
+        $this->view('storefront/contacts', [
+            'currentLanguage' => $currentLanguage,
+            'pageTitle' => Translator::t(
+                'storefront.contacts.title',
+                'Контакти'
+            )
+        ]);
+    }
 }
