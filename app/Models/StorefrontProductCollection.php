@@ -56,7 +56,10 @@ class StorefrontProductCollection
                 q.active_discount_percent > 0
                 OR q.old_price > q.current_price
             )'
-            : '1 = 1';
+            : 'NOT (
+                q.active_discount_percent > 0
+                OR q.old_price > q.current_price
+            )';
 
         $countStmt = $db->prepare("
             SELECT COUNT(*)
@@ -213,7 +216,7 @@ class StorefrontProductCollection
                 r.description,
                 r.price,
                 r.member_price,
-                r.old_price,
+                COALESCE(r.old_price, 0) AS old_price,
                 r.stock,
                 r.stock_mode,
                 r.show_stock_quantity,
