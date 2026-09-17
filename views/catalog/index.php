@@ -7,15 +7,15 @@ $categories = is_array($categories ?? null) ? $categories : [];
 $standardCategories = [];
 $adultCategories = [];
 
-foreach ($categories as $category) {
-    if (($category['parent_id'] ?? null) !== null) {
+foreach ($categories as $catalogCategory) {
+    if (($catalogCategory['parent_id'] ?? null) !== null) {
         continue;
     }
 
-    if (!empty($category['is_adult'])) {
-        $adultCategories[] = $category;
+    if (!empty($catalogCategory['is_adult'])) {
+        $adultCategories[] = $catalogCategory;
     } else {
-        $standardCategories[] = $category;
+        $standardCategories[] = $catalogCategory;
     }
 }
 
