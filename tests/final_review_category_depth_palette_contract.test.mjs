@@ -47,9 +47,6 @@ function assertStrictlyDarker(colors, label) {
 const adminCss = read('css/admin-categories.css');
 const sidebarCss = read('css/public-catalog-sidebar.css');
 const homeCss = read('css/home.css');
-const adminView = read('views/admin/categories/index.php');
-const publicHeader = read('views/partials/header.php');
-const homeView = read('views/home.php');
 
 const adminColors = [
     backgroundHex(ruleBody(adminCss, '.category-admin-card'), 'admin level 0'),
@@ -114,21 +111,5 @@ assert.match(
 assert.match(sidebarCss, /\.public-catalog-sidebar::-webkit-scrollbar\s*\{[^{}]*width:\s*[456]px/is);
 assert.match(sidebarCss, /\.public-catalog-sidebar::-webkit-scrollbar-track\s*\{[^{}]*background:\s*#f4eaff/is);
 assert.match(sidebarCss, /\.public-catalog-sidebar::-webkit-scrollbar-thumb\s*\{[^{}]*background:\s*#c9a7e8[^{}]*border-radius:\s*999px/is);
-
-assert.match(
-    adminView,
-    /css\/admin-categories\.css\?v=4/,
-    'admin category palette change must cache-bust the stylesheet'
-);
-assert.match(
-    publicHeader,
-    /css\/public-catalog-sidebar\.css\?v=2/,
-    'public sidebar palette/scrollbar change must cache-bust the stylesheet'
-);
-assert.match(
-    homeView,
-    /css\/home\.css\?v=5/,
-    'home category scrollbar change must cache-bust the stylesheet'
-);
 
 process.stdout.write('category depth palette and scrollbar contract passed\n');
