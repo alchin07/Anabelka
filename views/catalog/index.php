@@ -73,25 +73,12 @@ $renderAdultTree = function (array $nodes, $level = 1) use (
     <title><?= htmlspecialchars($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=11">
-    <link rel="stylesheet" href="/Anabelka/css/catalog-utility-links.css?v=1">
 </head>
 <body>
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
 <main class="catalog">
-    <nav class="catalog-utility-links" aria-label="<?= $escape(Translator::t('home.useful_title', 'Корисне')) ?>">
-        <a href="/Anabelka/news">
-            <?= $escape(Translator::t('home.utility_news', 'Новини')) ?>
-        </a>
-        <a href="/Anabelka/reviews">
-            <?= $escape(Translator::t('home.utility_reviews', 'Відгуки покупців')) ?>
-        </a>
-        <a href="/Anabelka/gift-certificates">
-            <?= $escape(Translator::t('home.utility_gifts', 'Подарункові сертифікати')) ?>
-        </a>
-    </nav>
-
     <section class="catalog-categories">
         <h2><?= htmlspecialchars(
             Translator::t('public.catalog.categories', 'Категорії')
