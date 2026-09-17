@@ -4,6 +4,25 @@
     --public-sidebar-border: var(--border-color, #eadcf7);
     --public-sidebar-text: var(--text-color, #20202a);
     display: none;
+    scrollbar-color: #c9a7e8 #f4eaff;
+}
+
+.public-catalog-sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.public-catalog-sidebar::-webkit-scrollbar-track {
+    background: #f4eaff;
+    border-radius: 999px;
+}
+
+.public-catalog-sidebar::-webkit-scrollbar-thumb {
+    background: #c9a7e8;
+    border-radius: 999px;
+}
+
+.public-catalog-sidebar::-webkit-scrollbar-thumb:hover {
+    background: #8A2BE2;
 }
 
 .home-department-nav-adult:focus {
@@ -174,14 +193,26 @@
 
     .public-catalog-sidebar-row[data-level="3"]
         .public-catalog-sidebar-link {
-        background: #e4cef8;
+        background: #e7d7f6;
     }
 
     .public-catalog-sidebar-row[data-level="4"]
-        .public-catalog-sidebar-link,
-    .public-catalog-sidebar-row[data-level="5"]
         .public-catalog-sidebar-link {
         background: #dcc4f2;
+    }
+
+    .public-catalog-sidebar-row[data-level="5"]
+        .public-catalog-sidebar-link {
+        background: #d1b2ed;
+    }
+
+    .public-catalog-sidebar-row[data-level="6"]
+        .public-catalog-sidebar-link,
+    .public-catalog-sidebar-row[data-level="7"]
+        .public-catalog-sidebar-link,
+    .public-catalog-sidebar-row[data-level="8"]
+        .public-catalog-sidebar-link {
+        background: #d1b2ed;
     }
 
     .public-catalog-sidebar-link:hover,
