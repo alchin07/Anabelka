@@ -138,10 +138,44 @@
         });
     }
 
+    function syncFloatingPanelVisibility() {
+        const floatingRoot = document.getElementById('admin-ai-top-slot');
+
+        if (!floatingRoot) {
+            return;
+        }
+
+        const hasOpenEditor = Array.from(
+            document.querySelectorAll('.mobile-navigation-editor')
+        ).some(function (editor) {
+            return Boolean(editor.open);
+        });
+
+        floatingRoot.classList.toggle(
+            'is-mobile-navigation-ai-inactive',
+            !hasOpenEditor
+        );
+        floatingRoot.setAttribute(
+            'aria-hidden',
+            hasOpenEditor ? 'false' : 'true'
+        );
+    }
+
     function init() {
         document
             .querySelectorAll('[data-mobile-navigation-language]')
             .forEach(bindFieldset);
+
+        document
+            .querySelectorAll('.mobile-navigation-editor')
+            .forEach(function (editor) {
+                editor.addEventListener(
+                    'toggle',
+                    syncFloatingPanelVisibility
+                );
+            });
+
+        syncFloatingPanelVisibility();
     }
 
     if (document.readyState === 'loading') {
