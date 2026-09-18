@@ -71,7 +71,14 @@ class CatalogController extends Controller
         }
 
         $children = Category::children((int) $category['id']);
-        $products = Product::byCategory((int) $category['id']);
+        $productPage = Product::pageByCategory(
+            (int) $category['id'],
+            $_GET['page'] ?? 1,
+            24
+        );
+        $products = is_array($productPage['items'] ?? null)
+            ? $productPage['items']
+            : [];
         $currentLanguage = Translator::currentLanguage();
         $languageCode = $currentLanguage['code']
             ?? Language::SOURCE_CODE;
@@ -88,10 +95,13 @@ class CatalogController extends Controller
             $languageCode
         );
 
+        $productPage['items'] = $products;
+
         $this->view('catalog/category', [
             'category' => $category,
             'children' => $children,
-            'products' => $products
+            'products' => $products,
+            'productPagination' => $productPage
         ]);
     }
 

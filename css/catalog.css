@@ -480,3 +480,86 @@ body {
     margin: 0;
     padding: 0 12px 12px;
 }
+
+
+/* =========================================
+   ЕДИНА ПОСТОРІНКОВА НАВІГАЦІЯ
+   ========================================= */
+
+.anabelka-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.anabelka-pagination-link {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid #d8c3ea;
+    border-radius: 12px;
+    background: #fff;
+    color: #6519b9;
+    text-decoration: none;
+    font-weight: 800;
+    line-height: 1;
+    transition:
+        border-color .16s ease,
+        background-color .16s ease,
+        color .16s ease;
+}
+
+.anabelka-pagination-link:hover,
+.anabelka-pagination-link:focus-visible {
+    border-color: #8A2BE2;
+    background: #f4eaff;
+    color: #6519b9;
+    outline: none;
+}
+
+.anabelka-pagination-link.is-current {
+    border-color: #8A2BE2;
+    background: #8A2BE2;
+    color: #fff;
+    cursor: default;
+}
+
+.anabelka-pagination-link.is-direction {
+    min-width: 92px;
+}
+
+.anabelka-pagination-ellipsis {
+    min-width: 24px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #7a6f80;
+    font-weight: 900;
+}
+
+@media (max-width: 600px) {
+    .anabelka-pagination {
+        gap: 5px;
+        margin-top: 20px;
+    }
+
+    .anabelka-pagination-link {
+        min-width: 44px;
+        min-height: 44px;
+        padding-inline: 10px;
+        border-radius: 11px;
+        font-size: 14px;
+    }
+
+    .anabelka-pagination-link.is-direction {
+        min-width: 88px;
+    }
+}

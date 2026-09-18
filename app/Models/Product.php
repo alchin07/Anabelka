@@ -65,6 +65,107 @@ class Product
 
 
     /**
+     * Получить одну страницу активных товаров категории.
+     */
+    public static function pageByCategory(
+        $categoryId,
+        $pageInput,
+        $perPage = 24
+    ) {
+        $db = Database::connect();
+        $categoryId = (int) $categoryId;
+        $perPage = max(1, min(96, (int) $perPage));
+
+        $countStmt = $db->prepare("
+            SELECT COUNT(*)
+            FROM products
+            WHERE category_id = :category_id
+              AND is_active = 1
+        ");
+        $countStmt->execute([
+            'category_id' => $categoryId
+        ]);
+
+        $total = max(0, (int) $countStmt->fetchColumn());
+        $totalPages = max(
+            1,
+            (int) ceil($total / $perPage)
+        );
+        $page = self::normalizePageNumber($pageInput);
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $stmt = $db->prepare("
+            SELECT
+                id,
+                category_id,
+                name,
+                slug,
+                sku,
+                description,
+                price,
+                member_price,
+                old_price,
+                stock,
+                stock_mode,
+                show_stock_quantity,
+                brand,
+                country,
+                main_image
+            FROM products
+            WHERE category_id = :category_id
+              AND is_active = 1
+            ORDER BY id DESC
+            LIMIT :limit OFFSET :offset
+        ");
+        $stmt->bindValue(
+            ':category_id',
+            $categoryId,
+            PDO::PARAM_INT
+        );
+        $stmt->bindValue(
+            ':limit',
+            $perPage,
+            PDO::PARAM_INT
+        );
+        $stmt->bindValue(
+            ':offset',
+            $offset,
+            PDO::PARAM_INT
+        );
+        $stmt->execute();
+
+        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $productIds = array_map(
+            static function ($product) {
+                return (int) ($product['id'] ?? 0);
+            },
+            $products
+        );
+        $colorVariants = ProductImage::colorVariantsForProducts(
+            $productIds
+        );
+
+        foreach ($products as &$product) {
+            $productId = (int) ($product['id'] ?? 0);
+            $product['color_variants'] =
+                $colorVariants[$productId] ?? [];
+        }
+        unset($product);
+
+        return [
+            'items' => $products,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'total_pages' => $totalPages,
+            'has_previous' => $page > 1,
+            'has_next' => $page < $totalPages
+        ];
+    }
+
+
+    /**
      * Найти товар по slug.
      */
     public static function findBySlug($slug)
@@ -660,4 +761,20 @@ class Product
             PDO::FETCH_ASSOC
         );
     }
+
+    private static function normalizePageNumber($pageInput)
+    {
+        if (!is_scalar($pageInput)) {
+            return 1;
+        }
+
+        $raw = trim((string) $pageInput);
+
+        if ($raw === '' || !preg_match('/^\d+$/', $raw)) {
+            return 1;
+        }
+
+        return max(1, (int) $raw);
+    }
+
 }

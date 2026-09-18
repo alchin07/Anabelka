@@ -11,7 +11,7 @@ $pageTitle = $category['name'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($category['name']) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=6">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=7">
 </head>
 <body>
 
@@ -158,6 +158,20 @@ $pageTitle = $category['name'];
                     </article>
                 <?php endforeach; ?>
             </div>
+
+            <?php
+            $pagination = is_array($productPagination ?? null)
+                ? $productPagination
+                : [];
+            $paginationPath = Category::catalogUrl($category);
+            $paginationQuery = is_array($_GET ?? null) ? $_GET : [];
+            unset($paginationQuery['page']);
+            $paginationLabel = Translator::t(
+                'public.pagination.label',
+                'Сторінки товарів'
+            );
+            require __DIR__ . '/../partials/pagination.php';
+            ?>
         </section>
 
     <?php endif; ?>
