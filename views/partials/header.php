@@ -218,7 +218,7 @@ if (
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/public-catalog-sidebar.css?v=2"
+        href="/Anabelka/css/public-catalog-sidebar.css?v=3"
     >
 
     <link
