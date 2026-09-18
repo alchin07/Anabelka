@@ -31,6 +31,12 @@
     const adminAction = document.querySelector(
         '.public-header-admin-action'
     );
+    const adminLabel = adminAction
+        ? adminAction.querySelector('.public-header-action-label')
+        : null;
+    const adminDesktopLabel = adminLabel
+        ? (adminLabel.textContent || '').trim()
+        : '';
 
     if (
         !bottomNavigation
@@ -141,6 +147,10 @@
 
         if (adminAction && adminSlot) {
             adminSlot.appendChild(adminAction);
+
+            if (adminLabel) {
+                adminLabel.textContent = 'Адмін';
+            }
         }
 
         mobileApplied = true;
@@ -156,6 +166,11 @@
         restoreHome(homes.profileBadge);
         restoreHome(homes.cart);
         restoreHome(homes.admin);
+
+        if (adminLabel && adminDesktopLabel !== '') {
+            adminLabel.textContent = adminDesktopLabel;
+        }
+
         mobileApplied = false;
     }
 
