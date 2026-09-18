@@ -700,7 +700,7 @@ if (
     <?php require __DIR__ . '/mobile-menu-sheet.php'; ?>
 
     <script
-        src="/Anabelka/js/mobile-navigation.js?v=1"
+        src="/Anabelka/js/mobile-navigation.js?v=2"
         defer
     ></script>
 <?php endif; ?>
