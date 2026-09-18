@@ -104,6 +104,10 @@ $isCheckoutPage =
 $isQuickOrderPage =
     $requestPath === '/Anabelka/quick-order';
 
+$mobileNavigationEligible =
+    !$isCheckoutPage
+    && !$isQuickOrderPage;
+
 $isProductPage =
     strpos(
         $requestPath,
@@ -158,9 +162,39 @@ $badgeText = static function ($count) {
     return $count > 99 ? '99+' : (string) $count;
 };
 
+$mobileNavigationContext = [
+    'eligible' => $mobileNavigationEligible,
+    'profile_url' => !empty($_SESSION['user_id'])
+        ? '/Anabelka/account'
+        : '/Anabelka/login',
+    'profile_label' => !empty($_SESSION['user_id'])
+        ? Translator::t('header.profile', 'Профіль')
+        : Translator::t('header.login', 'Вхід'),
+    'menu_label' => Translator::t('mobile_navigation.menu', 'Меню'),
+    'close_label' => Translator::t(
+        'mobile_navigation.close',
+        'Закрити меню'
+    ),
+    'navigation_label' => Translator::t(
+        'mobile_navigation.navigation',
+        'Мобільна навігація'
+    ),
+    'has_admin' => !empty($currentAdmin),
+    'items' => []
+];
+
+if (
+    $mobileNavigationEligible
+    && class_exists('MobileNavigation')
+) {
+    $mobileNavigationContext['items'] = MobileNavigation::publicItems(
+        (string) ($currentLanguage['code'] ?? Language::SOURCE_CODE)
+    );
+}
+
 ?>
 
-<header class="catalog-header public-header">
+<header class="catalog-header public-header<?= $mobileNavigationEligible ? '' : ' public-header-mobile-navigation-excluded' ?>">
 
     <link
         rel="stylesheet"
@@ -185,6 +219,11 @@ $badgeText = static function ($count) {
     <link
         rel="stylesheet"
         href="/Anabelka/css/public-catalog-sidebar.css?v=1"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/mobile-navigation.css?v=1"
     >
 
     <div class="public-header-shell">
@@ -236,6 +275,10 @@ $badgeText = static function ($count) {
                     ><?= $badgeText($favoriteCount) ?></span>
                 </a>
             </nav>
+
+            <?php if ($mobileNavigationEligible): ?>
+                <?php require __DIR__ . '/mobile-header-shortcuts.php'; ?>
+            <?php endif; ?>
 
             <nav
                 class="public-header-actions"
@@ -656,6 +699,16 @@ $badgeText = static function ($count) {
     ></script>
 
 </header>
+
+<?php if ($mobileNavigationEligible): ?>
+    <?php require __DIR__ . '/mobile-bottom-navigation.php'; ?>
+    <?php require __DIR__ . '/mobile-menu-sheet.php'; ?>
+
+    <script
+        src="/Anabelka/js/mobile-navigation.js?v=1"
+        defer
+    ></script>
+<?php endif; ?>
 
 <?php require __DIR__ . '/public-catalog-sidebar.php'; ?>
 <script
