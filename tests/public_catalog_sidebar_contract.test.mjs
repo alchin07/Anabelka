@@ -88,6 +88,12 @@ assert.match(sidebarJs, /data-public-catalog-sidebar-children/);
 assert.doesNotMatch(sidebarJs, /systemErrorEndpoint|admin-system-error/);
 
 assert.match(sidebarCss, /\.public-catalog-sidebar\s*\{[^{}]*display:\s*none/si);
+assert.match(sidebarCss, /public-sidebar-scroll-thumb/);
+assert.match(sidebarCss, /::-webkit-scrollbar\s*\{[^{}]*width:\s*10px/si);
+assert.match(sidebarCss, /::-webkit-scrollbar-thumb\s*\{[\s\S]*?radial-gradient[\s\S]*?min-height:\s*72px|::-webkit-scrollbar-thumb\s*\{[\s\S]*?min-height:\s*72px[\s\S]*?radial-gradient/si);
+assert.match(sidebarCss, /::-webkit-scrollbar-thumb:hover\s*\{[^{}]*background-color:\s*var\(--public-sidebar-primary\)/si);
+assert.match(sidebarCss, /::-webkit-scrollbar-thumb:active\s*\{[^{}]*background-color:\s*var\(--public-sidebar-primary-dark\)/si);
+assert.match(sidebarCss, /scroll-behavior:\s*smooth/);
 assert.match(sidebarCss, /@media\s*\(min-width:\s*1050px\)/i);
 assert.match(sidebarCss, /grid-template-columns:\s*280px\s+minmax\(0,\s*1fr\)/i);
 assert.match(sidebarCss, /\.public-header\s*\{[^{}]*grid-column:\s*1\s*\/\s*-1/si);
