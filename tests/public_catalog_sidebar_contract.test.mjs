@@ -63,7 +63,7 @@ const sidebarIncludeIndex = header.indexOf("public-catalog-sidebar.php");
 assert.ok(adminReturnIndex >= 0, 'admin early-return block must exist');
 assert.ok(sidebarIncludeIndex > adminReturnIndex, 'public sidebar must be integrated after the admin early-return path');
 
-assert.match(header, /public-catalog-sidebar\.css\?v=2/);
+assert.match(header, /public-catalog-sidebar\.css\?v=3/);
 assert.match(header, /public-catalog-sidebar\.js\?v=1/);
 assert.match(header, /require\s+__DIR__\s*\.\s*['"]\/public-catalog-sidebar\.php['"]/);
 
@@ -89,10 +89,10 @@ assert.doesNotMatch(sidebarJs, /systemErrorEndpoint|admin-system-error/);
 
 assert.match(sidebarCss, /\.public-catalog-sidebar\s*\{[^{}]*display:\s*none/si);
 assert.match(sidebarCss, /public-sidebar-scroll-thumb/);
-assert.match(sidebarCss, /::-webkit-scrollbar\s*\{[^{}]*width:\s*10px/si);
+assert.match(sidebarCss, /::-webkit-scrollbar\s*\{[^{}]*width:\s*12px/si);
 assert.match(sidebarCss, /::-webkit-scrollbar-thumb\s*\{[\s\S]*?radial-gradient[\s\S]*?min-height:\s*72px|::-webkit-scrollbar-thumb\s*\{[\s\S]*?min-height:\s*72px[\s\S]*?radial-gradient/si);
-assert.match(sidebarCss, /::-webkit-scrollbar-thumb:hover\s*\{[^{}]*background-color:\s*var\(--public-sidebar-primary\)/si);
-assert.match(sidebarCss, /::-webkit-scrollbar-thumb:active\s*\{[^{}]*background-color:\s*var\(--public-sidebar-primary-dark\)/si);
+assert.match(sidebarCss, /::-webkit-scrollbar-thumb:hover\s*\{[^{}]*background-color:\s*#8A2BE2/si);
+assert.match(sidebarCss, /::-webkit-scrollbar-thumb:active\s*\{[^{}]*background-color:\s*#6519b9/si);
 assert.match(sidebarCss, /scroll-behavior:\s*smooth/);
 assert.match(sidebarCss, /@media\s*\(min-width:\s*1050px\)/i);
 assert.match(sidebarCss, /grid-template-columns:\s*280px\s+minmax\(0,\s*1fr\)/i);
@@ -104,3 +104,7 @@ assert.match(sidebarCss, /@media\s*\(min-width:\s*1250px\)/i);
 assert.match(sidebarCss, /grid-template-columns:\s*300px\s+minmax\(0,\s*1fr\)/i);
 
 process.stdout.write('public catalog sidebar contract passed\n');
+
+assert.doesNotMatch(sidebarCss, /\.public-catalog-sidebar\s*\{[^{}]*scrollbar-color:\s*#eadcf7/si, 'Chromium custom scrollbar must not be overridden by the standard gray scrollbar color');
+assert.match(sidebarCss, /background-size:\s*5px\s+1\.5px/);
+assert.match(sidebarCss, /cursor:\s*grab/);
