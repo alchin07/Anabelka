@@ -34,7 +34,7 @@ foreach ($languages as $language) {
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=1">
-    <link rel="stylesheet" href="/Anabelka/css/admin-mobile-navigation.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-mobile-navigation.css?v=2">
 </head>
 <body>
 <?php
