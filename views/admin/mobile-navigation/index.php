@@ -313,11 +313,24 @@ require __DIR__ . '/../partials/header.php';
                                         $shouldFocus = $isHighlighted
                                             && $requestedFocusLanguage === $code;
                                         ?>
-                                        <fieldset>
+                                        <fieldset
+                                            data-mobile-navigation-language="<?= $escape($code) ?>"
+                                        >
                                             <legend>
                                                 <?= $escape($language['name'] ?? strtoupper($code)) ?>
                                                 · <?= $escape($language['short_name'] ?? strtoupper($code)) ?>
                                             </legend>
+
+                                            <?php if ($canManage): ?>
+                                                <button
+                                                    type="button"
+                                                    class="mobile-navigation-ai-translate"
+                                                    data-mobile-navigation-ai-translate
+                                                    data-target-language="<?= $escape($code) ?>"
+                                                >
+                                                    Перекласти через ШІ
+                                                </button>
+                                            <?php endif; ?>
 
                                             <label>
                                                 <span>Назва</span>
@@ -327,27 +340,25 @@ require __DIR__ . '/../partials/header.php';
                                                     value="<?= $escape($translation['name'] ?? '') ?>"
                                                     maxlength="160"
                                                     autocomplete="off"
+                                                    data-mobile-navigation-translation-name
                                                     <?= $canManage ? '' : 'readonly' ?>
                                                     <?= $shouldFocus ? 'autofocus' : '' ?>
                                                 >
                                             </label>
 
-                                            <div class="mobile-navigation-translation-meta">
-                                                <label>
-                                                    <span>Джерело</span>
-                                                    <select
-                                                        name="translations[<?= $escape($code) ?>][source]"
-                                                        <?= $canManage ? '' : 'disabled' ?>
-                                                    >
-                                                        <option value="manual" <?= $source === 'manual' ? 'selected' : '' ?>>Ручний</option>
-                                                        <option value="ai" <?= $source === 'ai' ? 'selected' : '' ?>>ШІ</option>
-                                                    </select>
-                                                </label>
+                                            <input
+                                                type="hidden"
+                                                name="translations[<?= $escape($code) ?>][source]"
+                                                value="<?= $escape($source) ?>"
+                                                data-mobile-navigation-translation-source
+                                            >
 
+                                            <div class="mobile-navigation-translation-meta">
                                                 <label>
                                                     <span>Статус</span>
                                                     <select
                                                         name="translations[<?= $escape($code) ?>][status]"
+                                                        data-mobile-navigation-translation-status
                                                         <?= $canManage ? '' : 'disabled' ?>
                                                     >
                                                         <?php foreach (TranslationWorkflow::statusOptions() as $statusValue => $statusLabel): ?>
