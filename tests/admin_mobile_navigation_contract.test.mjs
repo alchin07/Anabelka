@@ -117,7 +117,7 @@ assert.match(aiJs, /AnabelkaAITranslation\.suggest/);
 assert.match(aiJs, /context:\s*['"]mobile_navigation['"]/);
 assert.match(aiJs, /source\.value\s*=\s*['"]ai['"]/);
 assert.match(aiJs, /source\.value\s*=\s*['"]manual['"]/);
-assert.match(aiJs, /status\.value\s*=\s*['"]draft['"]/);
+assert.match(aiJs, /setWorkflow\(fieldset,\s*['"]ai['"],\s*['"]draft['"]\)/);
 
 assert.match(js, /pointerdown/i, 'dragging must start from Pointer Events');
 assert.match(js, /data-mobile-navigation-drag-handle/);
