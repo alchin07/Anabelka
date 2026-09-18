@@ -112,12 +112,19 @@ assert.doesNotMatch(
   'source manual/AI picker must not remain visible in the mobile-menu editor'
 );
 assert.match(adminNav, /\/Anabelka\/admin\/mobile-navigation/);
-assert.match(adminNav, /admin-mobile-navigation-ai-translation\.js\?v=1/);
+assert.match(adminNav, /admin-mobile-navigation-ai-translation\.js\?v=2/);
 assert.match(aiJs, /AnabelkaAITranslation\.suggest/);
 assert.match(aiJs, /context:\s*['"]mobile_navigation['"]/);
 assert.match(aiJs, /source\.value\s*=\s*['"]ai['"]/);
 assert.match(aiJs, /source\.value\s*=\s*['"]manual['"]/);
 assert.match(aiJs, /setWorkflow\(fieldset,\s*['"]ai['"],\s*['"]draft['"]\)/);
+assert.match(aiJs, /\.mobile-navigation-editor/);
+assert.match(aiJs, /addEventListener\(\s*['"]toggle['"]/);
+assert.match(aiJs, /is-mobile-navigation-ai-inactive/);
+assert.match(aiJs, /aria-hidden/);
+assert.match(css, /#admin-ai-top-slot\.is-mobile-navigation-ai-inactive/);
+assert.match(css, /visibility:\s*hidden/);
+assert.match(css, /pointer-events:\s*none/);
 
 assert.match(js, /pointerdown/i, 'dragging must start from Pointer Events');
 assert.match(js, /data-mobile-navigation-drag-handle/);
