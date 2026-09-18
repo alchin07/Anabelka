@@ -63,7 +63,7 @@ const sidebarIncludeIndex = header.indexOf("public-catalog-sidebar.php");
 assert.ok(adminReturnIndex >= 0, 'admin early-return block must exist');
 assert.ok(sidebarIncludeIndex > adminReturnIndex, 'public sidebar must be integrated after the admin early-return path');
 
-assert.match(header, /public-catalog-sidebar\.css\?v=1/);
+assert.match(header, /public-catalog-sidebar\.css\?v=2/);
 assert.match(header, /public-catalog-sidebar\.js\?v=1/);
 assert.match(header, /require\s+__DIR__\s*\.\s*['"]\/public-catalog-sidebar\.php['"]/);
 
