@@ -275,9 +275,36 @@
 
 .mobile-navigation-translation-meta {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 10px;
     margin-top: 10px;
+}
+
+.mobile-navigation-ai-translate {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    margin: 0 0 10px;
+    padding: 0 12px;
+    border: 1px solid #8A2BE2;
+    border-radius: 10px;
+    background: #fff;
+    color: #6519b9;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.mobile-navigation-ai-translate:disabled {
+    cursor: wait;
+    opacity: 0.58;
+}
+
+.mobile-navigation-ai-translate:focus-visible {
+    outline: 3px solid rgba(138, 43, 226, 0.22);
+    outline-offset: 2px;
 }
 
 .mobile-navigation-form-actions {
