@@ -1,0 +1,46 @@
+<svg
+    class="public-header-admin-icon-svg"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+>
+    <rect
+        x="3.2"
+        y="3"
+        width="6.4"
+        height="10.2"
+        rx="1.7"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+    />
+    <rect
+        x="3.2"
+        y="15.8"
+        width="6.4"
+        height="5.2"
+        rx="1.7"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+    />
+    <rect
+        x="12.8"
+        y="3"
+        width="8"
+        height="5.2"
+        rx="1.7"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+    />
+    <rect
+        x="12.8"
+        y="10.8"
+        width="8"
+        height="10.2"
+        rx="1.7"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+    />
+</svg>
