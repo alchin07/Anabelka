@@ -36,7 +36,7 @@ assert.match(header, /mobile-header-shortcuts\.php/);
 assert.match(header, /mobile-bottom-navigation\.php/);
 assert.match(header, /mobile-menu-sheet\.php/);
 assert.match(header, /mobile-navigation\.css\?v=1/);
-assert.match(header, /mobile-navigation\.js\?v=1/);
+assert.match(header, /mobile-navigation\.js\?v=2/);
 
 for (const href of [
   '/Anabelka/news',
@@ -68,6 +68,9 @@ assert.match(sheet, /target="_blank" rel="noopener noreferrer"/);
 assert.match(js, /document\.querySelector\(['"]\.header-cart['"]\)/);
 assert.match(js, /document\.getElementById\([\s\S]*profile-notification-count/);
 assert.match(js, /document\.querySelector\([\s\S]*public-header-admin-action/);
+assert.match(js, /adminSlot\.appendChild\(adminAction\)/);
+assert.match(js, /adminLabel\.textContent\s*=\s*['\"]Адмін['\"]/);
+assert.match(js, /restoreHome\(homes\.admin\)/);
 assert.match(js, /document\.createComment/);
 assert.match(js, /restoreHome/);
 assert.match(js, /matchMedia\(['"]\(max-width: 430px\)['"]\)/);
