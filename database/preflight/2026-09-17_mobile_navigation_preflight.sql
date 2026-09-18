@@ -7,18 +7,12 @@ SELECT
     VERSION() AS database_version;
 
 SELECT
-    SUM(TABLE_NAME = 'mobile_navigation_items') AS items_table_exists,
-    SUM(TABLE_NAME = 'mobile_navigation_item_translations') AS translations_table_exists,
+    COALESCE(SUM(TABLE_NAME = 'mobile_navigation_items'), 0) AS items_table_exists,
+    COALESCE(SUM(TABLE_NAME = 'mobile_navigation_item_translations'), 0) AS translations_table_exists,
     CASE
-        WHEN SUM(TABLE_NAME IN (
-            'mobile_navigation_items',
-            'mobile_navigation_item_translations'
-        )) = 0
+        WHEN COUNT(*) = 0
             THEN 'not_started'
-        WHEN SUM(TABLE_NAME IN (
-            'mobile_navigation_items',
-            'mobile_navigation_item_translations'
-        )) = 2
+        WHEN COUNT(*) = 2
             THEN 'tables_present'
         ELSE 'partial'
     END AS migration_state
