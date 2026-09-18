@@ -4,14 +4,13 @@
     --public-sidebar-primary-light: var(--primary-light-color, #f4eaff);
     --public-sidebar-border: var(--border-color, #eadcf7);
     --public-sidebar-text: var(--text-color, #20202a);
-    --public-sidebar-scroll-thumb: rgba(138, 43, 226, .20);
-    --public-sidebar-scroll-grip: rgba(101, 25, 185, .55);
+    --public-sidebar-scroll-thumb: #eadcf7;
+    --public-sidebar-scroll-grip: rgba(101, 25, 185, .62);
     display: none;
-    scrollbar-color: #eadcf7 transparent;
 }
 
 .public-catalog-sidebar::-webkit-scrollbar {
-    width: 10px;
+    width: 12px;
 }
 
 .public-catalog-sidebar::-webkit-scrollbar-track {
@@ -20,41 +19,50 @@
 
 .public-catalog-sidebar::-webkit-scrollbar-thumb {
     min-height: 72px;
-    border: 2px solid transparent;
+    border: 3px solid transparent;
     border-radius: 999px;
     background-color: var(--public-sidebar-scroll-thumb);
     background-image:
-        radial-gradient(
-            circle at 50% calc(50% - 5px),
-            var(--public-sidebar-scroll-grip) 0 1.2px,
-            transparent 1.4px
+        linear-gradient(
+            var(--public-sidebar-scroll-grip),
+            var(--public-sidebar-scroll-grip)
         ),
-        radial-gradient(
-            circle at 50% 50%,
-            var(--public-sidebar-scroll-grip) 0 1.2px,
-            transparent 1.4px
+        linear-gradient(
+            var(--public-sidebar-scroll-grip),
+            var(--public-sidebar-scroll-grip)
         ),
-        radial-gradient(
-            circle at 50% calc(50% + 5px),
-            var(--public-sidebar-scroll-grip) 0 1.2px,
-            transparent 1.4px
+        linear-gradient(
+            var(--public-sidebar-scroll-grip),
+            var(--public-sidebar-scroll-grip)
         );
+    background-position:
+        center calc(50% - 5px),
+        center,
+        center calc(50% + 5px);
+    background-repeat: no-repeat;
+    background-size: 5px 1.5px;
     background-clip: padding-box;
-    box-shadow: inset 0 0 0 1px rgba(138, 43, 226, .08);
-    transition:
-        background-color .16s ease,
-        box-shadow .16s ease;
+    box-shadow: inset 0 0 0 1px rgba(138, 43, 226, .10);
+    cursor: grab;
 }
 
 .public-catalog-sidebar::-webkit-scrollbar-thumb:hover {
-    --public-sidebar-scroll-grip: rgba(255, 255, 255, .92);
-    background-color: var(--public-sidebar-primary);
-    box-shadow: inset 0 0 0 1px rgba(101, 25, 185, .16);
+    --public-sidebar-scroll-grip: rgba(255, 255, 255, .96);
+    background-color: #8A2BE2;
+    box-shadow: inset 0 0 0 1px rgba(101, 25, 185, .22);
 }
 
 .public-catalog-sidebar::-webkit-scrollbar-thumb:active {
-    --public-sidebar-scroll-grip: rgba(255, 255, 255, 1);
-    background-color: var(--public-sidebar-primary-dark);
+    --public-sidebar-scroll-grip: #fff;
+    background-color: #6519b9;
+    cursor: grabbing;
+}
+
+@supports (-moz-appearance: none) {
+    .public-catalog-sidebar {
+        scrollbar-width: thin;
+        scrollbar-color: #8A2BE2 transparent;
+    }
 }
 
 .home-department-nav-adult:focus {
@@ -96,7 +104,6 @@
         overscroll-behavior: contain;
         scroll-behavior: smooth;
         scrollbar-gutter: stable;
-        scrollbar-width: thin;
     }
 
     body > main {
