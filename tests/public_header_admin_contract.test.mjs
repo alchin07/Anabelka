@@ -122,3 +122,21 @@ test('favorites logic no longer controls admin-header visibility', function () {
     assert.doesNotMatch(script, /\.public-header-catalog/);
     assert.doesNotMatch(script, /admin-system-error-notifications/);
 });
+
+
+test('admin action uses the restored staggered dashboard icon, not the old equal-square grid', function () {
+    const header = read('views/partials/header.php');
+    const icon = read('views/partials/admin-panel-icon.php');
+
+    assert.match(
+        header,
+        /require __DIR__ \. '\/admin-panel-icon\.php';/
+    );
+    assert.match(icon, /height="10\.2"/);
+    assert.match(icon, /height="5\.2"/);
+    assert.match(icon, /width="8"/);
+    assert.doesNotMatch(
+        icon,
+        /x="4" y="4" width="6" height="6" rx="1\.2"/
+    );
+});
