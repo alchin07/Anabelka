@@ -81,7 +81,8 @@
             '/Anabelka/admin/categories',
             '/Anabelka/admin/products',
             '/Anabelka/admin/delivery',
-            '/Anabelka/admin/ranks'
+            '/Anabelka/admin/ranks',
+            '/Anabelka/admin/mobile-navigation'
         ];
 
         if (exactPages.includes(path)) {
@@ -249,6 +250,14 @@
             appendScript(
                 '/Anabelka/js/admin-translation-target.js?v=2',
                 'data-admin-translation-target'
+            );
+            return;
+        }
+
+        if (path === '/Anabelka/admin/mobile-navigation') {
+            appendScript(
+                '/Anabelka/js/admin-mobile-navigation-ai-translation.js?v=1',
+                'data-admin-mobile-navigation-ai'
             );
             return;
         }
