@@ -3,6 +3,12 @@
     color: #20202a;
 }
 
+#admin-ai-top-slot.is-mobile-navigation-ai-inactive {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .mobile-navigation-admin-shell {
     width: min(980px, 100%);
     margin: 0 auto;
