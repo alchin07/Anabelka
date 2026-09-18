@@ -6,7 +6,8 @@ const required = [
   'routes/MobileNavigation.php',
   'views/admin/mobile-navigation/index.php',
   'css/admin-mobile-navigation.css',
-  'js/admin-mobile-navigation.js'
+  'js/admin-mobile-navigation.js',
+  'js/admin-mobile-navigation-ai-translation.js'
 ];
 
 for (const file of required) {
@@ -27,6 +28,11 @@ const adminHeader = fs.readFileSync('views/admin/partials/header.php', 'utf8');
 const view = fs.readFileSync('views/admin/mobile-navigation/index.php', 'utf8');
 const css = fs.readFileSync('css/admin-mobile-navigation.css', 'utf8');
 const js = fs.readFileSync('js/admin-mobile-navigation.js', 'utf8');
+const aiJs = fs.readFileSync(
+  'js/admin-mobile-navigation-ai-translation.js',
+  'utf8'
+);
+const adminNav = fs.readFileSync('js/admin-nav.js', 'utf8');
 
 assert.match(
   routes,
@@ -97,6 +103,21 @@ assert.match(view, /data-mobile-navigation-drag-handle/);
 assert.match(view, /data-mobile-navigation-move="up"/);
 assert.match(view, /data-mobile-navigation-move="down"/);
 assert.match(view, /migrationRequired|migration-required|міграц/i);
+assert.match(view, /data-mobile-navigation-ai-translate/);
+assert.match(view, /data-mobile-navigation-translation-source/);
+assert.match(view, /type="hidden"[\s\S]*\[source\]/);
+assert.doesNotMatch(
+  view,
+  /<span>Джерело<\/span>[\s\S]*?<select[\s\S]*?\[source\]/,
+  'source manual/AI picker must not remain visible in the mobile-menu editor'
+);
+assert.match(adminNav, /\/Anabelka\/admin\/mobile-navigation/);
+assert.match(adminNav, /admin-mobile-navigation-ai-translation\.js\?v=1/);
+assert.match(aiJs, /AnabelkaAITranslation\.suggest/);
+assert.match(aiJs, /context:\s*['"]mobile_navigation['"]/);
+assert.match(aiJs, /source\.value\s*=\s*['"]ai['"]/);
+assert.match(aiJs, /source\.value\s*=\s*['"]manual['"]/);
+assert.match(aiJs, /status\.value\s*=\s*['"]draft['"]/);
 
 assert.match(js, /pointerdown/i, 'dragging must start from Pointer Events');
 assert.match(js, /data-mobile-navigation-drag-handle/);
