@@ -296,7 +296,7 @@ class AdminProduct
                 :show_stock_quantity,
                 :brand,
                 :country,
-                NULL,
+                '',
                 :is_active
             )
         ");
