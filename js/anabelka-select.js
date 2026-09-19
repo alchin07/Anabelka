@@ -242,8 +242,6 @@
                     '--anabelka-select-level-bg',
                     levelBackground(depth)
                 );
-                button.style.paddingLeft =
-                    String(8 + Math.min(depth, 8) * 10) + 'px';
             }
 
             renderPresentation(button, option);
