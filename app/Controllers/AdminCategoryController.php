@@ -77,18 +77,53 @@ class AdminCategoryController extends Controller
     public function thumbnail()
     {
         $this->verifyCsrf();
+        $uploadedPath = '';
 
         try {
+            $categoryId = (int) ($_POST['category_id'] ?? 0);
+
+            if (
+                $categoryId <= 0
+                || !Category::findAdminById($categoryId)
+            ) {
+                throw new DomainException('Категорію не знайдено.');
+            }
+
+            $uploadedPath = $this->storeThumbnailUpload($categoryId);
             $thumbnail = CategoryManager::updateThumbnail(
-                (int) ($_POST['category_id'] ?? 0),
-                $_POST['image'] ?? ''
+                $categoryId,
+                $uploadedPath !== ''
+                    ? $uploadedPath
+                    : ($_POST['image'] ?? ''),
+                $uploadedPath !== ''
             );
 
             $this->jsonSuccess(
-                'Мініатюру категорії збережено.',
+                $uploadedPath !== ''
+                    ? 'Фото оброблено та встановлено як мініатюру.'
+                    : 'Мініатюру категорії збережено.',
                 ['thumbnail' => $thumbnail]
             );
         } catch (Throwable $e) {
+            if (
+                $uploadedPath !== ''
+                && strpos(
+                    $uploadedPath,
+                    '/Anabelka/uploads/categories/thumbnails/'
+                ) === 0
+            ) {
+                $absolute = dirname(__DIR__, 2)
+                    . '/'
+                    . ltrim(
+                        substr($uploadedPath, strlen('/Anabelka/')),
+                        '/'
+                    );
+
+                if (is_file($absolute)) {
+                    @unlink($absolute);
+                }
+            }
+
             $this->handleFailure($e);
         }
     }
@@ -163,6 +198,232 @@ class AdminCategoryController extends Controller
         } catch (Throwable $e) {
             $this->handleFailure($e);
         }
+    }
+
+
+    private function storeThumbnailUpload($categoryId)
+    {
+        $file = $_FILES['thumbnail_file'] ?? null;
+
+        if (!is_array($file)) {
+            return '';
+        }
+
+        $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            return '';
+        }
+
+        if ($error !== UPLOAD_ERR_OK) {
+            throw new InvalidArgumentException(
+                'Не вдалося завантажити фото мініатюри.'
+            );
+        }
+
+        $size = (int) ($file['size'] ?? 0);
+        $tmpName = (string) ($file['tmp_name'] ?? '');
+
+        if ($size <= 0 || $size > 8388608) {
+            throw new InvalidArgumentException(
+                'Фото мініатюри має бути не більше 8 МБ.'
+            );
+        }
+
+        if (
+            $tmpName === ''
+            || !is_uploaded_file($tmpName)
+            || !function_exists('getimagesize')
+            || !function_exists('imagecreatetruecolor')
+            || !function_exists('imagecopyresampled')
+        ) {
+            throw new InvalidArgumentException(
+                'Обробка фото на сервері недоступна.'
+            );
+        }
+
+        $info = @getimagesize($tmpName);
+
+        if (!is_array($info)) {
+            throw new InvalidArgumentException(
+                'Файл не є підтримуваним зображенням.'
+            );
+        }
+
+        $width = (int) ($info[0] ?? 0);
+        $height = (int) ($info[1] ?? 0);
+        $mime = strtolower((string) ($info['mime'] ?? ''));
+
+        if (
+            $width <= 0
+            || $height <= 0
+            || $width > 12000
+            || $height > 12000
+            || ($width * $height) > 40000000
+        ) {
+            throw new InvalidArgumentException(
+                'Розмір зображення занадто великий.'
+            );
+        }
+
+        if ($mime === 'image/jpeg' && function_exists('imagecreatefromjpeg')) {
+            $source = @imagecreatefromjpeg($tmpName);
+        } elseif (
+            $mime === 'image/png'
+            && function_exists('imagecreatefrompng')
+        ) {
+            $source = @imagecreatefrompng($tmpName);
+        } elseif (
+            $mime === 'image/webp'
+            && function_exists('imagecreatefromwebp')
+        ) {
+            $source = @imagecreatefromwebp($tmpName);
+        } else {
+            throw new InvalidArgumentException(
+                'Підтримуються JPG, PNG та WebP.'
+            );
+        }
+
+        if (!$source) {
+            throw new InvalidArgumentException(
+                'Не вдалося прочитати зображення.'
+            );
+        }
+
+        if (
+            $mime === 'image/jpeg'
+            && function_exists('exif_read_data')
+            && function_exists('imagerotate')
+        ) {
+            $exif = @exif_read_data($tmpName);
+            $orientation = is_array($exif)
+                ? (int) ($exif['Orientation'] ?? 1)
+                : 1;
+            $angle = 0;
+
+            if ($orientation === 3) {
+                $angle = 180;
+            } elseif ($orientation === 6) {
+                $angle = -90;
+            } elseif ($orientation === 8) {
+                $angle = 90;
+            }
+
+            if ($angle !== 0) {
+                $rotated = @imagerotate($source, $angle, 0);
+
+                if ($rotated) {
+                    imagedestroy($source);
+                    $source = $rotated;
+                    $width = imagesx($source);
+                    $height = imagesy($source);
+                }
+            }
+        }
+
+        $side = min($width, $height);
+        $sourceX = (int) floor(($width - $side) / 2);
+        $sourceY = (int) floor(($height - $side) / 2);
+        $targetSize = 320;
+        $target = imagecreatetruecolor($targetSize, $targetSize);
+
+        if (!$target) {
+            imagedestroy($source);
+            throw new RuntimeException(
+                'Не вдалося створити мініатюру.'
+            );
+        }
+
+        imagealphablending($target, false);
+        imagesavealpha($target, true);
+        $transparent = imagecolorallocatealpha(
+            $target,
+            255,
+            255,
+            255,
+            127
+        );
+        imagefilledrectangle(
+            $target,
+            0,
+            0,
+            $targetSize,
+            $targetSize,
+            $transparent
+        );
+
+        if (!imagecopyresampled(
+            $target,
+            $source,
+            0,
+            0,
+            $sourceX,
+            $sourceY,
+            $targetSize,
+            $targetSize,
+            $side,
+            $side
+        )) {
+            imagedestroy($source);
+            imagedestroy($target);
+            throw new RuntimeException(
+                'Не вдалося масштабувати мініатюру.'
+            );
+        }
+
+        $directory = dirname(__DIR__, 2)
+            . '/uploads/categories/thumbnails';
+
+        if (
+            !is_dir($directory)
+            && !@mkdir($directory, 0775, true)
+            && !is_dir($directory)
+        ) {
+            imagedestroy($source);
+            imagedestroy($target);
+            throw new RuntimeException(
+                'Не вдалося створити папку мініатюр.'
+            );
+        }
+
+        $token = bin2hex(random_bytes(8));
+
+        if (function_exists('imagewebp')) {
+            $filename = 'category-'
+                . (int) $categoryId
+                . '-'
+                . $token
+                . '.webp';
+            $absolute = $directory . '/' . $filename;
+            $saved = @imagewebp($target, $absolute, 84);
+        } elseif (function_exists('imagepng')) {
+            $filename = 'category-'
+                . (int) $categoryId
+                . '-'
+                . $token
+                . '.png';
+            $absolute = $directory . '/' . $filename;
+            $saved = @imagepng($target, $absolute, 6);
+        } else {
+            $saved = false;
+            $filename = '';
+            $absolute = '';
+        }
+
+        imagedestroy($source);
+        imagedestroy($target);
+
+        if (!$saved || $filename === '' || !is_file($absolute)) {
+            if ($absolute !== '' && is_file($absolute)) {
+                @unlink($absolute);
+            }
+
+            throw new RuntimeException(
+                'Не вдалося записати оброблену мініатюру.'
+            );
+        }
+
+        return '/Anabelka/uploads/categories/thumbnails/' . $filename;
     }
 
 
