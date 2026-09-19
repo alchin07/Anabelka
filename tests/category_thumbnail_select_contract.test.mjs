@@ -75,3 +75,10 @@ assert.match(
 );
 
 process.stdout.write('category thumbnail select contract passed\n');
+
+
+assert.doesNotMatch(
+    selectJs,
+    /style\.paddingLeft\s*=/
+);
+process.stdout.write('rich category rows keep one left alignment\n');
