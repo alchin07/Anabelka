@@ -59,8 +59,8 @@ test('admin header cache-busts the nav loader that enables floating AI tools', (
     const header = read('views/admin/partials/header.php');
     const nav = read('js/admin-nav.js');
 
-    assert.match(header, /admin-nav\.js\?v=23/);
-    assert.match(nav, /admin-ai-translation\.js\?v=11/);
+    assert.match(header, /admin-nav\.js\?v=24/);
+    assert.match(nav, /admin-ai-translation\.js\?v=12/);
 });
 
 
@@ -135,5 +135,45 @@ test('category AI switcher rises above category modal', () => {
         /\.admin-ai-top-slot\.is-category-edit-context\s*\{[\s\S]*?z-index:\s*14050/
     );
     assert.match(nav, /admin-ai-translation\.css\?v=5/);
-    assert.match(nav, /admin-ai-translation\.js\?v=11/);
+    assert.match(nav, /admin-ai-translation\.js\?v=12/);
+});
+
+
+test('AI context survives async module loading', () => {
+    const ai = read('js/admin-ai-translation.js');
+    const categories = read('js/admin-categories.js');
+    const products = read('js/admin-products.js');
+
+    assert.match(
+        ai,
+        /AnabelkaAIEditingContext\s*===\s*['"]category-edit['"]/
+    );
+    assert.match(
+        ai,
+        /AnabelkaAIEditingContext[\s\S]*?['"]product-translations['"]/
+    );
+    assert.match(
+        ai,
+        /const\s+visible\s*=\s*pageAllowsSwitcher\(\)/
+    );
+    assert.doesNotMatch(
+        ai,
+        /const\s+visible\s*=\s*providersReady\s*&&/
+    );
+    assert.match(
+        ai,
+        /refreshVisibility:\s*syncSwitcherVisibility/
+    );
+    assert.match(
+        categories,
+        /AnabelkaAIEditingContext\s*=\s*['"]category-edit['"]/
+    );
+    assert.match(
+        categories,
+        /AnabelkaAIEditingContext\s*=\s*['"]['"]/
+    );
+    assert.match(
+        products,
+        /translationDetails\.open[\s\S]*?['"]product-translations['"]/
+    );
 });
