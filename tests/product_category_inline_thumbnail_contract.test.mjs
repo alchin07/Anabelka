@@ -22,6 +22,14 @@ const view = fs.readFileSync(
     'views/admin/products/index.php',
     'utf8'
 );
+const categoryView = fs.readFileSync(
+    'views/admin/categories/index.php',
+    'utf8'
+);
+const categoryJs = fs.readFileSync(
+    'js/admin-categories.js',
+    'utf8'
+);
 const selectJs = fs.readFileSync('js/anabelka-select.js', 'utf8');
 const thumbnailJs = fs.readFileSync(
     'js/admin-product-category-thumbnails.js',
@@ -62,7 +70,7 @@ assert.match(view, /foreach \(\$categoryOptions as \$category\)/);
 assert.match(view, /data-anabelka-thumbnail-edit="1"/);
 assert.match(view, /id="category-thumbnail-data"/);
 assert.match(view, /id="category-thumbnail-csrf"/);
-assert.match(view, /admin-product-category-thumbnails\.js\?v=1/);
+assert.match(view, /admin-product-category-thumbnails\.js\?v=2/);
 
 assert.match(
     selectJs,
@@ -107,6 +115,81 @@ assert.match(
     /\.product-category-thumbnail-grid/
 );
 
+
+
+assert.match(
+    controller,
+    /\$_FILES\['thumbnail_file'\]/
+);
+assert.match(controller, /imagecopyresampled\s*\(/);
+assert.match(controller, /\$targetSize\s*=\s*320/);
+assert.match(
+    controller,
+    /uploads\/categories\/thumbnails/
+);
+assert.match(
+    manager,
+    /\$allowUploadedImage/
+);
+assert.match(
+    manager,
+    /\/Anabelka\/uploads\/categories\/thumbnails\//
+);
+
+assert.match(
+    view,
+    /id="product-edit-category"[\s\S]*?data-category-thumbnail-select/
+);
+assert.match(
+    thumbnailJs,
+    /uploadInput\.type\s*=\s*'file'/
+);
+assert.match(
+    thumbnailJs,
+    /thumbnail_file/
+);
+assert.match(
+    thumbnailJs,
+    /Фото оброблено до 320×320/
+);
+assert.match(
+    thumbnailJs,
+    /anabelka:category-thumbnail-updated/
+);
+
+assert.match(
+    categoryView,
+    /id="category-move-parent"[\s\S]*?data-anabelka-select[\s\S]*?data-category-thumbnail-select/
+);
+assert.match(
+    categoryView,
+    /admin-product-category-thumbnails\.js\?v=2/
+);
+assert.match(
+    categoryJs,
+    /function orderedMoveCandidates\s*\(/
+);
+assert.match(
+    categoryJs,
+    /option\.dataset\.anabelkaThumbnailEdit\s*=\s*'1'/
+);
+assert.match(
+    categoryJs,
+    /option\.dataset\.anabelkaSubtitle\s*=/
+);
+assert.match(
+    categoryJs,
+    /AnabelkaSelect\.refresh\(moveParent\)/
+);
+assert.match(
+    selectJs,
+    /dataset\.anabelkaSubtitle/
+);
+assert.match(
+    selectCss,
+    /\.product-category-thumbnail-upload/
+);
+
 process.stdout.write(
-    'product category tree and inline thumbnail contract passed\n'
+    'product category tree, inline thumbnail upload, and move-list contract passed\n'
 );
