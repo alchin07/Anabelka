@@ -325,11 +325,22 @@ require __DIR__ . '/../../partials/header.php';
                     <div class="product-form-grid">
                         <label class="product-form-field is-wide">
                             <span>Категорія *</span>
-                            <select name="category_id" id="product-edit-category" required>
+                            <select
+                                name="category_id"
+                                id="product-edit-category"
+                                required
+                                data-anabelka-select
+                            >
                                 <option value="">Оберіть категорію</option>
                                 <?php foreach ($categories as $category): ?>
                                     <?php $depth = $categoryDepth($category); ?>
-                                    <option value="<?= (int) $category['id'] ?>">
+                                    <option
+                                        value="<?= (int) $category['id'] ?>"
+                                        data-anabelka-rich="1"
+                                        data-anabelka-label="<?= $escape($category['name']) ?>"
+                                        data-anabelka-thumbnail="<?= $escape($category['thumbnail_image'] ?? '') ?>"
+                                        data-anabelka-depth="<?= (int) $depth ?>"
+                                    >
                                         <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
                                         <?= empty($category['effective_active']) ? ' · прихована деревом' : '' ?>
                                     </option>
