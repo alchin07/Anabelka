@@ -126,6 +126,12 @@
     }
 
 
+    document.addEventListener(
+        'anabelka:ai-context-change',
+        syncSwitcherVisibility
+    );
+
+
     function ensureFloatingAssets() {
         if (!document.querySelector('link[data-anabelka-floating-tool]')) {
             const stylesheet = document.createElement('link');
