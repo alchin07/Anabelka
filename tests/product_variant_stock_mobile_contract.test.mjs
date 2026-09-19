@@ -155,10 +155,10 @@ test('dimension rename preserves stock through stable tokens and releases the ol
     assert.match(js, /idInput\.value\s*=\s*['"]0['"]/);
 });
 
-test('admin header cache-busts verified stable matrix v11', () => {
+test('admin header cache-busts independent-color matrix', () => {
     const header = read('views/admin/partials/header.php');
 
-    assert.match(header, /admin-product-variant-stock\.js\?v=13/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=15/);
     assert.match(header, /admin-product-editor-fixes\.js\?v=3/);
 });
 
@@ -170,7 +170,7 @@ test('product can be saved without photos and falls back to size stock', () => {
 
     assert.match(
         matrix,
-        /Фото можна додати пізніше\. Поки кольорів немає, залишок зберігається за розмірами\./
+        /Колір можна додати без фото\. Поки кольорів немає, залишок зберігається за розмірами\./
     );
     assert.match(
         matrix,
@@ -210,7 +210,32 @@ test('total stock mode ignores per-size stock validation and no-color UI explain
         /'stock'\s*=>\s*\$stockMode === 'by_size'[\s\S]*?wholeNumber[\s\S]*?:\s*0/
     );
     assert.match(matrix, /data-variant-caption/);
-    assert.match(matrix, /Без кольорів редагуйте кількість у полі «Залишок» біля кожного розміру\./);
+    assert.match(matrix, /Додайте колір вище або редагуйте кількість у полі «Залишок» біля кожного розміру\./);
     assert.match(matrix, /Для загального обліку введіть кількість у полі «Загальний залишок» вище\./);
-    assert.match(header, /admin-product-variant-stock\.js\?v=13/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=15/);
+});
+
+
+test('independent product colors participate in matrix dimensions without forcing matrix save', () => {
+    const matrix = read('js/admin-product-variant-stock.js');
+
+    assert.match(
+        matrix,
+        /const\s+manualColorList\s*=\s*document\.getElementById\(['"]product-color-list['"]\)/
+    );
+    assert.match(
+        matrix,
+        /const\s+roots\s*=\s*\[[\s\S]*?manualColorList[\s\S]*?imageList[\s\S]*?uploadPreview/
+    );
+    assert.match(
+        matrix,
+        /anabelka:product-colors-change[\s\S]*?rebuildIfDimensionsChanged\(false\)/
+    );
+
+    const colorEvent = matrix.match(
+        /document\.addEventListener\(\s*['"]anabelka:product-colors-change['"][\s\S]*?\n\s*\}\s*\);/
+    )?.[0] || '';
+
+    assert.notEqual(colorEvent, '');
+    assert.doesNotMatch(colorEvent, /matrixTouched\s*=\s*true/);
 });
