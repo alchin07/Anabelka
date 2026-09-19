@@ -34,7 +34,7 @@ assert.match(modelSource, /Category::visibleCategoryIds\s*\(/);
 assert.match(modelSource, /Category::adultCategoryIds\s*\(/);
 assert.match(modelSource, /Product::getCurrentRankSlug\s*\(/);
 assert.match(modelSource, /ProductTranslator::localizeList\s*\(/);
-assert.match(modelSource, /ProductImage::colorVariantsForProducts\s*\(/);
+assert.match(modelSource, /ProductColor::variantsForProducts\s*\(/);
 assert.match(modelSource, /ORDER\s+BY\s+q\.id\s+DESC/i);
 assert.match(modelSource, /LIMIT\s+:limit\s+OFFSET\s+:offset/i);
 assert.match(
