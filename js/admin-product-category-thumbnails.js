@@ -239,6 +239,44 @@
             state.image = manualImage;
             state.thumbnail_image = thumbnailImage;
 
+            if (file instanceof File && manualImage !== '') {
+                const grid = editor.querySelector(
+                    '.product-category-thumbnail-grid'
+                );
+                const existing = grid
+                    ? Array.from(
+                        grid.querySelectorAll(
+                            '[data-category-thumbnail-choice]'
+                        )
+                    ).find(function (button) {
+                        return String(
+                            button.dataset.categoryThumbnailChoice || ''
+                        ) === manualImage;
+                    })
+                    : null;
+
+                if (grid && !existing) {
+                    const empty = grid.querySelector(
+                        '.product-category-thumbnail-empty'
+                    );
+
+                    if (empty) {
+                        empty.remove();
+                    }
+
+                    grid.insertBefore(
+                        createChoice(
+                            manualImage,
+                            'Завантажене фото',
+                            'Поточна завантажена мініатюра',
+                            context,
+                            editor
+                        ),
+                        grid.firstChild
+                    );
+                }
+            }
+
             updateAllOptions(categoryId, thumbnailImage);
             updateThumbnailNode(
                 context.button.querySelector(
@@ -247,6 +285,17 @@
                 thumbnailImage
             );
             markChoice(editor, manualImage);
+
+            document.dispatchEvent(new CustomEvent(
+                'anabelka:category-thumbnail-updated',
+                {
+                    detail: {
+                        categoryId: categoryId,
+                        image: manualImage,
+                        thumbnailImage: thumbnailImage
+                    }
+                }
+            ));
 
             setStatus(
                 editor,
