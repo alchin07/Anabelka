@@ -244,6 +244,168 @@
     );
     const editActive = document.getElementById('category-edit-active');
     const editAdult = document.getElementById('category-edit-adult');
+    const editImage = document.getElementById('category-edit-image');
+    const thumbnailOptions = document.querySelector(
+        '[data-category-thumbnail-options]'
+    );
+    const thumbnailPreview = document.querySelector(
+        '[data-category-thumbnail-preview]'
+    );
+    const thumbnailPreviewImage = document.querySelector(
+        '[data-category-thumbnail-preview-image]'
+    );
+    const thumbnailEmpty = document.querySelector(
+        '[data-category-thumbnail-empty]'
+    );
+    const thumbnailMode = document.querySelector(
+        '[data-category-thumbnail-mode]'
+    );
+    const thumbnailAuto = document.querySelector(
+        '[data-category-thumbnail-auto]'
+    );
+    let thumbnailFallback = '';
+
+    function setThumbnailPreview(path, mode)
+    {
+        path = String(path || '').trim();
+
+        if (thumbnailPreviewImage) {
+            if (path !== '') {
+                thumbnailPreviewImage.src = path;
+                thumbnailPreviewImage.hidden = false;
+            } else {
+                thumbnailPreviewImage.removeAttribute('src');
+                thumbnailPreviewImage.hidden = true;
+            }
+        }
+
+        if (thumbnailEmpty) {
+            thumbnailEmpty.hidden = path !== '';
+        }
+
+        if (thumbnailPreview) {
+            thumbnailPreview.classList.toggle('is-empty', path === '');
+        }
+
+        if (thumbnailMode) {
+            thumbnailMode.textContent = mode || (
+                path !== '' ? 'Мініатюра обрана' : 'Фото немає'
+            );
+        }
+    }
+
+    function markThumbnailSelection(path)
+    {
+        if (!thumbnailOptions) {
+            return;
+        }
+
+        thumbnailOptions.querySelectorAll(
+            '[data-category-thumbnail-path]'
+        ).forEach(function (button) {
+            button.classList.toggle(
+                'is-selected',
+                String(button.dataset.categoryThumbnailPath || '') === path
+            );
+        });
+    }
+
+    function chooseThumbnail(path)
+    {
+        path = String(path || '').trim();
+
+        if (editImage) {
+            editImage.value = path;
+        }
+
+        markThumbnailSelection(path);
+        setThumbnailPreview(
+            path || thumbnailFallback,
+            path !== ''
+                ? 'Обрана вручну'
+                : (thumbnailFallback !== ''
+                    ? 'Автоматично з товару'
+                    : 'Фото немає')
+        );
+    }
+
+    function renderThumbnailEditor(category)
+    {
+        thumbnailFallback = String(
+            category.thumbnail_image || ''
+        ).trim();
+        const current = String(category.image || '').trim();
+        const candidates = Array.isArray(category.thumbnail_candidates)
+            ? category.thumbnail_candidates
+            : [];
+
+        if (thumbnailOptions) {
+            thumbnailOptions.replaceChildren();
+
+            if (candidates.length === 0) {
+                const empty = document.createElement('span');
+
+                empty.className = 'category-thumbnail-options-empty';
+                empty.textContent =
+                    'У товарів цієї категорії поки немає фотографій.';
+                thumbnailOptions.appendChild(empty);
+            } else {
+                candidates.forEach(function (candidate) {
+                    const path = String(candidate.path || '').trim();
+
+                    if (path === '') {
+                        return;
+                    }
+
+                    const button = document.createElement('button');
+                    const image = document.createElement('img');
+                    const label = document.createElement('span');
+
+                    button.type = 'button';
+                    button.className = 'category-thumbnail-choice';
+                    button.dataset.categoryThumbnailPath = path;
+                    button.title = String(
+                        candidate.product_name || 'Фото товару'
+                    );
+
+                    image.src = path;
+                    image.alt = '';
+                    image.loading = 'lazy';
+                    label.textContent = String(
+                        candidate.product_name || 'Товар'
+                    );
+
+                    button.appendChild(image);
+                    button.appendChild(label);
+                    button.addEventListener('click', function () {
+                        chooseThumbnail(path);
+                    });
+                    thumbnailOptions.appendChild(button);
+                });
+            }
+        }
+
+        chooseThumbnail(current);
+    }
+
+    if (thumbnailAuto) {
+        thumbnailAuto.addEventListener('click', function () {
+            chooseThumbnail('');
+        });
+    }
+
+    if (thumbnailPreviewImage) {
+        thumbnailPreviewImage.addEventListener('error', function () {
+            thumbnailPreviewImage.hidden = true;
+
+            if (thumbnailEmpty) {
+                thumbnailEmpty.hidden = false;
+            }
+            if (thumbnailPreview) {
+                thumbnailPreview.classList.add('is-empty');
+            }
+        });
+    }
 
     function translationFocusField(categoryId)
     {
@@ -286,6 +448,7 @@
             editDescription.value = String(category.description || '');
             editActive.checked = Number(category.is_active || 0) === 1;
             editAdult.checked = Number(category.is_adult || 0) === 1;
+            renderThumbnailEditor(category);
             const translations = category.translations || {};
 
             document.querySelectorAll('[data-category-language]').forEach(
