@@ -463,8 +463,8 @@ require __DIR__ . '/../../partials/header.php';
 
                     <div class="product-details-content">
                         <p class="product-image-color-help">
-                            Натисніть «Вибрати колір» біля потрібної фотографії.
-                            Можна обрати готовий колір або взяти його прямо з фото.
+                            Фотографії необов’язкові: товар можна зберегти зараз і додати їх пізніше.
+                            Якщо фото вже є, натисніть «Вибрати колір» біля потрібної фотографії.
                         </p>
 
                         <div id="product-image-list" class="product-image-list"></div>
