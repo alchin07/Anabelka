@@ -630,6 +630,9 @@
 
         editor.hidden = false;
         document.body.classList.add('product-editor-open');
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         window.setTimeout(function () {
             focusEditor(isEdit ? product.id : 0);
         }, 30);
@@ -640,6 +643,9 @@
     {
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         clearUploadPreviews();
     }
 
@@ -706,6 +712,18 @@
 
     fields.stockMode.addEventListener('change', updateStockMode);
     fields.imageInput.addEventListener('change', renderUploadPreviews);
+
+    const translationDetails = form.querySelector(
+        '[data-translation-details]'
+    );
+
+    if (translationDetails) {
+        translationDetails.addEventListener('toggle', function () {
+            document.dispatchEvent(new CustomEvent(
+                'anabelka:ai-context-change'
+            ));
+        });
+    }
 
     form.addEventListener('input', function (event) {
         const field = event.target;
