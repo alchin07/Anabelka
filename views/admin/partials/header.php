@@ -164,7 +164,7 @@ $canAudit = $adminCan('audit.view');
 >
 <link
     rel="stylesheet"
-    href="/Anabelka/css/anabelka-select.css?v=2"
+    href="/Anabelka/css/anabelka-select.css?v=3"
 >
 
 <header class="admin-site-header">
@@ -470,7 +470,7 @@ $canAudit = $adminCan('audit.view');
     </a>
 </aside>
 
-<script src="/Anabelka/js/anabelka-select.js?v=4"></script>
+<script src="/Anabelka/js/anabelka-select.js?v=5"></script>
 <script src="/Anabelka/js/anabelka-dialog.js?v=1"></script>
 <script src="/Anabelka/js/admin-ui-focus-policy.js?v=2"></script>
 <script src="/Anabelka/js/admin-product-preview.js?v=1"></script>
