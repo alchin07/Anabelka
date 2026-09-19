@@ -53,7 +53,8 @@ class AdminProductController extends Controller
                 'filters' => $filters,
                 'productsError' => $productsError,
                 'flash' => is_array($flash) ? $flash : null,
-                'csrfToken' => $this->csrfToken()
+                'csrfToken' => $this->csrfToken(),
+                'categoryCsrfToken' => AdminAccess::csrfToken()
             ]
         );
     }
