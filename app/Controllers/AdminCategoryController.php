@@ -82,13 +82,17 @@ class AdminCategoryController extends Controller
         try {
             $categoryId = (int) ($_POST['category_id'] ?? 0);
 
-            if (
-                $categoryId <= 0
-                || !Category::findAdminById($categoryId)
-            ) {
+            $category = $categoryId > 0
+                ? Category::findAdminById($categoryId)
+                : false;
+
+            if (!$category) {
                 throw new DomainException('Категорію не знайдено.');
             }
 
+            $previousImage = trim(
+                (string) ($category['image'] ?? '')
+            );
             $uploadedPath = $this->storeThumbnailUpload($categoryId);
             $thumbnail = CategoryManager::updateThumbnail(
                 $categoryId,
@@ -97,6 +101,17 @@ class AdminCategoryController extends Controller
                     : ($_POST['image'] ?? ''),
                 $uploadedPath !== ''
             );
+
+            $storedImage = trim(
+                (string) ($thumbnail['image'] ?? '')
+            );
+
+            if (
+                $previousImage !== ''
+                && $previousImage !== $storedImage
+            ) {
+                $this->deleteManagedThumbnail($previousImage);
+            }
 
             $this->jsonSuccess(
                 $uploadedPath !== ''
@@ -424,6 +439,28 @@ class AdminCategoryController extends Controller
         }
 
         return '/Anabelka/uploads/categories/thumbnails/' . $filename;
+    }
+
+
+    private function deleteManagedThumbnail($path)
+    {
+        $path = trim((string) $path);
+        $prefix = '/Anabelka/uploads/categories/thumbnails/';
+
+        if (strpos($path, $prefix) !== 0) {
+            return;
+        }
+
+        $absolute = dirname(__DIR__, 2)
+            . '/'
+            . ltrim(
+                substr($path, strlen('/Anabelka/')),
+                '/'
+            );
+
+        if (is_file($absolute)) {
+            @unlink($absolute);
+        }
     }
 
 
