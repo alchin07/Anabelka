@@ -158,7 +158,7 @@ test('dimension rename preserves stock through stable tokens and releases the ol
 test('admin header cache-busts verified stable matrix v11', () => {
     const header = read('views/admin/partials/header.php');
 
-    assert.match(header, /admin-product-variant-stock\.js\?v=11/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=13/);
     assert.match(header, /admin-product-editor-fixes\.js\?v=3/);
 });
 
@@ -196,4 +196,21 @@ test('product can be saved without photos and falls back to size stock', () => {
         productImage,
         /\$path\s*=\s*'';[\s\S]*?UPDATE products[\s\S]*?SET main_image = :main_image/
     );
+});
+
+test('total stock mode ignores per-size stock validation and no-color UI explains the active mode', () => {
+    const controller = read('app/Controllers/AdminProductController.php');
+    const matrix = read('js/admin-product-variant-stock.js');
+    const header = read('views/admin/partials/header.php');
+
+    assert.match(controller, /sizesFromRequest\(\$stockMode\)/);
+    assert.match(controller, /private function sizesFromRequest\(\$stockMode = 'total'\)/);
+    assert.match(
+        controller,
+        /'stock'\s*=>\s*\$stockMode === 'by_size'[\s\S]*?wholeNumber[\s\S]*?:\s*0/
+    );
+    assert.match(matrix, /data-variant-caption/);
+    assert.match(matrix, /Без кольорів редагуйте кількість у полі «Залишок» біля кожного розміру\./);
+    assert.match(matrix, /Для загального обліку введіть кількість у полі «Загальний залишок» вище\./);
+    assert.match(header, /admin-product-variant-stock\.js\?v=13/);
 });
