@@ -92,13 +92,97 @@
         focusOnOpen(instance, focusMode || 'selected');
     }
 
+    function optionLabel(option)
+    {
+        if (!option) {
+            return 'Оберіть';
+        }
+
+        const custom = String(
+            option.dataset.anabelkaLabel || ''
+        ).trim();
+
+        return custom !== ''
+            ? custom
+            : option.textContent.trim();
+    }
+
+
+    function renderPresentation(container, option)
+    {
+        const rich = Boolean(
+            option
+            && option.dataset.anabelkaRich === '1'
+        );
+
+        container.classList.toggle('is-rich', rich);
+        container.replaceChildren();
+
+        if (!option) {
+            container.textContent = 'Оберіть';
+            return;
+        }
+
+        if (!rich) {
+            container.textContent = optionLabel(option);
+            return;
+        }
+
+        const content = document.createElement('span');
+        const thumbnail = document.createElement('span');
+        const label = document.createElement('span');
+        const path = String(
+            option.dataset.anabelkaThumbnail || ''
+        ).trim();
+
+        content.className = 'anabelka-select-rich-content';
+        thumbnail.className = 'anabelka-select-thumbnail';
+        label.className = 'anabelka-select-rich-label';
+        label.textContent = optionLabel(option);
+
+        if (path !== '') {
+            const image = document.createElement('img');
+
+            image.src = path;
+            image.alt = '';
+            image.loading = 'lazy';
+            image.addEventListener('error', function () {
+                image.remove();
+                thumbnail.classList.add('is-empty');
+            });
+            thumbnail.appendChild(image);
+        } else {
+            thumbnail.classList.add('is-empty');
+        }
+
+        content.appendChild(thumbnail);
+        content.appendChild(label);
+        container.appendChild(content);
+    }
+
+
+    function levelBackground(depth)
+    {
+        const colors = [
+            '#ffffff',
+            '#faf7ff',
+            '#f4eaff',
+            '#eadcf7',
+            '#e4cef8',
+            '#dcc2f0'
+        ];
+
+        depth = Math.max(0, Number(depth || 0));
+
+        return colors[Math.min(depth, colors.length - 1)];
+    }
+
+
     function sync(instance)
     {
         const selected = instance.select.options[instance.select.selectedIndex] || null;
 
-        instance.triggerLabel.textContent = selected
-            ? selected.textContent.trim()
-            : 'Оберіть';
+        renderPresentation(instance.triggerLabel, selected);
         instance.trigger.disabled = instance.select.disabled;
 
         Array.from(instance.list.children).forEach(function (button) {
@@ -145,7 +229,24 @@
             button.setAttribute('role', 'option');
             button.setAttribute('aria-selected', option.selected ? 'true' : 'false');
             button.disabled = option.disabled || instance.select.disabled;
-            button.textContent = option.textContent.trim();
+
+            if (option.dataset.anabelkaRich === '1') {
+                const depth = Math.max(
+                    0,
+                    Number(option.dataset.anabelkaDepth || 0)
+                );
+
+                button.classList.add('is-rich');
+                button.dataset.depth = String(depth);
+                button.style.setProperty(
+                    '--anabelka-select-level-bg',
+                    levelBackground(depth)
+                );
+                button.style.paddingLeft =
+                    String(8 + Math.min(depth, 8) * 10) + 'px';
+            }
+
+            renderPresentation(button, option);
 
             button.addEventListener('click', function (event) {
                 event.preventDefault();
