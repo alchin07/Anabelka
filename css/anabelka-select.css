@@ -281,3 +281,32 @@
         flex-basis: 42px;
     }
 }
+
+
+.anabelka-select-thumbnail.is-editable {
+    position: relative;
+    cursor: pointer;
+    border-color: #c9addf;
+}
+
+.anabelka-select-thumbnail.is-editable::after {
+    content: '✎';
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #8A2BE2;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 1px 4px rgba(58, 24, 88, 0.22);
+}
+
+.anabelka-select-thumbnail.is-editable:active {
+    transform: scale(0.96);
+}
