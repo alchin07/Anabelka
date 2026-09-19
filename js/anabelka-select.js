@@ -130,14 +130,21 @@
 
         const content = document.createElement('span');
         const thumbnail = document.createElement('span');
+        const copy = document.createElement('span');
         const label = document.createElement('span');
+        const subtitle = document.createElement('span');
         const path = String(
             option.dataset.anabelkaThumbnail || ''
+        ).trim();
+        const subtitleText = String(
+            option.dataset.anabelkaSubtitle || ''
         ).trim();
 
         content.className = 'anabelka-select-rich-content';
         thumbnail.className = 'anabelka-select-thumbnail';
+        copy.className = 'anabelka-select-rich-copy';
         label.className = 'anabelka-select-rich-label';
+        subtitle.className = 'anabelka-select-rich-subtitle';
 
         if (option.dataset.anabelkaThumbnailEdit === '1') {
             thumbnail.classList.add('is-editable');
@@ -161,8 +168,15 @@
             thumbnail.classList.add('is-empty');
         }
 
+        copy.appendChild(label);
+
+        if (subtitleText !== '') {
+            subtitle.textContent = subtitleText;
+            copy.appendChild(subtitle);
+        }
+
         content.appendChild(thumbnail);
-        content.appendChild(label);
+        content.appendChild(copy);
         container.appendChild(content);
     }
 
