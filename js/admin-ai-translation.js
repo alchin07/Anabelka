@@ -55,9 +55,18 @@
         }
 
         const visible = providersReady && pageAllowsSwitcher();
+        const categoryModalContext = visible
+            && pagePath() === '/Anabelka/admin/categories';
 
         if (!visible) {
             setExpanded(false);
+        }
+
+        if (floatingRoot) {
+            floatingRoot.classList.toggle(
+                'is-category-edit-context',
+                categoryModalContext
+            );
         }
 
         switcher.hidden = !visible;
