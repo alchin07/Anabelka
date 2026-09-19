@@ -205,6 +205,87 @@ class CategoryManager
     }
 
 
+    public static function updateThumbnail($categoryId, $requestedImage)
+    {
+        $categoryId = (int) $categoryId;
+        $db = Database::connect();
+
+        try {
+            $db->beginTransaction();
+            $current = self::lockCategory($db, $categoryId);
+            $image = self::resolveCategoryImage(
+                $db,
+                $categoryId,
+                ['image' => $requestedImage],
+                $current
+            );
+
+            $stmt = $db->prepare("
+                UPDATE categories
+                SET image = :image
+                WHERE id = :id
+            ");
+            $stmt->execute([
+                'id' => $categoryId,
+                'image' => $image
+            ]);
+
+            $verify = $db->prepare("
+                SELECT image
+                FROM categories
+                WHERE id = :id
+                LIMIT 1
+            ");
+            $verify->execute(['id' => $categoryId]);
+            $storedImage = $verify->fetchColumn();
+
+            if (
+                $storedImage === false
+                || trim((string) $storedImage)
+                    !== trim((string) ($image ?? ''))
+            ) {
+                throw new RuntimeException(
+                    'База даних не підтвердила мініатюру категорії.'
+                );
+            }
+
+            $effective = $db->prepare("
+                SELECT COALESCE(
+                    NULLIF(TRIM(c.image), ''),
+                    (
+                        SELECT preview.main_image
+                        FROM products AS preview
+                        WHERE preview.category_id = c.id
+                          AND preview.main_image IS NOT NULL
+                          AND TRIM(preview.main_image) <> ''
+                        ORDER BY preview.id DESC
+                        LIMIT 1
+                    ),
+                    ''
+                )
+                FROM categories AS c
+                WHERE c.id = :id
+                LIMIT 1
+            ");
+            $effective->execute(['id' => $categoryId]);
+            $thumbnailImage = trim(
+                (string) ($effective->fetchColumn() ?: '')
+            );
+
+            $db->commit();
+            Category::resetRuntimeCache();
+
+            return [
+                'image' => trim((string) ($image ?? '')),
+                'thumbnail_image' => $thumbnailImage
+            ];
+        } catch (Throwable $e) {
+            self::rollBack($db);
+            throw $e;
+        }
+    }
+
+
     /**
      * Move a whole subtree. The target department comes from the new parent;
      * only root moves may select a department explicitly.
