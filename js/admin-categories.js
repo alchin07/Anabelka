@@ -92,6 +92,9 @@
         lastTrigger = trigger || null;
         modal.hidden = false;
         document.body.style.overflow = 'hidden';
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
 
         window.setTimeout(function () {
             if (focusField && typeof focusField.focus === 'function') {
@@ -107,6 +110,9 @@
             modal.hidden = true;
         });
         document.body.style.overflow = '';
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
 
         if (restoreFocus !== false && lastTrigger) {
             lastTrigger.focus();
