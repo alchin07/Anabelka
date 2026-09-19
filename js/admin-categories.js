@@ -607,6 +607,105 @@
     }
 
 
+    function categoryDepth(category)
+    {
+        let depth = 0;
+        let current = category;
+        const seen = new Set();
+
+        while (
+            current
+            && Number(current.parent_id || 0) > 0
+            && !seen.has(Number(current.id || 0))
+        ) {
+            seen.add(Number(current.id || 0));
+            depth += 1;
+            current = categoryById.get(
+                Number(current.parent_id || 0)
+            );
+        }
+
+        return depth;
+    }
+
+
+    function orderedMoveCandidates(excluded)
+    {
+        const children = new Map();
+        const rootsByDepartment = new Map();
+        const result = [];
+        const visited = new Set();
+
+        categories.forEach(function (category) {
+            const id = Number(category.id || 0);
+
+            if (id <= 0 || excluded.has(id)) {
+                return;
+            }
+
+            const parentId = Number(category.parent_id || 0);
+            const departmentId = Number(category.department_id || 0);
+
+            if (parentId > 0 && !excluded.has(parentId)) {
+                if (!children.has(parentId)) {
+                    children.set(parentId, []);
+                }
+
+                children.get(parentId).push(category);
+            } else {
+                if (!rootsByDepartment.has(departmentId)) {
+                    rootsByDepartment.set(departmentId, []);
+                }
+
+                rootsByDepartment.get(departmentId).push(category);
+            }
+        });
+
+        function visit(category, depth)
+        {
+            const id = Number(category.id || 0);
+
+            if (visited.has(id)) {
+                return;
+            }
+
+            visited.add(id);
+            result.push({
+                category: category,
+                depth: depth
+            });
+
+            (children.get(id) || []).forEach(function (child) {
+                visit(child, depth + 1);
+            });
+        }
+
+        departments.forEach(function (department) {
+            const departmentId = Number(department.id || 0);
+
+            (rootsByDepartment.get(departmentId) || []).forEach(
+                function (category) {
+                    visit(category, 0);
+                }
+            );
+        });
+
+        categories.forEach(function (category) {
+            const id = Number(category.id || 0);
+
+            if (
+                id > 0
+                && !excluded.has(id)
+                && !visited.has(id)
+            ) {
+                visit(category, categoryDepth(category));
+            }
+        });
+
+        return result;
+    }
+
+
     function categoryPath(category)
     {
         const names = [];
@@ -670,16 +769,23 @@
             rootOption.textContent = 'Без батьківської категорії (корінь)';
             moveParent.appendChild(rootOption);
 
-            categories.forEach(function (candidate) {
+            orderedMoveCandidates(excluded).forEach(function (row) {
+                const candidate = row.category;
                 const candidateId = Number(candidate.id || 0);
-
-                if (excluded.has(candidateId)) {
-                    return;
-                }
-
                 const option = document.createElement('option');
+
                 option.value = String(candidateId);
-                option.textContent = categoryPath(candidate);
+                option.textContent = String(candidate.name || '');
+                option.dataset.anabelkaRich = '1';
+                option.dataset.anabelkaLabel =
+                    String(candidate.name || '');
+                option.dataset.anabelkaSubtitle =
+                    categoryPath(candidate);
+                option.dataset.anabelkaThumbnail =
+                    String(candidate.thumbnail_image || '');
+                option.dataset.anabelkaThumbnailEdit = '1';
+                option.dataset.anabelkaDepth =
+                    String(row.depth || 0);
                 moveParent.appendChild(option);
             });
 
@@ -687,6 +793,14 @@
             moveParent.value = category.parent_id
                 ? String(category.parent_id)
                 : '';
+
+            if (
+                window.AnabelkaSelect
+                && typeof window.AnabelkaSelect.refresh === 'function'
+            ) {
+                window.AnabelkaSelect.refresh(moveParent);
+            }
+
             moveDepartment.value = String(category.department_id || '');
             moveContext.textContent = 'Переміщується «'
                 + String(category.name || '')
@@ -705,6 +819,26 @@
             )
         );
     }
+
+
+    document.addEventListener(
+        'anabelka:category-thumbnail-updated',
+        function (event) {
+            const detail = event.detail || {};
+            const category = categoryById.get(
+                Number(detail.categoryId || 0)
+            );
+
+            if (!category) {
+                return;
+            }
+
+            category.image = String(detail.image || '');
+            category.thumbnail_image = String(
+                detail.thumbnailImage || ''
+            );
+        }
+    );
 
 
     const deleteModal = document.getElementById('category-delete-modal');
