@@ -49,7 +49,7 @@ class Product
             },
             $products
         );
-        $colorVariants = ProductImage::colorVariantsForProducts(
+        $colorVariants = ProductColor::variantsForProducts(
             $productIds
         );
 
@@ -142,7 +142,7 @@ class Product
             },
             $products
         );
-        $colorVariants = ProductImage::colorVariantsForProducts(
+        $colorVariants = ProductColor::variantsForProducts(
             $productIds
         );
 
