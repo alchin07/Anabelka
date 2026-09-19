@@ -181,7 +181,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
     <title>Категорії — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=1">
 </head>
 <body>
@@ -263,6 +263,50 @@ require __DIR__ . '/../../partials/header.php';
                 <label for="category-edit-description">Опис</label>
                 <textarea name="description" id="category-edit-description" rows="4"></textarea>
             </div>
+
+            <section class="category-thumbnail-editor" data-category-thumbnail-editor>
+                <input
+                    type="hidden"
+                    name="image"
+                    id="category-edit-image"
+                    value=""
+                >
+
+                <div class="category-thumbnail-head">
+                    <div>
+                        <strong>Мініатюра категорії</strong>
+                        <span>Фото береться з товарів цієї категорії.</span>
+                    </div>
+                    <button
+                        type="button"
+                        class="category-thumbnail-auto"
+                        data-category-thumbnail-auto
+                    >Автоматично</button>
+                </div>
+
+                <div class="category-thumbnail-current">
+                    <span
+                        class="category-thumbnail-preview is-empty"
+                        data-category-thumbnail-preview
+                    >
+                        <img alt="" hidden data-category-thumbnail-preview-image>
+                        <span data-category-thumbnail-empty>Без фото</span>
+                    </span>
+                    <div>
+                        <strong data-category-thumbnail-mode>Фото немає</strong>
+                        <span>
+                            Якщо ручну мініатюру не обрано, використовується
+                            останній товар категорії з фотографією.
+                        </span>
+                    </div>
+                </div>
+
+                <div
+                    class="category-thumbnail-options"
+                    data-category-thumbnail-options
+                    aria-label="Фотографії товарів категорії"
+                ></div>
+            </section>
 
             <div class="category-check-grid">
                 <label>
@@ -421,6 +465,6 @@ require __DIR__ . '/../../partials/header.php';
 <script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
 <script src="/Anabelka/js/anabelka-notify.js?v=1"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-categories.js?v=3"></script>
+<script src="/Anabelka/js/admin-categories.js?v=4"></script>
 </body>
 </html>
