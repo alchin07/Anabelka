@@ -74,6 +74,26 @@ class AdminCategoryController extends Controller
     }
 
 
+    public function thumbnail()
+    {
+        $this->verifyCsrf();
+
+        try {
+            $thumbnail = CategoryManager::updateThumbnail(
+                (int) ($_POST['category_id'] ?? 0),
+                $_POST['image'] ?? ''
+            );
+
+            $this->jsonSuccess(
+                'Мініатюру категорії збережено.',
+                ['thumbnail' => $thumbnail]
+            );
+        } catch (Throwable $e) {
+            $this->handleFailure($e);
+        }
+    }
+
+
     public function move()
     {
         $this->verifyCsrf();
