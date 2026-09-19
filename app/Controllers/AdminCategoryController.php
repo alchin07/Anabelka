@@ -10,13 +10,17 @@ class AdminCategoryController extends Controller
 
         $departments = Department::allForAdmin();
         $categories = Category::getAllForAdmin();
-        $translations = CategoryTranslator::getForCategories(
-            array_column($categories, 'id')
+        $categoryIds = array_column($categories, 'id');
+        $translations = CategoryTranslator::getForCategories($categoryIds);
+        $thumbnailCandidates = Category::thumbnailCandidatesForAdmin(
+            $categoryIds
         );
 
         foreach ($categories as &$category) {
             $categoryId = (int) ($category['id'] ?? 0);
             $category['translations'] = $translations[$categoryId] ?? [];
+            $category['thumbnail_candidates'] =
+                $thumbnailCandidates[$categoryId] ?? [];
         }
         unset($category);
 
