@@ -31,7 +31,7 @@
         '<div class="product-variant-stock-head">',
         '  <div>',
         '    <strong>Залишки за розміром і кольором</strong>',
-        '    <span>Редагуйте кількість тільки тут. Підсумки за розмірами рахуються автоматично.</span>',
+        '    <span data-variant-caption>Редагуйте кількість тільки тут. Підсумки за розмірами рахуються автоматично.</span>',
         '  </div>',
         '  <strong data-variant-total>0 шт.</strong>',
         '</div>',
@@ -44,6 +44,7 @@
     const cardsWrap = block.querySelector('[data-variant-cards]');
     const note = block.querySelector('[data-variant-note]');
     const totalLabel = block.querySelector('[data-variant-total]');
+    const caption = block.querySelector('[data-variant-caption]');
     const sizeHint = form.querySelector('[data-size-stock-hint]');
     const cache = new Map();
     const tokenCache = new Map();
@@ -653,11 +654,25 @@
         }
 
         if (colors.length === 0) {
-            note.textContent = 'Фото можна додати пізніше. Поки кольорів немає, залишок зберігається за розмірами.';
+            const bySize = stockModeField
+                && stockModeField.value === 'by_size';
+
+            note.textContent = bySize
+                ? 'Фото можна додати пізніше. Поки кольорів немає, залишок зберігається за розмірами.'
+                : 'Фото можна додати пізніше. Поки кольорів немає, використовується загальний залишок.';
+            if (caption) {
+                caption.textContent = bySize
+                    ? 'Без кольорів редагуйте кількість у полі «Залишок» біля кожного розміру.'
+                    : 'Для загального обліку введіть кількість у полі «Загальний залишок» вище.';
+            }
             cardsWrap.innerHTML = '';
             totalLabel.textContent = '0 шт.';
             restoreLegacySizeFields();
             return;
+        }
+
+        if (caption) {
+            caption.textContent = 'Редагуйте кількість тільки тут. Підсумки за розмірами рахуються автоматично.';
         }
 
         note.textContent = hasStoredMatrix
