@@ -59,8 +59,8 @@ test('admin header cache-busts the nav loader that enables floating AI tools', (
     const header = read('views/admin/partials/header.php');
     const nav = read('js/admin-nav.js');
 
-    assert.match(header, /admin-nav\.js\?v=21/);
-    assert.match(nav, /admin-ai-translation\.js\?v=9/);
+    assert.match(header, /admin-nav\.js\?v=22/);
+    assert.match(nav, /admin-ai-translation\.js\?v=10/);
 });
 
 
@@ -85,5 +85,37 @@ test('AI switcher visibility follows category edit and product translations', ()
     assert.doesNotMatch(
         ai,
         /renderProviders[\s\S]*?switcher\.hidden\s*=\s*false[\s\S]*?activateFloatingSwitcher/
+    );
+});
+
+
+test('editor scripts explicitly signal AI context changes', () => {
+    const ai = read('js/admin-ai-translation.js');
+    const categories = read('js/admin-categories.js');
+    const products = read('js/admin-products.js');
+
+    assert.match(
+        ai,
+        /addEventListener\(\s*['"]anabelka:ai-context-change['"],\s*syncSwitcherVisibility/
+    );
+    assert.match(
+        categories,
+        /modal\.hidden\s*=\s*false;[\s\S]*?anabelka:ai-context-change/
+    );
+    assert.match(
+        categories,
+        /document\.body\.style\.overflow\s*=\s*['"];[\s\S]*?anabelka:ai-context-change/
+    );
+    assert.match(
+        products,
+        /editor\.hidden\s*=\s*false;[\s\S]*?anabelka:ai-context-change/
+    );
+    assert.match(
+        products,
+        /editor\.hidden\s*=\s*true;[\s\S]*?anabelka:ai-context-change/
+    );
+    assert.match(
+        products,
+        /translationDetails\.addEventListener\(\s*['"]toggle['"][\s\S]*?anabelka:ai-context-change/
     );
 });
