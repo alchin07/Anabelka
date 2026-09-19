@@ -420,7 +420,12 @@ require __DIR__ . '/../../partials/header.php';
             <p class="category-form-note" id="category-move-context"></p>
             <div class="category-form-group">
                 <label for="category-move-parent">Нова батьківська категорія</label>
-                <select name="parent_id" id="category-move-parent"></select>
+                <select
+                    name="parent_id"
+                    id="category-move-parent"
+                    data-anabelka-select
+                    data-category-thumbnail-select
+                ></select>
             </div>
             <div class="category-form-group">
                 <label for="category-move-department">Підрозділ кореневої категорії</label>
@@ -463,8 +468,14 @@ require __DIR__ . '/../../partials/header.php';
 
 <div id="site-message" class="site-message anabelka-notify" role="status" aria-live="polite"></div>
 <script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
+<input
+    type="hidden"
+    id="category-thumbnail-csrf"
+    value="<?= $escape($csrfToken) ?>"
+>
 <script src="/Anabelka/js/anabelka-notify.js?v=1"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-categories.js?v=4"></script>
+<script src="/Anabelka/js/admin-categories.js?v=5"></script>
+<script src="/Anabelka/js/admin-product-category-thumbnails.js?v=2"></script>
 </body>
 </html>
