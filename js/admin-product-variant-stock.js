@@ -653,7 +653,7 @@
         }
 
         if (colors.length === 0) {
-            note.textContent = 'Призначте колір хоча б одній фотографії товару.';
+            note.textContent = 'Фото можна додати пізніше. Поки кольорів немає, залишок зберігається за розмірами.';
             cardsWrap.innerHTML = '';
             totalLabel.textContent = '0 шт.';
             restoreLegacySizeFields();
