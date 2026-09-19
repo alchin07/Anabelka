@@ -205,8 +205,11 @@ class CategoryManager
     }
 
 
-    public static function updateThumbnail($categoryId, $requestedImage)
-    {
+    public static function updateThumbnail(
+        $categoryId,
+        $requestedImage,
+        $allowUploadedImage = false
+    ) {
         $categoryId = (int) $categoryId;
         $db = Database::connect();
 
@@ -217,7 +220,8 @@ class CategoryManager
                 $db,
                 $categoryId,
                 ['image' => $requestedImage],
-                $current
+                $current,
+                (bool) $allowUploadedImage
             );
 
             $stmt = $db->prepare("
@@ -1071,7 +1075,8 @@ class CategoryManager
         PDO $db,
         $categoryId,
         array $input,
-        array $current
+        array $current,
+        $allowUploadedImage = false
     ) {
         $currentImage = trim((string) ($current['image'] ?? ''));
 
@@ -1086,6 +1091,28 @@ class CategoryManager
         }
 
         if ($requested === $currentImage) {
+            return $requested;
+        }
+
+        if (
+            $allowUploadedImage
+            && preg_match(
+                '#^/Anabelka/uploads/categories/thumbnails/'
+                    . '[a-zA-Z0-9._-]+\\.(?:webp|png)$#',
+                $requested
+            )
+        ) {
+            $relative = substr($requested, strlen('/Anabelka/'));
+            $absolute = dirname(__DIR__, 2)
+                . '/'
+                . ltrim($relative, '/');
+
+            if (!is_file($absolute)) {
+                throw new DomainException(
+                    'Завантажену мініатюру не знайдено на сервері.'
+                );
+            }
+
             return $requested;
         }
 
