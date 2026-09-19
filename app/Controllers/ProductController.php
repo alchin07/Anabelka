@@ -218,7 +218,7 @@ class ProductController extends Controller
         }
 
         $productId = (int) $product['id'];
-        $variantsByProduct = ProductImage::colorVariantsForProducts([
+        $variantsByProduct = ProductColor::variantsForProducts([
             $productId
         ]);
         $imageColors = $variantsByProduct[$productId] ?? [];
