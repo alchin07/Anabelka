@@ -131,7 +131,7 @@ class StorefrontProductCollection
             },
             $products
         );
-        $colorVariants = ProductImage::colorVariantsForProducts(
+        $colorVariants = ProductColor::variantsForProducts(
             $productIds
         );
 
