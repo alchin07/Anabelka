@@ -121,7 +121,7 @@
         if (!document.querySelector('link[data-admin-ai-translation]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';
-            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=4';
+            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=5';
             stylesheet.dataset.adminAiTranslation = '1';
             document.head.appendChild(stylesheet);
         }
@@ -208,7 +208,7 @@
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
             const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=10';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=11';
             script.dataset.adminAiTranslation = '1';
             document.body.appendChild(script);
         }
