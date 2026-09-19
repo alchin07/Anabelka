@@ -350,7 +350,7 @@ class AdminProductController extends Controller
             $_POST['stock'] ?? 0,
             'Залишок має бути цілим числом.'
         );
-        $sizes = $this->sizesFromRequest();
+        $sizes = $this->sizesFromRequest($stockMode);
 
         if (empty($sizes)) {
             throw new InvalidArgumentException(
@@ -419,8 +419,9 @@ class AdminProductController extends Controller
     }
 
 
-    private function sizesFromRequest()
+    private function sizesFromRequest($stockMode = 'total')
     {
+        $stockMode = $stockMode === 'by_size' ? 'by_size' : 'total';
         $ids = is_array($_POST['size_id'] ?? null)
             ? $_POST['size_id']
             : [];
@@ -463,10 +464,12 @@ class AdminProductController extends Controller
             $sizes[] = [
                 'id' => (int) ($ids[$index] ?? 0),
                 'name' => $name,
-                'stock' => $this->wholeNumber(
-                    $stocks[$index] ?? 0,
-                    'Залишок розміру має бути цілим числом.'
-                )
+                'stock' => $stockMode === 'by_size'
+                    ? $this->wholeNumber(
+                        $stocks[$index] ?? 0,
+                        'Залишок розміру має бути цілим числом.'
+                    )
+                    : 0
             ];
         }
 
