@@ -28,7 +28,8 @@
                 'category-edit-modal'
             );
 
-            return Boolean(modal && !modal.hidden);
+            return window.AnabelkaAIEditingContext === 'category-edit'
+                || Boolean(modal && !modal.hidden);
         }
 
         if (path === '/Anabelka/admin/products') {
@@ -37,12 +38,14 @@
                 ? editor.querySelector('[data-translation-details]')
                 : null;
 
-            return Boolean(
-                editor
-                && !editor.hidden
-                && translations
-                && translations.open
-            );
+            return window.AnabelkaAIEditingContext
+                    === 'product-translations'
+                || Boolean(
+                    editor
+                    && !editor.hidden
+                    && translations
+                    && translations.open
+                );
         }
 
         return true;
@@ -54,7 +57,7 @@
             return false;
         }
 
-        const visible = providersReady && pageAllowsSwitcher();
+        const visible = pageAllowsSwitcher();
         const categoryModalContext = visible
             && pagePath() === '/Anabelka/admin/categories';
 
@@ -415,6 +418,10 @@
     }
 
     async function loadProviders() {
+        if (pageAllowsSwitcher()) {
+            setStatus('завантаження…');
+        }
+
         try {
             const data = await request(
                 '/Anabelka/admin/ai-translation/providers'
@@ -618,7 +625,8 @@
         },
         getProviders: function () {
             return providers;
-        }
+        },
+        refreshVisibility: syncSwitcherVisibility
     };
 
     prepareFloatingSwitcher();
