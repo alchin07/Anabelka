@@ -195,6 +195,19 @@ class Category
                 c.slug,
                 c.description,
                 c.image,
+                COALESCE(
+                    NULLIF(TRIM(c.image), ''),
+                    (
+                        SELECT preview.main_image
+                        FROM products AS preview
+                        WHERE preview.category_id = c.id
+                          AND preview.main_image IS NOT NULL
+                          AND TRIM(preview.main_image) <> ''
+                        ORDER BY preview.id DESC
+                        LIMIT 1
+                    ),
+                    ''
+                ) AS thumbnail_image,
                 c.sort_order,
                 c.is_active,
                 c.is_adult,
@@ -242,6 +255,71 @@ class Category
         }
 
         return $categories;
+    }
+
+
+    /**
+     * Product main images that can be selected as category thumbnails.
+     */
+    public static function thumbnailCandidatesForAdmin(
+        array $categoryIds,
+        $limitPerCategory = 16
+    ) {
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map('intval', $categoryIds),
+            function ($id) {
+                return $id > 0;
+            }
+        )));
+        $limitPerCategory = max(1, min(40, (int) $limitPerCategory));
+
+        if (empty($categoryIds)) {
+            return [];
+        }
+
+        $placeholders = implode(
+            ',',
+            array_fill(0, count($categoryIds), '?')
+        );
+        $stmt = Database::connect()->prepare("
+            SELECT
+                id,
+                category_id,
+                name,
+                main_image
+            FROM products
+            WHERE category_id IN ({$placeholders})
+              AND main_image IS NOT NULL
+              AND TRIM(main_image) <> ''
+            ORDER BY category_id ASC, id DESC
+        ");
+        $stmt->execute($categoryIds);
+
+        $result = [];
+        $seen = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $categoryId = (int) ($row['category_id'] ?? 0);
+            $path = trim((string) ($row['main_image'] ?? ''));
+
+            if (
+                $categoryId <= 0
+                || $path === ''
+                || isset($seen[$categoryId][$path])
+                || count($result[$categoryId] ?? []) >= $limitPerCategory
+            ) {
+                continue;
+            }
+
+            $seen[$categoryId][$path] = true;
+            $result[$categoryId][] = [
+                'product_id' => (int) ($row['id'] ?? 0),
+                'product_name' => (string) ($row['name'] ?? ''),
+                'path' => $path
+            ];
+        }
+
+        return $result;
     }
 
 
