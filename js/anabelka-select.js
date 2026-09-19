@@ -138,6 +138,12 @@
         content.className = 'anabelka-select-rich-content';
         thumbnail.className = 'anabelka-select-thumbnail';
         label.className = 'anabelka-select-rich-label';
+
+        if (option.dataset.anabelkaThumbnailEdit === '1') {
+            thumbnail.classList.add('is-editable');
+            thumbnail.dataset.anabelkaThumbnailControl = '';
+            thumbnail.title = 'Редагувати мініатюру';
+        }
         label.textContent = optionLabel(option);
 
         if (path !== '') {
@@ -185,7 +191,9 @@
         renderPresentation(instance.triggerLabel, selected);
         instance.trigger.disabled = instance.select.disabled;
 
-        Array.from(instance.list.children).forEach(function (button) {
+        Array.from(
+            instance.list.querySelectorAll('.anabelka-select-option')
+        ).forEach(function (button) {
             const option = instance.select.options[Number(button.dataset.optionIndex)];
             const isSelected = Boolean(option && option.selected);
 
@@ -249,6 +257,32 @@
             button.addEventListener('click', function (event) {
                 event.preventDefault();
                 event.stopPropagation();
+
+                const thumbnail = event.target.closest(
+                    '[data-anabelka-thumbnail-control]'
+                );
+
+                if (
+                    thumbnail
+                    && button.contains(thumbnail)
+                    && option.dataset.anabelkaThumbnailEdit === '1'
+                ) {
+                    instance.select.dispatchEvent(new CustomEvent(
+                        'anabelka:thumbnail-edit',
+                        {
+                            bubbles: true,
+                            detail: {
+                                optionIndex: index,
+                                option: option,
+                                button: button,
+                                list: instance.list,
+                                thumbnail: thumbnail
+                            }
+                        }
+                    ));
+                    return;
+                }
+
                 choose(instance, index);
             });
 
@@ -527,6 +561,20 @@
             }
 
             renderOptions(instance);
+            return true;
+        },
+        sync: function (select) {
+            if (!(select instanceof HTMLSelectElement)) {
+                return false;
+            }
+
+            const instance = instances.get(select) || enhance(select);
+
+            if (!instance) {
+                return false;
+            }
+
+            sync(instance);
             return true;
         }
     };
