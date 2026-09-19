@@ -161,3 +161,39 @@ test('admin header cache-busts verified stable matrix v11', () => {
     assert.match(header, /admin-product-variant-stock\.js\?v=11/);
     assert.match(header, /admin-product-editor-fixes\.js\?v=3/);
 });
+
+test('product can be saved without photos and falls back to size stock', () => {
+    const matrix = read('js/admin-product-variant-stock.js');
+    const view = read('views/admin/products/index.php');
+    const adminProduct = read('app/Models/AdminProduct.php');
+    const productImage = read('app/Models/ProductImage.php');
+
+    assert.match(
+        matrix,
+        /Фото можна додати пізніше\. Поки кольорів немає, залишок зберігається за розмірами\./
+    );
+    assert.match(
+        matrix,
+        /if \(colors\.length === 0\)[\s\S]*?restoreLegacySizeFields\(\);/
+    );
+    assert.match(
+        view,
+        /Фотографії необов’язкові: товар можна зберегти зараз і додати їх пізніше\./
+    );
+    assert.match(
+        view,
+        /name="product_images\[\]"[\s\S]*?multiple/
+    );
+    assert.doesNotMatch(
+        view,
+        /<input[^>]*name="product_images\[\]"[^>]*required[^>]*>/
+    );
+    assert.match(
+        adminProduct,
+        /:country,\s*''\s*,\s*:is_active/
+    );
+    assert.match(
+        productImage,
+        /\$path\s*=\s*'';[\s\S]*?UPDATE products[\s\S]*?SET main_image = :main_image/
+    );
+});
