@@ -12,7 +12,119 @@
     let providers = {};
     let selectedProvider = '';
     let isSaving = false;
+    let providersReady = false;
     let floatingAssetsPromise = null;
+
+    function pagePath() {
+        return window.location.pathname.replace(/\/$/, '');
+    }
+
+
+    function pageAllowsSwitcher() {
+        const path = pagePath();
+
+        if (path === '/Anabelka/admin/categories') {
+            const modal = document.getElementById(
+                'category-edit-modal'
+            );
+
+            return Boolean(modal && !modal.hidden);
+        }
+
+        if (path === '/Anabelka/admin/products') {
+            const editor = document.getElementById('product-editor');
+            const translations = editor
+                ? editor.querySelector('[data-translation-details]')
+                : null;
+
+            return Boolean(
+                editor
+                && !editor.hidden
+                && translations
+                && translations.open
+            );
+        }
+
+        return true;
+    }
+
+
+    function syncSwitcherVisibility() {
+        if (!switcher) {
+            return false;
+        }
+
+        const visible = providersReady && pageAllowsSwitcher();
+
+        if (!visible) {
+            setExpanded(false);
+        }
+
+        switcher.hidden = !visible;
+
+        if (visible) {
+            window.requestAnimationFrame(function () {
+                activateFloatingSwitcher();
+            });
+        }
+
+        return visible;
+    }
+
+
+    function watchContextVisibility() {
+        const path = pagePath();
+
+        if (path === '/Anabelka/admin/categories') {
+            const modal = document.getElementById(
+                'category-edit-modal'
+            );
+
+            if (!modal) {
+                return;
+            }
+
+            new MutationObserver(syncSwitcherVisibility).observe(
+                modal,
+                {
+                    attributes: true,
+                    attributeFilter: ['hidden']
+                }
+            );
+            return;
+        }
+
+        if (path === '/Anabelka/admin/products') {
+            const editor = document.getElementById('product-editor');
+            const translations = editor
+                ? editor.querySelector('[data-translation-details]')
+                : null;
+
+            if (!editor || !translations) {
+                return;
+            }
+
+            new MutationObserver(syncSwitcherVisibility).observe(
+                editor,
+                {
+                    attributes: true,
+                    attributeFilter: ['hidden']
+                }
+            );
+            new MutationObserver(syncSwitcherVisibility).observe(
+                translations,
+                {
+                    attributes: true,
+                    attributeFilter: ['open']
+                }
+            );
+            translations.addEventListener(
+                'toggle',
+                syncSwitcherVisibility
+            );
+        }
+    }
+
 
     function ensureFloatingAssets() {
         if (!document.querySelector('link[data-anabelka-floating-tool]')) {
@@ -282,11 +394,8 @@
 
         renderControls();
 
-        if (switcher) {
-            switcher.hidden = false;
-            activateFloatingSwitcher();
-        }
-
+        providersReady = true;
+        syncSwitcherVisibility();
         updateStatus();
     }
 
@@ -298,6 +407,8 @@
 
             renderProviders(data);
         } catch (error) {
+            providersReady = false;
+            syncSwitcherVisibility();
             setStatus(error.message || 'помилка');
 
             if (window.AnabelkaNotify) {
@@ -496,5 +607,7 @@
     };
 
     prepareFloatingSwitcher();
+    watchContextVisibility();
+    syncSwitcherVisibility();
     loadProviders();
 })();
