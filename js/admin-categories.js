@@ -92,9 +92,22 @@
         lastTrigger = trigger || null;
         modal.hidden = false;
         document.body.style.overflow = 'hidden';
+
+        if (modal.id === 'category-edit-modal') {
+            window.AnabelkaAIEditingContext = 'category-edit';
+        }
+
         document.dispatchEvent(new CustomEvent(
             'anabelka:ai-context-change'
         ));
+
+        if (
+            window.AnabelkaAITranslation
+            && typeof window.AnabelkaAITranslation.refreshVisibility
+                === 'function'
+        ) {
+            window.AnabelkaAITranslation.refreshVisibility();
+        }
 
         window.setTimeout(function () {
             if (focusField && typeof focusField.focus === 'function') {
@@ -110,9 +123,22 @@
             modal.hidden = true;
         });
         document.body.style.overflow = '';
+
+        if (window.AnabelkaAIEditingContext === 'category-edit') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
         document.dispatchEvent(new CustomEvent(
             'anabelka:ai-context-change'
         ));
+
+        if (
+            window.AnabelkaAITranslation
+            && typeof window.AnabelkaAITranslation.refreshVisibility
+                === 'function'
+        ) {
+            window.AnabelkaAITranslation.refreshVisibility();
+        }
 
         if (restoreFocus !== false && lastTrigger) {
             lastTrigger.focus();
