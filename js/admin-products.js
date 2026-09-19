@@ -630,6 +630,11 @@
 
         editor.hidden = false;
         document.body.classList.add('product-editor-open');
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
         document.dispatchEvent(new CustomEvent(
             'anabelka:ai-context-change'
         ));
@@ -643,6 +648,11 @@
     {
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
         document.dispatchEvent(new CustomEvent(
             'anabelka:ai-context-change'
         ));
@@ -719,9 +729,21 @@
 
     if (translationDetails) {
         translationDetails.addEventListener('toggle', function () {
+            window.AnabelkaAIEditingContext = translationDetails.open
+                ? 'product-translations'
+                : '';
+
             document.dispatchEvent(new CustomEvent(
                 'anabelka:ai-context-change'
             ));
+
+            if (
+                window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.refreshVisibility
+                    === 'function'
+            ) {
+                window.AnabelkaAITranslation.refreshVisibility();
+            }
         });
     }
 
