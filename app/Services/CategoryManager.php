@@ -118,6 +118,12 @@ class CategoryManager
             CategoryTranslator::getForCategory(0);
             $db->beginTransaction();
             $current = self::lockCategory($db, $categoryId);
+            $image = self::resolveCategoryImage(
+                $db,
+                $categoryId,
+                $input,
+                $current
+            );
             $before = CategoryTranslator::getForCategory(
                 $categoryId,
                 true
@@ -134,6 +140,7 @@ class CategoryManager
                 SET
                     name = :name,
                     description = :description,
+                    image = :image,
                     is_active = :is_active,
                     is_adult = :is_adult
                 WHERE id = :id
@@ -142,6 +149,7 @@ class CategoryManager
                 'id' => $categoryId,
                 'name' => $name,
                 'description' => $description,
+                'image' => $image,
                 'is_active' => $isActive,
                 'is_adult' => $isAdult
             ]);
@@ -163,7 +171,7 @@ class CategoryManager
             );
 
             $verify = $db->prepare("
-                SELECT name, description, is_active, is_adult
+                SELECT name, description, image, is_active, is_adult
                 FROM categories
                 WHERE id = :id
                 LIMIT 1
@@ -176,6 +184,8 @@ class CategoryManager
                 || trim((string) $stored['name']) !== $name
                 || trim((string) ($stored['description'] ?? ''))
                     !== trim((string) ($description ?? ''))
+                || trim((string) ($stored['image'] ?? ''))
+                    !== trim((string) ($image ?? ''))
                 || (int) $stored['is_active'] !== $isActive
                 || (int) $stored['is_adult'] !== $isAdult
             ) {
@@ -973,6 +983,50 @@ class CategoryManager
             'sql' => implode(', ', $placeholders),
             'params' => $params
         ];
+    }
+
+
+    private static function resolveCategoryImage(
+        PDO $db,
+        $categoryId,
+        array $input,
+        array $current
+    ) {
+        $currentImage = trim((string) ($current['image'] ?? ''));
+
+        if (!array_key_exists('image', $input)) {
+            return $currentImage !== '' ? $currentImage : null;
+        }
+
+        $requested = trim((string) ($input['image'] ?? ''));
+
+        if ($requested === '') {
+            return null;
+        }
+
+        if ($requested === $currentImage) {
+            return $requested;
+        }
+
+        $stmt = $db->prepare("
+            SELECT id
+            FROM products
+            WHERE category_id = :category_id
+              AND main_image = :image
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'category_id' => (int) $categoryId,
+            'image' => $requested
+        ]);
+
+        if ($stmt->fetchColumn() === false) {
+            throw new DomainException(
+                'Оберіть мініатюру з фотографій товарів цієї категорії.'
+            );
+        }
+
+        return $requested;
     }
 
 
