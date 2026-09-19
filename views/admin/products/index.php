@@ -129,7 +129,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=5">
 </head>
 <body>
 
@@ -502,6 +502,36 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
                 </details>
 
+                <details class="product-form-section" open data-product-colors-section>
+                    <summary>
+                        <span>Кольори</span>
+                        <small>Не залежать від фотографій</small>
+                    </summary>
+
+                    <div class="product-details-content">
+                        <p class="product-colors-help">
+                            Колір можна додати навіть без фотографії.
+                            Фото за потреби прив’яжете до кольору пізніше.
+                        </p>
+
+                        <div class="product-colors-head">
+                            <div>
+                                <strong>Кольори товару</strong>
+                                <span>Кожен колір зберігається окремо від фото.</span>
+                            </div>
+                            <button type="button" data-product-color-add>
+                                ＋ Додати колір
+                            </button>
+                        </div>
+
+                        <div
+                            id="product-color-list"
+                            class="product-color-list"
+                            aria-live="polite"
+                        ></div>
+                    </div>
+                </details>
+
                 <details class="product-form-section">
                     <summary>
                         <span>Матеріал</span>
@@ -681,7 +711,7 @@ require __DIR__ . '/../../partials/header.php';
     >
         <header class="product-color-picker-head">
             <div>
-                <span>Фотографія товару</span>
+                <span data-color-picker-context>Колір товару</span>
                 <h3 id="product-color-picker-title">Колір товару</h3>
             </div>
             <button
@@ -803,7 +833,8 @@ require __DIR__ . '/../../partials/header.php';
 >
 <div id="site-message" class="site-message" role="status"></div>
 <script src="/Anabelka/js/admin-products.js?v=5"></script>
-<script src="/Anabelka/js/admin-product-color-picker.js?v=2"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=3"></script>
+<script src="/Anabelka/js/admin-product-colors.js?v=1"></script>
 <script src="/Anabelka/js/admin-product-category-thumbnails.js?v=2"></script>
 </body>
 </html>
