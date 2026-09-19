@@ -542,7 +542,7 @@ class ProductImage
             WHERE product_id = :product_id
         ")->execute(['product_id' => $productId]);
 
-        $path = null;
+        $path = '';
 
         if ($selected) {
             $db->prepare("

@@ -167,6 +167,214 @@ body {
     color: var(--surface-color);
 }
 
+.catalog-adult-list {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+    margin-top: 18px;
+}
+
+.catalog-adult-entry {
+    box-sizing: border-box;
+    width: min(100%, 420px);
+    min-width: 0;
+    max-width: 420px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 0;
+    border: 1px solid rgba(138, 43, 226, .28);
+    border-radius: 24px;
+    background: linear-gradient(135deg, #8A2BE2, #6519b9);
+    color: #fff;
+    box-shadow: 0 16px 34px rgba(101, 25, 185, .18);
+}
+
+.catalog-adult-root {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 22px;
+    color: #fff;
+    text-decoration: none;
+}
+
+.catalog-adult-root:hover,
+.catalog-adult-root:focus-visible {
+    color: #fff;
+    outline: 3px solid rgba(244, 234, 255, .82);
+    outline-offset: -4px;
+}
+
+.catalog-adult-brand {
+    min-width: 0;
+    max-width: 100%;
+    width: max-content;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.catalog-adult-brand-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(29px, 5vw, 36px);
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.catalog-adult-root-meta[hidden],
+.catalog-adult-tree[hidden] {
+    display: none !important;
+}
+
+.catalog-adult-root-meta {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.catalog-adult-badge {
+    flex: 0 0 auto;
+    min-width: 42px;
+    min-height: 29px;
+    display: inline-grid;
+    place-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: #f4eaff;
+    color: #6519b9;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.catalog-adult-action {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.catalog-adult-tree {
+    box-sizing: border-box;
+    width: calc(100% - 12px);
+    min-width: 0;
+    margin: 5px 0 0 12px;
+    padding: 0 0 0 12px;
+    border-left: 2px solid rgba(244, 234, 255, .65);
+    list-style: none;
+}
+
+.catalog-adult-tree .catalog-adult-tree {
+    width: calc(100% - 8px);
+    margin: 4px 0 0 8px;
+    padding-left: 9px;
+}
+
+.catalog-adult-tree .catalog-adult-tree .catalog-adult-tree {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+}
+
+.catalog-adult-node {
+    min-width: 0;
+}
+
+.catalog-adult-node + .catalog-adult-node {
+    margin-top: 4px;
+}
+
+.catalog-adult-node-link {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 11px;
+    background: rgba(244, 234, 255, .12);
+    color: #fff;
+    text-decoration: none;
+}
+
+.catalog-adult-node-link:hover,
+.catalog-adult-node-link:focus-visible {
+    background: #f4eaff;
+    color: #6519b9;
+    outline: none;
+}
+
+.catalog-adult-node-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.catalog-adult-node-arrow {
+    flex: 0 0 auto;
+}
+
+.catalog-adult-strawberry {
+    width: 39px;
+    height: 39px;
+    flex: 0 0 39px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.catalog-adult-strawberry svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+@media (max-width: 600px) {
+    .catalog-adult-list {
+        margin-top: 14px;
+    }
+
+    .catalog-adult-entry {
+        width: 100%;
+        max-width: 420px;
+        padding: 0;
+        border-radius: 19px;
+    }
+
+    .catalog-adult-root {
+        padding: 18px 16px;
+    }
+
+    .catalog-adult-strawberry {
+        width: 35px;
+        height: 35px;
+        flex-basis: 35px;
+    }
+}
+
 
 /* Изображение товара */
 
@@ -271,4 +479,87 @@ body {
 .catalog-products .product-price {
     margin: 0;
     padding: 0 12px 12px;
+}
+
+
+/* =========================================
+   ЕДИНА ПОСТОРІНКОВА НАВІГАЦІЯ
+   ========================================= */
+
+.anabelka-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.anabelka-pagination-link {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 1px solid #d8c3ea;
+    border-radius: 12px;
+    background: #fff;
+    color: #6519b9;
+    text-decoration: none;
+    font-weight: 800;
+    line-height: 1;
+    transition:
+        border-color .16s ease,
+        background-color .16s ease,
+        color .16s ease;
+}
+
+.anabelka-pagination-link:hover,
+.anabelka-pagination-link:focus-visible {
+    border-color: #8A2BE2;
+    background: #f4eaff;
+    color: #6519b9;
+    outline: none;
+}
+
+.anabelka-pagination-link.is-current {
+    border-color: #8A2BE2;
+    background: #8A2BE2;
+    color: #fff;
+    cursor: default;
+}
+
+.anabelka-pagination-link.is-direction {
+    min-width: 92px;
+}
+
+.anabelka-pagination-ellipsis {
+    min-width: 24px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #7a6f80;
+    font-weight: 900;
+}
+
+@media (max-width: 600px) {
+    .anabelka-pagination {
+        gap: 5px;
+        margin-top: 20px;
+    }
+
+    .anabelka-pagination-link {
+        min-width: 44px;
+        min-height: 44px;
+        padding-inline: 10px;
+        border-radius: 11px;
+        font-size: 14px;
+    }
+
+    .anabelka-pagination-link.is-direction {
+        min-width: 88px;
+    }
 }

@@ -15,9 +15,13 @@ class ProductController extends Controller
             (int) ($product['category_id'] ?? 0)
         );
 
+        if (!$productCategory) {
+            http_response_code(404);
+            die('Категорію товару не знайдено');
+        }
+
         if (
-            $productCategory
-            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            !empty($productCategory['effective_adult'])
             && !AdultAccess::isConfirmed()
         ) {
             $returnUrl = $_SERVER['REQUEST_URI']
@@ -26,7 +30,7 @@ class ProductController extends Controller
             header(
                 'Location: '
                 . AdultAccess::gateUrl(
-                    (string) ($productCategory['slug'] ?? ''),
+                    $productCategory,
                     $returnUrl
                 )
             );
@@ -41,8 +45,7 @@ class ProductController extends Controller
                 die('Категория товара не найдена');
             }
 
-            $url = '/Anabelka/catalog/'
-                . rawurlencode((string) $category['slug'])
+            $url = Category::catalogUrl($category)
                 . '?highlight_product='
                 . rawurlencode((string) $product['slug']);
 
@@ -137,13 +140,43 @@ class ProductController extends Controller
             $currentLanguage['code'] ?? Language::SOURCE_CODE
         );
 
+        $reviews = [];
+        $canReview = false;
+        $reviewCsrfToken = '';
+        $reviewFlash = is_array($_SESSION['product_review_flash'] ?? null)
+            ? $_SESSION['product_review_flash']
+            : null;
+        unset($_SESSION['product_review_flash']);
+
+        try {
+            $reviews = ProductReview::approvedForProduct($productId);
+            $reviewUserId = CustomerAccount::currentId();
+
+            if ($reviewUserId > 0) {
+                $canReview = !ProductReview::hasReview(
+                    $productId,
+                    $reviewUserId
+                );
+                $reviewCsrfToken = CustomerAccount::csrfToken();
+            }
+        } catch (Throwable $e) {
+            error_log('Product reviews: ' . $e->getMessage());
+            $reviews = [];
+            $canReview = false;
+            $reviewCsrfToken = '';
+        }
+
         $this->view('product/show', [
             'product' => $product,
             'attributes' => $attributes,
             'images' => $images,
             'prices' => $prices,
             'currentRankSlug' => $currentRankSlug,
-            'badges' => $badges
+            'badges' => $badges,
+            'reviews' => $reviews,
+            'canReview' => $canReview,
+            'reviewCsrfToken' => $reviewCsrfToken,
+            'reviewFlash' => $reviewFlash
         ]);
     }
 
@@ -163,50 +196,78 @@ class ProductController extends Controller
             (int) ($product['category_id'] ?? 0)
         );
 
+        if (!$productCategory) {
+            $this->json([
+                'success' => false,
+                'message' => 'Категорію товару не знайдено'
+            ], 404);
+        }
+
         if (
-            $productCategory
-            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            !empty($productCategory['effective_adult'])
             && !AdultAccess::isConfirmed()
         ) {
             $this->json([
                 'success' => false,
                 'message' => 'Потрібне підтвердження віку.',
                 'gate_url' => AdultAccess::gateUrl(
-                    (string) ($productCategory['slug'] ?? ''),
+                    $productCategory,
                     '/Anabelka/product/' . rawurlencode((string) $slug)
                 )
             ], 403);
         }
 
         $productId = (int) $product['id'];
-        $variantsByProduct = ProductImage::colorVariantsForProducts([
+        $variantsByProduct = ProductColor::variantsForProducts([
             $productId
         ]);
         $imageColors = $variantsByProduct[$productId] ?? [];
         $rows = ProductVariantStock::forProduct($productId);
         $usesVariantStock = !empty($rows);
+        $normalizeColorName = static function ($name) {
+            $name = trim((string) $name);
+
+            return function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+        };
+        $matrixColorsByName = [];
+
+        foreach ($rows as $row) {
+            $normalizedName = $normalizeColorName(
+                $row['color_name'] ?? ''
+            );
+
+            if ($normalizedName !== '' && !isset($matrixColorsByName[$normalizedName])) {
+                $matrixColorsByName[$normalizedName] = $row;
+            }
+        }
+
         $colors = [];
         $seenColors = [];
 
         foreach ($imageColors as $variant) {
             $name = trim((string) ($variant['name'] ?? ''));
             $hex = strtolower(trim((string) ($variant['hex'] ?? '')));
+            $normalizedName = $normalizeColorName($name);
 
-            if ($name === '') {
+            if ($normalizedName === '' || isset($seenColors[$normalizedName])) {
                 continue;
             }
 
-            $key = ProductVariantStock::colorKey($name, $hex);
+            $matrixColor = $matrixColorsByName[$normalizedName] ?? null;
+            $key = is_array($matrixColor)
+                ? (string) ($matrixColor['color_key'] ?? '')
+                : ProductVariantStock::colorKey($name, $hex);
+            $matrixHex = is_array($matrixColor)
+                ? strtolower(trim((string) ($matrixColor['color_hex'] ?? '')))
+                : '';
 
-            if (isset($seenColors[$key])) {
-                continue;
-            }
-
-            $seenColors[$key] = true;
+            $seenColors[$normalizedName] = true;
             $colors[] = [
                 'key' => $key,
                 'name' => $name,
-                'hex' => $hex,
+                'hex' => $matrixHex !== '' ? $matrixHex : $hex,
                 'image' => (string) ($variant['path'] ?? ''),
                 'image_id' => (int) ($variant['image_id'] ?? 0)
             ];

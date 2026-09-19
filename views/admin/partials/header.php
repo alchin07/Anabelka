@@ -22,7 +22,9 @@ $adminPageLabelMap = [
     'Поиск' => 'Пошук',
     'Пользователи' => 'Користувачі',
     'Администраторы' => 'Адміністратори',
-    'Журнал действий' => 'Журнал дій'
+    'Журнал действий' => 'Журнал дій',
+    'Новости' => 'Новини',
+    'Отзывы' => 'Відгуки'
 ];
 
 $adminPageLabel = $adminPageLabelMap[$adminPageLabel]
@@ -132,6 +134,9 @@ $canRanks = $adminCan('ranks.view');
 $canProducts = $adminCan('products.view');
 $canCategories = $adminCan('categories.view');
 $canDelivery = $adminCan('delivery.view');
+$canNews = $adminCan('news.view');
+$canReviews = $adminCan('reviews.view');
+$canMobileNavigation = $adminCan('mobile_navigation.view');
 $canLanguages = $adminCan('languages.view');
 $canTranslations = $adminCan('translations.view');
 $canAiTranslation = $adminCan('ai_translation.view');
@@ -152,6 +157,14 @@ $canAudit = $adminCan('audit.view');
 <link
     rel="stylesheet"
     href="/Anabelka/css/admin-product-editor-fixes.css?v=1"
+>
+<link
+    rel="stylesheet"
+    href="/Anabelka/css/anabelka-dialog.css?v=1"
+>
+<link
+    rel="stylesheet"
+    href="/Anabelka/css/anabelka-select.css?v=4"
 >
 
 <header class="admin-site-header">
@@ -313,6 +326,37 @@ $canAudit = $adminCan('audit.view');
             <?php endif; ?>
         <?php endif; ?>
 
+        <?php if ($canNews || $canReviews || $canMobileNavigation): ?>
+            <span class="admin-nav-group-title">Контент</span>
+
+            <?php if ($canNews): ?>
+                <a
+                    href="/Anabelka/admin/news"
+                    data-admin-route="/Anabelka/admin/news"
+                >
+                    <span>Новини</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canReviews): ?>
+                <a
+                    href="/Anabelka/admin/reviews"
+                    data-admin-route="/Anabelka/admin/reviews"
+                >
+                    <span>Відгуки</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canMobileNavigation): ?>
+                <a
+                    href="/Anabelka/admin/mobile-navigation"
+                    data-admin-route="/Anabelka/admin/mobile-navigation"
+                >
+                    <span>Мобільне меню</span>
+                </a>
+            <?php endif; ?>
+        <?php endif; ?>
+
         <?php if ($canLanguages || $canTranslations || $canAiTranslation): ?>
             <span class="admin-nav-group-title">Мови та ШІ</span>
 
@@ -426,9 +470,11 @@ $canAudit = $adminCan('audit.view');
     </a>
 </aside>
 
+<script src="/Anabelka/js/anabelka-select.js?v=6"></script>
+<script src="/Anabelka/js/anabelka-dialog.js?v=1"></script>
 <script src="/Anabelka/js/admin-ui-focus-policy.js?v=2"></script>
 <script src="/Anabelka/js/admin-product-preview.js?v=1"></script>
-<script defer src="/Anabelka/js/admin-product-variant-stock.js?v=2"></script>
-<script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=1"></script>
+<script defer src="/Anabelka/js/admin-product-variant-stock.js?v=15"></script>
+<script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=3"></script>
 <script defer src="/Anabelka/js/admin-order-variants.js?v=1"></script>
-<script src="/Anabelka/js/admin-nav.js?v=17"></script>
+<script src="/Anabelka/js/admin-nav.js?v=24"></script>

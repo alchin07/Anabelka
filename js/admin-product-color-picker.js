@@ -12,6 +12,7 @@
         options: root.querySelector('[data-color-picker-options]'),
         presets: root.querySelector('[data-color-picker-presets]'),
         preview: root.querySelector('[data-color-picker-preview]'),
+        context: root.querySelector('[data-color-picker-context]'),
         name: root.querySelector('[data-color-picker-name]'),
         photoButton: root.querySelector('[data-color-picker-photo]'),
         systemButton: root.querySelector('[data-color-picker-system]'),
@@ -337,6 +338,17 @@
         nameInput.value = String(name || '').trim();
         hexInput.value = normalizedHex(hex);
         refreshImageColorGroup(activeGroup);
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:product-color-change',
+            {
+                detail: {
+                    group: activeGroup,
+                    name: nameInput.value,
+                    hex: hexInput.value
+                }
+            }
+        ));
     }
 
 
@@ -385,6 +397,16 @@
         pickerHasColor = nameInput.value.trim() !== '';
         picker.name.value = nameInput.value;
         picker.systemInput.value = normalizedHex(hexInput.value);
+
+        const sourceImage = selectedSourceImage();
+        picker.photoButton.disabled = !sourceImage;
+
+        if (picker.context) {
+            picker.context.textContent = sourceImage
+                ? 'Фотографія товару'
+                : 'Колір товару без фото';
+        }
+
         showColorOptions();
         updatePickerPreview();
         root.hidden = false;
@@ -420,7 +442,10 @@
             : '';
 
         if (source === '') {
-            showMessage('Спочатку додайте фотографію товару.');
+            showMessage(
+                'Цей колір можна зберегти без фото. '
+                + 'Виберіть готовий відтінок або «Інший відтінок».'
+            );
             return;
         }
 

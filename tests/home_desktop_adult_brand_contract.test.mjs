@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(testDirectory, '..');
+
+function read(relativePath) {
+    return fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
+}
+
+const css = read('css/public-catalog-sidebar.css');
+const icon = read('assets/icons/anabelka-strawberry-white.svg');
+const adultNameRule = css.match(
+    /\.public-catalog-sidebar-node\.is-adult-root[\s\S]*?\.public-catalog-sidebar-name\s*\{([^{}]*)\}/i
+);
+const sidebarTitleRule = css.match(
+    /\.public-catalog-sidebar-title\s*\{([^{}]*)\}/i
+);
+
+assert.match(
+    css,
+    /\.public-catalog-sidebar-node\.is-adult-root[\s\S]*?>\s*\.public-catalog-sidebar-row[\s\S]*?\.public-catalog-sidebar-link\s*\{[^{}]*justify-content:\s*space-between/si
+);
+assert.ok(adultNameRule, 'adult brand name rule was not found');
+assert.match(adultNameRule[1], /font-family:\s*Georgia/i);
+assert.match(adultNameRule[1], /font-style:\s*italic/i);
+assert.match(adultNameRule[1], /order:\s*1/i);
+assert.match(
+    css,
+    /\.public-catalog-sidebar-adult-badge\s*\{[^{}]*order:\s*2[^{}]*width:\s*28px[^{}]*height:\s*28px[^{}]*font-size:\s*0/si
+);
+assert.match(
+    css,
+    /background-image:\s*url\(['"]?\/Anabelka\/assets\/icons\/anabelka-strawberry-white\.svg['"]?\)/i
+);
+assert.match(
+    css,
+    /\.public-catalog-sidebar-node\.is-adult-root[\s\S]*?>\s*\.public-catalog-sidebar-row[\s\S]*?\.public-catalog-sidebar-link:focus\s*\{[^{}]*outline:\s*none[^{}]*box-shadow:\s*none/si
+);
+assert.ok(sidebarTitleRule, 'sidebar title rule was not found');
+assert.match(sidebarTitleRule[1], /margin:\s*0\s+0\s+10px\s+45px/i);
+assert.match(sidebarTitleRule[1], /width:\s*calc\(100%\s*-\s*45px\)/i);
+assert.match(sidebarTitleRule[1], /box-sizing:\s*border-box/i);
+assert.match(
+    css,
+    /\.home-department-nav-adult:focus\s*\{[^{}]*outline:\s*none[^{}]*box-shadow:\s*none/si
+);
+
+assert.match(icon, /viewBox="0 0 24 24"/);
+assert.equal((icon.match(/<circle\b/g) ?? []).length, 6);
+assert.match(icon, /stroke="#fff"/i);
+assert.match(icon, /fill="#fff"/i);
+
+process.stdout.write('home desktop adult brand contract passed\n');

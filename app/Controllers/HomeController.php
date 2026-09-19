@@ -16,8 +16,7 @@ class HomeController extends Controller
             $languageCode
         );
 
-        $navigationTree = $this->localizeCategoryTree(
-            HomePage::navigationTree(),
+        $navigationTree = HomePage::localizedNavigationTree(
             $languageCode
         );
 
@@ -26,39 +25,36 @@ class HomeController extends Controller
             $languageCode
         );
 
+        $homeNews = [];
+        $homeReviews = [];
+
+        try {
+            $homeNews = SiteNews::latestPublished(
+                3,
+                $languageCode
+            );
+        } catch (Throwable $e) {
+            error_log('Home news: ' . $e->getMessage());
+            $homeNews = [];
+        }
+
+        try {
+            $homeReviews = ProductReview::latestApprovedStandard(2);
+        } catch (Throwable $e) {
+            error_log('Home reviews: ' . $e->getMessage());
+            $homeReviews = [];
+        }
+
         $this->view(
             'home',
             [
                 'currentLanguage' => $currentLanguage,
                 'directions' => $directions,
                 'navigationTree' => $navigationTree,
-                'latestProducts' => $latestProducts
+                'latestProducts' => $latestProducts,
+                'homeNews' => $homeNews,
+                'homeReviews' => $homeReviews
             ]
         );
-    }
-
-
-    private function localizeCategoryTree(array $nodes, $languageCode)
-    {
-        foreach ($nodes as &$node) {
-            $children = is_array($node['children'] ?? null)
-                ? $node['children']
-                : [];
-
-            unset($node['children']);
-
-            $node = CategoryTranslator::localize(
-                $node,
-                $languageCode
-            );
-
-            $node['children'] = $this->localizeCategoryTree(
-                $children,
-                $languageCode
-            );
-        }
-        unset($node);
-
-        return $nodes;
     }
 }

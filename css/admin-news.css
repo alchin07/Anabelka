@@ -1,0 +1,133 @@
+.admin-news-page {
+    width: min(1180px, calc(100% - 28px));
+    margin: 0 auto;
+    padding: 22px 0 50px;
+}
+
+.admin-news-flash,
+.admin-news-warning {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.admin-news-flash.is-success {
+    border: 1px solid #b9ddc4;
+    background: #f2fbf5;
+    color: #27623a;
+}
+
+.admin-news-flash.is-error,
+.admin-news-warning {
+    border: 1px solid #e7b9c1;
+    background: #fff0f2;
+    color: #8e3748;
+}
+
+.admin-news-create,
+.admin-news-card {
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid #eadcf7;
+    border-radius: 16px;
+    background: #fff;
+}
+
+.admin-news-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.admin-news-field {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-news-field.is-wide {
+    grid-column: 1 / -1;
+}
+
+.admin-news-field span {
+    font-weight: 800;
+}
+
+.admin-news-field input,
+.admin-news-field textarea,
+.admin-news-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #d9c7e9;
+    border-radius: 10px;
+    font: inherit;
+}
+
+.admin-news-field textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.admin-news-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.admin-news-actions button {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid #8A2BE2;
+    border-radius: 10px;
+    background: #fff;
+    color: #6519b9;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-news-actions .is-primary {
+    background: #8A2BE2;
+    color: #fff;
+}
+
+.admin-news-actions .is-danger {
+    border-color: #b63e48;
+    color: #b63e48;
+}
+
+.admin-news-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-bottom: 12px;
+    color: #746b78;
+    font-size: 13px;
+}
+
+.admin-news-translations {
+    margin-top: 14px;
+}
+
+.admin-news-translations details {
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid #eadcf7;
+    border-radius: 12px;
+    background: #faf7ff;
+}
+
+.admin-news-inline-form {
+    display: inline-flex;
+}
+
+@media (max-width: 700px) {
+    .admin-news-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-news-field.is-wide {
+        grid-column: auto;
+    }
+}

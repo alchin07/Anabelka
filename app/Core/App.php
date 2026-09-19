@@ -13,13 +13,19 @@ class App
         require_once __DIR__ . '/Router.php';
         require_once __DIR__ . '/Database.php';
 
+        require_once __DIR__ . '/../Models/Department.php';
         require_once __DIR__ . '/../Models/Category.php';
         require_once __DIR__ . '/../Models/CategoryTranslator.php';
         require_once __DIR__ . '/../Models/ProductImage.php';
         require_once __DIR__ . '/../Models/ProductVariantStock.php';
+        require_once __DIR__ . '/../Models/ProductColor.php';
         require_once __DIR__ . '/../Models/Product.php';
         require_once __DIR__ . '/../Models/ProductDepartmentSync.php';
         require_once __DIR__ . '/../Models/ProductTranslator.php';
+        require_once __DIR__ . '/../Models/StorefrontProductCollection.php';
+        require_once __DIR__ . '/../Models/SiteNews.php';
+        require_once __DIR__ . '/../Models/SiteNewsTranslator.php';
+        require_once __DIR__ . '/../Models/ProductReview.php';
         require_once __DIR__ . '/../Models/HomePage.php';
         require_once __DIR__ . '/../Models/HomeInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/AdultAccess.php';
@@ -59,6 +65,8 @@ class App
         require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
         require_once __DIR__ . '/../Models/Language.php';
         require_once __DIR__ . '/../Models/TranslationWorkflow.php';
+        require_once __DIR__ . '/../Models/MobileNavigationTranslator.php';
+        require_once __DIR__ . '/../Models/MobileNavigation.php';
         require_once __DIR__ . '/../Models/AppSetting.php';
         require_once __DIR__ . '/../Models/UserRank.php';
         require_once __DIR__ . '/../Models/UserRankTranslator.php';
@@ -74,6 +82,7 @@ class App
         require_once __DIR__ . '/../Models/AITranslationProviderHealth.php';
         require_once __DIR__ . '/../Models/Translator.php';
         require_once __DIR__ . '/../Models/PublicInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/ContentInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/ProductInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/DeliveryTranslator.php';
         require_once __DIR__ . '/../Models/SearchInterfaceTranslator.php';
@@ -91,6 +100,8 @@ class App
         require_once __DIR__ . '/../Services/DeepLTranslationProvider.php';
         require_once __DIR__ . '/../Services/AITranslationService.php';
         require_once __DIR__ . '/../Services/TranslationDashboardService.php';
+        require_once __DIR__ . '/../Services/MobileNavigationTranslationDashboardService.php';
+        require_once __DIR__ . '/../Services/CategoryManager.php';
         require_once __DIR__ . '/../Services/EmailVerificationMailer.php';
         require_once __DIR__ . '/../Services/EmailVerificationService.php';
         require_once __DIR__ . '/../Services/PasswordResetService.php';
@@ -101,8 +112,12 @@ class App
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
         require_once __DIR__ . '/../Controllers/ProductController.php';
+        require_once __DIR__ . '/../Controllers/ProductReviewController.php';
         require_once __DIR__ . '/../Controllers/AdultController.php';
         require_once __DIR__ . '/../Controllers/SearchController.php';
+        require_once __DIR__ . '/../Controllers/NewsController.php';
+        require_once __DIR__ . '/../Controllers/GiftCertificateController.php';
+        require_once __DIR__ . '/../Controllers/StorefrontPageController.php';
         require_once __DIR__ . '/../Controllers/CartController.php';
         require_once __DIR__ . '/../Controllers/CartColorController.php';
         require_once __DIR__ . '/../Controllers/FavoriteController.php';
@@ -124,6 +139,8 @@ class App
         require_once __DIR__ . '/../Controllers/AdminUserController.php';
         require_once __DIR__ . '/../Controllers/AdminUserRankController.php';
         require_once __DIR__ . '/../Controllers/AdminAdministratorController.php';
+        require_once __DIR__ . '/../Controllers/AdminNewsController.php';
+        require_once __DIR__ . '/../Controllers/AdminReviewController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';
@@ -134,6 +151,8 @@ class App
         require_once __DIR__ . '/../Controllers/AdminProductVariantController.php';
         require_once __DIR__ . '/../Controllers/AdminAITranslationController.php';
         require_once __DIR__ . '/../Controllers/AdminTranslationController.php';
+        require_once __DIR__ . '/../Controllers/AdminMobileNavigationTranslationController.php';
+        require_once __DIR__ . '/../Controllers/AdminMobileNavigationController.php';
 
         $router = new Router();
 
@@ -143,7 +162,10 @@ class App
         require __DIR__ . '/../../routes/Legal.php';
         require __DIR__ . '/../../routes/PasswordReset.php';
         require __DIR__ . '/../../routes/SocialAuth.php';
+        require __DIR__ . '/../../routes/Content.php';
+        require __DIR__ . '/../../routes/StorefrontPages.php';
         require __DIR__ . '/../../routes/Web.php';
+        require __DIR__ . '/../../routes/MobileNavigation.php';
         require __DIR__ . '/../../routes/Adult.php';
         require __DIR__ . '/../../routes/CartColor.php';
         require __DIR__ . '/../../routes/Favorites.php';

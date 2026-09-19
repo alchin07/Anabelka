@@ -18,7 +18,11 @@ $router->get('/catalog', 'CatalogController@index');
 $router->get('/search', 'SearchController@index');
 $router->get('/search/suggest', 'SearchController@suggest');
 
-$router->get('/catalog/{slug}', 'CatalogController@category');
+$router->get(
+    '/catalog/{department_slug}/{category_slug}',
+    'CatalogController@category'
+);
+$router->get('/catalog/{slug}', 'CatalogController@legacyCategory');
 
 $router->get('/product/{slug}/variants', 'ProductController@variants');
 $router->get('/product/{slug}', 'ProductController@show');
@@ -215,12 +219,12 @@ $router->post(
 
 $router->get(
     '/admin/translations',
-    'AdminTranslationController@index'
+    'AdminMobileNavigationTranslationController@index'
 );
 
 $router->get(
     '/admin/translations/missing',
-    'AdminTranslationController@missing'
+    'AdminMobileNavigationTranslationController@missing'
 );
 
 $router->get(
@@ -269,8 +273,33 @@ $router->get(
 );
 
 $router->post(
+    '/admin/categories/create',
+    'AdminCategoryController@create'
+);
+
+$router->post(
     '/admin/categories/update',
     'AdminCategoryController@update'
+);
+
+$router->post(
+    '/admin/categories/thumbnail',
+    'AdminCategoryController@thumbnail'
+);
+
+$router->post(
+    '/admin/categories/move',
+    'AdminCategoryController@move'
+);
+
+$router->post(
+    '/admin/categories/toggle',
+    'AdminCategoryController@toggle'
+);
+
+$router->post(
+    '/admin/categories/delete',
+    'AdminCategoryController@delete'
 );
 
 $router->get(

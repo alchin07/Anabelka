@@ -630,6 +630,14 @@
 
         editor.hidden = false;
         document.body.classList.add('product-editor-open');
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         window.setTimeout(function () {
             focusEditor(isEdit ? product.id : 0);
         }, 30);
@@ -640,6 +648,14 @@
     {
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         clearUploadPreviews();
     }
 
@@ -706,6 +722,30 @@
 
     fields.stockMode.addEventListener('change', updateStockMode);
     fields.imageInput.addEventListener('change', renderUploadPreviews);
+
+    const translationDetails = form.querySelector(
+        '[data-translation-details]'
+    );
+
+    if (translationDetails) {
+        translationDetails.addEventListener('toggle', function () {
+            window.AnabelkaAIEditingContext = translationDetails.open
+                ? 'product-translations'
+                : '';
+
+            document.dispatchEvent(new CustomEvent(
+                'anabelka:ai-context-change'
+            ));
+
+            if (
+                window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.refreshVisibility
+                    === 'function'
+            ) {
+                window.AnabelkaAITranslation.refreshVisibility();
+            }
+        });
+    }
 
     form.addEventListener('input', function (event) {
         const field = event.target;

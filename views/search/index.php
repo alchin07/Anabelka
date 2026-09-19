@@ -72,7 +72,7 @@ $assetUrl = function ($path) {
                     <?php foreach ($categories as $category): ?>
                         <a
                             class="search-category-card"
-                            href="/Anabelka/catalog/<?= rawurlencode((string) ($category['slug'] ?? '')) ?>"
+                            href="<?= $escape(Category::catalogUrl($category)) ?>"
                         >
                             <strong><?= $escape($category['name'] ?? '') ?></strong>
                             <?php if (!empty($category['description'])): ?>
