@@ -59,8 +59,8 @@ test('admin header cache-busts the nav loader that enables floating AI tools', (
     const header = read('views/admin/partials/header.php');
     const nav = read('js/admin-nav.js');
 
-    assert.match(header, /admin-nav\.js\?v=22/);
-    assert.match(nav, /admin-ai-translation\.js\?v=10/);
+    assert.match(header, /admin-nav\.js\?v=23/);
+    assert.match(nav, /admin-ai-translation\.js\?v=11/);
 });
 
 
@@ -118,4 +118,22 @@ test('editor scripts explicitly signal AI context changes', () => {
         products,
         /translationDetails\.addEventListener\(\s*['"]toggle['"][\s\S]*?anabelka:ai-context-change/
     );
+});
+
+
+test('category AI switcher rises above category modal', () => {
+    const ai = read('js/admin-ai-translation.js');
+    const css = read('css/admin-ai-translation.css');
+    const nav = read('js/admin-nav.js');
+
+    assert.match(
+        ai,
+        /is-category-edit-context[\s\S]*?categoryModalContext/
+    );
+    assert.match(
+        css,
+        /\.admin-ai-top-slot\.is-category-edit-context\s*\{[\s\S]*?z-index:\s*14050/
+    );
+    assert.match(nav, /admin-ai-translation\.css\?v=5/);
+    assert.match(nav, /admin-ai-translation\.js\?v=11/);
 });
