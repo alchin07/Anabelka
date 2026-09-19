@@ -5,6 +5,7 @@
     const editor = document.getElementById('product-editor');
     const sizeList = document.getElementById('product-size-list');
     const imageList = document.getElementById('product-image-list');
+    const manualColorList = document.getElementById('product-color-list');
     const uploadPreview = document.getElementById('product-upload-preview');
     const productIdField = document.getElementById('product-edit-id');
     const stockModeField = document.getElementById('product-edit-stock-mode');
@@ -152,7 +153,11 @@
 
     function colorDimensions()
     {
-        const roots = [imageList, uploadPreview].filter(Boolean);
+        const roots = [
+            manualColorList,
+            imageList,
+            uploadPreview
+        ].filter(Boolean);
         const result = [];
         const seenNames = new Set();
 
@@ -658,11 +663,11 @@
                 && stockModeField.value === 'by_size';
 
             note.textContent = bySize
-                ? 'Фото можна додати пізніше. Поки кольорів немає, залишок зберігається за розмірами.'
-                : 'Фото можна додати пізніше. Поки кольорів немає, використовується загальний залишок.';
+                ? 'Колір можна додати без фото. Поки кольорів немає, залишок зберігається за розмірами.'
+                : 'Колір можна додати без фото. Поки кольорів немає, використовується загальний залишок.';
             if (caption) {
                 caption.textContent = bySize
-                    ? 'Без кольорів редагуйте кількість у полі «Залишок» біля кожного розміру.'
+                    ? 'Додайте колір вище або редагуйте кількість у полі «Залишок» біля кожного розміру.'
                     : 'Для загального обліку введіть кількість у полі «Загальний залишок» вище.';
             }
             cardsWrap.innerHTML = '';
@@ -874,9 +879,25 @@
     });
     sourceObserver.observe(imageList, { childList: true, subtree: true });
 
+    if (manualColorList) {
+        sourceObserver.observe(
+            manualColorList,
+            { childList: true, subtree: true }
+        );
+    }
+
     if (uploadPreview) {
         sourceObserver.observe(uploadPreview, { childList: true, subtree: true });
     }
+
+    document.addEventListener(
+        'anabelka:product-colors-change',
+        function () {
+            window.setTimeout(function () {
+                rebuildIfDimensionsChanged(false);
+            }, 0);
+        }
+    );
 
     const nativeFetch = window.fetch.bind(window);
 
