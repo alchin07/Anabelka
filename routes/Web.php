@@ -283,6 +283,11 @@ $router->post(
 );
 
 $router->post(
+    '/admin/categories/thumbnail',
+    'AdminCategoryController@thumbnail'
+);
+
+$router->post(
     '/admin/categories/move',
     'AdminCategoryController@move'
 );
