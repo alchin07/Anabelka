@@ -477,4 +477,4 @@ $canAudit = $adminCan('audit.view');
 <script defer src="/Anabelka/js/admin-product-variant-stock.js?v=13"></script>
 <script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=3"></script>
 <script defer src="/Anabelka/js/admin-order-variants.js?v=1"></script>
-<script src="/Anabelka/js/admin-nav.js?v=23"></script>
+<script src="/Anabelka/js/admin-nav.js?v=24"></script>
