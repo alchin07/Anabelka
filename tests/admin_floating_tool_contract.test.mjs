@@ -60,5 +60,30 @@ test('admin header cache-busts the nav loader that enables floating AI tools', (
     const nav = read('js/admin-nav.js');
 
     assert.match(header, /admin-nav\.js\?v=20/);
-    assert.match(nav, /admin-ai-translation\.js\?v=8/);
+    assert.match(nav, /admin-ai-translation\.js\?v=9/);
+});
+
+
+test('AI switcher visibility follows category edit and product translations', () => {
+    const ai = read('js/admin-ai-translation.js');
+
+    assert.match(ai, /function\s+pageAllowsSwitcher\s*\(/);
+    assert.match(
+        ai,
+        /path\s*===\s*['"]\/Anabelka\/admin\/categories['"][\s\S]*?category-edit-modal[\s\S]*?!modal\.hidden/
+    );
+    assert.match(
+        ai,
+        /path\s*===\s*['"]\/Anabelka\/admin\/products['"][\s\S]*?product-editor[\s\S]*?data-translation-details[\s\S]*?translations\.open/
+    );
+    assert.match(ai, /function\s+syncSwitcherVisibility\s*\(/);
+    assert.match(ai, /switcher\.hidden\s*=\s*!visible/);
+    assert.match(ai, /MutationObserver\(syncSwitcherVisibility\)/);
+    assert.match(ai, /attributeFilter:\s*\['hidden'\]/);
+    assert.match(ai, /attributeFilter:\s*\['open'\]/);
+    assert.match(ai, /translations\.addEventListener\([\s\S]*?['"]toggle['"]/);
+    assert.doesNotMatch(
+        ai,
+        /renderProviders[\s\S]*?switcher\.hidden\s*=\s*false[\s\S]*?activateFloatingSwitcher/
+    );
 });
