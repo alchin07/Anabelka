@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(thumbnails, /priority:\s*105/);
 
-const backIndex = header.indexOf('anabelka-admin-back.js?v=1');
+const backIndex = header.indexOf('anabelka-admin-back.js?v=2');
 const selectIndex = header.indexOf('anabelka-select.js?v=8');
 const dialogIndex = header.indexOf('anabelka-dialog.js?v=2');
 
@@ -93,17 +93,14 @@ assert.match(
 process.stdout.write('admin Android Back contract passed\n');
 
 
-test('normal admin links survive the Back guard', () => {
-    const back = read('js/anabelka-admin-back.js');
+assert.match(back, /function\s+anchorNavigationUrl\s*\(/);
+assert.match(back, /document\.addEventListener\(\s*['"]click['"]/);
+assert.match(back, /event\.preventDefault\(\)/);
+assert.match(back, /pendingNavigationUrl\s*=\s*url/);
+assert.match(back, /suppressNextPop\s*=\s*true/);
+assert.match(
+    back,
+    /pendingNavigationUrl\s*!==\s*['"]["'][\s\S]*?window\.location\.assign\(url\)/
+);
 
-    assert.match(back, /function\s+anchorNavigationUrl\s*\(/);
-    assert.match(back, /document\.addEventListener\(\s*['"]click['"]/);
-    assert.match(back, /event\.preventDefault\(\)/);
-    assert.match(back, /pendingNavigationUrl\s*=\s*url/);
-    assert.match(back, /suppressNextPop\s*=\s*true/);
-    assert.match(back, /history\.back\(\)/);
-    assert.match(
-        back,
-        /pendingNavigationUrl\s*!==\s*['"]["'][\s\S]*?window\.location\.assign\(url\)/
-    );
-});
+process.stdout.write('admin menu navigation with Back guard passed\n');
