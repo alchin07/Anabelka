@@ -42,10 +42,10 @@ assert.match(
     categoryAi,
     /AnabelkaSelect\.refresh\(statusSelect\)/
 );
-assert.match(header, /anabelka-select\.js\?v=7/);
-assert.match(header, /admin-nav\.js\?v=25/);
+assert.match(header, /anabelka-select\.js\?v=8/);
+assert.match(header, /admin-nav\.js\?v=26/);
 assert.match(nav, /admin-category-ai-translation\.js\?v=5/);
-assert.match(view, /admin-categories\.js\?v=6/);
+assert.match(view, /admin-categories\.js\?v=7/);
 
 process.stdout.write(
     'category translation status branded-select contract passed\n'
