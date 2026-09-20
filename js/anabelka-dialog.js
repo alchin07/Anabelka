@@ -139,6 +139,13 @@
         document.body.classList.remove('anabelka-dialog-open');
         document.removeEventListener('keydown', handleKeydown, true);
 
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
         if (previousFocus && typeof previousFocus.focus === 'function') {
             previousFocus.focus();
         }
@@ -180,6 +187,13 @@
         host.hidden = false;
         document.body.classList.add('anabelka-dialog-open');
         document.addEventListener('keydown', handleKeydown, true);
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
 
         window.requestAnimationFrame(function () {
             cancelButton.focus();
