@@ -104,6 +104,17 @@
     }
 
 
+    function syncNow()
+    {
+        if (syncFrame) {
+            window.cancelAnimationFrame(syncFrame);
+            syncFrame = 0;
+        }
+
+        syncGuard();
+    }
+
+
     function register(options)
     {
         const settings = options && typeof options === 'object'
@@ -278,6 +289,7 @@
     window.AnabelkaAdminBack = {
         register: register,
         sync: queueSync,
+        syncNow: syncNow,
         top: function () {
             const handler = activeHandler();
 
