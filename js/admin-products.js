@@ -631,6 +631,13 @@
         editor.hidden = false;
         document.body.classList.add('product-editor-open');
 
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
         if (window.AnabelkaAIEditingContext === 'product-translations') {
             window.AnabelkaAIEditingContext = '';
         }
@@ -648,6 +655,13 @@
     {
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
 
         if (window.AnabelkaAIEditingContext === 'product-translations') {
             window.AnabelkaAIEditingContext = '';
@@ -756,11 +770,26 @@
                 },
                 close: function () {
                     translationDetails.open = false;
+
+                    if (
+                        window.AnabelkaAdminBack
+                        && typeof window.AnabelkaAdminBack.syncNow
+                            === 'function'
+                    ) {
+                        window.AnabelkaAdminBack.syncNow();
+                    }
                 }
             });
         }
 
         translationDetails.addEventListener('toggle', function () {
+            if (
+                window.AnabelkaAdminBack
+                && typeof window.AnabelkaAdminBack.syncNow === 'function'
+            ) {
+                window.AnabelkaAdminBack.syncNow();
+            }
+
             window.AnabelkaAIEditingContext = translationDetails.open
                 ? 'product-translations'
                 : '';
