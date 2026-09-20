@@ -51,6 +51,47 @@
     };
 
     let uploadPreviewUrls = [];
+    let productEditorHistoryArmed = false;
+    let productEditorHistoryClosing = false;
+    const productEditorHistoryKey = '__anabelkaProductEditor';
+
+
+    function currentProductEditorUrl()
+    {
+        return window.location.pathname
+            + window.location.search
+            + window.location.hash;
+    }
+
+
+    function armProductEditorHistory()
+    {
+        if (productEditorHistoryArmed) {
+            return;
+        }
+
+        const state = history.state
+            && typeof history.state === 'object'
+            ? Object.assign({}, history.state)
+            : {};
+
+        state[productEditorHistoryKey] = 1;
+        history.pushState(state, '', currentProductEditorUrl());
+        productEditorHistoryArmed = true;
+    }
+
+
+    function disarmProductEditorHistory()
+    {
+        if (!productEditorHistoryArmed) {
+            return;
+        }
+
+        productEditorHistoryArmed = false;
+        productEditorHistoryClosing = true;
+        history.back();
+    }
+
 
     function showMessage(text)
     {
@@ -507,7 +548,30 @@
 
     function requestedTranslationFocus(productId)
     {
-        const params = new URLSearchParams(window.location.search);
+        window.addEventListener('popstate', function (event) {
+        const state = event.state
+            && typeof event.state === 'object'
+            ? event.state
+            : {};
+
+        if (productEditorHistoryClosing) {
+            productEditorHistoryClosing = false;
+            return;
+        }
+
+        if (state[productEditorHistoryKey] === 1) {
+            productEditorHistoryArmed = true;
+            return;
+        }
+
+        if (!editor.hidden) {
+            productEditorHistoryArmed = false;
+            closeEditor({ syncHistory: false });
+        }
+    });
+
+
+    const params = new URLSearchParams(window.location.search);
         const requestedId = String(params.get('highlight') || '').trim();
         const language = String(params.get('focus_language') || '')
             .trim()
@@ -630,6 +694,7 @@
 
         editor.hidden = false;
         document.body.classList.add('product-editor-open');
+        armProductEditorHistory();
 
         if (
             window.AnabelkaAdminBack
@@ -651,10 +716,19 @@
     }
 
 
-    function closeEditor()
+    function closeEditor(options)
     {
+        const settings = options && typeof options === 'object'
+            ? options
+            : {};
+        const syncHistory = settings.syncHistory !== false;
+
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
+
+        if (syncHistory) {
+            disarmProductEditorHistory();
+        }
 
         if (
             window.AnabelkaAdminBack
@@ -740,22 +814,6 @@
     const translationDetails = form.querySelector(
         '[data-translation-details]'
     );
-
-    if (
-        window.AnabelkaAdminBack
-        && typeof window.AnabelkaAdminBack.register === 'function'
-    ) {
-        window.AnabelkaAdminBack.register({
-            key: 'product-editor',
-            priority: 50,
-            isActive: function () {
-                return !editor.hidden;
-            },
-            close: function () {
-                closeEditor();
-            }
-        });
-    }
 
     if (translationDetails) {
         if (
