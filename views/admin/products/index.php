@@ -832,7 +832,7 @@ require __DIR__ . '/../../partials/header.php';
     value="<?= $escape($categoryCsrfToken) ?>"
 >
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=7"></script>
+<script src="/Anabelka/js/admin-products.js?v=8"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 <script src="/Anabelka/js/admin-product-category-thumbnails.js?v=4"></script>
