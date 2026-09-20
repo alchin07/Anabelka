@@ -833,8 +833,8 @@ require __DIR__ . '/../../partials/header.php';
 >
 <div id="site-message" class="site-message" role="status"></div>
 <script src="/Anabelka/js/admin-products.js?v=5"></script>
-<script src="/Anabelka/js/admin-product-color-picker.js?v=3"></script>
-<script src="/Anabelka/js/admin-product-colors.js?v=1"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=4"></script>
+<script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 <script src="/Anabelka/js/admin-product-category-thumbnails.js?v=2"></script>
 </body>
 </html>
