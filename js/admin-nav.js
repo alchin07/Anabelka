@@ -363,6 +363,22 @@
                 setOpen(false);
             }
         });
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.register === 'function'
+        ) {
+            window.AnabelkaAdminBack.register({
+                key: 'admin-drawer',
+                priority: 20,
+                isActive: function () {
+                    return drawer.classList.contains('is-open');
+                },
+                close: function () {
+                    setOpen(false);
+                }
+            });
+        }
     }
 
 
