@@ -66,28 +66,28 @@ assert.match(
 );
 assert.match(thumbnails, /priority:\s*105/);
 
-const backIndex = header.indexOf('anabelka-admin-back.js?v=2');
-const selectIndex = header.indexOf('anabelka-select.js?v=8');
-const dialogIndex = header.indexOf('anabelka-dialog.js?v=2');
+const backIndex = header.indexOf('anabelka-admin-back.js?v=3');
+const selectIndex = header.indexOf('anabelka-select.js?v=9');
+const dialogIndex = header.indexOf('anabelka-dialog.js?v=3');
 
 assert.ok(backIndex >= 0);
 assert.ok(selectIndex > backIndex);
 assert.ok(dialogIndex > backIndex);
-assert.match(header, /admin-nav\.js\?v=26/);
+assert.match(header, /admin-nav\.js\?v=27/);
 
-assert.match(productView, /admin-products\.js\?v=6/);
+assert.match(productView, /admin-products\.js\?v=7/);
 assert.match(
     productView,
-    /admin-product-color-picker\.js\?v=5/
+    /admin-product-color-picker\.js\?v=6/
 );
 assert.match(
     productView,
-    /admin-product-category-thumbnails\.js\?v=3/
+    /admin-product-category-thumbnails\.js\?v=4/
 );
-assert.match(categoryView, /admin-categories\.js\?v=7/);
+assert.match(categoryView, /admin-categories\.js\?v=8/);
 assert.match(
     categoryView,
-    /admin-product-category-thumbnails\.js\?v=3/
+    /admin-product-category-thumbnails\.js\?v=4/
 );
 
 process.stdout.write('admin Android Back contract passed\n');
@@ -104,3 +104,21 @@ assert.match(
 );
 
 process.stdout.write('admin menu navigation with Back guard passed\n');
+
+
+assert.match(back, /function\s+syncNow\s*\(/);
+assert.match(back, /syncNow:\s*syncNow/);
+assert.match(
+    products,
+    /editor\.hidden\s*=\s*false;[\s\S]*?AnabelkaAdminBack\.syncNow\(\)/
+);
+assert.match(
+    products,
+    /editor\.hidden\s*=\s*true;[\s\S]*?AnabelkaAdminBack\.syncNow\(\)/
+);
+assert.match(
+    select,
+    /wrapper\.classList\.add\(['"]is-open['"]\)[\s\S]*?AnabelkaAdminBack\.syncNow\(\)/
+);
+
+process.stdout.write('syncNow arms product editor immediately\n');
