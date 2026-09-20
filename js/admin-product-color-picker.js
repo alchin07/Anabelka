@@ -369,6 +369,13 @@
         root.hidden = true;
         document.body.classList.remove('product-color-picker-open');
         activeGroup = null;
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
         picker.photoImage.removeAttribute('src');
 
         if (
@@ -411,6 +418,13 @@
         updatePickerPreview();
         root.hidden = false;
         document.body.classList.add('product-color-picker-open');
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
 
         window.setTimeout(function () {
             if (picker.close) {
