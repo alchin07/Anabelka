@@ -50,6 +50,13 @@
             openInstance = null;
         }
 
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
         if (restoreFocus !== false) {
             instance.trigger.focus();
         }
@@ -89,6 +96,14 @@
         instance.trigger.setAttribute('aria-expanded', 'true');
         instance.wrapper.classList.add('is-open');
         openInstance = instance;
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
         focusOnOpen(instance, focusMode || 'selected');
     }
 
