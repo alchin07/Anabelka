@@ -245,6 +245,26 @@
         });
     });
 
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'anabelka-dialog',
+            priority: 120,
+            isActive: function () {
+                return Boolean(
+                    host
+                    && !host.hidden
+                    && activeResolver
+                );
+            },
+            close: function () {
+                resolve(false);
+            }
+        });
+    }
+
     window.AnabelkaDialog = {
         confirm: confirm
     };
