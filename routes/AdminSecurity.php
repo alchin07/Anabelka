@@ -72,6 +72,21 @@ $router->get(
 );
 
 $router->get(
+    '/admin/system/backup',
+    'AdminBackupController@index'
+);
+
+$router->post(
+    '/admin/system/backup/create',
+    'AdminBackupController@create'
+);
+
+$router->get(
+    '/admin/system/backup/download',
+    'AdminBackupController@download'
+);
+
+$router->get(
     '/admin/system/errors',
     'AdminSystemErrorController@index'
 );
