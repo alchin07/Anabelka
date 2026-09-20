@@ -231,10 +231,11 @@ class VipPriceViewLog
                 $params['user_id'] = (int) $user;
             } else {
                 $conditions[] = '(
-                    u.name LIKE :user_query
-                    OR u.email LIKE :user_query
+                    u.name LIKE :user_query_name
+                    OR u.email LIKE :user_query_email
                 )';
-                $params['user_query'] = '%' . $user . '%';
+                $params['user_query_name'] = '%' . $user . '%';
+                $params['user_query_email'] = '%' . $user . '%';
             }
         }
 
@@ -244,11 +245,13 @@ class VipPriceViewLog
                 $params['product_id'] = (int) $product;
             } else {
                 $conditions[] = '(
-                    p.name LIKE :product_query
-                    OR p.sku LIKE :product_query
-                    OR p.slug LIKE :product_query
+                    p.name LIKE :product_query_name
+                    OR p.sku LIKE :product_query_sku
+                    OR p.slug LIKE :product_query_slug
                 )';
-                $params['product_query'] = '%' . $product . '%';
+                $params['product_query_name'] = '%' . $product . '%';
+                $params['product_query_sku'] = '%' . $product . '%';
+                $params['product_query_slug'] = '%' . $product . '%';
             }
         }
 

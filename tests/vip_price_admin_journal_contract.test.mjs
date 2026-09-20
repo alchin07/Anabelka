@@ -52,6 +52,13 @@ assert.match(model, /ORDER\s+BY\s+v\.viewed_at\s+DESC/i);
 assert.match(model, /LIMIT\s+:limit\s+OFFSET\s+:offset/i);
 assert.match(model, /v\.view_code\s*=\s*:view_code/i);
 assert.match(model, /DATE_ADD\s*\(\s*:date_to\s*,\s*INTERVAL\s+1\s+DAY\s*\)/i);
+assert.match(model, /:user_query_name/);
+assert.match(model, /:user_query_email/);
+assert.match(model, /:product_query_name/);
+assert.match(model, /:product_query_sku/);
+assert.match(model, /:product_query_slug/);
+assert.doesNotMatch(model, /u\.name LIKE :user_query[\s\S]*u\.email LIKE :user_query/);
+assert.doesNotMatch(model, /p\.name LIKE :product_query[\s\S]*p\.sku LIKE :product_query/);
 
 assert.match(view, /Watermark/);
 assert.match(view, /По 50 записів на сторінку|\$perPage/);
