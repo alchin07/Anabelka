@@ -375,7 +375,8 @@ class AdminAccess
             '/admin/delivery' => ['delivery.view', 'delivery.manage'],
             '/admin/news' => ['news.view', 'news.manage'],
             '/admin/reviews' => ['reviews.view', 'reviews.manage'],
-            '/admin/mobile-navigation' => ['mobile_navigation.view', 'mobile_navigation.manage']
+            '/admin/mobile-navigation' => ['mobile_navigation.view', 'mobile_navigation.manage'],
+            '/admin/vip-price-views' => ['vip_prices.view', 'vip_prices.view']
         ];
 
         foreach ($areas as $prefix => $permissions) {
@@ -501,7 +502,8 @@ class AdminAccess
             ['mobile_navigation.manage', 'Керування мобільним меню', 'content', 127],
             ['administrators.view', 'Перегляд адміністраторів', 'security', 130],
             ['administrators.manage', 'Керування адміністраторами', 'security', 131],
-            ['audit.view', 'Перегляд журналу дій', 'security', 140]
+            ['audit.view', 'Перегляд журналу дій', 'security', 140],
+            ['vip_prices.view', 'Перегляд журналу VIP-цін', 'security', 141]
         ];
 
         $stmt = $db->prepare("

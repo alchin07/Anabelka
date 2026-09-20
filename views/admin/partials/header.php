@@ -143,6 +143,7 @@ $canAiTranslation = $adminCan('ai_translation.view');
 $canSocialAuth = $adminCan('social_auth.view');
 $canAdministrators = $adminCan('administrators.view');
 $canAudit = $adminCan('audit.view');
+$canVipPriceViews = $adminCan('vip_prices.view');
 
 ?>
 
@@ -393,7 +394,7 @@ $canAudit = $adminCan('audit.view');
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($canSocialAuth || $canAdministrators || $canAudit || $isDeveloper): ?>
+        <?php if ($canSocialAuth || $canAdministrators || $canAudit || $canVipPriceViews || $isDeveloper): ?>
             <span class="admin-nav-group-title">Безпека</span>
 
             <?php if ($canSocialAuth): ?>
@@ -420,6 +421,15 @@ $canAudit = $adminCan('audit.view');
                     data-admin-route="/Anabelka/admin/audit"
                 >
                     <span>Журнал дій</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canVipPriceViews): ?>
+                <a
+                    href="/Anabelka/admin/vip-price-views"
+                    data-admin-route="/Anabelka/admin/vip-price-views"
+                >
+                    <span>VIP-ціни</span>
                 </a>
             <?php endif; ?>
 

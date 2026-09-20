@@ -10,6 +10,8 @@ require_once __DIR__ . '/../app/Controllers/AdminSystemErrorController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorExternalNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
+require_once __DIR__ . '/../app/Models/VipPriceViewLog.php';
+require_once __DIR__ . '/../app/Controllers/AdminVipPriceViewController.php';
 
 $router->get(
     '/admin/profile',
@@ -69,6 +71,11 @@ $router->post(
 $router->get(
     '/admin/audit',
     'AdminAdministratorController@audit'
+);
+
+$router->get(
+    '/admin/vip-price-views',
+    'AdminVipPriceViewController@index'
 );
 
 $router->get(
