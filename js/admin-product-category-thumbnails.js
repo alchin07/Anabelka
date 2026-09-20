@@ -77,6 +77,13 @@
                 editor.remove();
             }
         });
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
     }
 
 
@@ -393,6 +400,14 @@
             event.preventDefault();
             event.stopPropagation();
             editor.remove();
+
+            if (
+                window.AnabelkaAdminBack
+                && typeof window.AnabelkaAdminBack.syncNow === 'function'
+            ) {
+                window.AnabelkaAdminBack.syncNow();
+            }
+
             context.button.focus();
         });
 
@@ -541,6 +556,14 @@
             const editor = createEditor(context);
 
             context.button.insertAdjacentElement('afterend', editor);
+
+            if (
+                window.AnabelkaAdminBack
+                && typeof window.AnabelkaAdminBack.syncNow === 'function'
+            ) {
+                window.AnabelkaAdminBack.syncNow();
+            }
+
             editor.scrollIntoView({
                 behavior: 'smooth',
                 block: 'nearest'
