@@ -274,32 +274,38 @@ $router->get(
 
 $router->post(
     '/admin/categories/create',
-    'AdminCategoryController@create'
+    'AdminCategoryController@create',
+    ['csrf' => true, 'csrf_family' => 'admin']
 );
 
 $router->post(
     '/admin/categories/update',
-    'AdminCategoryController@update'
+    'AdminCategoryController@update',
+    ['csrf' => true, 'csrf_family' => 'admin']
 );
 
 $router->post(
     '/admin/categories/thumbnail',
-    'AdminCategoryController@thumbnail'
+    'AdminCategoryController@thumbnail',
+    ['csrf' => true, 'csrf_family' => 'admin']
 );
 
 $router->post(
     '/admin/categories/move',
-    'AdminCategoryController@move'
+    'AdminCategoryController@move',
+    ['csrf' => true, 'csrf_family' => 'admin']
 );
 
 $router->post(
     '/admin/categories/toggle',
-    'AdminCategoryController@toggle'
+    'AdminCategoryController@toggle',
+    ['csrf' => true, 'csrf_family' => 'admin']
 );
 
 $router->post(
     '/admin/categories/delete',
-    'AdminCategoryController@delete'
+    'AdminCategoryController@delete',
+    ['csrf' => true, 'csrf_family' => 'admin']
 );
 
 $router->get(
