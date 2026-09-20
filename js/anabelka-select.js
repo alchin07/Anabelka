@@ -560,6 +560,28 @@
         }
     });
 
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'anabelka-select',
+            priority: 90,
+            isActive: function () {
+                return Boolean(
+                    openInstance
+                    && openInstance.trigger.getAttribute('aria-expanded')
+                        === 'true'
+                );
+            },
+            close: function () {
+                if (openInstance) {
+                    close(openInstance, true);
+                }
+            }
+        });
+    }
+
     window.AnabelkaSelect = {
         enhance: enhance,
         enhanceAll: enhanceAll,
