@@ -341,7 +341,11 @@ require __DIR__ . '/../../partials/header.php';
                         <span class="category-translation-origin">Ручний переклад</span>
                         <label class="category-translation-status">
                             <span>Стан</span>
-                            <select name="translation_status[<?= $escape($code) ?>]">
+                            <select
+                                name="translation_status[<?= $escape($code) ?>]"
+                                data-anabelka-select
+                                data-category-translation-status
+                            >
                                 <?php foreach ($translationStatusOptions as $statusCode => $statusLabel): ?>
                                     <option value="<?= $escape($statusCode) ?>"><?= $escape($statusLabel) ?></option>
                                 <?php endforeach; ?>
