@@ -425,6 +425,13 @@ $canAudit = $adminCan('audit.view');
 
             <?php if ($isDeveloper): ?>
                 <a
+                    href="/Anabelka/admin/system/backup"
+                    data-admin-route="/Anabelka/admin/system/backup"
+                >
+                    <span>Резервна копія</span>
+                </a>
+
+                <a
                     href="/Anabelka/admin/system/errors"
                     data-admin-route="/Anabelka/admin/system/errors"
                 >
