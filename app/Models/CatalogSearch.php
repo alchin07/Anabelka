@@ -2,7 +2,12 @@
 
 class CatalogSearch
 {
-    public static function run($query, $languageCode)
+    public static function run(
+        $query,
+        $languageCode,
+        $productLimit = 100,
+        $categoryLimit = 50
+    )
     {
         $query = self::normalizeQuery($query);
         $languageCode = strtolower(trim((string) $languageCode));
@@ -28,12 +33,14 @@ class CatalogSearch
         $products = self::searchProducts(
             $query,
             $languageCode,
-            $visibleCategoryIds
+            $visibleCategoryIds,
+            $productLimit
         );
         $categories = self::searchCategories(
             $query,
             $languageCode,
-            $visibleCategoryIds
+            $visibleCategoryIds,
+            $categoryLimit
         );
 
         /*
@@ -45,7 +52,8 @@ class CatalogSearch
             $products = self::searchProductsFallback(
                 $query,
                 $languageCode,
-                $visibleCategoryIds
+                $visibleCategoryIds,
+                $productLimit
             );
         }
 
@@ -53,7 +61,8 @@ class CatalogSearch
             $categories = self::searchCategoriesFallback(
                 $query,
                 $languageCode,
-                $visibleCategoryIds
+                $visibleCategoryIds,
+                $categoryLimit
             );
         }
 
@@ -111,7 +120,7 @@ class CatalogSearch
                 $products
             );
 
-            $variants = ProductImage::colorVariantsForProducts($productIds);
+            $variants = ProductColor::variantsForProducts($productIds);
 
             foreach ($products as &$product) {
                 $productId = (int) ($product['id'] ?? 0);
@@ -123,6 +132,56 @@ class CatalogSearch
         return [
             'products' => $products,
             'categories' => $categories
+        ];
+    }
+
+    public static function page(
+        $query,
+        $languageCode,
+        $pageInput,
+        $perPage = 24
+    )
+    {
+        $perPage = max(1, min(96, (int) $perPage));
+        $results = self::run(
+            $query,
+            $languageCode,
+            0,
+            50
+        );
+        $products = is_array($results['products'] ?? null)
+            ? $results['products']
+            : [];
+        $categories = is_array($results['categories'] ?? null)
+            ? $results['categories']
+            : [];
+        $totalProducts = count($products);
+        $totalCategories = count($categories);
+        $totalPages = max(
+            1,
+            (int) ceil($totalProducts / $perPage)
+        );
+        $page = min(
+            self::normalizePageNumber($pageInput),
+            $totalPages
+        );
+        $offset = ($page - 1) * $perPage;
+
+        return [
+            'products' => array_slice(
+                $products,
+                $offset,
+                $perPage
+            ),
+            'categories' => $categories,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total_products' => $totalProducts,
+            'total_categories' => $totalCategories,
+            'total' => $totalProducts + $totalCategories,
+            'total_pages' => $totalPages,
+            'has_previous' => $page > 1,
+            'has_next' => $page < $totalPages
         ];
     }
 
@@ -147,11 +206,16 @@ class CatalogSearch
     private static function searchProducts(
         $query,
         $languageCode,
-        array $visibleCategoryIds
+        array $visibleCategoryIds,
+        $limit = 100
     )
     {
         $db = Database::connect();
         $categoryList = self::categoryIdList($visibleCategoryIds);
+        $limit = max(0, (int) $limit);
+        $limitSql = $limit > 0
+            ? "\n            LIMIT " . $limit
+            : '';
 
         $stmt = $db->prepare("
             SELECT
@@ -207,7 +271,7 @@ class CatalogSearch
                     ELSE 3
                 END,
                 p.id DESC
-            LIMIT 100
+            {$limitSql}
         ");
 
         $stmt->execute([
@@ -226,11 +290,16 @@ class CatalogSearch
     private static function searchCategories(
         $query,
         $languageCode,
-        array $visibleCategoryIds
+        array $visibleCategoryIds,
+        $limit = 50
     )
     {
         $db = Database::connect();
         $categoryList = self::categoryIdList($visibleCategoryIds);
+        $limit = max(0, (int) $limit);
+        $limitSql = $limit > 0
+            ? "\n            LIMIT " . $limit
+            : '';
 
         $stmt = $db->prepare("
             SELECT
@@ -269,7 +338,7 @@ class CatalogSearch
                 END,
                 c.sort_order ASC,
                 c.name ASC
-            LIMIT 50
+            {$limitSql}
         ");
 
         $stmt->execute([
@@ -286,7 +355,8 @@ class CatalogSearch
     private static function searchProductsFallback(
         $query,
         $languageCode,
-        array $visibleCategoryIds
+        array $visibleCategoryIds,
+        $limit = 100
     )
     {
         $db = Database::connect();
@@ -366,7 +436,7 @@ class CatalogSearch
 
             $result[] = $row;
 
-            if (count($result) >= 100) {
+            if ($limit > 0 && count($result) >= (int) $limit) {
                 break;
             }
         }
@@ -378,7 +448,8 @@ class CatalogSearch
     private static function searchCategoriesFallback(
         $query,
         $languageCode,
-        array $visibleCategoryIds
+        array $visibleCategoryIds,
+        $limit = 50
     )
     {
         $db = Database::connect();
@@ -428,12 +499,42 @@ class CatalogSearch
             unset($row['translated_name'], $row['translated_description']);
             $result[] = $row;
 
-            if (count($result) >= 50) {
+            if ($limit > 0 && count($result) >= (int) $limit) {
                 break;
             }
         }
 
         return $result;
+    }
+
+    private static function normalizePageNumber($pageInput)
+    {
+        if (is_int($pageInput)) {
+            return $pageInput > 0 ? $pageInput : 1;
+        }
+
+        if (!is_string($pageInput)) {
+            return 1;
+        }
+
+        $pageInput = trim($pageInput);
+
+        if (!preg_match('/^[1-9][0-9]*$/', $pageInput)) {
+            return 1;
+        }
+
+        $validated = filter_var(
+            $pageInput,
+            FILTER_VALIDATE_INT,
+            [
+                'options' => [
+                    'min_range' => 1,
+                    'max_range' => PHP_INT_MAX
+                ]
+            ]
+        );
+
+        return $validated === false ? 1 : (int) $validated;
     }
 
 
