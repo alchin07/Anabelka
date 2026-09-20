@@ -8,7 +8,8 @@
     const handlers = [];
     let sequence = 0;
     let armed = false;
-    let navigatingAway = false;
+    let suppressNextPop = false;
+    let syncFrame = 0;
 
 
     function currentUrl()
@@ -16,23 +17,6 @@
         return window.location.pathname
             + window.location.search
             + window.location.hash;
-    }
-
-
-    function arm()
-    {
-        if (navigatingAway || armed) {
-            return;
-        }
-
-        const state = history.state
-            && typeof history.state === 'object'
-            ? Object.assign({}, history.state)
-            : {};
-
-        state.__anabelkaAdminBackGuard = 1;
-        history.pushState(state, '', currentUrl());
-        armed = true;
     }
 
 
@@ -62,6 +46,63 @@
     }
 
 
+    function arm()
+    {
+        if (armed || suppressNextPop || !activeHandler()) {
+            return false;
+        }
+
+        const state = history.state
+            && typeof history.state === 'object'
+            ? Object.assign({}, history.state)
+            : {};
+
+        state.__anabelkaAdminBackGuard = 1;
+        history.pushState(state, '', currentUrl());
+        armed = true;
+        return true;
+    }
+
+
+    function disarmIfIdle()
+    {
+        if (!armed || activeHandler() || suppressNextPop) {
+            return false;
+        }
+
+        armed = false;
+        suppressNextPop = true;
+        history.back();
+        return true;
+    }
+
+
+    function syncGuard()
+    {
+        syncFrame = 0;
+
+        if (suppressNextPop) {
+            return;
+        }
+
+        if (activeHandler()) {
+            arm();
+        } else {
+            disarmIfIdle();
+        }
+    }
+
+
+    function queueSync()
+    {
+        if (syncFrame) {
+            return;
+        }
+
+        syncFrame = window.requestAnimationFrame(syncGuard);
+    }
+
+
     function register(options)
     {
         const settings = options && typeof options === 'object'
@@ -88,6 +129,7 @@
         };
 
         handlers.push(handler);
+        queueSync();
 
         return function unregister()
         {
@@ -95,6 +137,7 @@
 
             if (index >= 0) {
                 handlers.splice(index, 1);
+                queueSync();
             }
         };
     }
@@ -102,7 +145,13 @@
 
     function handlePopState()
     {
-        if (!armed || navigatingAway) {
+        if (suppressNextPop) {
+            suppressNextPop = false;
+            queueSync();
+            return;
+        }
+
+        if (!armed) {
             return;
         }
 
@@ -110,64 +159,49 @@
 
         const handler = activeHandler();
 
-        if (handler) {
-            try {
-                handler.close({
-                    source: 'android-back',
-                    key: handler.key
-                });
-            } finally {
-                window.setTimeout(arm, 0);
-            }
+        if (!handler) {
+            /*
+             * A layer disappeared before the browser delivered popstate.
+             * Continue with the real browser history instead of trapping Back.
+             */
+            history.back();
             return;
         }
 
-        /*
-         * The guard was the only synthetic history entry. With no active
-         * admin layer left to close, continue to the real previous page.
-         */
-        navigatingAway = true;
-        window.setTimeout(function () {
-            history.back();
-        }, 0);
+        handler.close({
+            source: 'android-back',
+            key: handler.key
+        });
+
+        window.setTimeout(queueSync, 0);
     }
 
 
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('pageshow', queueSync);
 
-    window.addEventListener('pageshow', function () {
-        navigatingAway = false;
+    const observer = new MutationObserver(queueSync);
 
-        if (
-            history.state
-            && history.state.__anabelkaAdminBackGuard === 1
-        ) {
-            armed = true;
-            return;
-        }
-
-        armed = false;
-        arm();
+    observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: [
+            'hidden',
+            'class',
+            'open',
+            'aria-expanded'
+        ]
     });
 
 
     window.AnabelkaAdminBack = {
         register: register,
-        arm: arm,
+        sync: queueSync,
         top: function () {
             const handler = activeHandler();
 
             return handler ? handler.key : '';
         }
     };
-
-
-    if (
-        history.state
-        && history.state.__anabelkaAdminBackGuard === 1
-    ) {
-        armed = true;
-    } else {
-        arm();
-    }
 }());
