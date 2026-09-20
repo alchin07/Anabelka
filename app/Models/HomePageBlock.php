@@ -326,15 +326,20 @@ class HomePageBlock
 
         try {
             $orderStmt = $db->prepare("
-                SELECT COALESCE(MAX(sort_order), 0)
+                SELECT id, sort_order
                 FROM home_page_blocks
                 WHERE zone = :zone
+                ORDER BY sort_order DESC, id DESC
+                LIMIT 1
                 FOR UPDATE
             ");
             $orderStmt->execute([
                 'zone' => $zone
             ]);
-            $sortOrder = (int) $orderStmt->fetchColumn() + 10;
+            $lastRow = $orderStmt->fetch(PDO::FETCH_ASSOC);
+            $sortOrder = $lastRow
+                ? (int) ($lastRow['sort_order'] ?? 0) + 10
+                : 10;
             $systemKey = self::uniqueSystemKey(
                 $db,
                 $blockType

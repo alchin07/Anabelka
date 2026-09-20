@@ -53,47 +53,69 @@ $creatableBlocks = array_filter(
         <div>
             <h3>Додати блок</h3>
             <p>
-                Можна створювати кілька товарних підбірок,
-                новин, відгуків або карток сертифіката.
+                Додаткові блоки створюються одразу у сумісній зоні.
+                Базові блоки залишаються захищеними від видалення.
             </p>
         </div>
 
-        <form
-            method="post"
-            action="/Anabelka/admin/home-page/create"
-        >
-            <input
-                type="hidden"
-                name="_csrf"
-                value="<?= $escape($csrfToken) ?>"
-            >
+        <div class="admin-home-builder-add-grid">
+            <?php foreach (['main', 'right_rail'] as $addZone): ?>
+                <?php
+                $zoneCreatable = array_filter(
+                    $creatableBlocks,
+                    static function ($meta) use ($addZone) {
+                        return is_array($meta)
+                            && in_array(
+                                $addZone,
+                                $meta['zones'] ?? [],
+                                true
+                            );
+                    }
+                );
+                ?>
 
-            <label>
-                <span>Тип блоку</span>
-                <select name="block_type" required>
-                    <?php foreach ($creatableBlocks as $blockType => $meta): ?>
-                        <option value="<?= $escape($blockType) ?>">
-                            <?= $escape($meta['label'] ?? $blockType) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
+                <?php if (!empty($zoneCreatable)): ?>
+                    <form
+                        method="post"
+                        action="/Anabelka/admin/home-page/create"
+                    >
+                        <input
+                            type="hidden"
+                            name="_csrf"
+                            value="<?= $escape($csrfToken) ?>"
+                        >
+                        <input
+                            type="hidden"
+                            name="zone"
+                            value="<?= $escape($addZone) ?>"
+                        >
 
-            <label>
-                <span>Зона</span>
-                <select name="zone" required>
-                    <option value="main">Основний контент</option>
-                    <option value="right_rail">Правий сайдбар</option>
-                </select>
-            </label>
+                        <label>
+                            <span>
+                                <?= $escape(
+                                    $zoneLabels[$addZone]
+                                    ?? $addZone
+                                ) ?>
+                            </span>
+                            <select name="block_type" required>
+                                <?php foreach ($zoneCreatable as $blockType => $meta): ?>
+                                    <option value="<?= $escape($blockType) ?>">
+                                        <?= $escape(
+                                            $meta['label']
+                                            ?? $blockType
+                                        ) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
 
-            <button type="submit">+ Додати блок</button>
-        </form>
-
-        <small>
-            Якщо вибрана зона не підтримується типом блоку,
-            Анабелька не створить запис і покаже помилку.
-        </small>
+                        <button type="submit">
+                            + Додати блок
+                        </button>
+                    </form>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
     </section>
 
     <?php if ($message !== ''): ?>
