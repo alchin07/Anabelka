@@ -36,13 +36,15 @@ class SearchController extends Controller
             $categories = $results['categories'] ?? [];
             $searchPagination = $results;
 
-            SearchQueryLog::record(
-                $query,
-                $_SESSION['user_id'] ?? 0,
-                $languageCode,
-                (int) ($results['total_products'] ?? 0),
-                (int) ($results['total_categories'] ?? 0)
-            );
+            if ((int) ($results['page'] ?? 1) === 1) {
+                SearchQueryLog::record(
+                    $query,
+                    $_SESSION['user_id'] ?? 0,
+                    $languageCode,
+                    (int) ($results['total_products'] ?? 0),
+                    (int) ($results['total_categories'] ?? 0)
+                );
+            }
         }
 
         $this->view('search/index', [
