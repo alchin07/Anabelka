@@ -133,6 +133,11 @@ class ProductController extends Controller
 
         $prices = Product::getPricesByRanks($productId);
         $currentRankSlug = Product::getCurrentRankSlug();
+        $vipPriceWatermarks = VipPriceProtection::forVisiblePrices(
+            $productId,
+            $prices,
+            'product'
+        );
         $badges = Product::getBadges($productId);
         $currentLanguage = Translator::currentLanguage();
         $product = ProductTranslator::localize(
@@ -172,6 +177,7 @@ class ProductController extends Controller
             'images' => $images,
             'prices' => $prices,
             'currentRankSlug' => $currentRankSlug,
+            'vipPriceWatermarks' => $vipPriceWatermarks,
             'badges' => $badges,
             'reviews' => $reviews,
             'canReview' => $canReview,

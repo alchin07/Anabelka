@@ -34,6 +34,11 @@
         href="/Anabelka/css/reviews.css?v=1"
     >
 
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/vip-price-protection.css?v=1"
+    >
+
 </head>
 
 <body>
@@ -287,6 +292,10 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                         <?php foreach ($prices as $priceItem): ?>
 
                             <?php
+                            $priceRankId = (int) ($priceItem['rank_id'] ?? 0);
+                            $vipWatermark = is_array($vipPriceWatermarks ?? null)
+                                ? ($vipPriceWatermarks[$priceRankId] ?? null)
+                                : null;
                             $isCurrent = $priceItem['rank_slug'] === $currentRankSlug;
                             $basePrice = (float) $priceItem['price'];
                             $discountPrice = $basePrice;
@@ -300,6 +309,7 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                             ?>
 
                             <div
+                                class="product-rank-price<?= is_array($vipWatermark) ? ' vip-price-protected' : '' ?>"
                                 style="
                                     display:flex;
                                     justify-content:space-between;
@@ -312,6 +322,19 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                         : '' ?>
                                 "
                             >
+                                <?php if (is_array($vipWatermark)): ?>
+                                    <span
+                                        class="vip-price-watermark"
+                                        aria-hidden="true"
+                                    >
+                                        <?= htmlspecialchars(
+                                            (string) ($vipWatermark['label'] ?? ''),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+
                                 <span>
                                     <?php if ($priceItem['rank_slug'] === 'guest'): ?>
                                         Цена

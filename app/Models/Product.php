@@ -335,13 +335,55 @@ class Product
      */
     public static function getCurrentRankSlug()
     {
-        if (!empty($_SESSION['user_rank_slug'])) {
+        static $resolvedUserId = null;
+        static $resolvedRankSlug = null;
 
-            return
-                $_SESSION['user_rank_slug'];
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+
+        if (
+            $resolvedUserId === $userId
+            && $resolvedRankSlug !== null
+        ) {
+            return $resolvedRankSlug;
         }
 
-        return 'guest';
+        if ($userId <= 0) {
+            unset($_SESSION['user_rank_slug']);
+            $resolvedUserId = 0;
+            $resolvedRankSlug = 'guest';
+
+            return $resolvedRankSlug;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT ur.slug
+            FROM users AS u
+            INNER JOIN user_ranks AS ur
+                ON ur.id = u.rank_id
+            WHERE u.id = :user_id
+              AND u.is_active = 1
+              AND ur.is_active = 1
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'user_id' => $userId
+        ]);
+
+        $rankSlug = trim((string) $stmt->fetchColumn());
+
+        if ($rankSlug === '') {
+            unset($_SESSION['user_rank_slug']);
+            $resolvedUserId = $userId;
+            $resolvedRankSlug = 'guest';
+
+            return $resolvedRankSlug;
+        }
+
+        $_SESSION['user_rank_slug'] = $rankSlug;
+        $resolvedUserId = $userId;
+        $resolvedRankSlug = $rankSlug;
+
+        return $resolvedRankSlug;
     }
 
 
