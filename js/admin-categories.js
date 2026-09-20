@@ -260,6 +260,13 @@
         }
         if (statusField) {
             statusField.value = normalizedStatus;
+
+            if (
+                window.AnabelkaSelect
+                && typeof window.AnabelkaSelect.sync === 'function'
+            ) {
+                window.AnabelkaSelect.sync(statusField);
+            }
         }
         section.dataset.translationStatus = normalizedStatus;
     }
