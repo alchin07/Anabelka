@@ -688,5 +688,21 @@
         closePicker(true);
     });
 
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'product-color-picker',
+            priority: 110,
+            isActive: function () {
+                return !root.hidden;
+            },
+            close: function () {
+                closePicker(true);
+            }
+        });
+    }
+
     renderPresets();
 })();
