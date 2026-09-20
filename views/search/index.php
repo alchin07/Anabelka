@@ -42,7 +42,7 @@ $assetUrl = function ($path) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=7">
     <link rel="stylesheet" href="/Anabelka/css/search.css?v=1">
 </head>
 <body>
