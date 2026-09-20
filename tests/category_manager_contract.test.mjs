@@ -1261,7 +1261,7 @@ test('adult status badges use the Anabelka palette without mobile overflow', fun
         view,
         /18\+<\?=\s*empty\(\$category\['is_adult'\]\)\s*\?\s*' успадковано'\s*:\s*''\s*\?>/
     );
-    assert.match(view, /css\/admin-categories\.css\?v=2/);
+    assert.match(view, /css\/admin-categories\.css\?v=4/);
 });
 
 test('category manager UI keeps stable collapse storage and structural controls', function () {
