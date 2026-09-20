@@ -561,4 +561,24 @@
             closeEditors();
         }
     });
+
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'category-thumbnail-editor',
+            priority: 105,
+            isActive: function () {
+                return Boolean(
+                    document.querySelector(
+                        '.product-category-thumbnail-editor'
+                    )
+                );
+            },
+            close: function () {
+                closeEditors();
+            }
+        });
+    }
 }());
