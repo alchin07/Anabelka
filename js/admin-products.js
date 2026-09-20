@@ -52,7 +52,7 @@
 
     let uploadPreviewUrls = [];
     let productEditorHistoryArmed = false;
-    let productEditorHistoryClosing = false;
+    let productEditorHistoryToken = 0;
     const productEditorHistoryKey = '__anabelkaProductEditor';
 
 
@@ -64,19 +64,45 @@
     }
 
 
-    function armProductEditorHistory()
+    function cleanProductEditorState(source)
     {
-        if (productEditorHistoryArmed) {
-            return;
-        }
-
-        const state = history.state
-            && typeof history.state === 'object'
-            ? Object.assign({}, history.state)
+        const state = source && typeof source === 'object'
+            ? Object.assign({}, source)
             : {};
 
-        state[productEditorHistoryKey] = 1;
-        history.pushState(state, '', currentProductEditorUrl());
+        delete state[productEditorHistoryKey];
+
+        return state;
+    }
+
+
+    function armProductEditorHistory()
+    {
+        /*
+         * Each opening owns a fresh history entry. Do not trust a boolean
+         * left from an earlier Back cycle: Android may restore history state
+         * independently from JavaScript variables.
+         */
+        productEditorHistoryToken += 1;
+
+        const baseState = cleanProductEditorState(history.state);
+
+        history.replaceState(
+            baseState,
+            '',
+            currentProductEditorUrl()
+        );
+
+        const editorState = Object.assign({}, baseState);
+
+        editorState[productEditorHistoryKey] =
+            productEditorHistoryToken;
+
+        history.pushState(
+            editorState,
+            '',
+            currentProductEditorUrl()
+        );
         productEditorHistoryArmed = true;
     }
 
@@ -88,7 +114,6 @@
         }
 
         productEditorHistoryArmed = false;
-        productEditorHistoryClosing = true;
         history.back();
     }
 
@@ -97,13 +122,10 @@
         editor.hidden
         && history.state
         && typeof history.state === 'object'
-        && history.state[productEditorHistoryKey] === 1
+        && history.state[productEditorHistoryKey]
     ) {
-        const cleanState = Object.assign({}, history.state);
-
-        delete cleanState[productEditorHistoryKey];
         history.replaceState(
-            cleanState,
+            cleanProductEditorState(history.state),
             '',
             currentProductEditorUrl()
         );
@@ -570,13 +592,20 @@
             && typeof event.state === 'object'
             ? event.state
             : {};
+        const stateToken = Number(
+            state[productEditorHistoryKey] || 0
+        );
 
-        if (productEditorHistoryClosing) {
-            productEditorHistoryClosing = false;
-            return;
-        }
-
-        if (state[productEditorHistoryKey] === 1) {
+        /*
+         * Forward navigation can land on the editor-owned entry again.
+         * In that case keep the editor state armed. Back from the editor
+         * lands on the clean base entry and closes it.
+         */
+        if (
+            !editor.hidden
+            && stateToken === productEditorHistoryToken
+            && stateToken > 0
+        ) {
             productEditorHistoryArmed = true;
             return;
         }
@@ -584,7 +613,13 @@
         if (!editor.hidden) {
             productEditorHistoryArmed = false;
             closeEditor({ syncHistory: false });
+            return;
         }
+
+        productEditorHistoryArmed = Boolean(
+            stateToken === productEditorHistoryToken
+            && stateToken > 0
+        );
     });
 
 
