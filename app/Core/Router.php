@@ -11,9 +11,12 @@ class Router
     }
 
 
-    public function post($path, $action)
+    public function post($path, $action, array $options = [])
     {
-        $this->routes['POST'][$path] = $action;
+        $this->routes['POST'][$path] = [
+            'action' => $action,
+            'options' => $options
+        ];
     }
 
 
@@ -57,7 +60,13 @@ class Router
             AdminActionAudit::watch($path, $method);
         }
 
-        foreach ($this->routes[$method] ?? [] as $route => $action) {
+        foreach ($this->routes[$method] ?? [] as $route => $routeDefinition) {
+            $action = is_array($routeDefinition)
+                ? ($routeDefinition['action'] ?? '')
+                : $routeDefinition;
+            $options = is_array($routeDefinition)
+                ? ($routeDefinition['options'] ?? [])
+                : [];
             $pattern = preg_replace(
                 '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
                 '([^/]+)',
@@ -68,6 +77,10 @@ class Router
 
             if (preg_match($pattern, $path, $matches)) {
                 array_shift($matches);
+
+                if (($options['csrf'] ?? false) === true) {
+                    Csrf::enforce($options['csrf_family'] ?? 'admin');
+                }
 
                 return $this->callAction(
                     $action,
