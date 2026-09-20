@@ -93,6 +93,13 @@
         modal.hidden = false;
         document.body.style.overflow = 'hidden';
 
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
         if (modal.id === 'category-edit-modal') {
             window.AnabelkaAIEditingContext = 'category-edit';
         }
@@ -123,6 +130,13 @@
             modal.hidden = true;
         });
         document.body.style.overflow = '';
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
 
         if (window.AnabelkaAIEditingContext === 'category-edit') {
             window.AnabelkaAIEditingContext = '';
