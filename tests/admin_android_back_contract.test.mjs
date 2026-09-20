@@ -74,7 +74,7 @@ assert.ok(selectIndex > backIndex);
 assert.ok(dialogIndex > backIndex);
 assert.match(header, /admin-nav\.js\?v=27/);
 
-assert.match(productView, /admin-products\.js\?v=8/);
+assert.match(productView, /admin-products\.js\?v=9/);
 assert.match(
     productView,
     /admin-product-color-picker\.js\?v=6/
@@ -126,3 +126,29 @@ assert.match(
 );
 
 process.stdout.write('product editor owns its Android Back history entry\n');
+
+
+assert.match(
+    products,
+    /let\s+productEditorHistoryToken\s*=\s*0/
+);
+assert.match(
+    products,
+    /productEditorHistoryToken\s*\+=\s*1/
+);
+assert.match(
+    products,
+    /history\.replaceState\([\s\S]*?cleanProductEditorState\(history\.state\)/
+);
+assert.match(
+    products,
+    /editorState\[productEditorHistoryKey\]\s*=\s*productEditorHistoryToken/
+);
+assert.match(
+    products,
+    /stateToken\s*===\s*productEditorHistoryToken/
+);
+
+process.stdout.write(
+    'repeated product editor openings get fresh history tokens\n'
+);
