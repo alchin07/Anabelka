@@ -1404,7 +1404,7 @@ test('category flash is available after manager reload and translation return', 
     });
     assert.ok(
         categoryView.indexOf('js/admin-flash-message.js?v=2')
-            < categoryView.indexOf('js/admin-categories.js?v=7')
+            < categoryView.indexOf('js/admin-categories.js?v=8')
     );
 });
 
