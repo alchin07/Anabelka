@@ -16,6 +16,41 @@ class AdminHomePageController extends Controller
     }
 
 
+    public function create()
+    {
+        try {
+            HomePageBlock::create(
+                $_POST['block_type'] ?? '',
+                $_POST['zone'] ?? ''
+            );
+
+            $this->redirect(
+                'message',
+                'Новий блок додано.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function delete()
+    {
+        try {
+            HomePageBlock::delete(
+                (int) ($_POST['block_id'] ?? 0)
+            );
+
+            $this->redirect(
+                'message',
+                'Блок видалено.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
     public function update()
     {
         try {

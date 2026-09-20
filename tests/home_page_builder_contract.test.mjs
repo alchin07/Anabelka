@@ -23,7 +23,7 @@ const migration = read('database/migrations/2026-09-21_home_page_builder.sql');
 assert.match(app, /Models\/HomePageBlock\.php/);
 assert.match(app, /Controllers\/AdminHomePageController\.php/);
 assert.match(routes, /\/admin\/home-page/);
-for (const action of ['index', 'update', 'toggle', 'move']) {
+for (const action of ['index', 'create', 'delete', 'update', 'toggle', 'move']) {
     assert.match(routes, new RegExp(`AdminHomePageController@${action}`));
 }
 assert.match(access, /home_page\.view/);
@@ -44,10 +44,17 @@ for (const systemKey of [
 }
 assert.match(model, /activeByZone\s*\(\)[\s\S]*?ensureSchema\s*\(\)/);
 assert.match(model, /right_rail/);
+assert.match(model, /public\s+static\s+function\s+create\s*\(/);
+assert.match(model, /public\s+static\s+function\s+delete\s*\(/);
 assert.match(model, /public\s+static\s+function\s+move\s*\(/);
 assert.match(model, /public\s+static\s+function\s+toggle\s*\(/);
 assert.match(model, /public\s+static\s+function\s+updateSettings\s*\(/);
 assert.match(model, /settings_json/);
+assert.match(model, /uniqueSystemKey\s*\(/);
+assert.match(model, /isSystemKey\s*\(/);
+assert.match(model, /defaultSettingsForType\s*\(/);
+assert.match(model, /normalizeZoneOrder\s*\(/);
+assert.match(model, /Базовий системний блок не можна видалити/);
 assert.match(model, /'latest'/);
 assert.match(model, /'new'/);
 assert.match(model, /'discounts'/);
@@ -97,6 +104,8 @@ for (const path of [
 }
 
 assert.match(adminController, /HomePageBlock::allForAdmin\s*\(/);
+assert.match(adminController, /HomePageBlock::create\s*\(/);
+assert.match(adminController, /HomePageBlock::delete\s*\(/);
 assert.match(adminController, /HomePageBlock::updateSettings\s*\(/);
 assert.match(adminController, /HomePageBlock::toggle\s*\(/);
 assert.match(adminController, /HomePageBlock::move\s*\(/);
@@ -115,8 +124,16 @@ assert.match(
     /in_array\(\$type, \['product_collection', 'news', 'reviews'\], true\)/
 );
 assert.match(admin, /name="_csrf"/);
+assert.match(admin, /\+ Додати блок/);
+assert.match(admin, /name="block_type"/);
+assert.match(admin, /name="zone"/);
+assert.match(admin, /\/Anabelka\/admin\/home-page\/create/);
+assert.match(admin, /\/Anabelka\/admin\/home-page\/delete/);
+assert.match(admin, /\$isSystem \? 'Базовий' : 'Доданий'/);
 assert.match(css, /@media\s*\(max-width:\s*640px\)/);
 assert.match(css, /min-height:\s*44px/);
+assert.match(css, /admin-home-builder-add/);
+assert.match(css, /admin-home-builder-delete/);
 assert.match(migration, /home_page_blocks/);
 assert.match(migration, /INSERT\s+IGNORE/i);
 assert.match(migration, /\('hero', 'hero', 'main'/);

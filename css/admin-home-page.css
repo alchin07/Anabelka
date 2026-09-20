@@ -271,3 +271,139 @@
         width: 100%;
     }
 }
+
+
+.admin-home-builder-add {
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid #eadcf7;
+    border-radius: 18px;
+    background: #faf7ff;
+    box-shadow: 0 8px 26px rgba(74, 44, 92, .05);
+}
+
+.admin-home-builder-add h3 {
+    margin: 0;
+}
+
+.admin-home-builder-add p {
+    margin: 6px 0 0;
+    color: #716878;
+    line-height: 1.45;
+}
+
+.admin-home-builder-add form {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-top: 14px;
+}
+
+.admin-home-builder-add label {
+    display: grid;
+    gap: 5px;
+}
+
+.admin-home-builder-add label > span {
+    color: #5b5360;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-home-builder-add select,
+.admin-home-builder-add button {
+    min-height: 44px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    font: inherit;
+}
+
+.admin-home-builder-add select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d8c1ea;
+    background: #fff;
+    color: #20202a;
+}
+
+.admin-home-builder-add button {
+    padding: 0 15px;
+    border: 1px solid #8A2BE2;
+    background: #8A2BE2;
+    color: #fff;
+    font-weight: 800;
+}
+
+.admin-home-builder-add small {
+    display: block;
+    margin-top: 9px;
+    color: #746b78;
+}
+
+.admin-home-builder-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.admin-home-builder-kind {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #f4eaff;
+    color: #6519b9;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.admin-home-builder-block-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+}
+
+.admin-home-builder-delete {
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid #d99aa2;
+    border-radius: 999px;
+    background: #fff;
+    color: #a33c48;
+    font: inherit;
+    font-weight: 800;
+}
+
+@media (max-width: 640px) {
+    .admin-home-builder-add {
+        padding: 12px;
+    }
+
+    .admin-home-builder-add form {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-home-builder-add button {
+        width: 100%;
+    }
+
+    .admin-home-builder-block-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .admin-home-builder-block-actions form,
+    .admin-home-builder-delete {
+        width: 100%;
+    }
+
+    .admin-home-builder-delete {
+        min-height: 44px;
+    }
+}

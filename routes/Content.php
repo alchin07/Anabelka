@@ -20,6 +20,8 @@ $router->post('/admin/reviews/reject', 'AdminReviewController@reject');
 $router->post('/admin/reviews/delete', 'AdminReviewController@delete');
 
 $router->get('/admin/home-page', 'AdminHomePageController@index');
+$router->post('/admin/home-page/create', 'AdminHomePageController@create');
+$router->post('/admin/home-page/delete', 'AdminHomePageController@delete');
 $router->post('/admin/home-page/update', 'AdminHomePageController@update');
 $router->post('/admin/home-page/toggle', 'AdminHomePageController@toggle');
 $router->post('/admin/home-page/move', 'AdminHomePageController@move');

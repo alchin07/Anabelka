@@ -110,22 +110,26 @@ class HomePageBlock
             'product_collection' => [
                 'label' => 'Товарна підбірка',
                 'description' => 'Товари на головній: останні, нові без акцій або зі знижками.',
-                'zones' => ['main']
+                'zones' => ['main'],
+                'creatable' => true
             ],
             'news' => [
                 'label' => 'Новини',
                 'description' => 'Останні опубліковані новини Анабельки.',
-                'zones' => ['right_rail']
+                'zones' => ['right_rail'],
+                'creatable' => true
             ],
             'reviews' => [
                 'label' => 'Відгуки',
                 'description' => 'Останні схвалені відгуки покупців.',
-                'zones' => ['right_rail']
+                'zones' => ['right_rail'],
+                'creatable' => true
             ],
             'gift_certificate' => [
                 'label' => 'Подарунковий сертифікат',
                 'description' => 'Інформаційна картка електронного сертифіката.',
-                'zones' => ['right_rail']
+                'zones' => ['right_rail'],
+                'creatable' => true
             ],
             'useful' => [
                 'label' => 'Корисне',
@@ -282,6 +286,143 @@ class HomePageBlock
         $rows = self::normalizeRows([$row]);
 
         return $rows[0] ?? null;
+    }
+
+
+    public static function create($blockType, $zone)
+    {
+        self::ensureSchema();
+
+        $blockType = strtolower(trim((string) $blockType));
+        $zone = strtolower(trim((string) $zone));
+        $catalog = self::catalog();
+        $meta = $catalog[$blockType] ?? null;
+
+        if (
+            !is_array($meta)
+            || empty($meta['creatable'])
+            || !in_array($zone, self::ZONES, true)
+            || !in_array($zone, $meta['zones'] ?? [], true)
+        ) {
+            throw new InvalidArgumentException(
+                'Цей тип блоку не можна додати до вибраної зони.'
+            );
+        }
+
+        $settings = self::defaultSettingsForType($blockType);
+        $encoded = json_encode(
+            $settings,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+
+        if ($encoded === false) {
+            throw new RuntimeException(
+                'Не вдалося підготувати налаштування нового блоку.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $orderStmt = $db->prepare("
+                SELECT COALESCE(MAX(sort_order), 0)
+                FROM home_page_blocks
+                WHERE zone = :zone
+                FOR UPDATE
+            ");
+            $orderStmt->execute([
+                'zone' => $zone
+            ]);
+            $sortOrder = (int) $orderStmt->fetchColumn() + 10;
+            $systemKey = self::uniqueSystemKey(
+                $db,
+                $blockType
+            );
+
+            $insert = $db->prepare("
+                INSERT INTO home_page_blocks
+                (
+                    system_key,
+                    block_type,
+                    zone,
+                    is_active,
+                    sort_order,
+                    settings_json
+                )
+                VALUES
+                (
+                    :system_key,
+                    :block_type,
+                    :zone,
+                    1,
+                    :sort_order,
+                    :settings_json
+                )
+            ");
+            $insert->execute([
+                'system_key' => $systemKey,
+                'block_type' => $blockType,
+                'zone' => $zone,
+                'sort_order' => $sortOrder,
+                'settings_json' => $encoded
+            ]);
+
+            $blockId = (int) $db->lastInsertId();
+            $db->commit();
+
+            return $blockId;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    public static function delete($blockId)
+    {
+        $block = self::find($blockId);
+
+        if (!$block) {
+            throw new InvalidArgumentException(
+                'Блок головної сторінки не знайдено.'
+            );
+        }
+
+        if (!empty($block['is_system'])) {
+            throw new DomainException(
+                'Базовий системний блок не можна видалити. Його можна вимкнути.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                DELETE FROM home_page_blocks
+                WHERE id = :id
+            ");
+            $stmt->execute([
+                'id' => (int) $block['id']
+            ]);
+
+            self::normalizeZoneOrder(
+                $db,
+                (string) ($block['zone'] ?? '')
+            );
+
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
     }
 
 
@@ -561,6 +702,9 @@ class HomePageBlock
             $row['id'] = (int) ($row['id'] ?? 0);
             $row['sort_order'] = (int) ($row['sort_order'] ?? 0);
             $row['is_active'] = !empty($row['is_active']) ? 1 : 0;
+            $row['is_system'] = self::isSystemKey(
+                (string) ($row['system_key'] ?? '')
+            ) ? 1 : 0;
             $row['type_meta'] = $catalog[$type];
             $result[] = $row;
         }
@@ -599,6 +743,7 @@ class HomePageBlock
                 'block_type' => (string) $default['block_type'],
                 'zone' => (string) $default['zone'],
                 'is_active' => 1,
+                'is_system' => 1,
                 'sort_order' => (int) $default['sort_order'],
                 'settings_json' => json_encode(
                     $default['settings'],
@@ -610,6 +755,134 @@ class HomePageBlock
         }
 
         return $rows;
+    }
+
+
+    private static function defaultSettingsForType($blockType)
+    {
+        switch ((string) $blockType) {
+            case 'product_collection':
+                return [
+                    'source' => 'latest',
+                    'limit' => 8
+                ];
+
+            case 'news':
+                return [
+                    'limit' => 3
+                ];
+
+            case 'reviews':
+                return [
+                    'limit' => 2
+                ];
+
+            case 'gift_certificate':
+                return [];
+
+            default:
+                throw new InvalidArgumentException(
+                    'Невідомий тип блоку для створення.'
+                );
+        }
+    }
+
+
+    private static function uniqueSystemKey(PDO $db, $blockType)
+    {
+        $base = preg_replace(
+            '/[^a-z0-9_]+/',
+            '_',
+            strtolower(trim((string) $blockType))
+        );
+        $base = trim((string) $base, '_');
+
+        if ($base === '') {
+            $base = 'block';
+        }
+
+        $base = substr($base, 0, 68);
+        $candidate = $base;
+        $suffix = 2;
+
+        while (true) {
+            $stmt = $db->prepare("
+                SELECT 1
+                FROM home_page_blocks
+                WHERE system_key = :system_key
+                LIMIT 1
+            ");
+            $stmt->execute([
+                'system_key' => $candidate
+            ]);
+
+            if (!$stmt->fetchColumn()) {
+                return $candidate;
+            }
+
+            $suffixText = '-' . $suffix;
+            $candidate = substr(
+                $base,
+                0,
+                80 - strlen($suffixText)
+            ) . $suffixText;
+            $suffix++;
+        }
+    }
+
+
+    private static function isSystemKey($systemKey)
+    {
+        $systemKey = (string) $systemKey;
+
+        foreach (self::DEFAULTS as $default) {
+            if (
+                (string) ($default['system_key'] ?? '')
+                === $systemKey
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    private static function normalizeZoneOrder(PDO $db, $zone)
+    {
+        $zone = (string) $zone;
+
+        if (!in_array($zone, self::ZONES, true)) {
+            return;
+        }
+
+        $stmt = $db->prepare("
+            SELECT id
+            FROM home_page_blocks
+            WHERE zone = :zone
+            ORDER BY sort_order ASC, id ASC
+            FOR UPDATE
+        ");
+        $stmt->execute([
+            'zone' => $zone
+        ]);
+        $ids = array_map(
+            'intval',
+            $stmt->fetchAll(PDO::FETCH_COLUMN)
+        );
+
+        $update = $db->prepare("
+            UPDATE home_page_blocks
+            SET sort_order = :sort_order
+            WHERE id = :id
+        ");
+
+        foreach ($ids as $position => $id) {
+            $update->execute([
+                'sort_order' => ($position + 1) * 10,
+                'id' => (int) $id
+            ]);
+        }
     }
 
 

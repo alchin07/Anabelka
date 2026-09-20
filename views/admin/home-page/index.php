@@ -15,6 +15,14 @@ $productSourceLabels = [
     'new' => 'Нові без акцій',
     'discounts' => 'Зі знижками'
 ];
+
+$catalog = is_array($catalog ?? null) ? $catalog : [];
+$creatableBlocks = array_filter(
+    $catalog,
+    static function ($meta) {
+        return is_array($meta) && !empty($meta['creatable']);
+    }
+);
 ?>
 <!DOCTYPE html>
 <html lang="uk">
@@ -39,6 +47,53 @@ $productSourceLabels = [
             </p>
         </div>
         <a href="/Anabelka/" target="_blank" rel="noopener">Відкрити головну</a>
+    </section>
+
+    <section class="admin-home-builder-add">
+        <div>
+            <h3>Додати блок</h3>
+            <p>
+                Можна створювати кілька товарних підбірок,
+                новин, відгуків або карток сертифіката.
+            </p>
+        </div>
+
+        <form
+            method="post"
+            action="/Anabelka/admin/home-page/create"
+        >
+            <input
+                type="hidden"
+                name="_csrf"
+                value="<?= $escape($csrfToken) ?>"
+            >
+
+            <label>
+                <span>Тип блоку</span>
+                <select name="block_type" required>
+                    <?php foreach ($creatableBlocks as $blockType => $meta): ?>
+                        <option value="<?= $escape($blockType) ?>">
+                            <?= $escape($meta['label'] ?? $blockType) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                <span>Зона</span>
+                <select name="zone" required>
+                    <option value="main">Основний контент</option>
+                    <option value="right_rail">Правий сайдбар</option>
+                </select>
+            </label>
+
+            <button type="submit">+ Додати блок</button>
+        </form>
+
+        <small>
+            Якщо вибрана зона не підтримується типом блоку,
+            Анабелька не створить запис і покаже помилку.
+        </small>
     </section>
 
     <?php if ($message !== ''): ?>
@@ -84,6 +139,7 @@ $productSourceLabels = [
                         ? $block['settings']
                         : [];
                     $isActive = !empty($block['is_active']);
+                    $isSystem = !empty($block['is_system']);
                     ?>
                     <article class="admin-home-builder-block<?= $isActive ? '' : ' is-disabled' ?>">
                         <div class="admin-home-builder-order">
@@ -107,20 +163,44 @@ $productSourceLabels = [
                         <div class="admin-home-builder-content">
                             <div class="admin-home-builder-block-head">
                                 <div>
-                                    <h4><?= $escape($meta['label'] ?? $type) ?></h4>
+                                    <div class="admin-home-builder-title-row">
+                                        <h4><?= $escape($meta['label'] ?? $type) ?></h4>
+                                        <span class="admin-home-builder-kind">
+                                            <?= $isSystem ? 'Базовий' : 'Доданий' ?>
+                                        </span>
+                                    </div>
                                     <p><?= $escape($meta['description'] ?? '') ?></p>
                                 </div>
 
-                                <form method="post" action="/Anabelka/admin/home-page/toggle">
-                                    <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
-                                    <input type="hidden" name="block_id" value="<?= $blockId ?>">
-                                    <button
-                                        type="submit"
-                                        class="admin-home-builder-status<?= $isActive ? ' is-active' : '' ?>"
-                                    >
-                                        <?= $isActive ? 'Увімкнено' : 'Вимкнено' ?>
-                                    </button>
-                                </form>
+                                <div class="admin-home-builder-block-actions">
+                                    <form method="post" action="/Anabelka/admin/home-page/toggle">
+                                        <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+                                        <input type="hidden" name="block_id" value="<?= $blockId ?>">
+                                        <button
+                                            type="submit"
+                                            class="admin-home-builder-status<?= $isActive ? ' is-active' : '' ?>"
+                                        >
+                                            <?= $isActive ? 'Увімкнено' : 'Вимкнено' ?>
+                                        </button>
+                                    </form>
+
+                                    <?php if (!$isSystem): ?>
+                                        <form
+                                            method="post"
+                                            action="/Anabelka/admin/home-page/delete"
+                                            onsubmit="return confirm('Видалити цей блок з головної сторінки?');"
+                                        >
+                                            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
+                                            <input type="hidden" name="block_id" value="<?= $blockId ?>">
+                                            <button
+                                                type="submit"
+                                                class="admin-home-builder-delete"
+                                            >
+                                                Видалити
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
                             </div>
 
                             <?php if (in_array($type, ['product_collection', 'news', 'reviews'], true)): ?>
@@ -179,8 +259,9 @@ $productSourceLabels = [
     <section class="admin-home-builder-next">
         <strong>MVP конструктора</strong>
         <p>
-            Тип, зона, порядок і JSON-налаштування вже зберігаються окремо.
-            Наступні блоки можна підключати без повернення до жорсткої розмітки.
+            Тип, зона, порядок і JSON-налаштування зберігаються окремо.
+            Додаткові екземпляри контентних блоків можна створювати й видаляти
+            без редагування PHP-шаблону.
         </p>
     </section>
 </main>
