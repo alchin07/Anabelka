@@ -93,6 +93,23 @@
     }
 
 
+    if (
+        editor.hidden
+        && history.state
+        && typeof history.state === 'object'
+        && history.state[productEditorHistoryKey] === 1
+    ) {
+        const cleanState = Object.assign({}, history.state);
+
+        delete cleanState[productEditorHistoryKey];
+        history.replaceState(
+            cleanState,
+            '',
+            currentProductEditorUrl()
+        );
+    }
+
+
     function showMessage(text)
     {
         const message = document.getElementById('site-message');
