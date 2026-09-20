@@ -36,7 +36,6 @@ class AdminCategoryController extends Controller
 
     public function create()
     {
-        $this->verifyCsrf();
 
         try {
             $category = CategoryManager::create($_POST);
@@ -53,7 +52,6 @@ class AdminCategoryController extends Controller
 
     public function update()
     {
-        $this->verifyCsrf();
 
         // Both helpers may perform legacy CREATE TABLE IF NOT EXISTS work.
         // Resolve it before CategoryManager starts the data transaction.
@@ -76,7 +74,6 @@ class AdminCategoryController extends Controller
 
     public function thumbnail()
     {
-        $this->verifyCsrf();
         $uploadedPath = '';
 
         try {
@@ -146,7 +143,6 @@ class AdminCategoryController extends Controller
 
     public function move()
     {
-        $this->verifyCsrf();
 
         try {
             $direction = trim((string) ($_POST['direction'] ?? ''));
@@ -183,7 +179,6 @@ class AdminCategoryController extends Controller
 
     public function toggle()
     {
-        $this->verifyCsrf();
 
         try {
             CategoryManager::toggle(
@@ -201,7 +196,6 @@ class AdminCategoryController extends Controller
 
     public function delete()
     {
-        $this->verifyCsrf();
         CategoryTranslator::getForCategory(0);
 
         try {
@@ -461,16 +455,6 @@ class AdminCategoryController extends Controller
         if (is_file($absolute)) {
             @unlink($absolute);
         }
-    }
-
-
-    private function verifyCsrf()
-    {
-        if (AdminAccess::verifyCsrf($_POST['_csrf'] ?? '')) {
-            return;
-        }
-
-        $this->jsonError('Сесію форми завершено. Оновіть сторінку.', 419);
     }
 
 
