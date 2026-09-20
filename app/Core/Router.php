@@ -54,39 +54,37 @@ class Router
             $path = rtrim($path, '/');
         }
 
+        $routeMatch = $this->matchRoute(
+            $path,
+            $method
+        );
+
+        if (
+            $routeMatch !== null
+            && $this->requiresCsrf(
+                $method,
+                $routeMatch['options']
+            )
+        ) {
+            Csrf::enforce(
+                $this->csrfFamily(
+                    $path,
+                    $routeMatch['options']
+                )
+            );
+        }
+
         $this->guardAdminRoute($path, $method, $uri);
 
         if (class_exists('AdminActionAudit')) {
             AdminActionAudit::watch($path, $method);
         }
 
-        foreach ($this->routes[$method] ?? [] as $route => $routeDefinition) {
-            $action = is_array($routeDefinition)
-                ? ($routeDefinition['action'] ?? '')
-                : $routeDefinition;
-            $options = is_array($routeDefinition)
-                ? ($routeDefinition['options'] ?? [])
-                : [];
-            $pattern = preg_replace(
-                '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
-                '([^/]+)',
-                $route
+        if ($routeMatch !== null) {
+            return $this->callAction(
+                $routeMatch['action'],
+                $routeMatch['params']
             );
-
-            $pattern = '#^' . $pattern . '$#';
-
-            if (preg_match($pattern, $path, $matches)) {
-                array_shift($matches);
-
-                if (($options['csrf'] ?? false) === true) {
-                    Csrf::enforce($options['csrf_family'] ?? 'admin');
-                }
-
-                return $this->callAction(
-                    $action,
-                    $matches
-                );
-            }
         }
 
         http_response_code(404);
@@ -101,6 +99,76 @@ class Router
             ENT_QUOTES,
             'UTF-8'
         );
+    }
+
+
+    private function matchRoute($path, $method)
+    {
+        foreach ($this->routes[$method] ?? [] as $route => $routeDefinition) {
+            $action = is_array($routeDefinition)
+                ? ($routeDefinition['action'] ?? '')
+                : $routeDefinition;
+            $options = is_array($routeDefinition)
+                ? ($routeDefinition['options'] ?? [])
+                : [];
+
+            $pattern = preg_replace(
+                '#\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}#',
+                '([^/]+)',
+                $route
+            );
+
+            $pattern = '#^' . $pattern . '$#';
+
+            if (!preg_match($pattern, $path, $matches)) {
+                continue;
+            }
+
+            array_shift($matches);
+
+            return [
+                'action' => $action,
+                'options' => $options,
+                'params' => $matches
+            ];
+        }
+
+        return null;
+    }
+
+
+    private function requiresCsrf($method, array $options)
+    {
+        if (($options['csrf'] ?? null) === false) {
+            return false;
+        }
+
+        return in_array(
+            strtoupper((string) $method),
+            ['POST', 'PUT', 'PATCH', 'DELETE'],
+            true
+        );
+    }
+
+
+    private function csrfFamily($path, array $options)
+    {
+        $explicitFamily = trim(
+            (string) ($options['csrf_family'] ?? '')
+        );
+
+        if ($explicitFamily !== '') {
+            return $explicitFamily;
+        }
+
+        if (
+            $path === '/admin'
+            || strpos($path, '/admin/') === 0
+        ) {
+            return 'admin';
+        }
+
+        return 'customer';
     }
 
 

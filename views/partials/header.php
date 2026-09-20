@@ -24,6 +24,9 @@ $favoriteLookup = [];
 $cartCount = 0;
 $userNotificationCount = 0;
 $currentAdmin = null;
+$publicCsrfToken = class_exists('Csrf')
+    ? Csrf::token('customer')
+    : '';
 $adminNotificationSummary = [
     'total' => 0,
     'items' => [],
@@ -612,6 +615,17 @@ if (
             </h1>
         <?php endif; ?>
     </div>
+
+    <script
+        id="anabelka-csrf-script"
+        src="/Anabelka/js/anabelka-csrf.js?v=1"
+        data-csrf-token="<?= htmlspecialchars(
+            $publicCsrfToken,
+            ENT_QUOTES,
+            'UTF-8'
+        ) ?>"
+        defer
+    ></script>
 
     <script
         src="/Anabelka/js/search-suggestions.js?v=1"

@@ -477,6 +477,16 @@ $canAudit = $adminCan('audit.view');
     </a>
 </aside>
 
+<script
+    id="anabelka-csrf-script"
+    src="/Anabelka/js/anabelka-csrf.js?v=1"
+    data-csrf-token="<?= htmlspecialchars(
+        $adminCsrfToken,
+        ENT_QUOTES,
+        'UTF-8'
+    ) ?>"
+    defer
+></script>
 <script src="/Anabelka/js/anabelka-admin-back.js?v=3"></script>
 <script src="/Anabelka/js/anabelka-select.js?v=10"></script>
 <script src="/Anabelka/js/anabelka-dialog.js?v=3"></script>
