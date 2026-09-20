@@ -376,6 +376,7 @@ class AdminAccess
             '/admin/news' => ['news.view', 'news.manage'],
             '/admin/reviews' => ['reviews.view', 'reviews.manage'],
             '/admin/mobile-navigation' => ['mobile_navigation.view', 'mobile_navigation.manage'],
+            '/admin/home-page' => ['home_page.view', 'home_page.manage'],
             '/admin/vip-price-views' => ['vip_prices.view', 'vip_prices.view']
         ];
 
@@ -500,6 +501,8 @@ class AdminAccess
             ['reviews.manage', 'Модерація відгуків', 'content', 125],
             ['mobile_navigation.view', 'Перегляд мобільного меню', 'content', 126],
             ['mobile_navigation.manage', 'Керування мобільним меню', 'content', 127],
+            ['home_page.view', 'Перегляд конструктора головної', 'content', 128],
+            ['home_page.manage', 'Керування конструктором головної', 'content', 129],
             ['administrators.view', 'Перегляд адміністраторів', 'security', 130],
             ['administrators.manage', 'Керування адміністраторами', 'security', 131],
             ['audit.view', 'Перегляд журналу дій', 'security', 140],
@@ -591,7 +594,9 @@ class AdminAccess
                 'reviews.view',
                 'reviews.manage',
                 'mobile_navigation.view',
-                'mobile_navigation.manage'
+                'mobile_navigation.manage',
+                'home_page.view',
+                'home_page.manage'
             ]
         ];
 

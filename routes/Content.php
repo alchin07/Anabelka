@@ -18,3 +18,8 @@ $router->get('/admin/reviews', 'AdminReviewController@index');
 $router->post('/admin/reviews/approve', 'AdminReviewController@approve');
 $router->post('/admin/reviews/reject', 'AdminReviewController@reject');
 $router->post('/admin/reviews/delete', 'AdminReviewController@delete');
+
+$router->get('/admin/home-page', 'AdminHomePageController@index');
+$router->post('/admin/home-page/update', 'AdminHomePageController@update');
+$router->post('/admin/home-page/toggle', 'AdminHomePageController@toggle');
+$router->post('/admin/home-page/move', 'AdminHomePageController@move');

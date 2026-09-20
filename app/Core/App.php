@@ -29,6 +29,7 @@ class App
         require_once __DIR__ . '/../Models/SiteNewsTranslator.php';
         require_once __DIR__ . '/../Models/ProductReview.php';
         require_once __DIR__ . '/../Models/HomePage.php';
+        require_once __DIR__ . '/../Models/HomePageBlock.php';
         require_once __DIR__ . '/../Models/HomeInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/AdultAccess.php';
         require_once __DIR__ . '/../Models/AdminProduct.php';
@@ -144,6 +145,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminBackupController.php';
         require_once __DIR__ . '/../Controllers/AdminNewsController.php';
         require_once __DIR__ . '/../Controllers/AdminReviewController.php';
+        require_once __DIR__ . '/../Controllers/AdminHomePageController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryOptionInputController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryTranslationController.php';

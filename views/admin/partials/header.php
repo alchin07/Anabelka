@@ -137,6 +137,7 @@ $canDelivery = $adminCan('delivery.view');
 $canNews = $adminCan('news.view');
 $canReviews = $adminCan('reviews.view');
 $canMobileNavigation = $adminCan('mobile_navigation.view');
+$canHomePage = $adminCan('home_page.view');
 $canLanguages = $adminCan('languages.view');
 $canTranslations = $adminCan('translations.view');
 $canAiTranslation = $adminCan('ai_translation.view');
@@ -327,8 +328,17 @@ $canVipPriceViews = $adminCan('vip_prices.view');
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($canNews || $canReviews || $canMobileNavigation): ?>
+        <?php if ($canHomePage || $canNews || $canReviews || $canMobileNavigation): ?>
             <span class="admin-nav-group-title">Контент</span>
+
+            <?php if ($canHomePage): ?>
+                <a
+                    href="/Anabelka/admin/home-page"
+                    data-admin-route="/Anabelka/admin/home-page"
+                >
+                    <span>Головна сторінка</span>
+                </a>
+            <?php endif; ?>
 
             <?php if ($canNews): ?>
                 <a
