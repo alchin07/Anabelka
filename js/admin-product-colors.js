@@ -27,6 +27,14 @@
     });
 
 
+    function textKey(value)
+    {
+        return String(value || '')
+            .trim()
+            .toLocaleLowerCase();
+    }
+
+
     function normalizedHex(value)
     {
         const hex = String(value || '').trim().toLowerCase();
@@ -76,6 +84,99 @@
             'aria-label',
             'Змінити колір: ' + name
         );
+    }
+
+
+    function manualRows()
+    {
+        return Array.from(
+            list.querySelectorAll('[data-product-manual-color]')
+        );
+    }
+
+
+    function findManualRow(name)
+    {
+        const key = textKey(name);
+
+        if (key === '') {
+            return null;
+        }
+
+        return manualRows().find(function (row) {
+            const input = row.querySelector('[data-image-color-name]');
+
+            return input && textKey(input.value) === key;
+        }) || null;
+    }
+
+
+    function ensureManualColor(name, hex)
+    {
+        name = String(name || '').trim();
+
+        if (name === '') {
+            return null;
+        }
+
+        const empty = list.querySelector('[data-product-color-empty]');
+
+        if (empty) {
+            empty.remove();
+        }
+
+        let row = findManualRow(name);
+
+        if (!row) {
+            row = createRow({
+                name: name,
+                hex: normalizedHex(hex)
+            });
+            list.appendChild(row);
+        } else {
+            const hexInput = row.querySelector('[data-image-color-hex]');
+
+            if (hexInput) {
+                hexInput.value = normalizedHex(hex);
+            }
+            refreshRow(row);
+        }
+
+        return row;
+    }
+
+
+    function clearLinkedImageColor(name)
+    {
+        const key = textKey(name);
+
+        if (key === '') {
+            return;
+        }
+
+        document.querySelectorAll(
+            '#product-image-list .product-image-color-fields, '
+            + '#product-upload-preview .product-image-color-fields'
+        ).forEach(function (group) {
+            const nameInput = group.querySelector(
+                '[data-image-color-name]'
+            );
+            const hexInput = group.querySelector(
+                '[data-image-color-hex]'
+            );
+
+            if (!nameInput || textKey(nameInput.value) !== key) {
+                return;
+            }
+
+            nameInput.value = '';
+
+            if (hexInput) {
+                hexInput.value = '#b8b0bd';
+            }
+
+            refreshRow(group);
+        });
     }
 
 
@@ -144,7 +245,16 @@
         row.appendChild(remove);
 
         remove.addEventListener('click', function () {
+            const removedName = name.value;
+
             row.remove();
+            clearLinkedImageColor(removedName);
+
+            if (manualRows().length === 0) {
+                render([]);
+                return;
+            }
+
             announceChange();
         });
 
@@ -231,32 +341,43 @@
                 ? event.detail.group
                 : null;
 
-            if (
-                !group
-                || !group.matches('[data-product-manual-color]')
-            ) {
+            if (!group) {
                 return;
             }
 
             const nameInput = group.querySelector(
                 '[data-image-color-name]'
             );
+            const hexInput = group.querySelector(
+                '[data-image-color-hex]'
+            );
+            const name = nameInput
+                ? String(nameInput.value || '').trim()
+                : '';
+            const hex = hexInput
+                ? String(hexInput.value || '')
+                : '#b8b0bd';
 
-            if (
-                !nameInput
-                || String(nameInput.value || '').trim() === ''
-            ) {
-                group.remove();
+            if (group.matches('[data-product-manual-color]')) {
+                if (name === '') {
+                    group.remove();
 
-                if (list.children.length === 0) {
-                    render([]);
-                    return;
+                    if (manualRows().length === 0) {
+                        render([]);
+                        return;
+                    }
+                } else {
+                    refreshRow(group);
                 }
-            } else {
-                refreshRow(group);
+
+                announceChange();
+                return;
             }
 
-            announceChange();
+            if (name !== '') {
+                ensureManualColor(name, hex);
+                announceChange();
+            }
         }
     );
 
