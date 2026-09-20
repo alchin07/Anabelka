@@ -42,7 +42,6 @@ assert.match(dialog, /key:\s*['"]anabelka-dialog['"]/);
 assert.match(dialog, /priority:\s*120/);
 assert.match(nav, /key:\s*['"]admin-drawer['"]/);
 
-assert.match(products, /key:\s*['"]product-editor['"]/);
 assert.match(products, /key:\s*['"]product-translations['"]/);
 assert.match(
     products,
@@ -75,7 +74,7 @@ assert.ok(selectIndex > backIndex);
 assert.ok(dialogIndex > backIndex);
 assert.match(header, /admin-nav\.js\?v=27/);
 
-assert.match(productView, /admin-products\.js\?v=7/);
+assert.match(productView, /admin-products\.js\?v=8/);
 assert.match(
     productView,
     /admin-product-color-picker\.js\?v=6/
@@ -108,17 +107,22 @@ process.stdout.write('admin menu navigation with Back guard passed\n');
 
 assert.match(back, /function\s+syncNow\s*\(/);
 assert.match(back, /syncNow:\s*syncNow/);
+assert.match(products, /const\s+productEditorHistoryKey\s*=\s*['"]__anabelkaProductEditor['"]/);
+assert.match(products, /function\s+armProductEditorHistory\s*\(/);
+assert.match(products, /history\.pushState\([\s\S]*?productEditorHistoryKey/);
 assert.match(
     products,
-    /editor\.hidden\s*=\s*false;[\s\S]*?AnabelkaAdminBack\.syncNow\(\)/
+    /editor\.hidden\s*=\s*false;[\s\S]*?armProductEditorHistory\(\)/
 );
+assert.match(products, /function\s+disarmProductEditorHistory\s*\(/);
 assert.match(
     products,
-    /editor\.hidden\s*=\s*true;[\s\S]*?AnabelkaAdminBack\.syncNow\(\)/
+    /window\.addEventListener\(['"]popstate['"][\s\S]*?closeEditor\(\{\s*syncHistory:\s*false\s*\}\)/
 );
+assert.doesNotMatch(products, /key:\s*['"]product-editor['"]/);
 assert.match(
     select,
     /wrapper\.classList\.add\(['"]is-open['"]\)[\s\S]*?AnabelkaAdminBack\.syncNow\(\)/
 );
 
-process.stdout.write('syncNow arms product editor immediately\n');
+process.stdout.write('product editor owns its Android Back history entry\n');
