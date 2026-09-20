@@ -321,6 +321,13 @@
             drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
             backdrop.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
 
+            if (
+                window.AnabelkaAdminBack
+                && typeof window.AnabelkaAdminBack.syncNow === 'function'
+            ) {
+                window.AnabelkaAdminBack.syncNow();
+            }
+
             if (isOpen) {
                 previousFocus = document.activeElement;
 
