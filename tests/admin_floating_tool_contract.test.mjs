@@ -59,7 +59,7 @@ test('admin header cache-busts the nav loader that enables floating AI tools', (
     const header = read('views/admin/partials/header.php');
     const nav = read('js/admin-nav.js');
 
-    assert.match(header, /admin-nav\.js\?v=26/);
+    assert.match(header, /admin-nav\.js\?v=27/);
     assert.match(nav, /admin-ai-translation\.js\?v=12/);
 });
 
