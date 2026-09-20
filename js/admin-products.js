@@ -727,7 +727,39 @@
         '[data-translation-details]'
     );
 
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'product-editor',
+            priority: 50,
+            isActive: function () {
+                return !editor.hidden;
+            },
+            close: function () {
+                closeEditor();
+            }
+        });
+    }
+
     if (translationDetails) {
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.register === 'function'
+        ) {
+            window.AnabelkaAdminBack.register({
+                key: 'product-translations',
+                priority: 60,
+                isActive: function () {
+                    return !editor.hidden && translationDetails.open;
+                },
+                close: function () {
+                    translationDetails.open = false;
+                }
+            });
+        }
+
         translationDetails.addEventListener('toggle', function () {
             window.AnabelkaAIEditingContext = translationDetails.open
                 ? 'product-translations'
