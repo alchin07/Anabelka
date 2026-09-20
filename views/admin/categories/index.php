@@ -479,7 +479,7 @@ require __DIR__ . '/../../partials/header.php';
 >
 <script src="/Anabelka/js/anabelka-notify.js?v=1"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-categories.js?v=7"></script>
-<script src="/Anabelka/js/admin-product-category-thumbnails.js?v=3"></script>
+<script src="/Anabelka/js/admin-categories.js?v=8"></script>
+<script src="/Anabelka/js/admin-product-category-thumbnails.js?v=4"></script>
 </body>
 </html>
