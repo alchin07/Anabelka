@@ -91,3 +91,19 @@ assert.match(
 );
 
 process.stdout.write('admin Android Back contract passed\n');
+
+
+test('normal admin links survive the Back guard', () => {
+    const back = read('js/anabelka-admin-back.js');
+
+    assert.match(back, /function\s+anchorNavigationUrl\s*\(/);
+    assert.match(back, /document\.addEventListener\(\s*['"]click['"]/);
+    assert.match(back, /event\.preventDefault\(\)/);
+    assert.match(back, /pendingNavigationUrl\s*=\s*url/);
+    assert.match(back, /suppressNextPop\s*=\s*true/);
+    assert.match(back, /history\.back\(\)/);
+    assert.match(
+        back,
+        /pendingNavigationUrl\s*!==\s*['"]["'][\s\S]*?window\.location\.assign\(url\)/
+    );
+});
