@@ -158,6 +158,26 @@
         }
     });
 
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'category-modal',
+            priority: 50,
+            isActive: function () {
+                return Array.from(
+                    document.querySelectorAll('.category-modal')
+                ).some(function (modal) {
+                    return !modal.hidden;
+                });
+            },
+            close: function () {
+                closeModals(true);
+            }
+        });
+    }
+
 
     function csrfToken()
     {
