@@ -155,13 +155,18 @@ class AdminProductController extends Controller
                 $imageColors[(int) $imageId] = $newImageColors[$index];
             }
 
+            $imageColors = $this->filterImageColorsByProductColors(
+                $imageColors,
+                $manualColors
+            );
             ProductImage::syncColors($productId, $imageColors);
             ProductColor::syncForProduct(
                 $productId,
-                $this->mergeProductColors(
-                    $manualColors,
-                    array_values($imageColors)
-                )
+                $manualColors
+            );
+            ProductVariantStock::pruneColors(
+                $productId,
+                $manualColors
             );
             ProductImage::selectMain(
                 $productId,
@@ -552,12 +557,32 @@ class AdminProductController extends Controller
     }
 
 
-    private function mergeProductColors(array $manualColors, array $imageColors)
-    {
-        $result = [];
-        $seen = [];
+    private function filterImageColorsByProductColors(
+        array $imageColors,
+        array $productColors
+    ) {
+        $allowed = [];
 
-        foreach (array_merge($manualColors, $imageColors) as $color) {
+        foreach ($productColors as $color) {
+            if (!is_array($color)) {
+                continue;
+            }
+
+            $name = trim((string) ($color['name'] ?? ''));
+
+            if ($name === '') {
+                continue;
+            }
+
+            $key = function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+            $allowed[$key] = true;
+        }
+
+        $filtered = [];
+
+        foreach ($imageColors as $imageId => $color) {
             if (!is_array($color)) {
                 continue;
             }
@@ -572,24 +597,12 @@ class AdminProductController extends Controller
                 ? mb_strtolower($name, 'UTF-8')
                 : strtolower($name);
 
-            if (isset($seen[$key])) {
-                continue;
+            if (isset($allowed[$key])) {
+                $filtered[(int) $imageId] = $color;
             }
-
-            $hex = strtolower(trim((string) ($color['hex'] ?? '')));
-
-            if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
-                $hex = '#b8b0bd';
-            }
-
-            $seen[$key] = true;
-            $result[] = [
-                'name' => $name,
-                'hex' => $hex
-            ];
         }
 
-        return $result;
+        return $filtered;
     }
 
 
