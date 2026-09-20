@@ -6,6 +6,15 @@ $currentLanguage = $currentLanguage
 $query = CatalogSearch::normalizeQuery($query ?? '');
 $products = is_array($products ?? null) ? $products : [];
 $categories = is_array($categories ?? null) ? $categories : [];
+$searchPagination = is_array($searchPagination ?? null)
+    ? $searchPagination
+    : [
+        'page' => 1,
+        'total' => count($products) + count($categories),
+        'total_pages' => 1,
+        'has_previous' => false,
+        'has_next' => false
+    ];
 $pageTitle = Translator::t('search.title', 'Пошук');
 
 $escape = function ($value) {
@@ -52,7 +61,7 @@ $assetUrl = function ($path) {
                 </p>
                 <span class="search-total">
                     <?= $escape(Translator::t('search.found', 'Знайдено')) ?>:
-                    <?= count($products) + count($categories) ?>
+                    <?= (int) ($searchPagination['total'] ?? 0) ?>
                 </span>
             <?php else: ?>
                 <p><?= $escape(Translator::t('search.start', 'Введіть назву товару, категорію або SKU.')) ?></p>
@@ -146,6 +155,17 @@ $assetUrl = function ($path) {
                 </div>
             </section>
         <?php endif; ?>
+
+        <?php
+        $pagination = $searchPagination;
+        $paginationPath = '/Anabelka/search';
+        $paginationQuery = ['q' => $query];
+        $paginationLabel = Translator::t(
+            'search.pagination.label',
+            'Посторінкова навігація результатів пошуку'
+        );
+        require __DIR__ . '/../partials/pagination.php';
+        ?>
     </div>
 </main>
 
