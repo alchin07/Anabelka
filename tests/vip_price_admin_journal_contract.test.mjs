@@ -57,8 +57,11 @@ assert.match(model, /:user_query_email/);
 assert.match(model, /:product_query_name/);
 assert.match(model, /:product_query_sku/);
 assert.match(model, /:product_query_slug/);
-assert.doesNotMatch(model, /u\.name LIKE :user_query[\s\S]*u\.email LIKE :user_query/);
-assert.doesNotMatch(model, /p\.name LIKE :product_query[\s\S]*p\.sku LIKE :product_query/);
+assert.doesNotMatch(model, /u\.name LIKE :user_query(?:\s|['"])/);
+assert.doesNotMatch(model, /u\.email LIKE :user_query(?:\s|['"])/);
+assert.doesNotMatch(model, /p\.name LIKE :product_query(?:\s|['"])/);
+assert.doesNotMatch(model, /p\.sku LIKE :product_query(?:\s|['"])/);
+assert.doesNotMatch(model, /p\.slug LIKE :product_query(?:\s|['"])/);
 
 assert.match(view, /Watermark/);
 assert.match(view, /По 50 записів на сторінку|\$perPage/);
