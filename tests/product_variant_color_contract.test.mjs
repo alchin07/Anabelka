@@ -62,7 +62,7 @@ test('product colors are independent from product photos', () => {
     );
     assert.match(
         controller,
-        /ProductColor::syncForProduct\([\s\S]*?mergeProductColors/
+        /ProductColor::syncForProduct/
     );
     assert.match(
         controller,
@@ -71,7 +71,7 @@ test('product colors are independent from product photos', () => {
 
     assert.match(view, /id="product-color-list"/);
     assert.match(view, /data-product-color-add/);
-    assert.match(view, /admin-product-colors\.js\?v=1/);
+    assert.match(view, /admin-product-colors\.js\?v=2/);
 
     assert.match(colorEditor, /name\s*=\s*['"]product_color_name\[\]['"]/);
     assert.match(colorEditor, /name\s*=\s*['"]product_color_hex\[\]['"]/);
@@ -102,5 +102,62 @@ test('catalog and public variants include colors that have no photo', () => {
     assert.match(
         colorModel,
         /trim\(\(string\) \(\$existing\['path'\] \?\? ''\)\) === ''/
+    );
+});
+
+
+test('removed product colors do not return from photos or matrix', () => {
+    const controller = read('app/Controllers/AdminProductController.php');
+    const matrixModel = read('app/Models/ProductVariantStock.php');
+    const colorEditor = read('js/admin-product-colors.js');
+    const matrixJs = read('js/admin-product-variant-stock.js');
+
+    assert.match(
+        controller,
+        /filterImageColorsByProductColors\([\s\S]*?\$imageColors[\s\S]*?\$manualColors/
+    );
+    assert.match(
+        controller,
+        /ProductImage::syncColors\(\$productId,\s*\$imageColors\)/
+    );
+    assert.match(
+        controller,
+        /ProductColor::syncForProduct\(\s*\$productId,\s*\$manualColors\s*\)/
+    );
+    assert.match(
+        controller,
+        /ProductVariantStock::pruneColors\(\s*\$productId,\s*\$manualColors\s*\)/
+    );
+    assert.doesNotMatch(controller, /mergeProductColors/);
+
+    assert.match(
+        matrixModel,
+        /public static function pruneColors\s*\(/
+    );
+    assert.match(
+        matrixModel,
+        /DELETE FROM product_variant_stock[\s\S]*?id IN/
+    );
+
+    assert.match(
+        colorEditor,
+        /function clearLinkedImageColor\s*\(/
+    );
+    assert.match(
+        colorEditor,
+        /clearLinkedImageColor\(removedName\)/
+    );
+    assert.match(
+        colorEditor,
+        /ensureManualColor\(name, hex\)/
+    );
+
+    assert.match(
+        matrixJs,
+        /const\s+roots\s*=\s*\[manualColorList\]\.filter\(Boolean\)/
+    );
+    assert.doesNotMatch(
+        matrixJs,
+        /const\s+roots\s*=\s*\[[\s\S]*?imageList[\s\S]*?uploadPreview/
     );
 });
