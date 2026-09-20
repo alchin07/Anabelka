@@ -65,7 +65,7 @@ $productSourceLabels = [
                     <h3><?= $escape($zoneLabels[$zone] ?? $zone) ?></h3>
                     <p>
                         <?= $zone === 'main'
-                            ? 'Керовані блоки після напрямків магазину та 18+.'
+                            ? 'Публічні блоки основної колонки у керованому порядку.'
                             : 'Бічна колонка показується на широких екранах.' ?>
                     </p>
                 </div>
@@ -123,7 +123,7 @@ $productSourceLabels = [
                                 </form>
                             </div>
 
-                            <?php if ($type !== 'gift_certificate'): ?>
+                            <?php if (in_array($type, ['product_collection', 'news', 'reviews'], true)): ?>
                                 <form
                                     class="admin-home-builder-settings"
                                     method="post"

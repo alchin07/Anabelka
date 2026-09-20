@@ -24,8 +24,13 @@ CREATE TABLE IF NOT EXISTS home_page_blocks
 INSERT IGNORE INTO home_page_blocks
 (system_key, block_type, zone, is_active, sort_order, settings_json)
 VALUES
+('hero', 'hero', 'main', 1, -30, '{}'),
+('directions', 'directions', 'main', 1, -20, '{}'),
+('adult_entry', 'adult_entry', 'main', 1, -10, '{}'),
 ('product_collection_latest', 'product_collection', 'main', 1, 10,
  '{"source":"latest","limit":8}'),
+('useful', 'useful', 'main', 1, 20, '{}'),
+('info_row', 'info_row', 'main', 1, 30, '{}'),
 ('news', 'news', 'right_rail', 1, 10, '{"limit":3}'),
 ('reviews', 'reviews', 'right_rail', 1, 20, '{"limit":2}'),
 ('gift_certificate', 'gift_certificate', 'right_rail', 1, 30, '{}');

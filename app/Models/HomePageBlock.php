@@ -17,6 +17,27 @@ class HomePageBlock
 
     private const DEFAULTS = [
         [
+            'system_key' => 'hero',
+            'block_type' => 'hero',
+            'zone' => 'main',
+            'sort_order' => -30,
+            'settings' => []
+        ],
+        [
+            'system_key' => 'directions',
+            'block_type' => 'directions',
+            'zone' => 'main',
+            'sort_order' => -20,
+            'settings' => []
+        ],
+        [
+            'system_key' => 'adult_entry',
+            'block_type' => 'adult_entry',
+            'zone' => 'main',
+            'sort_order' => -10,
+            'settings' => []
+        ],
+        [
             'system_key' => 'product_collection_latest',
             'block_type' => 'product_collection',
             'zone' => 'main',
@@ -25,6 +46,20 @@ class HomePageBlock
                 'source' => 'latest',
                 'limit' => 8
             ]
+        ],
+        [
+            'system_key' => 'useful',
+            'block_type' => 'useful',
+            'zone' => 'main',
+            'sort_order' => 20,
+            'settings' => []
+        ],
+        [
+            'system_key' => 'info_row',
+            'block_type' => 'info_row',
+            'zone' => 'main',
+            'sort_order' => 30,
+            'settings' => []
         ],
         [
             'system_key' => 'news',
@@ -57,6 +92,21 @@ class HomePageBlock
     public static function catalog()
     {
         return [
+            'hero' => [
+                'label' => 'Hero',
+                'description' => 'Головний промо-блок із заголовком та переходом до каталогу.',
+                'zones' => ['main']
+            ],
+            'directions' => [
+                'label' => 'Напрямки магазину',
+                'description' => 'Картки основних напрямків та категорій магазину.',
+                'zones' => ['main']
+            ],
+            'adult_entry' => [
+                'label' => 'Блок 18+',
+                'description' => 'Окремий вхід до повнолітнього розділу, якщо такі категорії активні.',
+                'zones' => ['main']
+            ],
             'product_collection' => [
                 'label' => 'Товарна підбірка',
                 'description' => 'Товари на головній: останні, нові без акцій або зі знижками.',
@@ -76,6 +126,16 @@ class HomePageBlock
                 'label' => 'Подарунковий сертифікат',
                 'description' => 'Інформаційна картка електронного сертифіката.',
                 'zones' => ['right_rail']
+            ],
+            'useful' => [
+                'label' => 'Корисне',
+                'description' => 'Компактне меню новин, відгуків і подарункових сертифікатів.',
+                'zones' => ['main']
+            ],
+            'info_row' => [
+                'label' => 'Інформація магазину',
+                'description' => 'Нижній рядок Доставка · Оплата · Повернення · Контакти.',
+                'zones' => ['main']
             ]
         ];
     }
@@ -133,6 +193,8 @@ class HomePageBlock
 
     public static function activeByZone()
     {
+        self::ensureSchema();
+
         $rows = Database::connect()->query("
             SELECT
                 id,
@@ -442,7 +504,12 @@ class HomePageBlock
                     )
                 ];
 
+            case 'hero':
+            case 'directions':
+            case 'adult_entry':
             case 'gift_certificate':
+            case 'useful':
+            case 'info_row':
                 return [];
 
             default:
