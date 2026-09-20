@@ -1,0 +1,87 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const read = path => {
+    assert.equal(fs.existsSync(path), true, `${path} must exist`);
+    return fs.readFileSync(path, 'utf8');
+};
+
+const app = read('app/Core/App.php');
+const routes = read('routes/Content.php');
+const access = read('app/Models/AdminAccess.php');
+const header = read('views/admin/partials/header.php');
+const model = read('app/Models/HomePageBlock.php');
+const homeController = read('app/Controllers/HomeController.php');
+const adminController = read('app/Controllers/AdminHomePageController.php');
+const home = read('views/home.php');
+const rail = read('views/home/partials/right-rail.php');
+const productBlock = read('views/home/blocks/product-collection.php');
+const admin = read('views/admin/home-page/index.php');
+const css = read('css/admin-home-page.css');
+const migration = read('database/migrations/2026-09-21_home_page_builder.sql');
+
+assert.match(app, /Models\/HomePageBlock\.php/);
+assert.match(app, /Controllers\/AdminHomePageController\.php/);
+assert.match(routes, /\/admin\/home-page/);
+for (const action of ['index', 'update', 'toggle', 'move']) {
+    assert.match(routes, new RegExp(`AdminHomePageController@${action}`));
+}
+assert.match(access, /home_page\.view/);
+assert.match(access, /home_page\.manage/);
+assert.match(header, /\$canHomePage/);
+assert.match(header, /href="\/Anabelka\/admin\/home-page"/);
+
+assert.match(model, /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+home_page_blocks/i);
+assert.match(model, /product_collection_latest/);
+assert.match(model, /right_rail/);
+assert.match(model, /public\s+static\s+function\s+move\s*\(/);
+assert.match(model, /public\s+static\s+function\s+toggle\s*\(/);
+assert.match(model, /public\s+static\s+function\s+updateSettings\s*\(/);
+assert.match(model, /settings_json/);
+assert.match(model, /'latest'/);
+assert.match(model, /'new'/);
+assert.match(model, /'discounts'/);
+
+assert.match(homeController, /HomePageBlock::activeByZone\s*\(/);
+assert.match(homeController, /fallbackActiveByZone\s*\(/);
+assert.match(homeController, /StorefrontProductCollection::page\s*\(/);
+assert.match(homeController, /SiteNews::latestPublished\s*\(/);
+assert.match(homeController, /ProductReview::latestApprovedStandard\s*\(/);
+
+assert.doesNotMatch(home, /\$latestProducts\s*=/);
+assert.match(home, /\$homeBlocks\['main'\]/);
+assert.match(home, /home\/blocks\/product-collection\.php/);
+assert.match(rail, /\$homeBlocks\['right_rail'\]/);
+assert.match(rail, /blocks\/news\.php/);
+assert.match(rail, /blocks\/reviews\.php/);
+assert.match(rail, /blocks\/gift-certificate\.php/);
+
+assert.match(productBlock, /current_price/);
+assert.match(productBlock, /Product::getCurrentPrice/);
+assert.match(productBlock, /\/Anabelka\/discounts/);
+assert.match(productBlock, /\/Anabelka\/new/);
+
+for (const path of [
+    'views/home/blocks/news.php',
+    'views/home/blocks/reviews.php',
+    'views/home/blocks/gift-certificate.php'
+]) {
+    assert.equal(fs.existsSync(path), true);
+}
+
+assert.match(adminController, /HomePageBlock::allForAdmin\s*\(/);
+assert.match(adminController, /HomePageBlock::updateSettings\s*\(/);
+assert.match(adminController, /HomePageBlock::toggle\s*\(/);
+assert.match(adminController, /HomePageBlock::move\s*\(/);
+assert.match(admin, /Джерело товарів/);
+assert.match(admin, /Останні додані/);
+assert.match(admin, /Нові без акцій/);
+assert.match(admin, /Зі знижками/);
+assert.match(admin, /Кількість елементів/);
+assert.match(admin, /name="_csrf"/);
+assert.match(css, /@media\s*\(max-width:\s*640px\)/);
+assert.match(css, /min-height:\s*44px/);
+assert.match(migration, /home_page_blocks/);
+assert.match(migration, /INSERT\s+IGNORE/i);
+
+process.stdout.write('home page builder MVP contract passed\n');

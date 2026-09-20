@@ -1,0 +1,273 @@
+.admin-home-builder {
+    width: min(1180px, calc(100% - 24px));
+    margin: 24px auto 64px;
+}
+
+.admin-home-builder-intro,
+.admin-home-builder-zone,
+.admin-home-builder-next {
+    border: 1px solid #eadcf7;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 8px 26px rgba(74, 44, 92, .05);
+}
+
+.admin-home-builder-intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px;
+}
+
+.admin-home-builder-intro h2,
+.admin-home-builder-zone h3,
+.admin-home-builder-block h4 {
+    margin: 0;
+}
+
+.admin-home-builder-intro p,
+.admin-home-builder-zone-head p,
+.admin-home-builder-block-head p,
+.admin-home-builder-next p {
+    margin: 6px 0 0;
+    color: #716878;
+    line-height: 1.45;
+}
+
+.admin-home-builder-intro > a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    padding: 0 15px;
+    border: 1px solid #8A2BE2;
+    border-radius: 11px;
+    color: #6519b9;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.admin-home-builder-flash {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.admin-home-builder-flash.is-success {
+    border: 1px solid #a7d6b9;
+    background: #eef9f2;
+    color: #27633d;
+}
+
+.admin-home-builder-flash.is-error {
+    border: 1px solid #e1aab0;
+    background: #fff0f1;
+    color: #8f303a;
+}
+
+.admin-home-builder-zone {
+    margin-top: 18px;
+    padding: 18px;
+}
+
+.admin-home-builder-zone-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.admin-home-builder-zone-head > span {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #f4eaff;
+    color: #6519b9;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-home-builder-list {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-home-builder-block {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e5d5f1;
+    border-radius: 14px;
+    background: #faf7ff;
+}
+
+.admin-home-builder-block.is-disabled {
+    opacity: .68;
+}
+
+.admin-home-builder-order {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+}
+
+.admin-home-builder-order form,
+.admin-home-builder-order button {
+    width: 100%;
+}
+
+.admin-home-builder-order button {
+    min-height: 42px;
+    border: 1px solid #d8c1ea;
+    border-radius: 10px;
+    background: #fff;
+    color: #6519b9;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.admin-home-builder-order button:disabled {
+    opacity: .35;
+}
+
+.admin-home-builder-content {
+    min-width: 0;
+}
+
+.admin-home-builder-block-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.admin-home-builder-status {
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid #c8bacf;
+    border-radius: 999px;
+    background: #fff;
+    color: #665d6b;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.admin-home-builder-status.is-active {
+    border-color: #8A2BE2;
+    background: #8A2BE2;
+    color: #fff;
+}
+
+.admin-home-builder-settings {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5d5f1;
+}
+
+.admin-home-builder-settings label {
+    display: grid;
+    gap: 5px;
+    min-width: 170px;
+}
+
+.admin-home-builder-settings label > span {
+    color: #5b5360;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-home-builder-settings input,
+.admin-home-builder-settings select {
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #d8c1ea;
+    border-radius: 10px;
+    background: #fff;
+    color: #20202a;
+    font: inherit;
+}
+
+.admin-home-builder-settings button {
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid #8A2BE2;
+    border-radius: 10px;
+    background: #8A2BE2;
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+}
+
+.admin-home-builder-static-note {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5d5f1;
+    color: #746b78;
+    font-size: 13px;
+}
+
+.admin-home-builder-next {
+    margin-top: 18px;
+    padding: 16px 18px;
+    background: #faf7ff;
+}
+
+@media (max-width: 640px) {
+    .admin-home-builder {
+        width: min(100% - 12px, 1180px);
+        margin-top: 12px;
+    }
+
+    .admin-home-builder-intro {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 14px;
+    }
+
+    .admin-home-builder-zone {
+        padding: 12px;
+    }
+
+    .admin-home-builder-zone-head,
+    .admin-home-builder-block-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .admin-home-builder-block {
+        grid-template-columns: 44px minmax(0, 1fr);
+        padding: 9px;
+    }
+
+    .admin-home-builder-order button,
+    .admin-home-builder-status {
+        min-height: 44px;
+    }
+
+    .admin-home-builder-block-head form,
+    .admin-home-builder-status {
+        width: 100%;
+    }
+
+    .admin-home-builder-settings {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .admin-home-builder-settings label,
+    .admin-home-builder-settings input,
+    .admin-home-builder-settings select,
+    .admin-home-builder-settings button {
+        width: 100%;
+    }
+}

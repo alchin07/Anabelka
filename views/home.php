@@ -6,9 +6,8 @@ $currentLanguage = $currentLanguage
 $pageTitle = '';
 $directions = is_array($directions ?? null) ? $directions : [];
 $navigationTree = is_array($navigationTree ?? null) ? $navigationTree : [];
-$latestProducts = is_array($latestProducts ?? null) ? $latestProducts : [];
-$homeNews = is_array($homeNews ?? null) ? $homeNews : [];
-$homeReviews = is_array($homeReviews ?? null) ? $homeReviews : [];
+$homeBlocks = is_array($homeBlocks ?? null) ? $homeBlocks : [];
+$homeBlockData = is_array($homeBlockData ?? null) ? $homeBlockData : [];
 $standardDirections = [];
 $adultDirections = [];
 
@@ -259,123 +258,19 @@ $assetUrl = function ($path) {
                 </section>
             <?php endif; ?>
 
-            <section class="home-section">
-                <div class="home-section-head">
-                    <div class="home-section-title">
-                        <h2>
-                            <?= $escape(
-                                Translator::t('home.latest_title', 'Новинки')
-                            ) ?>
-                        </h2>
-                        <p>
-                            <?= $escape(
-                                Translator::t(
-                                    'home.latest_text',
-                                    'Останні товари, додані до каталогу.'
-                                )
-                            ) ?>
-                        </p>
-                    </div>
+            <?php foreach (($homeBlocks['main'] ?? []) as $homeBlock): ?>
+                <?php
+                $homeBlockType = (string) ($homeBlock['block_type'] ?? '');
+                $homeBlockKey = (string) ($homeBlock['system_key'] ?? '');
+                $homeBlockPayload = is_array($homeBlockData[$homeBlockKey] ?? null)
+                    ? $homeBlockData[$homeBlockKey]
+                    : [];
+                ?>
 
-                    <a class="home-section-link" href="/Anabelka/catalog">
-                        <?= $escape(
-                            Translator::t('home.all_catalog', 'Увесь каталог')
-                        ) ?> →
-                    </a>
-                </div>
-
-                <?php if (empty($latestProducts)): ?>
-                    <div class="home-empty">
-                        <?= $escape(
-                            Translator::t(
-                                'home.empty_products',
-                                'Нових товарів поки немає.'
-                            )
-                        ) ?>
-                    </div>
-                <?php else: ?>
-                    <div class="home-product-grid">
-                        <?php foreach ($latestProducts as $product): ?>
-                            <?php
-                            $productImage = $assetUrl($product['main_image'] ?? '');
-                            $currentPrice = Product::getCurrentPrice($product);
-                            $oldPrice = (float) ($product['old_price'] ?? 0);
-                            $variants = is_array($product['color_variants'] ?? null)
-                                ? $product['color_variants']
-                                : [];
-                            ?>
-
-                            <a
-                                class="home-product-card"
-                                href="/Anabelka/product/<?= $escape($product['slug'] ?? '') ?>"
-                                aria-label="<?= $escape(
-                                    Translator::t(
-                                        'home.product_open',
-                                        'Переглянути товар'
-                                    )
-                                    . ': '
-                                    . ($product['name'] ?? '')
-                                ) ?>"
-                            >
-                                <div class="home-product-image">
-                                    <?php if ($productImage !== ''): ?>
-                                        <img
-                                            src="<?= $escape($productImage) ?>"
-                                            alt="<?= $escape($product['name'] ?? '') ?>"
-                                            loading="lazy"
-                                        >
-                                    <?php else: ?>
-                                        <span>Анабелька</span>
-                                    <?php endif; ?>
-                                </div>
-
-                                <div class="home-product-body">
-                                    <h3><?= $escape($product['name'] ?? '') ?></h3>
-
-                                    <?php if (!empty($variants)): ?>
-                                        <div class="home-product-colors" aria-hidden="true">
-                                            <?php foreach (array_slice($variants, 0, 6) as $variant): ?>
-                                                <?php
-                                                $hex = strtolower(trim((string) ($variant['hex'] ?? '')));
-                                                if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
-                                                    $hex = '#b8b0bd';
-                                                }
-                                                ?>
-                                                <span
-                                                    class="home-product-color"
-                                                    style="background:<?= $escape($hex) ?>"
-                                                ></span>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
-
-                                    <div class="home-product-price">
-                                        <strong>
-                                            <?= number_format(
-                                                (float) $currentPrice,
-                                                2,
-                                                ',',
-                                                ' '
-                                            ) ?> €
-                                        </strong>
-
-                                        <?php if ($oldPrice > (float) $currentPrice): ?>
-                                            <del>
-                                                <?= number_format(
-                                                    $oldPrice,
-                                                    2,
-                                                    ',',
-                                                    ' '
-                                                ) ?> €
-                                            </del>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
+                <?php if ($homeBlockType === 'product_collection'): ?>
+                    <?php require __DIR__ . '/home/blocks/product-collection.php'; ?>
                 <?php endif; ?>
-            </section>
+            <?php endforeach; ?>
 
             <details class="home-useful-menu">
                 <summary>
