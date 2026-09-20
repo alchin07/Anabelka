@@ -153,11 +153,7 @@
 
     function colorDimensions()
     {
-        const roots = [
-            manualColorList,
-            imageList,
-            uploadPreview
-        ].filter(Boolean);
+        const roots = [manualColorList].filter(Boolean);
         const result = [];
         const seenNames = new Set();
 
