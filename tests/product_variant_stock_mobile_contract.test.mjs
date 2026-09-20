@@ -158,7 +158,7 @@ test('dimension rename preserves stock through stable tokens and releases the ol
 test('admin header cache-busts independent-color matrix', () => {
     const header = read('views/admin/partials/header.php');
 
-    assert.match(header, /admin-product-variant-stock\.js\?v=15/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=16/);
     assert.match(header, /admin-product-editor-fixes\.js\?v=3/);
 });
 
@@ -212,7 +212,7 @@ test('total stock mode ignores per-size stock validation and no-color UI explain
     assert.match(matrix, /data-variant-caption/);
     assert.match(matrix, /Додайте колір вище або редагуйте кількість у полі «Залишок» біля кожного розміру\./);
     assert.match(matrix, /Для загального обліку введіть кількість у полі «Загальний залишок» вище\./);
-    assert.match(header, /admin-product-variant-stock\.js\?v=15/);
+    assert.match(header, /admin-product-variant-stock\.js\?v=16/);
 });
 
 
@@ -225,7 +225,7 @@ test('independent product colors participate in matrix dimensions without forcin
     );
     assert.match(
         matrix,
-        /const\s+roots\s*=\s*\[[\s\S]*?manualColorList[\s\S]*?imageList[\s\S]*?uploadPreview/
+        /const\s+roots\s*=\s*\[manualColorList\]\.filter\(Boolean\)/
     );
     assert.match(
         matrix,
