@@ -9,6 +9,7 @@
     let sequence = 0;
     let armed = false;
     let suppressNextPop = false;
+    let pendingNavigationUrl = '';
     let syncFrame = 0;
 
 
@@ -147,6 +148,14 @@
     {
         if (suppressNextPop) {
             suppressNextPop = false;
+
+            if (pendingNavigationUrl !== '') {
+                const url = pendingNavigationUrl;
+                pendingNavigationUrl = '';
+                window.location.assign(url);
+                return;
+            }
+
             queueSync();
             return;
         }
@@ -177,8 +186,79 @@
     }
 
 
+    function anchorNavigationUrl(event)
+    {
+        if (
+            event.defaultPrevented
+            || event.button !== 0
+            || event.metaKey
+            || event.ctrlKey
+            || event.shiftKey
+            || event.altKey
+        ) {
+            return '';
+        }
+
+        const anchor = event.target.closest('a[href]');
+
+        if (
+            !anchor
+            || anchor.hasAttribute('download')
+            || String(anchor.target || '').toLowerCase() === '_blank'
+        ) {
+            return '';
+        }
+
+        const href = String(anchor.getAttribute('href') || '').trim();
+
+        if (
+            href === ''
+            || href.charAt(0) === '#'
+            || /^javascript:/i.test(href)
+            || /^mailto:/i.test(href)
+            || /^tel:/i.test(href)
+        ) {
+            return '';
+        }
+
+        try {
+            const url = new URL(anchor.href, window.location.href);
+
+            if (url.origin !== window.location.origin) {
+                return '';
+            }
+
+            return url.href;
+        } catch (error) {
+            return '';
+        }
+    }
+
+
+    document.addEventListener(
+        'click',
+        function (event) {
+            const url = anchorNavigationUrl(event);
+
+            if (url === '' || !armed || suppressNextPop) {
+                return;
+            }
+
+            event.preventDefault();
+            pendingNavigationUrl = url;
+            armed = false;
+            suppressNextPop = true;
+            history.back();
+        },
+        true
+    );
+
+
     window.addEventListener('popstate', handlePopState);
-    window.addEventListener('pageshow', queueSync);
+    window.addEventListener('pageshow', function () {
+        pendingNavigationUrl = '';
+        queueSync();
+    });
 
     const observer = new MutationObserver(queueSync);
 
