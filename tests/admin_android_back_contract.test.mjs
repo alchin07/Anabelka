@@ -66,7 +66,7 @@ assert.match(
 assert.match(thumbnails, /priority:\s*105/);
 
 const backIndex = header.indexOf('anabelka-admin-back.js?v=3');
-const selectIndex = header.indexOf('anabelka-select.js?v=9');
+const selectIndex = header.indexOf('anabelka-select.js?v=10');
 const dialogIndex = header.indexOf('anabelka-dialog.js?v=3');
 
 assert.ok(backIndex >= 0);
@@ -151,4 +151,38 @@ assert.match(
 
 process.stdout.write(
     'repeated product editor openings get fresh history tokens\n'
+);
+
+
+assert.match(
+    select,
+    /const\s+categorySelectHistoryKey\s*=\s*['"]__anabelkaCategorySelect['"]/
+);
+assert.match(
+    select,
+    /function\s+armCategorySelectHistory\s*\(/
+);
+assert.match(
+    select,
+    /selectState\[categorySelectHistoryKey\]\s*=\s*categorySelectHistoryToken/
+);
+assert.match(
+    select,
+    /window\.addEventListener\(['"]popstate['"][\s\S]*?categorySelectHistoryKey/
+);
+assert.match(
+    select,
+    /stateToken\s*>\s*0[\s\S]*?stateToken\s*===\s*instanceToken/
+);
+assert.match(
+    select,
+    /close\(openInstance,\s*true,\s*\{[\s\S]*?syncHistory:\s*false/
+);
+assert.match(
+    select,
+    /!isCategoryThumbnailSelect\(openInstance\)/
+);
+
+process.stdout.write(
+    'category thumbnail select owns a nested Back entry\n'
 );
