@@ -33,6 +33,16 @@ assert.match(header, /href="\/Anabelka\/admin\/home-page"/);
 
 assert.match(model, /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+home_page_blocks/i);
 assert.match(model, /product_collection_latest/);
+for (const systemKey of [
+    'hero',
+    'directions',
+    'adult_entry',
+    'useful',
+    'info_row'
+]) {
+    assert.match(model, new RegExp(`['"]${systemKey}['"]`));
+}
+assert.match(model, /activeByZone\s*\(\)[\s\S]*?ensureSchema\s*\(\)/);
 assert.match(model, /right_rail/);
 assert.match(model, /public\s+static\s+function\s+move\s*\(/);
 assert.match(model, /public\s+static\s+function\s+toggle\s*\(/);
@@ -51,6 +61,23 @@ assert.match(homeController, /ProductReview::latestApprovedStandard\s*\(/);
 assert.doesNotMatch(home, /\$latestProducts\s*=/);
 assert.match(home, /\$homeBlocks\['main'\]/);
 assert.match(home, /home\/blocks\/product-collection\.php/);
+for (const partial of [
+    'hero',
+    'directions',
+    'adult-entry',
+    'useful',
+    'info-row'
+]) {
+    assert.match(home, new RegExp(`home\\/blocks\\/${partial}\\.php`));
+    assert.equal(
+        fs.existsSync(`views/home/blocks/${partial}.php`),
+        true,
+        `${partial} home block partial must exist`
+    );
+}
+assert.doesNotMatch(home, /<section class="home-hero">/);
+assert.doesNotMatch(home, /<details class="home-useful-menu">/);
+assert.doesNotMatch(home, /<section class="home-info-row"/);
 assert.match(rail, /\$homeBlocks\['right_rail'\]/);
 assert.match(rail, /blocks\/news\.php/);
 assert.match(rail, /blocks\/reviews\.php/);
@@ -78,10 +105,24 @@ assert.match(admin, /Останні додані/);
 assert.match(admin, /Нові без акцій/);
 assert.match(admin, /Зі знижками/);
 assert.match(admin, /Кількість елементів/);
+assert.match(admin, /Hero/);
+assert.match(admin, /Напрямки магазину/);
+assert.match(admin, /Блок 18\+/);
+assert.match(admin, /Корисне/);
+assert.match(admin, /Інформація магазину/);
+assert.match(
+    admin,
+    /in_array\(\$type, \['product_collection', 'news', 'reviews'\], true\)/
+);
 assert.match(admin, /name="_csrf"/);
 assert.match(css, /@media\s*\(max-width:\s*640px\)/);
 assert.match(css, /min-height:\s*44px/);
 assert.match(migration, /home_page_blocks/);
 assert.match(migration, /INSERT\s+IGNORE/i);
+assert.match(migration, /\('hero', 'hero', 'main'/);
+assert.match(migration, /\('directions', 'directions', 'main'/);
+assert.match(migration, /\('adult_entry', 'adult_entry', 'main'/);
+assert.match(migration, /\('useful', 'useful', 'main'/);
+assert.match(migration, /\('info_row', 'info_row', 'main'/);
 
 process.stdout.write('home page builder MVP contract passed\n');
