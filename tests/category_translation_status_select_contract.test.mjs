@@ -42,7 +42,7 @@ assert.match(
     categoryAi,
     /AnabelkaSelect\.refresh\(statusSelect\)/
 );
-assert.match(header, /anabelka-select\.js\?v=9/);
+assert.match(header, /anabelka-select\.js\?v=10/);
 assert.match(header, /admin-nav\.js\?v=27/);
 assert.match(nav, /admin-category-ai-translation\.js\?v=5/);
 assert.match(view, /admin-categories\.js\?v=8/);
