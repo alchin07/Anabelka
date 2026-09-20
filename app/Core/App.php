@@ -139,6 +139,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminUserController.php';
         require_once __DIR__ . '/../Controllers/AdminUserRankController.php';
         require_once __DIR__ . '/../Controllers/AdminAdministratorController.php';
+        require_once __DIR__ . '/../Controllers/AdminBackupController.php';
         require_once __DIR__ . '/../Controllers/AdminNewsController.php';
         require_once __DIR__ . '/../Controllers/AdminReviewController.php';
         require_once __DIR__ . '/../Controllers/AdminDeliveryController.php';
