@@ -296,6 +296,65 @@ class ProductVariantStock
     }
 
 
+    public static function pruneColors($productId, array $colors)
+    {
+        self::ensureTable();
+        $productId = (int) $productId;
+
+        if ($productId <= 0) {
+            return;
+        }
+
+        $allowed = [];
+
+        foreach ($colors as $color) {
+            if (!is_array($color)) {
+                continue;
+            }
+
+            $key = self::logicalColorKey($color['name'] ?? '');
+
+            if ($key !== '') {
+                $allowed[$key] = true;
+            }
+        }
+
+        $db = Database::connect();
+        $stmt = $db->prepare("
+            SELECT id, color_name
+            FROM product_variant_stock
+            WHERE product_id = :product_id
+        ");
+        $stmt->execute(['product_id' => $productId]);
+        $deleteIds = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $key = self::logicalColorKey($row['color_name'] ?? '');
+
+            if ($key === '' || !isset($allowed[$key])) {
+                $deleteIds[] = (int) ($row['id'] ?? 0);
+            }
+        }
+
+        $deleteIds = array_values(array_filter($deleteIds));
+
+        if (empty($deleteIds)) {
+            return;
+        }
+
+        $placeholders = implode(
+            ',',
+            array_fill(0, count($deleteIds), '?')
+        );
+        $delete = $db->prepare("
+            DELETE FROM product_variant_stock
+            WHERE product_id = ?
+              AND id IN ({$placeholders})
+        ");
+        $delete->execute(array_merge([$productId], $deleteIds));
+    }
+
+
     public static function syncFromMatrix($productId, array $matrix)
     {
         self::ensureTable();
