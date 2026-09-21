@@ -31,19 +31,19 @@ $creatableBlocks = array_filter(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle) ?></title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-home-page.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-home-page.css?v=2">
 </head>
 <body>
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
-<main class="admin-home-builder">
+<main class="admin-home-builder" data-home-builder-root data-csrf="<?= $escape($csrfToken) ?>">
     <section class="admin-home-builder-intro">
         <div>
             <h2>Конструктор головної сторінки</h2>
             <p>
-                Керуйте порядком, видимістю та даними публічних блоків
-                без редагування PHP-шаблону.
+                Перетягуйте блоки за ручку ⠿, змінюйте видимість і налаштування
+                без редагування PHP-шаблону. Стрілки ↑/↓ залишаються запасним способом.
             </p>
         </div>
         <a href="/Anabelka/" target="_blank" rel="noopener">Відкрити головну</a>
@@ -130,13 +130,21 @@ $creatableBlocks = array_filter(
         </div>
     <?php endif; ?>
 
+    <div
+        id="admin-home-builder-dnd-message"
+        class="admin-home-builder-flash"
+        role="status"
+        aria-live="polite"
+        hidden
+    ></div>
+
     <?php foreach (['main', 'right_rail'] as $zone): ?>
         <?php
         $zoneBlocks = is_array($blocksByZone[$zone] ?? null)
             ? $blocksByZone[$zone]
             : [];
         ?>
-        <section class="admin-home-builder-zone">
+        <section class="admin-home-builder-zone" data-home-builder-zone="<?= $escape($zone) ?>">
             <div class="admin-home-builder-zone-head">
                 <div>
                     <h3><?= $escape($zoneLabels[$zone] ?? $zone) ?></h3>
@@ -149,7 +157,7 @@ $creatableBlocks = array_filter(
                 <span><?= count($zoneBlocks) ?> блоки</span>
             </div>
 
-            <div class="admin-home-builder-list">
+            <div class="admin-home-builder-list" data-home-builder-list>
                 <?php foreach ($zoneBlocks as $index => $block): ?>
                     <?php
                     $blockId = (int) ($block['id'] ?? 0);
@@ -163,8 +171,18 @@ $creatableBlocks = array_filter(
                     $isActive = !empty($block['is_active']);
                     $isSystem = !empty($block['is_system']);
                     ?>
-                    <article class="admin-home-builder-block<?= $isActive ? '' : ' is-disabled' ?>">
+                    <article class="admin-home-builder-block<?= $isActive ? '' : ' is-disabled' ?>" data-block-id="<?= $blockId ?>">
                         <div class="admin-home-builder-order">
+                            <button
+                                type="button"
+                                class="admin-home-builder-drag"
+                                data-home-builder-drag-handle
+                                aria-label="Перетягнути блок"
+                                title="Утримуйте та перетягуйте блок"
+                            >
+                                <span aria-hidden="true">⠿</span>
+                            </button>
+
                             <?php foreach (['up' => '↑', 'down' => '↓'] as $direction => $symbol): ?>
                                 <form method="post" action="/Anabelka/admin/home-page/move">
                                     <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
@@ -172,6 +190,7 @@ $creatableBlocks = array_filter(
                                     <input type="hidden" name="direction" value="<?= $escape($direction) ?>">
                                     <button
                                         type="submit"
+                                        data-home-builder-move="<?= $escape($direction) ?>"
                                         aria-label="<?= $direction === 'up' ? 'Перемістити блок вгору' : 'Перемістити блок вниз' ?>"
                                         <?= ($direction === 'up' && $index === 0)
                                             || ($direction === 'down' && $index >= count($zoneBlocks) - 1)
@@ -288,5 +307,6 @@ $creatableBlocks = array_filter(
     </section>
 </main>
 
+<script src="/Anabelka/js/admin-home-page.js?v=1"></script>
 </body>
 </html>
