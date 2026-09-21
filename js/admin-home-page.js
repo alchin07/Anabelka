@@ -1,0 +1,377 @@
+(function () {
+    'use strict';
+
+    if (!window.PointerEvent || !window.fetch) {
+        return;
+    }
+
+    const root = document.querySelector('[data-home-builder-root]');
+
+    if (!root) {
+        return;
+    }
+
+    const reorderUrl = '/Anabelka/admin/home-page/reorder';
+    const messageElement = document.getElementById(
+        'admin-home-builder-dnd-message'
+    );
+    let activeDrag = null;
+    let messageTimer = 0;
+
+    function blocks(list)
+    {
+        return Array.from(
+            list.querySelectorAll(':scope > [data-block-id]')
+        );
+    }
+
+
+    function orderIds(list)
+    {
+        return blocks(list).map(function (item) {
+            return String(item.dataset.blockId || '');
+        }).filter(Boolean);
+    }
+
+
+    function sameOrder(left, right)
+    {
+        return left.length === right.length
+            && left.every(function (value, index) {
+                return value === right[index];
+            });
+    }
+
+
+    function restoreOrder(list, ids)
+    {
+        const byId = new Map();
+
+        blocks(list).forEach(function (item) {
+            byId.set(String(item.dataset.blockId || ''), item);
+        });
+
+        ids.forEach(function (id) {
+            const item = byId.get(String(id));
+
+            if (item) {
+                list.appendChild(item);
+            }
+        });
+    }
+
+
+    function syncArrowButtons(list)
+    {
+        const items = blocks(list);
+
+        items.forEach(function (item, index) {
+            const up = item.querySelector(
+                '[data-home-builder-move="up"]'
+            );
+            const down = item.querySelector(
+                '[data-home-builder-move="down"]'
+            );
+
+            if (up) {
+                up.disabled = index === 0;
+            }
+
+            if (down) {
+                down.disabled = index === items.length - 1;
+            }
+        });
+    }
+
+
+    function showMessage(message, isError)
+    {
+        const text = String(message || '');
+
+        if (
+            window.AnabelkaNotify
+            && typeof window.AnabelkaNotify.show === 'function'
+        ) {
+            window.AnabelkaNotify.show(
+                isError ? 'error' : 'success',
+                text
+            );
+            return;
+        }
+
+        if (!messageElement) {
+            return;
+        }
+
+        window.clearTimeout(messageTimer);
+        messageElement.textContent = text;
+        messageElement.classList.toggle('is-error', Boolean(isError));
+        messageElement.classList.toggle('is-success', !isError);
+        messageElement.hidden = false;
+
+        messageTimer = window.setTimeout(function () {
+            messageElement.hidden = true;
+        }, isError ? 4800 : 2800);
+    }
+
+
+    function setSaving(list, saving)
+    {
+        const zone = list.closest('[data-home-builder-zone]');
+
+        list.classList.toggle('is-saving', saving);
+
+        if (zone) {
+            if (saving) {
+                zone.setAttribute('aria-busy', 'true');
+            } else {
+                zone.removeAttribute('aria-busy');
+            }
+        }
+
+        list.querySelectorAll(
+            '[data-home-builder-drag-handle]'
+        ).forEach(function (handle) {
+            handle.disabled = saving;
+        });
+    }
+
+
+    function autoScroll(clientY)
+    {
+        const edge = 72;
+        const viewportHeight = window.innerHeight || 0;
+
+        if (clientY < edge) {
+            window.scrollBy(0, -Math.max(6, (edge - clientY) / 3));
+        } else if (clientY > viewportHeight - edge) {
+            window.scrollBy(
+                0,
+                Math.max(6, (clientY - (viewportHeight - edge)) / 3)
+            );
+        }
+    }
+
+
+    function startDrag(event)
+    {
+        if (activeDrag) {
+            return;
+        }
+
+        if (event.pointerType === 'mouse' && event.button !== 0) {
+            return;
+        }
+
+        const handle = event.currentTarget;
+        const item = handle.closest('[data-block-id]');
+        const list = handle.closest('[data-home-builder-list]');
+        const zone = handle.closest('[data-home-builder-zone]');
+
+        if (!item || !list || !zone || list.classList.contains('is-saving')) {
+            return;
+        }
+
+        const zoneName = String(
+            zone.dataset.homeBuilderZone || ''
+        );
+
+        if (!zoneName) {
+            return;
+        }
+
+        event.preventDefault();
+
+        activeDrag = {
+            pointerId: event.pointerId,
+            handle: handle,
+            item: item,
+            list: list,
+            zone: zoneName,
+            originalIds: orderIds(list)
+        };
+
+        item.classList.add('is-dragging');
+        list.classList.add('is-dragging');
+        document.body.classList.add('home-builder-dragging');
+
+        try {
+            handle.setPointerCapture(event.pointerId);
+        } catch (error) {
+            // Pointer capture is an enhancement; document listeners still work.
+        }
+    }
+
+
+    function moveDrag(event)
+    {
+        const state = activeDrag;
+
+        if (!state || event.pointerId !== state.pointerId) {
+            return;
+        }
+
+        event.preventDefault();
+        autoScroll(event.clientY);
+
+        const pointed = document.elementFromPoint(
+            event.clientX,
+            event.clientY
+        );
+        const target = pointed && pointed.closest
+            ? pointed.closest('[data-block-id]')
+            : null;
+
+        if (
+            !target
+            || target === state.item
+            || target.parentElement !== state.list
+        ) {
+            return;
+        }
+
+        const rect = target.getBoundingClientRect();
+        const before = event.clientY < rect.top + (rect.height / 2);
+
+        if (before) {
+            state.list.insertBefore(state.item, target);
+        } else {
+            state.list.insertBefore(
+                state.item,
+                target.nextElementSibling
+            );
+        }
+
+        syncArrowButtons(state.list);
+    }
+
+
+    async function requestSave(zone, ids)
+    {
+        const form = new FormData();
+
+        form.append('_csrf', String(root.dataset.csrf || ''));
+        form.append('zone', zone);
+        ids.forEach(function (id) {
+            form.append('block_ids[]', id);
+        });
+
+        const response = await fetch(reorderUrl, {
+            method: 'POST',
+            body: form,
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const raw = await response.text();
+        let result;
+
+        try {
+            result = JSON.parse(raw);
+        } catch (error) {
+            throw new Error(
+                response.ok
+                    ? 'Сервер повернув некоректну відповідь.'
+                    : 'Помилка сервера. Перевірте журнал KSWEB.'
+            );
+        }
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.message || 'Не вдалося зберегти порядок блоків.'
+            );
+        }
+
+        return result;
+    }
+
+
+    async function finishDrag(event, cancelled)
+    {
+        const state = activeDrag;
+
+        if (!state || event.pointerId !== state.pointerId) {
+            return;
+        }
+
+        activeDrag = null;
+
+        try {
+            if (
+                state.handle.hasPointerCapture
+                && state.handle.hasPointerCapture(state.pointerId)
+            ) {
+                state.handle.releasePointerCapture(state.pointerId);
+            }
+        } catch (error) {
+            // Ignore browsers that release capture automatically.
+        }
+
+        state.item.classList.remove('is-dragging');
+        state.list.classList.remove('is-dragging');
+        document.body.classList.remove('home-builder-dragging');
+
+        if (cancelled) {
+            restoreOrder(state.list, state.originalIds);
+            syncArrowButtons(state.list);
+            return;
+        }
+
+        const nextIds = orderIds(state.list);
+
+        if (sameOrder(state.originalIds, nextIds)) {
+            syncArrowButtons(state.list);
+            return;
+        }
+
+        setSaving(state.list, true);
+
+        try {
+            const result = await requestSave(
+                state.zone,
+                nextIds
+            );
+
+            showMessage(
+                result.message || 'Порядок блоків збережено.',
+                false
+            );
+        } catch (error) {
+            restoreOrder(state.list, state.originalIds);
+            showMessage(
+                error && error.message
+                    ? error.message
+                    : 'Не вдалося зберегти порядок блоків.',
+                true
+            );
+        } finally {
+            setSaving(state.list, false);
+            syncArrowButtons(state.list);
+        }
+    }
+
+
+    root.querySelectorAll(
+        '[data-home-builder-list]'
+    ).forEach(function (list) {
+        syncArrowButtons(list);
+    });
+
+    root.querySelectorAll(
+        '[data-home-builder-drag-handle]'
+    ).forEach(function (handle) {
+        handle.addEventListener('pointerdown', startDrag);
+    });
+
+    document.addEventListener('pointermove', moveDrag, {
+        passive: false
+    });
+    document.addEventListener('pointerup', function (event) {
+        finishDrag(event, false);
+    });
+    document.addEventListener('pointercancel', function (event) {
+        finishDrag(event, true);
+    });
+}());
