@@ -25,3 +25,4 @@ $router->post('/admin/home-page/delete', 'AdminHomePageController@delete');
 $router->post('/admin/home-page/update', 'AdminHomePageController@update');
 $router->post('/admin/home-page/toggle', 'AdminHomePageController@toggle');
 $router->post('/admin/home-page/move', 'AdminHomePageController@move');
+$router->post('/admin/home-page/reorder', 'AdminHomePageController@reorder');
