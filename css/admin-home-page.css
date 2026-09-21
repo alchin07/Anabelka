@@ -417,3 +417,46 @@
         min-height: 44px;
     }
 }
+
+
+/* Drag-and-drop ordering */
+.admin-home-builder-drag {
+    touch-action: none;
+    user-select: none;
+    cursor: grab;
+    background: #f4eaff !important;
+    color: #6519b9;
+    font-size: 22px !important;
+    line-height: 1;
+}
+
+.admin-home-builder-drag:active,
+.admin-home-builder-block.is-dragging .admin-home-builder-drag {
+    cursor: grabbing;
+}
+
+.admin-home-builder-list.is-dragging {
+    user-select: none;
+}
+
+.admin-home-builder-block.is-dragging {
+    position: relative;
+    z-index: 3;
+    border-color: #8A2BE2;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(101, 25, 185, .18);
+    opacity: .96;
+}
+
+.admin-home-builder-list.is-saving {
+    opacity: .72;
+    pointer-events: none;
+}
+
+.admin-home-builder-zone[aria-busy="true"] .admin-home-builder-zone-head > span::after {
+    content: " · збереження…";
+}
+
+body.home-builder-dragging {
+    overscroll-behavior-y: contain;
+}
