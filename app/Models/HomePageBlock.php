@@ -578,6 +578,112 @@ class HomePageBlock
     }
 
 
+    public static function reorder($zone, array $blockIds)
+    {
+        self::ensureSchema();
+
+        $zone = strtolower(trim((string) $zone));
+
+        if (!in_array($zone, self::ZONES, true)) {
+            throw new InvalidArgumentException(
+                'Некоректна зона конструктора головної сторінки.'
+            );
+        }
+
+        $ids = [];
+
+        foreach ($blockIds as $value) {
+            $raw = trim((string) $value);
+
+            if ($raw === '' || !preg_match('/^\\d+$/', $raw)) {
+                throw new InvalidArgumentException(
+                    'Некоректний список блоків для сортування.'
+                );
+            }
+
+            $id = (int) $raw;
+
+            if ($id <= 0) {
+                throw new InvalidArgumentException(
+                    'Некоректний ідентифікатор блоку.'
+                );
+            }
+
+            $ids[] = $id;
+        }
+
+        if (empty($ids)) {
+            throw new InvalidArgumentException(
+                'Список блоків для сортування порожній.'
+            );
+        }
+
+        if (count($ids) !== count(array_unique($ids))) {
+            throw new InvalidArgumentException(
+                'Список блоків містить дублікати.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $rowsStmt = $db->prepare("
+                SELECT id
+                FROM home_page_blocks
+                WHERE zone = :zone
+                ORDER BY sort_order ASC, id ASC
+                FOR UPDATE
+            ");
+            $rowsStmt->execute([
+                'zone' => $zone
+            ]);
+            $currentIds = array_map(
+                'intval',
+                $rowsStmt->fetchAll(PDO::FETCH_COLUMN)
+            );
+
+            $expected = $currentIds;
+            $submitted = $ids;
+            sort($expected, SORT_NUMERIC);
+            sort($submitted, SORT_NUMERIC);
+
+            if ($expected !== $submitted) {
+                throw new InvalidArgumentException(
+                    'Склад блоків змінився. Оновіть сторінку та повторіть переміщення.'
+                );
+            }
+
+            if ($currentIds === $ids) {
+                $db->commit();
+                return false;
+            }
+
+            $update = $db->prepare("
+                UPDATE home_page_blocks
+                SET sort_order = :sort_order
+                WHERE id = :id
+            ");
+
+            foreach ($ids as $position => $id) {
+                $update->execute([
+                    'sort_order' => ($position + 1) * 10,
+                    'id' => (int) $id
+                ]);
+            }
+
+            $db->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
     public static function settingInt(
         array $block,
         $key,
