@@ -97,6 +97,62 @@ class AdminHomePageController extends Controller
     }
 
 
+    public function reorder()
+    {
+        try {
+            $changed = HomePageBlock::reorder(
+                $_POST['zone'] ?? '',
+                is_array($_POST['block_ids'] ?? null)
+                    ? $_POST['block_ids']
+                    : []
+            );
+
+            $this->jsonResponse([
+                'success' => true,
+                'changed' => (bool) $changed,
+                'message' => $changed
+                    ? 'Порядок блоків збережено.'
+                    : 'Порядок блоків не змінився.'
+            ]);
+        } catch (Throwable $e) {
+            if (
+                $e instanceof DomainException
+                || $e instanceof InvalidArgumentException
+            ) {
+                $this->jsonResponse([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 422);
+            }
+
+            error_log(
+                'Home page builder reorder: '
+                . get_class($e)
+                . ': '
+                . $e->getMessage()
+            );
+
+            $this->jsonResponse([
+                'success' => false,
+                'message' => 'Не вдалося зберегти порядок блоків.'
+            ], 500);
+        }
+    }
+
+
+    private function jsonResponse(array $payload, $status = 200)
+    {
+        http_response_code((int) $status);
+        header('Content-Type: application/json; charset=UTF-8');
+
+        echo json_encode(
+            $payload,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+        exit;
+    }
+
+
     private function redirect($key, $message)
     {
         header(
