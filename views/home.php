@@ -57,7 +57,7 @@ $assetUrl = function ($path) {
     <link rel="stylesheet" href="/Anabelka/css/home.css?v=5">
     <link rel="stylesheet" href="/Anabelka/css/home-right-rail.css?v=1">
     <?php if ($builderPreview): ?>
-        <link rel="stylesheet" href="/Anabelka/css/anabelka-builder-preview.css?v=1">
+        <link rel="stylesheet" href="/Anabelka/css/anabelka-builder-preview.css?v=2">
     <?php endif; ?>
 </head>
 <body<?= $builderPreview
@@ -137,7 +137,7 @@ $assetUrl = function ($path) {
     </div>
 </main>
 <?php if ($builderPreview): ?>
-    <script src="/Anabelka/js/anabelka-builder-preview.js?v=1"></script>
+    <script src="/Anabelka/js/anabelka-builder-preview.js?v=2"></script>
 <?php endif; ?>
 </body>
 </html>
