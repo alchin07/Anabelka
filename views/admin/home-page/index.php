@@ -31,7 +31,7 @@ $creatableBlocks = array_filter(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle) ?></title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-home-page.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-home-page.css?v=3">
 </head>
 <body>
 
@@ -47,6 +47,86 @@ $creatableBlocks = array_filter(
             </p>
         </div>
         <a href="/Anabelka/" target="_blank" rel="noopener">Відкрити головну</a>
+    </section>
+
+    <section class="admin-home-builder-preview" data-home-builder-preview>
+        <div class="admin-home-builder-preview-head">
+            <div>
+                <h3>Живий перегляд</h3>
+                <p>
+                    Ліворуч — мобільна головна, праворуч — desktop.
+                    Під час перетягування порядок синхронізується в обох вікнах ще до збереження.
+                </p>
+            </div>
+
+            <div class="admin-home-builder-preview-tabs" role="tablist" aria-label="Режим перегляду">
+                <button
+                    type="button"
+                    class="is-active"
+                    data-home-builder-preview-tab="mobile"
+                    role="tab"
+                    aria-selected="true"
+                >📱 Mobile</button>
+                <button
+                    type="button"
+                    data-home-builder-preview-tab="desktop"
+                    role="tab"
+                    aria-selected="false"
+                >🖥 Desktop</button>
+            </div>
+        </div>
+
+        <div class="admin-home-builder-preview-grid">
+            <article
+                class="admin-home-builder-preview-card is-mobile is-active is-loading"
+                data-home-builder-preview-card="mobile"
+            >
+                <div class="admin-home-builder-preview-label">
+                    <strong>Mobile</strong>
+                    <span>390 × 844</span>
+                </div>
+                <div class="admin-home-builder-preview-stage" data-home-builder-preview-stage>
+                    <div
+                        class="admin-home-builder-preview-surface"
+                        data-home-builder-preview-surface
+                        data-preview-width="390"
+                        data-preview-height="844"
+                    >
+                        <iframe
+                            src="/Anabelka/?builder_preview=home"
+                            title="Мобільний перегляд головної сторінки"
+                            data-home-builder-preview-frame="mobile"
+                            loading="eager"
+                        ></iframe>
+                    </div>
+                </div>
+            </article>
+
+            <article
+                class="admin-home-builder-preview-card is-desktop is-loading"
+                data-home-builder-preview-card="desktop"
+            >
+                <div class="admin-home-builder-preview-label">
+                    <strong>Desktop</strong>
+                    <span>1440 × 900</span>
+                </div>
+                <div class="admin-home-builder-preview-stage" data-home-builder-preview-stage>
+                    <div
+                        class="admin-home-builder-preview-surface"
+                        data-home-builder-preview-surface
+                        data-preview-width="1440"
+                        data-preview-height="900"
+                    >
+                        <iframe
+                            src="/Anabelka/?builder_preview=home"
+                            title="Desktop перегляд головної сторінки"
+                            data-home-builder-preview-frame="desktop"
+                            loading="eager"
+                        ></iframe>
+                    </div>
+                </div>
+            </article>
+        </div>
     </section>
 
     <section class="admin-home-builder-add">
@@ -307,6 +387,6 @@ $creatableBlocks = array_filter(
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-home-page.js?v=1"></script>
+<script src="/Anabelka/js/admin-home-page.js?v=2"></script>
 </body>
 </html>
