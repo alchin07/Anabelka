@@ -15,8 +15,15 @@
     const messageElement = document.getElementById(
         'admin-home-builder-dnd-message'
     );
+    const previewFrames = Array.from(
+        root.querySelectorAll('[data-home-builder-preview-frame]')
+    );
+    const previewCards = Array.from(
+        root.querySelectorAll('[data-home-builder-preview-card]')
+    );
     let activeDrag = null;
     let messageTimer = 0;
+    let selectedBlockId = '';
 
     function blocks(list)
     {
@@ -58,6 +65,164 @@
                 list.appendChild(item);
             }
         });
+    }
+
+
+    function previewMessage(payload)
+    {
+        const message = Object.assign({
+            builder: 'home'
+        }, payload);
+
+        previewFrames.forEach(function (frame) {
+            if (frame.contentWindow) {
+                frame.contentWindow.postMessage(
+                    message,
+                    window.location.origin
+                );
+            }
+        });
+    }
+
+
+    function zoneNameForList(list)
+    {
+        const zone = list.closest('[data-home-builder-zone]');
+
+        return zone
+            ? String(zone.dataset.homeBuilderZone || '')
+            : '';
+    }
+
+
+    function broadcastZoneOrder(list)
+    {
+        const zone = zoneNameForList(list);
+
+        if (!zone) {
+            return;
+        }
+
+        previewMessage({
+            type: 'anabelka-builder-order',
+            zone: zone,
+            blockIds: orderIds(list)
+        });
+    }
+
+
+    function broadcastAllOrders()
+    {
+        root.querySelectorAll(
+            '[data-home-builder-list]'
+        ).forEach(function (list) {
+            broadcastZoneOrder(list);
+        });
+    }
+
+
+    function broadcastHighlight(blockId)
+    {
+        selectedBlockId = String(blockId || '');
+
+        previewMessage({
+            type: 'anabelka-builder-highlight',
+            blockId: selectedBlockId
+        });
+    }
+
+
+    function selectBuilderCard(blockId, shouldScroll)
+    {
+        const id = String(blockId || '');
+        let selected = null;
+
+        root.querySelectorAll('[data-block-id]').forEach(function (item) {
+            const matches = String(item.dataset.blockId || '') === id;
+            item.classList.toggle('is-preview-selected', matches);
+
+            if (matches) {
+                selected = item;
+            }
+        });
+
+        if (
+            selected
+            && shouldScroll
+            && typeof selected.scrollIntoView === 'function'
+        ) {
+            selected.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }
+    }
+
+
+    function resizePreviewCard(card)
+    {
+        const stage = card.querySelector(
+            '[data-home-builder-preview-stage]'
+        );
+        const surface = card.querySelector(
+            '[data-home-builder-preview-surface]'
+        );
+
+        if (!stage || !surface || card.offsetParent === null) {
+            return;
+        }
+
+        const targetWidth = Number(surface.dataset.previewWidth || 0);
+        const targetHeight = Number(surface.dataset.previewHeight || 0);
+
+        if (targetWidth <= 0 || targetHeight <= 0) {
+            return;
+        }
+
+        const availableWidth = Math.max(1, stage.clientWidth - 24);
+        const availableHeight = Math.max(1, stage.clientHeight - 24);
+        const scale = Math.min(
+            1,
+            availableWidth / targetWidth,
+            availableHeight / targetHeight
+        );
+
+        surface.style.width = targetWidth + 'px';
+        surface.style.height = targetHeight + 'px';
+        surface.style.transform =
+            'translateX(-50%) scale(' + scale.toFixed(4) + ')';
+    }
+
+
+    function resizePreviews()
+    {
+        previewCards.forEach(resizePreviewCard);
+    }
+
+
+    function activatePreview(device)
+    {
+        const value = String(device || 'mobile');
+
+        root.querySelectorAll(
+            '[data-home-builder-preview-tab]'
+        ).forEach(function (button) {
+            const active = button.dataset.homeBuilderPreviewTab === value;
+            button.classList.toggle('is-active', active);
+            button.setAttribute(
+                'aria-selected',
+                active ? 'true' : 'false'
+            );
+        });
+
+        previewCards.forEach(function (card) {
+            card.classList.toggle(
+                'is-active',
+                card.dataset.homeBuilderPreviewCard === value
+            );
+        });
+
+        window.requestAnimationFrame(resizePreviews);
     }
 
 
@@ -194,6 +359,8 @@
         item.classList.add('is-dragging');
         list.classList.add('is-dragging');
         document.body.classList.add('home-builder-dragging');
+        selectBuilderCard(item.dataset.blockId, false);
+        broadcastHighlight(item.dataset.blockId);
 
         try {
             handle.setPointerCapture(event.pointerId);
@@ -243,6 +410,7 @@
         }
 
         syncArrowButtons(state.list);
+        broadcastZoneOrder(state.list);
     }
 
 
@@ -316,6 +484,8 @@
         if (cancelled) {
             restoreOrder(state.list, state.originalIds);
             syncArrowButtons(state.list);
+            broadcastZoneOrder(state.list);
+            broadcastHighlight('');
             return;
         }
 
@@ -323,6 +493,7 @@
 
         if (sameOrder(state.originalIds, nextIds)) {
             syncArrowButtons(state.list);
+            broadcastHighlight('');
             return;
         }
 
@@ -340,6 +511,7 @@
             );
         } catch (error) {
             restoreOrder(state.list, state.originalIds);
+            broadcastZoneOrder(state.list);
             showMessage(
                 error && error.message
                     ? error.message
@@ -349,6 +521,7 @@
         } finally {
             setSaving(state.list, false);
             syncArrowButtons(state.list);
+            broadcastHighlight('');
         }
     }
 
@@ -365,6 +538,87 @@
         handle.addEventListener('pointerdown', startDrag);
     });
 
+    root.querySelectorAll('[data-block-id]').forEach(function (item) {
+        item.addEventListener('mouseenter', function () {
+            selectBuilderCard(item.dataset.blockId, false);
+            broadcastHighlight(item.dataset.blockId);
+        });
+        item.addEventListener('mouseleave', function () {
+            if (!activeDrag) {
+                broadcastHighlight('');
+            }
+        });
+        item.addEventListener('focusin', function () {
+            selectBuilderCard(item.dataset.blockId, false);
+            broadcastHighlight(item.dataset.blockId);
+        });
+        item.addEventListener('focusout', function () {
+            if (!activeDrag) {
+                broadcastHighlight('');
+            }
+        });
+    });
+
+    root.querySelectorAll(
+        '[data-home-builder-preview-tab]'
+    ).forEach(function (button) {
+        button.addEventListener('click', function () {
+            activatePreview(button.dataset.homeBuilderPreviewTab);
+        });
+    });
+
+    previewFrames.forEach(function (frame) {
+        frame.addEventListener('load', function () {
+            const card = frame.closest(
+                '[data-home-builder-preview-card]'
+            );
+
+            if (card) {
+                card.classList.remove('is-loading');
+            }
+
+            broadcastAllOrders();
+
+            if (selectedBlockId) {
+                broadcastHighlight(selectedBlockId);
+            }
+        });
+    });
+
+    window.addEventListener('message', function (event) {
+        if (event.origin !== window.location.origin) {
+            return;
+        }
+
+        const sourceIsPreview = previewFrames.some(function (frame) {
+            return frame.contentWindow === event.source;
+        });
+
+        if (!sourceIsPreview) {
+            return;
+        }
+
+        const data = event.data || {};
+
+        if (data.builder !== 'home') {
+            return;
+        }
+
+        if (data.type === 'anabelka-builder-preview-ready') {
+            broadcastAllOrders();
+            return;
+        }
+
+        if (data.type === 'anabelka-builder-preview-select') {
+            const blockId = String(data.blockId || '');
+
+            if (blockId) {
+                selectBuilderCard(blockId, true);
+                broadcastHighlight(blockId);
+            }
+        }
+    });
+
     document.addEventListener('pointermove', moveDrag, {
         passive: false
     });
@@ -373,5 +627,16 @@
     });
     document.addEventListener('pointercancel', function (event) {
         finishDrag(event, true);
+    });
+
+    let resizeTimer = 0;
+    window.addEventListener('resize', function () {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(resizePreviews, 60);
+    });
+
+    window.requestAnimationFrame(function () {
+        activatePreview('mobile');
+        resizePreviews();
     });
 }());
