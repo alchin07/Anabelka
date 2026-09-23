@@ -4,6 +4,25 @@ class HomeController extends Controller
 {
     public function index()
     {
+        $builderPreview = false;
+        $previewRequest = trim(
+            (string) ($_GET['builder_preview'] ?? '')
+        );
+
+        if ($previewRequest === 'home') {
+            if (!AdminAccess::can('home_page.view')) {
+                http_response_code(403);
+                header('Content-Type: text/plain; charset=UTF-8');
+                echo '403 — preview доступний лише авторизованому адміністратору.';
+                return;
+            }
+
+            $builderPreview = true;
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+            header('Pragma: no-cache');
+            header('X-Robots-Tag: noindex, nofollow');
+        }
+
         PublicInterfaceTranslator::seed();
         HomeInterfaceTranslator::seed();
 
@@ -62,7 +81,8 @@ class HomeController extends Controller
                 'directions' => $directions,
                 'navigationTree' => $navigationTree,
                 'homeBlocks' => $homeBlocks,
-                'homeBlockData' => $homeBlockData
+                'homeBlockData' => $homeBlockData,
+                'builderPreview' => $builderPreview
             ]
         );
     }
