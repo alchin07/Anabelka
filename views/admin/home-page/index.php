@@ -55,7 +55,7 @@ $creatableBlocks = array_filter(
                 <h3>Живий перегляд</h3>
                 <p>
                     Ліворуч — мобільна головна, праворуч — desktop.
-                    Під час перетягування порядок синхронізується в обох вікнах ще до збереження.
+                    Блоки можна перетягувати і в списку, і прямо в preview за ручку ⠿. Порядок синхронізується в обох вікнах ще до збереження.
                 </p>
             </div>
 
@@ -387,6 +387,6 @@ $creatableBlocks = array_filter(
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-home-page.js?v=2"></script>
+<script src="/Anabelka/js/admin-home-page.js?v=3"></script>
 </body>
 </html>
