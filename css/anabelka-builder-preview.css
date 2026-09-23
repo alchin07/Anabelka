@@ -1,0 +1,26 @@
+body.anabelka-builder-preview {
+    min-width: 0;
+}
+
+body.anabelka-builder-preview .anabelka-builder-preview-block {
+    display: contents;
+}
+
+body.anabelka-builder-preview
+.anabelka-builder-preview-block.is-builder-highlighted > * {
+    outline: 3px solid #8A2BE2 !important;
+    outline-offset: 3px;
+}
+
+body.anabelka-builder-preview
+.anabelka-builder-preview-block > * {
+    transition: outline-color .12s ease;
+}
+
+body.anabelka-builder-preview a,
+body.anabelka-builder-preview button,
+body.anabelka-builder-preview input,
+body.anabelka-builder-preview select,
+body.anabelka-builder-preview textarea {
+    cursor: default !important;
+}
