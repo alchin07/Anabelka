@@ -137,7 +137,7 @@ $assetUrl = function ($path) {
     </div>
 </main>
 <?php if ($builderPreview): ?>
-    <script src="/Anabelka/js/anabelka-builder-preview.js?v=2"></script>
+    <script src="/Anabelka/js/anabelka-builder-preview.js?v=3"></script>
 <?php endif; ?>
 </body>
 </html>
