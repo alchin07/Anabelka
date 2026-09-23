@@ -23,7 +23,7 @@ class AdminDashboardController extends Controller
         try {
             if (class_exists('AdminDashboardServiceRegistry')) {
                 $dashboardServices =
-                    AdminDashboardServiceRegistry::available();
+                    AdminDashboardServiceRegistry::catalog();
             }
         } catch (Throwable $e) {
             // Реєстр служб не повинен блокувати поточну головну адмінки.
