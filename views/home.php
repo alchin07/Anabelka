@@ -8,6 +8,7 @@ $directions = is_array($directions ?? null) ? $directions : [];
 $navigationTree = is_array($navigationTree ?? null) ? $navigationTree : [];
 $homeBlocks = is_array($homeBlocks ?? null) ? $homeBlocks : [];
 $homeBlockData = is_array($homeBlockData ?? null) ? $homeBlockData : [];
+$builderPreview = !empty($builderPreview);
 $standardDirections = [];
 $adultDirections = [];
 
@@ -55,8 +56,13 @@ $assetUrl = function ($path) {
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/home.css?v=5">
     <link rel="stylesheet" href="/Anabelka/css/home-right-rail.css?v=1">
+    <?php if ($builderPreview): ?>
+        <link rel="stylesheet" href="/Anabelka/css/anabelka-builder-preview.css?v=1">
+    <?php endif; ?>
 </head>
-<body>
+<body<?= $builderPreview
+    ? ' class="anabelka-builder-preview" data-anabelka-builder-preview="home"'
+    : '' ?>>
 
 <?php require __DIR__ . '/partials/header.php'; ?>
 
@@ -98,6 +104,14 @@ $assetUrl = function ($path) {
                     : [];
                 ?>
 
+                <?php if ($builderPreview): ?>
+                    <div
+                        class="anabelka-builder-preview-block"
+                        data-anabelka-builder-block-id="<?= (int) ($homeBlock['id'] ?? 0) ?>"
+                        data-anabelka-builder-zone="main"
+                    >
+                <?php endif; ?>
+
                 <?php if ($homeBlockType === 'hero'): ?>
                     <?php require __DIR__ . '/home/blocks/hero.php'; ?>
                 <?php elseif ($homeBlockType === 'directions'): ?>
@@ -111,6 +125,10 @@ $assetUrl = function ($path) {
                 <?php elseif ($homeBlockType === 'info_row'): ?>
                     <?php require __DIR__ . '/home/blocks/info-row.php'; ?>
                 <?php endif; ?>
+
+                <?php if ($builderPreview): ?>
+                    </div>
+                <?php endif; ?>
             <?php endforeach; ?>
 
         </div>
@@ -118,5 +136,8 @@ $assetUrl = function ($path) {
         <?php require __DIR__ . '/home/partials/right-rail.php'; ?>
     </div>
 </main>
+<?php if ($builderPreview): ?>
+    <script src="/Anabelka/js/anabelka-builder-preview.js?v=1"></script>
+<?php endif; ?>
 </body>
 </html>
