@@ -22,6 +22,7 @@
         root.querySelectorAll('[data-home-builder-preview-card]')
     );
     let activeDrag = null;
+    let previewDragState = null;
     let messageTimer = 0;
     let selectedBlockId = '';
 
@@ -226,6 +227,267 @@
     }
 
 
+    function listForZone(zoneName)
+    {
+        const wanted = String(zoneName || '');
+        let result = null;
+
+        root.querySelectorAll(
+            '[data-home-builder-zone]'
+        ).forEach(function (zone) {
+            if (
+                !result
+                && String(zone.dataset.homeBuilderZone || '')
+                    === wanted
+            ) {
+                result = zone.querySelector(
+                    '[data-home-builder-list]'
+                );
+            }
+        });
+
+        return result;
+    }
+
+
+    function sameIdSet(left, right)
+    {
+        if (left.length !== right.length) {
+            return false;
+        }
+
+        const first = left.map(String).sort();
+        const second = right.map(String).sort();
+
+        return first.every(function (value, index) {
+            return value === second[index];
+        });
+    }
+
+
+    function applyPreviewSubsetOrder(list, visibleIds)
+    {
+        if (!list || !Array.isArray(visibleIds)) {
+            return false;
+        }
+
+        const submitted = visibleIds.map(String).filter(Boolean);
+
+        if (
+            !submitted.length
+            || new Set(submitted).size !== submitted.length
+        ) {
+            return false;
+        }
+
+        const current = orderIds(list);
+        const visibleSet = new Set(submitted);
+        const currentVisible = current.filter(function (id) {
+            return visibleSet.has(id);
+        });
+
+        if (!sameIdSet(currentVisible, submitted)) {
+            return false;
+        }
+
+        let cursor = 0;
+        const merged = current.map(function (id) {
+            if (!visibleSet.has(id)) {
+                return id;
+            }
+
+            const nextId = submitted[cursor];
+            cursor += 1;
+            return nextId;
+        });
+
+        restoreOrder(list, merged);
+        syncArrowButtons(list);
+        return true;
+    }
+
+
+    function sendPreviewSaveResult(state, success)
+    {
+        if (!state || !state.list) {
+            return;
+        }
+
+        previewMessage({
+            type: 'anabelka-builder-preview-save-result',
+            zone: state.zone,
+            success: Boolean(success),
+            blockIds: orderIds(state.list)
+        });
+    }
+
+
+    function rejectPreviewDrag(zone)
+    {
+        const list = listForZone(zone);
+
+        if (list) {
+            broadcastZoneOrder(list);
+        }
+
+        previewMessage({
+            type: 'anabelka-builder-preview-save-result',
+            zone: String(zone || ''),
+            success: false,
+            blockIds: list ? orderIds(list) : []
+        });
+    }
+
+
+    function beginPreviewDrag(source, data)
+    {
+        const zone = String(data.zone || '');
+        const visibleIds = Array.isArray(data.blockIds)
+            ? data.blockIds.map(String).filter(Boolean)
+            : [];
+        const list = listForZone(zone);
+
+        if (
+            activeDrag
+            || previewDragState
+            || !list
+            || list.classList.contains('is-saving')
+            || !visibleIds.length
+            || new Set(visibleIds).size !== visibleIds.length
+        ) {
+            rejectPreviewDrag(zone);
+            return;
+        }
+
+        const fullIds = orderIds(list);
+
+        if (!visibleIds.every(function (id) {
+            return fullIds.includes(id);
+        })) {
+            rejectPreviewDrag(zone);
+            return;
+        }
+
+        previewDragState = {
+            source: source,
+            zone: zone,
+            list: list,
+            originalIds: fullIds,
+            visibleIds: visibleIds
+        };
+
+        list.classList.add('is-dragging');
+        selectBuilderCard(data.blockId, false);
+        broadcastHighlight(data.blockId);
+    }
+
+
+    function handlePreviewOrder(source, data)
+    {
+        const state = previewDragState;
+        const submitted = Array.isArray(data.blockIds)
+            ? data.blockIds.map(String).filter(Boolean)
+            : [];
+
+        if (
+            !state
+            || state.source !== source
+            || state.zone !== String(data.zone || '')
+            || !sameIdSet(state.visibleIds, submitted)
+        ) {
+            return;
+        }
+
+        if (!applyPreviewSubsetOrder(state.list, submitted)) {
+            return;
+        }
+
+        broadcastZoneOrder(state.list);
+    }
+
+
+    async function finishPreviewDrag(source, data, cancelled)
+    {
+        const state = previewDragState;
+
+        if (
+            !state
+            || state.source !== source
+            || state.zone !== String(data.zone || '')
+        ) {
+            rejectPreviewDrag(data.zone);
+            return;
+        }
+
+        previewDragState = null;
+        state.list.classList.remove('is-dragging');
+
+        if (cancelled) {
+            restoreOrder(state.list, state.originalIds);
+            syncArrowButtons(state.list);
+            broadcastZoneOrder(state.list);
+            broadcastHighlight('');
+            sendPreviewSaveResult(state, true);
+            return;
+        }
+
+        const submitted = Array.isArray(data.blockIds)
+            ? data.blockIds.map(String).filter(Boolean)
+            : [];
+
+        if (
+            !sameIdSet(state.visibleIds, submitted)
+            || !applyPreviewSubsetOrder(state.list, submitted)
+        ) {
+            restoreOrder(state.list, state.originalIds);
+            syncArrowButtons(state.list);
+            broadcastZoneOrder(state.list);
+            broadcastHighlight('');
+            sendPreviewSaveResult(state, false);
+            return;
+        }
+
+        const nextIds = orderIds(state.list);
+
+        if (sameOrder(state.originalIds, nextIds)) {
+            broadcastHighlight('');
+            sendPreviewSaveResult(state, true);
+            return;
+        }
+
+        setSaving(state.list, true);
+
+        try {
+            const result = await requestSave(
+                state.zone,
+                nextIds
+            );
+
+            showMessage(
+                result.message || 'Порядок блоків збережено.',
+                false
+            );
+            broadcastZoneOrder(state.list);
+            sendPreviewSaveResult(state, true);
+        } catch (error) {
+            restoreOrder(state.list, state.originalIds);
+            syncArrowButtons(state.list);
+            broadcastZoneOrder(state.list);
+            showMessage(
+                error && error.message
+                    ? error.message
+                    : 'Не вдалося зберегти порядок блоків.',
+                true
+            );
+            sendPreviewSaveResult(state, false);
+        } finally {
+            setSaving(state.list, false);
+            syncArrowButtons(state.list);
+            broadcastHighlight('');
+        }
+    }
+
+
     function syncArrowButtons(list)
     {
         const items = blocks(list);
@@ -320,7 +582,7 @@
 
     function startDrag(event)
     {
-        if (activeDrag) {
+        if (activeDrag || previewDragState) {
             return;
         }
 
@@ -606,6 +868,26 @@
 
         if (data.type === 'anabelka-builder-preview-ready') {
             broadcastAllOrders();
+            return;
+        }
+
+        if (data.type === 'anabelka-builder-preview-drag-start') {
+            beginPreviewDrag(event.source, data);
+            return;
+        }
+
+        if (data.type === 'anabelka-builder-preview-order') {
+            handlePreviewOrder(event.source, data);
+            return;
+        }
+
+        if (data.type === 'anabelka-builder-preview-drop') {
+            finishPreviewDrag(event.source, data, false);
+            return;
+        }
+
+        if (data.type === 'anabelka-builder-preview-cancel') {
+            finishPreviewDrag(event.source, data, true);
             return;
         }
 
