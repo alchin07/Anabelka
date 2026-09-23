@@ -45,12 +45,24 @@ $railStars = static function ($rating) {
             : [];
         ?>
 
+        <?php if (!empty($builderPreview)): ?>
+            <div
+                class="anabelka-builder-preview-block"
+                data-anabelka-builder-block-id="<?= (int) ($homeBlock['id'] ?? 0) ?>"
+                data-anabelka-builder-zone="right_rail"
+            >
+        <?php endif; ?>
+
         <?php if ($homeBlockType === 'news'): ?>
             <?php require __DIR__ . '/../blocks/news.php'; ?>
         <?php elseif ($homeBlockType === 'reviews'): ?>
             <?php require __DIR__ . '/../blocks/reviews.php'; ?>
         <?php elseif ($homeBlockType === 'gift_certificate'): ?>
             <?php require __DIR__ . '/../blocks/gift-certificate.php'; ?>
+        <?php endif; ?>
+
+        <?php if (!empty($builderPreview)): ?>
+            </div>
         <?php endif; ?>
     <?php endforeach; ?>
 </aside>
