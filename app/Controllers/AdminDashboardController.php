@@ -18,6 +18,17 @@ class AdminDashboardController extends Controller
 
         $translationSummary = $this->translationSummary();
         $aiSummary = $this->aiSummary();
+        $dashboardServices = [];
+
+        try {
+            if (class_exists('AdminDashboardServiceRegistry')) {
+                $dashboardServices =
+                    AdminDashboardServiceRegistry::available();
+            }
+        } catch (Throwable $e) {
+            // Реєстр служб не повинен блокувати поточну головну адмінки.
+            $dashboardServices = [];
+        }
         $notificationSummary = [
             'total' => 0,
             'all_total' => 0,
@@ -58,6 +69,9 @@ class AdminDashboardController extends Controller
                 'recentOrders' => $overview['recent_orders'] ?? [],
                 'translationSummary' => $translationSummary,
                 'aiSummary' => $aiSummary,
+                'dashboardServices' => $dashboardServices,
+                'dashboardServiceGroups' =>
+                    AdminDashboardServiceRegistry::groups(),
                 'adminNotificationSummary' => $notificationSummary,
                 'dashboardError' => $dashboardError,
                 'navBadges' => [
