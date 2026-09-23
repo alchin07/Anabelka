@@ -221,43 +221,50 @@
         event.stopPropagation();
         autoScroll(event.clientY);
 
-        const pointed = document.elementFromPoint(
-            event.clientX,
-            event.clientY
+        const parent = state.wrapper.parentNode;
+
+        if (!parent) {
+            return;
+        }
+
+        const beforeIds = orderIds(state.zone);
+        const siblings = blockNodes(state.zone).filter(
+            function (node) {
+                return node !== state.wrapper
+                    && node.parentNode === parent;
+            }
         );
-        const target = pointed && pointed.closest
-            ? pointed.closest('[data-anabelka-builder-block-id]')
-            : null;
+        let insertBefore = null;
 
-        if (
-            !target
-            || target === state.wrapper
-            || String(target.dataset.anabelkaBuilderZone || '')
-                !== state.zone
-            || target.parentNode !== state.wrapper.parentNode
-        ) {
-            return;
+        for (const sibling of siblings) {
+            const siblingVisual = visualNode(sibling);
+
+            if (!siblingVisual) {
+                continue;
+            }
+
+            const rect = siblingVisual.getBoundingClientRect();
+            const midpoint = rect.top + (rect.height / 2);
+
+            if (event.clientY < midpoint) {
+                insertBefore = sibling;
+                break;
+            }
         }
 
-        const targetVisual = visualNode(target);
-
-        if (!targetVisual) {
-            return;
-        }
-
-        const rect = targetVisual.getBoundingClientRect();
-        const before = event.clientY < rect.top + (rect.height / 2);
-
-        if (before) {
-            state.wrapper.parentNode.insertBefore(
+        if (insertBefore) {
+            parent.insertBefore(
                 state.wrapper,
-                target
+                insertBefore
             );
         } else {
-            state.wrapper.parentNode.insertBefore(
-                state.wrapper,
-                target.nextElementSibling
-            );
+            parent.appendChild(state.wrapper);
+        }
+
+        const nextIds = orderIds(state.zone);
+
+        if (sameOrder(beforeIds, nextIds)) {
+            return;
         }
 
         state.moved = true;
@@ -265,7 +272,7 @@
         send('anabelka-builder-preview-order', {
             zone: state.zone,
             blockId: state.blockId,
-            blockIds: orderIds(state.zone)
+            blockIds: nextIds
         });
     }
 
