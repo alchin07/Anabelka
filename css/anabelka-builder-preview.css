@@ -24,3 +24,55 @@ body.anabelka-builder-preview select,
 body.anabelka-builder-preview textarea {
     cursor: default !important;
 }
+
+
+body.anabelka-builder-preview
+.anabelka-builder-preview-drag-target {
+    position: relative !important;
+}
+
+body.anabelka-builder-preview
+.anabelka-builder-preview-drag-handle {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 50;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, .7);
+    border-radius: 12px;
+    background: rgba(138, 43, 226, .94);
+    color: #fff;
+    font: inherit;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 6px 18px rgba(74, 44, 92, .24);
+    cursor: grab !important;
+    touch-action: none;
+    user-select: none;
+}
+
+body.anabelka-builder-preview
+.anabelka-builder-preview-drag-handle:active,
+body.anabelka-builder-preview
+.anabelka-builder-preview-block.is-builder-dragging
+.anabelka-builder-preview-drag-handle {
+    cursor: grabbing !important;
+}
+
+body.anabelka-builder-preview
+.anabelka-builder-preview-block.is-builder-dragging > * {
+    outline: 3px solid #8A2BE2 !important;
+    outline-offset: 3px;
+    opacity: .88;
+}
+
+body.anabelka-builder-preview.is-builder-preview-saving
+.anabelka-builder-preview-drag-handle {
+    opacity: .48;
+    pointer-events: none;
+}
