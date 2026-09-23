@@ -30,7 +30,7 @@ assert.match(
 );
 assert.match(
     controller,
-    /AdminDashboardServiceRegistry::available\s*\(/
+    /AdminDashboardServiceRegistry::catalog\s*\(/
 );
 assert.match(
     controller,
