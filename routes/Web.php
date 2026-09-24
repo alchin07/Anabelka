@@ -147,6 +147,16 @@ $router->post(
     'AdminDashboardBuilderController@deleteLink'
 );
 
+$router->post(
+    '/admin/dashboard-builder/reorder-blocks',
+    'AdminDashboardBuilderController@reorderBlocks'
+);
+
+$router->post(
+    '/admin/dashboard-builder/reorder-links',
+    'AdminDashboardBuilderController@reorderLinks'
+);
+
 $router->get(
     '/admin/orders',
     'AdminOrderController@index'
