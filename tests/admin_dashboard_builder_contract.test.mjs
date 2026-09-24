@@ -236,15 +236,18 @@ assert.match(view, /badge_count/);
 assert.match(view, /dashboard-builder-live-badge/);
 assert.match(view, /\$badgeTone\s*===\s*'error'/);
 assert.match(view, /99\+/);
-assert.match(view, /admin-dashboard-builder\.css\?v=5/);
+assert.match(view, /admin-dashboard-builder\.css\?v=6/);
 assert.match(view, /data-dashboard-builder-root/);
 assert.match(view, /data-dashboard-builder-block-list/);
 assert.match(view, /data-dashboard-builder-block-handle/);
 assert.match(view, /data-dashboard-builder-block-title/);
+assert.match(view, /dashboard-builder-block is-collapsed/);
+assert.match(view, /data-dashboard-builder-editor-toggle/);
+assert.match(view, /Редагувати/);
 assert.match(view, /data-dashboard-builder-link-list/);
 assert.match(view, /data-dashboard-builder-link-handle/);
 assert.match(view, /data-dashboard-builder-links-empty/);
-assert.match(view, /admin-dashboard-builder\.js\?v=1/);
+assert.match(view, /admin-dashboard-builder\.js\?v=2/);
 assert.match(css, /@media\s*\(max-width:\s*700px\)/);
 assert.match(css, /min-height:\s*44px/);
 assert.match(css, /dashboard-builder-live-badge/);
@@ -262,6 +265,11 @@ assert.match(
     /\.dashboard-builder-block-actions,[\s\S]*?\.dashboard-builder-link-actions[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/
 );
 assert.match(css, /dashboard-builder-links-empty\[hidden\]/);
+assert.match(
+    css,
+    /dashboard-builder-block\.is-collapsed[\s\S]*?>\s*\.dashboard-builder-block-head[\s\S]*?display:\s*none\s*!important/
+);
+assert.match(css, /dashboard-builder-editor-toggle/);
 assert.match(
     css,
     /dashboard-builder-block\.is-dragging[\s\S]*?min-height:\s*68px/
@@ -285,6 +293,10 @@ assert.match(js, /restoreBlockOrder/);
 assert.match(js, /restoreLinkLayout/);
 assert.match(js, /blockForPoint/);
 assert.match(js, /syncEmptyStates/);
+assert.match(js, /setBlockCollapsed/);
+assert.match(js, /collapseAllBlocks/);
+assert.match(js, /data-dashboard-builder-editor-toggle/);
+assert.match(js, /Згорнути/);
 
 assert.match(
     migration,
