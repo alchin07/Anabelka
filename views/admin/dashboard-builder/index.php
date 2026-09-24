@@ -67,21 +67,25 @@ $availableForAdd = array_filter(
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-dashboard-builder.css?v=2"
+        href="/Anabelka/css/admin-dashboard-builder.css?v=3"
     >
 </head>
 <body>
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
-<main class="admin-dashboard-builder">
+<main
+    class="admin-dashboard-builder"
+    data-dashboard-builder-root
+    data-csrf="<?= $escape($csrfToken) ?>"
+>
     <section class="dashboard-builder-intro">
         <div>
             <h2>Конструктор головної адмін-панелі</h2>
             <p>
                 Блоки містять ярлики на зареєстровані служби Анабельки.
-                URL не зберігаються — кожне посилання працює через
-                <code>service_key</code>.
+                Перетягуйте блоки й ярлики за ручку ⠿. URL не зберігаються —
+                кожне посилання працює через <code>service_key</code>.
             </p>
         </div>
 
@@ -98,6 +102,14 @@ $availableForAdd = array_filter(
             <?= $escape($flash['message'] ?? '') ?>
         </div>
     <?php endif; ?>
+
+    <div
+        id="dashboard-builder-dnd-message"
+        class="dashboard-builder-flash"
+        role="status"
+        aria-live="polite"
+        hidden
+    ></div>
 
     <section class="dashboard-builder-create">
         <div>
@@ -140,7 +152,10 @@ $availableForAdd = array_filter(
         </section>
     <?php endif; ?>
 
-    <div class="dashboard-builder-blocks">
+    <div
+        class="dashboard-builder-blocks"
+        data-dashboard-builder-block-list
+    >
         <?php foreach ($blocks as $block): ?>
             <?php
             $blockId = (int) ($block['id'] ?? 0);
@@ -153,7 +168,18 @@ $availableForAdd = array_filter(
                 class="dashboard-builder-block<?= $blockActive
                     ? ''
                     : ' is-disabled' ?>"
+                data-dashboard-builder-block-id="<?= $blockId ?>"
             >
+                <button
+                    type="button"
+                    class="dashboard-builder-drag dashboard-builder-block-drag"
+                    data-dashboard-builder-block-handle
+                    aria-label="Перетягнути блок"
+                    title="Утримуйте та перетягуйте блок"
+                >
+                    <span aria-hidden="true">⠿</span>
+                </button>
+
                 <div class="dashboard-builder-block-head">
                     <form
                         class="dashboard-builder-title-form"
@@ -233,9 +259,16 @@ $availableForAdd = array_filter(
                     </div>
                 </div>
 
-                <div class="dashboard-builder-links">
+                <div
+                    class="dashboard-builder-links"
+                    data-dashboard-builder-link-list
+                    data-dashboard-builder-block-id="<?= $blockId ?>"
+                >
                     <?php if (empty($links)): ?>
-                        <div class="dashboard-builder-links-empty">
+                        <div
+                            class="dashboard-builder-links-empty"
+                            data-dashboard-builder-links-empty
+                        >
                             У цьому блоці ще немає служб.
                         </div>
                     <?php endif; ?>
@@ -267,7 +300,18 @@ $availableForAdd = array_filter(
                             class="dashboard-builder-link<?= $linkActive
                                 ? ''
                                 : ' is-disabled' ?>"
+                            data-dashboard-builder-link-id="<?= $linkId ?>"
                         >
+                            <button
+                                type="button"
+                                class="dashboard-builder-drag dashboard-builder-link-drag"
+                                data-dashboard-builder-link-handle
+                                aria-label="Перетягнути ярлик"
+                                title="Утримуйте та перетягуйте ярлик"
+                            >
+                                <span aria-hidden="true">⠿</span>
+                            </button>
+
                             <div class="dashboard-builder-link-meta">
                                 <div>
                                     <strong>
@@ -570,12 +614,13 @@ $availableForAdd = array_filter(
     <section class="dashboard-builder-note">
         <strong>Наступний етап</strong>
         <p>
-            Живі бейджі вже підключено до наявних джерел сповіщень.
-            Наступним етапом ці блоки та ярлики виведемо на нову
-            головну адмін-панелі, після чого додамо drag-and-drop.
+            Живі бейджі та блоки вже працюють на головній адмін-панелі.
+            Порядок блоків і ярликів, включно з переносом ярлика між
+            блоками, зберігається через drag-and-drop.
         </p>
     </section>
 </main>
 
+<script src="/Anabelka/js/admin-dashboard-builder.js?v=1"></script>
 </body>
 </html>
