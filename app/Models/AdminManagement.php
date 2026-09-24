@@ -753,12 +753,76 @@ class AdminManagement
     }
 
 
-    public static function auditLog($limit = 200)
+    public static function normalizeAuditFilters(array $filters)
+    {
+        $adminId = max(0, (int) ($filters['admin_id'] ?? 0));
+        $action = trim((string) ($filters['action'] ?? ''));
+
+        if (
+            $action !== ''
+            && preg_match('/^[a-z0-9_.-]{1,120}$/i', $action) !== 1
+        ) {
+            $action = '';
+        }
+
+        $dateFrom = self::normalizeAuditDate(
+            $filters['date_from'] ?? ''
+        );
+        $dateTo = self::normalizeAuditDate(
+            $filters['date_to'] ?? ''
+        );
+
+        if (
+            $dateFrom !== ''
+            && $dateTo !== ''
+            && strcmp($dateFrom, $dateTo) > 0
+        ) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+
+        return [
+            'admin_id' => $adminId,
+            'action' => $action,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo
+        ];
+    }
+
+
+    public static function auditLog(array $filters = [], $limit = 200)
     {
         AdminAccess::ensureSchema();
+        $filters = self::normalizeAuditFilters($filters);
         $limit = max(1, min(500, (int) $limit));
+        $where = [];
+        $params = [];
 
-        return Database::connect()->query("
+        if ($filters['admin_id'] > 0) {
+            $where[] = 'l.admin_user_id = :admin_id';
+            $params['admin_id'] = $filters['admin_id'];
+        }
+
+        if ($filters['action'] !== '') {
+            $where[] = 'l.action = :action';
+            $params['action'] = $filters['action'];
+        }
+
+        if ($filters['date_from'] !== '') {
+            $where[] = 'l.created_at >= :date_from';
+            $params['date_from'] = $filters['date_from'] . ' 00:00:00';
+        }
+
+        if ($filters['date_to'] !== '') {
+            $dateToExclusive = date(
+                'Y-m-d',
+                strtotime($filters['date_to'] . ' +1 day')
+            );
+            $where[] = 'l.created_at < :date_to_exclusive';
+            $params['date_to_exclusive'] =
+                $dateToExclusive . ' 00:00:00';
+        }
+
+        $sql = "
             SELECT
                 l.id,
                 l.admin_user_id,
@@ -769,9 +833,43 @@ class AdminManagement
                 au.email AS admin_email
             FROM admin_audit_log l
             LEFT JOIN admin_users au ON au.id = l.admin_user_id
-            ORDER BY l.id DESC
-            LIMIT {$limit}
+        ";
+
+        if (!empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $sql .= " ORDER BY l.id DESC LIMIT {$limit}";
+
+        $stmt = Database::connect()->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+    public static function auditAdministrators()
+    {
+        AdminAccess::ensureSchema();
+
+        return Database::connect()->query("
+            SELECT id, name, email, is_active
+            FROM admin_users
+            ORDER BY name ASC, email ASC, id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+    public static function auditActions()
+    {
+        AdminAccess::ensureSchema();
+
+        return Database::connect()->query("
+            SELECT DISTINCT action
+            FROM admin_audit_log
+            WHERE TRIM(action) <> ''
+            ORDER BY action ASC
+        ")->fetchAll(PDO::FETCH_COLUMN);
     }
 
 
@@ -799,6 +897,28 @@ class AdminManagement
                 'Спочатку адміністратор має прийняти запрошення та встановити власний пароль.'
             );
         }
+    }
+
+
+    private static function normalizeAuditDate($value)
+    {
+        $value = trim((string) $value);
+
+        if (
+            $value === ''
+            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1
+        ) {
+            return '';
+        }
+
+        [$year, $month, $day] = array_map(
+            'intval',
+            explode('-', $value)
+        );
+
+        return checkdate($month, $day, $year)
+            ? $value
+            : '';
     }
 
 

@@ -60,7 +60,7 @@ foreach ($permissions as $permission) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адміністратори') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=5">
 </head>
 <body>
 
@@ -242,6 +242,12 @@ foreach ($permissions as $permission) {
                                     ? 'Останній вхід: ' . htmlspecialchars($admin['last_login_at'])
                                     : 'Ще не входив' ?>
                             </small>
+                            <?php if ($canAudit): ?>
+                                <a
+                                    class="admin-staff-audit-link"
+                                    href="/Anabelka/admin/audit?admin_id=<?= $adminId ?>"
+                                >Дії адміністратора</a>
+                            <?php endif; ?>
                         </div>
                         <div class="admin-staff-badges">
                             <span class="admin-staff-role"><?= htmlspecialchars($admin['role_name'] ?? '') ?></span>

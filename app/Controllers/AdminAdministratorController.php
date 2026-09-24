@@ -530,9 +530,19 @@ class AdminAdministratorController extends Controller
 
     public function audit()
     {
+        $filters = AdminManagement::normalizeAuditFilters([
+            'admin_id' => $_GET['admin_id'] ?? 0,
+            'action' => $_GET['action'] ?? '',
+            'date_from' => $_GET['date_from'] ?? '',
+            'date_to' => $_GET['date_to'] ?? ''
+        ]);
+
         $this->view('admin/administrators/audit', [
             'pageTitle' => 'Адмін-панель · Журнал дій',
-            'entries' => AdminManagement::auditLog(250)
+            'entries' => AdminManagement::auditLog($filters, 250),
+            'auditAdministrators' => AdminManagement::auditAdministrators(),
+            'auditActions' => AdminManagement::auditActions(),
+            'filters' => $filters
         ]);
     }
 

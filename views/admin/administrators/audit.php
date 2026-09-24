@@ -1,5 +1,14 @@
 <?php
 $entries = is_array($entries ?? null) ? $entries : [];
+$auditAdministrators = is_array($auditAdministrators ?? null)
+    ? $auditAdministrators
+    : [];
+$auditActions = is_array($auditActions ?? null)
+    ? $auditActions
+    : [];
+$filters = AdminManagement::normalizeAuditFilters(
+    is_array($filters ?? null) ? $filters : []
+);
 $actionLabels = [
     'admin.owner_created' => 'Створено розробника',
     'admin.login' => 'Вхід адміністратора',
@@ -162,7 +171,7 @@ $formatDetail = static function ($key, $value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Журнал дій') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=5">
 </head>
 <body>
 
@@ -173,7 +182,10 @@ $formatDetail = static function ($key, $value) {
         <div>
             <span class="admin-security-kicker">Безпека</span>
             <h2>Журнал адміністративних дій</h2>
-            <p>Останні <?= count($entries) ?> записів. Паролі, токени та тексти перекладів у журнал не записуються.</p>
+            <p>
+                Показано <?= count($entries) ?> записів.
+                Паролі, токени та тексти перекладів у журнал не записуються.
+            </p>
         </div>
         <?php if (AdminAccess::can('administrators.view')): ?>
             <a class="admin-security-audit-link" href="/Anabelka/admin/administrators">Адміністратори</a>
@@ -181,8 +193,75 @@ $formatDetail = static function ($key, $value) {
     </section>
 
     <section class="admin-security-panel">
+        <form
+            class="admin-audit-filters"
+            method="get"
+            action="/Anabelka/admin/audit"
+        >
+            <label>
+                <span>Адміністратор</span>
+                <select name="admin_id">
+                    <option value="0">Усі адміністратори</option>
+                    <?php foreach ($auditAdministrators as $auditAdmin): ?>
+                        <?php $filterAdminId = (int) ($auditAdmin['id'] ?? 0); ?>
+                        <option
+                            value="<?= $filterAdminId ?>"
+                            <?= $filters['admin_id'] === $filterAdminId ? 'selected' : '' ?>
+                        >
+                            <?= htmlspecialchars(
+                                trim(
+                                    (string) ($auditAdmin['name'] ?? '')
+                                    . ' · '
+                                    . (string) ($auditAdmin['email'] ?? '')
+                                )
+                            ) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                <span>Дія</span>
+                <select name="action">
+                    <option value="">Усі дії</option>
+                    <?php foreach ($auditActions as $auditAction): ?>
+                        <?php $auditAction = (string) $auditAction; ?>
+                        <option
+                            value="<?= htmlspecialchars($auditAction, ENT_QUOTES, 'UTF-8') ?>"
+                            <?= $filters['action'] === $auditAction ? 'selected' : '' ?>
+                        >
+                            <?= htmlspecialchars($actionLabels[$auditAction] ?? $auditAction) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                <span>Від</span>
+                <input
+                    type="date"
+                    name="date_from"
+                    value="<?= htmlspecialchars($filters['date_from'], ENT_QUOTES, 'UTF-8') ?>"
+                >
+            </label>
+
+            <label>
+                <span>До</span>
+                <input
+                    type="date"
+                    name="date_to"
+                    value="<?= htmlspecialchars($filters['date_to'], ENT_QUOTES, 'UTF-8') ?>"
+                >
+            </label>
+
+            <button type="submit">Фільтрувати</button>
+            <a href="/Anabelka/admin/audit">Скинути</a>
+        </form>
+    </section>
+
+    <section class="admin-security-panel">
         <?php if (empty($entries)): ?>
-            <div class="admin-audit-empty">Журнал поки порожній.</div>
+            <div class="admin-audit-empty">За вибраними фільтрами записів немає.</div>
         <?php else: ?>
             <div class="admin-audit-list">
                 <?php foreach ($entries as $entry): ?>
