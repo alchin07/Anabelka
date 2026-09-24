@@ -26,6 +26,44 @@
     let messageTimer = 0;
     let selectedBlockId = '';
 
+    function setHomeBlockCollapsed(item, collapsed)
+    {
+        if (!item) {
+            return;
+        }
+
+        const isCollapsed = Boolean(collapsed);
+        const button = item.querySelector(
+            '[data-home-builder-editor-toggle]'
+        );
+
+        item.classList.toggle(
+            'is-collapsed',
+            isCollapsed
+        );
+
+        if (button) {
+            button.setAttribute(
+                'aria-expanded',
+                isCollapsed ? 'false' : 'true'
+            );
+            button.textContent = isCollapsed
+                ? 'Редагувати'
+                : 'Згорнути';
+        }
+    }
+
+
+    function collapseAllHomeBlocks()
+    {
+        root.querySelectorAll(
+            '[data-block-id]'
+        ).forEach(function (item) {
+            setHomeBlockCollapsed(item, true);
+        });
+    }
+
+
     function blocks(list)
     {
         return Array.from(
@@ -609,6 +647,8 @@
 
         event.preventDefault();
 
+        setHomeBlockCollapsed(item, true);
+
         activeDrag = {
             pointerId: event.pointerId,
             handle: handle,
@@ -795,6 +835,27 @@
     });
 
     root.querySelectorAll(
+        '[data-home-builder-editor-toggle]'
+    ).forEach(function (button) {
+        button.addEventListener('click', function () {
+            const item = button.closest('[data-block-id]');
+
+            if (
+                !item
+                || activeDrag
+                || previewDragState
+            ) {
+                return;
+            }
+
+            setHomeBlockCollapsed(
+                item,
+                !item.classList.contains('is-collapsed')
+            );
+        });
+    });
+
+    root.querySelectorAll(
         '[data-home-builder-drag-handle]'
     ).forEach(function (handle) {
         handle.addEventListener('pointerdown', startDrag);
@@ -918,6 +979,7 @@
     });
 
     window.requestAnimationFrame(function () {
+        collapseAllHomeBlocks();
         activatePreview('mobile');
         resizePreviews();
     });
