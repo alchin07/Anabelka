@@ -230,6 +230,42 @@
     opacity: .94;
 }
 
+.dashboard-builder-block.is-dragging {
+    min-height: 68px;
+    box-sizing: border-box;
+    padding: 12px 16px 12px 76px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.dashboard-builder-block.is-dragging
+> .dashboard-builder-block-head,
+.dashboard-builder-block.is-dragging
+> .dashboard-builder-links,
+.dashboard-builder-block.is-dragging
+> .dashboard-builder-add-service {
+    display: none !important;
+}
+
+.dashboard-builder-block.is-dragging::after {
+    content: attr(data-dashboard-builder-block-title);
+    min-width: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    color: #20202a;
+    font-size: 16px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-builder-block.is-dragging
+.dashboard-builder-block-drag {
+    top: 12px;
+}
+
 .dashboard-builder-block.is-link-drop-target {
     border-color: #8A2BE2;
     box-shadow:
@@ -479,6 +515,23 @@ body.dashboard-builder-dragging {
         top: 12px;
         left: 10px;
     }
+
+    .dashboard-builder-block.is-dragging {
+        min-height: 64px;
+        padding: 10px 10px 10px 64px;
+    }
+
+    .dashboard-builder-block.is-dragging::after {
+        min-height: 44px;
+        font-size: 14px;
+    }
+
+    .dashboard-builder-block.is-dragging
+    .dashboard-builder-block-drag {
+        top: 10px;
+        left: 10px;
+    }
+
 
     .dashboard-builder-create form,
     .dashboard-builder-title-form,
