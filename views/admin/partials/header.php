@@ -127,6 +127,7 @@ $adminCan = static function ($permission) {
 };
 
 $canDashboard = $adminCan('dashboard.view');
+$canDashboardBuilder = $adminCan('dashboard.manage');
 $canOrders = $adminCan('orders.view');
 $canSearch = $adminCan('search.view');
 $canUsers = $adminCan('users.view');
@@ -237,7 +238,7 @@ $canVipPriceViews = $adminCan('vip_prices.view');
     </div>
 
     <nav id="admin-section-nav" class="admin-section-nav">
-        <?php if ($canDashboard || $canOrders || $canSearch || $canUsers || $canRanks): ?>
+        <?php if ($canDashboard || $canDashboardBuilder || $canOrders || $canSearch || $canUsers || $canRanks): ?>
             <span class="admin-nav-group-title">Огляд</span>
 
             <?php if ($canDashboard): ?>
@@ -247,6 +248,15 @@ $canVipPriceViews = $adminCan('vip_prices.view');
                     data-admin-exact="true"
                 >
                     <span>Головна</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canDashboardBuilder): ?>
+                <a
+                    href="/Anabelka/admin/dashboard-builder"
+                    data-admin-route="/Anabelka/admin/dashboard-builder"
+                >
+                    <span>Конструктор адмін-главної</span>
                 </a>
             <?php endif; ?>
 
