@@ -129,7 +129,7 @@ assert.match(
 );
 assert.match(
     controller,
-    /AdminDashboardServiceRegistry::available\s*\(/
+    /AdminDashboardServiceRegistry::availableWithBadges\s*\(/
 );
 assert.match(
     controller,
@@ -151,7 +151,7 @@ assert.match(view, /badge_count/);
 assert.match(view, /dashboard-builder-live-badge/);
 assert.match(view, /\$badgeTone\s*===\s*'error'/);
 assert.match(view, /99\+/);
-assert.match(view, /admin-dashboard-builder\.css\?v=1/);
+assert.match(view, /admin-dashboard-builder\.css\?v=2/);
 assert.match(css, /@media\s*\(max-width:\s*700px\)/);
 assert.match(css, /min-height:\s*44px/);
 assert.match(css, /dashboard-builder-live-badge/);
