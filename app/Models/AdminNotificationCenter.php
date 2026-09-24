@@ -85,7 +85,7 @@ class AdminNotificationCenter
         self::ensureSchema();
         $items = [];
 
-        if (AdminAccess::can('orders.view')) {
+        if (AdminAccess::can('orders.manage')) {
             $items[] = self::item(
                 'orders',
                 self::BADGE_CHANNELS['orders'],
@@ -95,7 +95,7 @@ class AdminNotificationCenter
             );
         }
 
-        if (AdminAccess::can('users.view')) {
+        if (AdminAccess::can('users.manage')) {
             $items[] = self::item(
                 'new_users',
                 self::BADGE_CHANNELS['new_users'],
@@ -113,7 +113,7 @@ class AdminNotificationCenter
             );
         }
 
-        if (AdminAccess::can('translations.view')) {
+        if (AdminAccess::can('translations.manage')) {
             $items[] = self::item(
                 'translations',
                 self::BADGE_CHANNELS['translations'],
@@ -149,9 +149,9 @@ class AdminNotificationCenter
         }
 
         self::$summaryCache[$adminUserId] = [
-            // total — число для загального персонального бейджа.
+            // total — число для загального бейджа лише з каналів, якими адміністратор може керувати.
             'total' => $badgeTotal,
-            // all_total — усі доступні поточному адміністратору події.
+            // all_total — усі події з каналів, для яких є право *.manage.
             'all_total' => $allTotal,
             // items/by_key завжди повні: локальні лічильники не фільтруємо.
             'items' => $items,
@@ -326,7 +326,7 @@ class AdminNotificationCenter
             return;
         }
 
-        if (!class_exists('AdminAccess') || !AdminAccess::can('users.view')) {
+        if (!class_exists('AdminAccess') || !AdminAccess::can('users.manage')) {
             return;
         }
 
@@ -382,14 +382,14 @@ class AdminNotificationCenter
     {
         switch ((string) $channel) {
             case 'orders':
-                return AdminAccess::can('orders.view');
+                return AdminAccess::can('orders.manage');
 
             case 'new_users':
             case 'rank_requests':
-                return AdminAccess::can('users.view');
+                return AdminAccess::can('users.manage');
 
             case 'translations':
-                return AdminAccess::can('translations.view');
+                return AdminAccess::can('translations.manage');
         }
 
         return false;
@@ -452,7 +452,7 @@ class AdminNotificationCenter
     {
         $total = 0;
 
-        if (AdminAccess::can('products.view')) {
+        if (AdminAccess::can('products.manage')) {
             $total += self::safeCount("
                 SELECT COUNT(*)
                 FROM products p
@@ -472,7 +472,7 @@ class AdminNotificationCenter
             ");
         }
 
-        if (AdminAccess::can('categories.view')) {
+        if (AdminAccess::can('categories.manage')) {
             $total += self::safeCount("
                 SELECT COUNT(*)
                 FROM categories c
@@ -492,7 +492,7 @@ class AdminNotificationCenter
             ");
         }
 
-        if (AdminAccess::can('delivery.view')) {
+        if (AdminAccess::can('delivery.manage')) {
             $total += self::deliveryTranslationAttention();
         }
 

@@ -12,17 +12,17 @@ const header = fs.readFileSync(
 
 assert.match(
     notifications,
-    /if\s*\(AdminAccess::can\('orders\.view'\)\)[\s\S]*?self::item\([\s\S]*?'orders'/
+    /if\s*\(AdminAccess::can\('orders\\.manage'\)\)[\s\S]*?self::item\([\s\S]*?'orders'/
 );
 
 assert.match(
     notifications,
-    /if\s*\(AdminAccess::can\('users\.view'\)\)[\s\S]*?self::item\([\s\S]*?'new_users'[\s\S]*?self::item\([\s\S]*?'rank_requests'/
+    /if\s*\(AdminAccess::can\('users\\.manage'\)\)[\s\S]*?self::item\([\s\S]*?'new_users'[\s\S]*?self::item\([\s\S]*?'rank_requests'/
 );
 
 assert.match(
     notifications,
-    /if\s*\(AdminAccess::can\('translations\.view'\)\)[\s\S]*?self::item\([\s\S]*?'translations'/
+    /if\s*\(AdminAccess::can\('translations\\.manage'\)\)[\s\S]*?self::item\([\s\S]*?'translations'/
 );
 
 assert.match(
