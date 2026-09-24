@@ -76,6 +76,7 @@ class App
         require_once __DIR__ . '/../Models/UserRankTranslator.php';
         require_once __DIR__ . '/../Models/UserInvitation.php';
         require_once __DIR__ . '/../Models/AdminAccess.php';
+        require_once __DIR__ . '/../Models/AdminInvitation.php';
         require_once __DIR__ . '/../Models/AdminNotificationCenter.php';
         require_once __DIR__ . '/../Models/AdminDashboardServiceRegistry.php';
         require_once __DIR__ . '/../Models/AdminActionAudit.php';
