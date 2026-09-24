@@ -27,6 +27,11 @@ assert.match(
 
 assert.match(
     notifications,
+    /if\s*\(AdminAccess::can\('audit\.view'\)\)[\s\S]*?self::item\([\s\S]*?'audit'/
+);
+
+assert.match(
+    notifications,
     /foreach\s*\(\$items as \$item\)[\s\S]*?\$badgeTotal \+= \$count/
 );
 
