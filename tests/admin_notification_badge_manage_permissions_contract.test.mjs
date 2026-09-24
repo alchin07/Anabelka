@@ -41,6 +41,14 @@ assert.match(
     notifications,
     /case 'translations':[\s\S]*?translations\.manage/
 );
+assert.match(
+    notifications,
+    /if\s*\(AdminAccess::can\('audit\.view'\)\)[\s\S]*?'audit'/
+);
+assert.match(
+    notifications,
+    /case 'audit':[\s\S]*?audit\.view/
+);
 
 assert.match(
     notifications,
