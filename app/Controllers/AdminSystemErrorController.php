@@ -83,6 +83,18 @@ class AdminSystemErrorController extends Controller
 
         $items = array_slice($items, 0, 120);
 
+        $recentItems = [];
+        foreach (array_slice($items, 0, 3) as $item) {
+            $category = SystemErrorLog::categoryForItem($item);
+            $item['category_key'] = (string) ($category['key'] ?? 'application');
+            $item['category_label'] = (string) ($category['label'] ?? 'Застосунок');
+            $recentItems[] = $item;
+        }
+
+        $olderCategories = SystemErrorLog::categorizeItems(
+            array_slice($items, 3)
+        );
+
         $flash = is_array($_SESSION['admin_system_error_flash'] ?? null)
             ? $_SESSION['admin_system_error_flash']
             : null;
@@ -91,6 +103,8 @@ class AdminSystemErrorController extends Controller
         $this->view('admin/system/errors', [
             'pageTitle' => 'Адмін-панель · Системні помилки',
             'items' => $items,
+            'recentItems' => $recentItems,
+            'olderCategories' => $olderCategories,
             'summary' => SystemErrorLog::summary($items),
             'workflowSummary' => SystemErrorStatus::summary($items),
             'filters' => $filters,

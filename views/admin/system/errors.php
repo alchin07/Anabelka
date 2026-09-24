@@ -1,5 +1,11 @@
 <?php
 $items = is_array($items ?? null) ? $items : [];
+$recentItems = is_array($recentItems ?? null)
+    ? $recentItems
+    : array_slice($items, 0, 3);
+$olderCategories = is_array($olderCategories ?? null)
+    ? $olderCategories
+    : SystemErrorLog::categorizeItems(array_slice($items, 3));
 $summary = is_array($summary ?? null) ? $summary : [];
 $workflowSummary = is_array($workflowSummary ?? null) ? $workflowSummary : [];
 $filters = is_array($filters ?? null) ? $filters : [];
@@ -57,7 +63,7 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Адмін-панель · Системні помилки') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-system-errors.css?v=5">
     <link rel="stylesheet" href="/Anabelka/css/admin-system-error-notes.css?v=1">
 </head>
 <body>
@@ -68,7 +74,7 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
     <section class="system-errors-intro">
         <div>
             <h2>Системні помилки</h2>
-            <p>Технічний журнал Анабельки. Однакові помилки об’єднуються в групи.</p>
+            <p>Технічний журнал Анабельки. Однакові помилки об’єднуються в групи, а старіші записи розкладені за характером помилки.</p>
         </div>
         <a href="/Anabelka/admin/system/error-test">Тест обробника</a>
     </section>
@@ -322,45 +328,75 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
         </section>
     <?php endif; ?>
 
-    <section class="system-errors-list" aria-label="Журнал системних помилок">
-        <?php if (empty($items)): ?>
-            <div class="system-errors-empty">За вибраними умовами записів немає.</div>
-        <?php endif; ?>
-
-        <?php foreach ($items as $item): ?>
-            <?php
-            $request = is_array($item['request'] ?? null) ? $item['request'] : [];
-            $detailQuery = $filterQuery;
-            $detailQuery['ref'] = (string) ($item['reference'] ?? '');
-            $itemWorkflow = (string) ($item['workflow_status'] ?? 'new');
-            $repeatCount = max(1, (int) ($item['repeat_count'] ?? 1));
-            $itemNote = trim((string) ($item['developer_note'] ?? ''));
-            ?>
-            <article class="system-error-card is-status-<?= $escape($itemWorkflow) ?>">
-                <div class="system-error-card-head">
-                    <div class="system-error-badges">
+    <?php
+    $renderErrorCard = static function (
+        array $item,
+        $open
+    ) use (
+        $escape,
+        $formatTime,
+        $workflowLabel,
+        $kindLabel,
+        $filterQuery
+    ) {
+        $request = is_array($item['request'] ?? null)
+            ? $item['request']
+            : [];
+        $detailQuery = $filterQuery;
+        $detailQuery['ref'] = (string) ($item['reference'] ?? '');
+        $itemWorkflow = (string) ($item['workflow_status'] ?? 'new');
+        $repeatCount = max(1, (int) ($item['repeat_count'] ?? 1));
+        $itemNote = trim((string) ($item['developer_note'] ?? ''));
+        ?>
+        <details
+            class="system-error-card is-status-<?= $escape($itemWorkflow) ?>"
+            <?= $open ? 'open' : '' ?>
+        >
+            <summary class="system-error-compact-summary">
+                <span class="system-error-compact-main">
+                    <span class="system-error-badges">
                         <span class="system-error-level is-<?= $escape($item['level'] ?? 'error') ?>">
                             <?= $escape(strtoupper((string) ($item['level'] ?? 'error'))) ?>
                         </span>
                         <span class="system-error-workflow is-<?= $escape($itemWorkflow) ?>">
                             <?= $escape($workflowLabel($itemWorkflow)) ?>
                         </span>
+                        <?php if (!empty($item['category_label'])): ?>
+                            <span class="system-error-category-badge">
+                                <?= $escape($item['category_label']) ?>
+                            </span>
+                        <?php endif; ?>
                         <?php if ($repeatCount > 1): ?>
                             <span class="system-error-repeat-badge">×<?= $repeatCount ?></span>
                         <?php endif; ?>
                         <?php if ($itemNote !== ''): ?>
                             <span class="system-error-note-badge">Нотатка</span>
                         <?php endif; ?>
-                    </div>
-                    <time><?= $escape($formatTime($item['last_time'] ?? $item['time'] ?? '')) ?></time>
-                </div>
+                    </span>
 
-                <strong class="system-error-reference"><?= $escape($item['reference'] ?? '') ?></strong>
-                <p class="system-error-message"><?= $escape($item['message'] ?? '') ?></p>
+                    <span class="system-error-compact-message">
+                        <?= $escape($item['message'] ?? '') ?>
+                    </span>
+                </span>
+
+                <span class="system-error-compact-side">
+                    <time><?= $escape($formatTime($item['last_time'] ?? $item['time'] ?? '')) ?></time>
+                    <span class="system-error-chevron" aria-hidden="true">⌄</span>
+                </span>
+            </summary>
+
+            <div class="system-error-card-body">
+                <strong class="system-error-reference">
+                    <?= $escape($item['reference'] ?? '') ?>
+                </strong>
+                <p class="system-error-message">
+                    <?= $escape($item['message'] ?? '') ?>
+                </p>
 
                 <?php if ($repeatCount > 1): ?>
                     <div class="system-error-repeat-line">
-                        Повторилося <?= $repeatCount ?> разів · перше <?= $escape($formatTime($item['first_time'] ?? '')) ?>
+                        Повторилося <?= $repeatCount ?> разів · перше
+                        <?= $escape($formatTime($item['first_time'] ?? '')) ?>
                     </div>
                 <?php endif; ?>
 
@@ -370,13 +406,71 @@ $filterQuery = array_filter($filterQuery, static function ($value, $key) {
                 </div>
 
                 <div class="system-error-card-foot">
-                    <span title="<?= $escape($item['kind'] ?? '') ?>"><?= $escape($kindLabel($item['kind'] ?? '')) ?></span>
+                    <span title="<?= $escape($item['kind'] ?? '') ?>">
+                        <?= $escape($kindLabel($item['kind'] ?? '')) ?>
+                    </span>
                     <a href="/Anabelka/admin/system/errors?<?= $escape(http_build_query($detailQuery)) ?>">
                         Подробиці
                     </a>
                 </div>
-            </article>
-        <?php endforeach; ?>
+            </div>
+        </details>
+        <?php
+    };
+    ?>
+
+    <section class="system-errors-list" aria-label="Журнал системних помилок">
+        <?php if (empty($items)): ?>
+            <div class="system-errors-empty">За вибраними умовами записів немає.</div>
+        <?php else: ?>
+            <?php if (!empty($recentItems)): ?>
+                <section class="system-error-category-group is-recent">
+                    <div class="system-error-category-head">
+                        <div>
+                            <span>Останні</span>
+                            <h3>3 найсвіжіші помилки</h3>
+                        </div>
+                        <strong><?= count($recentItems) ?></strong>
+                    </div>
+
+                    <div class="system-error-category-list">
+                        <?php foreach ($recentItems as $item): ?>
+                            <?php $renderErrorCard($item, true); ?>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+            <?php endif; ?>
+
+            <?php if (!empty($olderCategories)): ?>
+                <div class="system-errors-older-title">
+                    <span>Старіші записи</span>
+                    <strong>За характером помилки</strong>
+                </div>
+
+                <?php foreach ($olderCategories as $category): ?>
+                    <?php
+                    $categoryItems = is_array($category['items'] ?? null)
+                        ? $category['items']
+                        : [];
+                    ?>
+                    <section class="system-error-category-group">
+                        <div class="system-error-category-head">
+                            <div>
+                                <span>Категорія</span>
+                                <h3><?= $escape($category['label'] ?? 'Застосунок') ?></h3>
+                            </div>
+                            <strong><?= (int) ($category['count'] ?? count($categoryItems)) ?></strong>
+                        </div>
+
+                        <div class="system-error-category-list">
+                            <?php foreach ($categoryItems as $item): ?>
+                                <?php $renderErrorCard($item, false); ?>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        <?php endif; ?>
     </section>
 </main>
 
