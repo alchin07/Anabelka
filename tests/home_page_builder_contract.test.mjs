@@ -157,7 +157,7 @@ assert.match(admin, /admin-home-builder-block is-collapsed/);
 assert.match(admin, /data-home-builder-editor-toggle/);
 assert.match(admin, /admin-home-builder-summary/);
 assert.match(admin, /admin-home-page\.css\?v=4/);
-assert.match(admin, /admin-home-page\.js\?v=4/);
+assert.match(admin, /admin-home-page\.js\?v=5/);
 assert.match(admin, /data-home-builder-preview-frame="mobile"/);
 assert.match(admin, /data-home-builder-preview-frame="desktop"/);
 assert.match(admin, /data-home-builder-preview-tab="mobile"/);
