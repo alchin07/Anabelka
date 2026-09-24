@@ -308,6 +308,165 @@ class AdminManagement
     }
 
 
+    public static function deleteAdministrator($adminId)
+    {
+        AdminAccess::ensureSchema();
+        $adminId = (int) $adminId;
+
+        if ($adminId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректний адміністратор.'
+            );
+        }
+
+        if ($adminId === AdminAccess::currentId()) {
+            throw new RuntimeException(
+                'Не можна видалити власний активний обліковий запис.'
+            );
+        }
+
+        // Any helper that may CREATE TABLE must run before the transaction.
+        if (class_exists('AdminInvitation')) {
+            AdminInvitation::ensureSchema();
+        }
+        if (class_exists('AdminNotificationCenter')) {
+            AdminNotificationCenter::ensureSchema();
+        }
+        if (class_exists('SystemErrorNotification')) {
+            SystemErrorNotification::ensureSchema();
+        }
+        if (class_exists('SystemErrorNote')) {
+            SystemErrorNote::ensureSchema();
+        }
+        if (class_exists('SystemErrorStatus')) {
+            SystemErrorStatus::ensureSchema();
+        }
+        if (class_exists('CustomerRankRequest')) {
+            CustomerRankRequest::ensureSchema();
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT
+                    au.id,
+                    au.name,
+                    au.email,
+                    au.role_id,
+                    au.is_active,
+                    ar.name AS role_name,
+                    ar.slug AS role_slug
+                FROM admin_users au
+                INNER JOIN admin_roles ar ON ar.id = au.role_id
+                WHERE au.id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute(['id' => $adminId]);
+            $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$admin) {
+                throw new RuntimeException(
+                    'Адміністратора не знайдено.'
+                );
+            }
+
+            if (($admin['role_slug'] ?? '') === 'owner') {
+                throw new RuntimeException(
+                    'Обліковий запис Розробника видалити не можна.'
+                );
+            }
+
+            if (class_exists('CustomerRankRequest')) {
+                $clearRankRequests = $db->prepare("
+                    UPDATE customer_rank_requests
+                    SET admin_user_id = NULL
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $clearRankRequests->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('SystemErrorNote')) {
+                $clearErrorNotes = $db->prepare("
+                    UPDATE admin_system_error_notes
+                    SET updated_by_admin_id = NULL
+                    WHERE updated_by_admin_id = :admin_user_id
+                ");
+                $clearErrorNotes->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('SystemErrorStatus')) {
+                $clearErrorStatus = $db->prepare("
+                    UPDATE admin_system_error_status
+                    SET updated_by_admin_id = NULL
+                    WHERE updated_by_admin_id = :admin_user_id
+                ");
+                $clearErrorStatus->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('SystemErrorNotification')) {
+                $deleteErrorState = $db->prepare("
+                    DELETE FROM admin_system_error_notification_state
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteErrorState->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('AdminNotificationCenter')) {
+                $deleteNotificationState = $db->prepare("
+                    DELETE FROM admin_notification_state
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteNotificationState->execute([
+                    'admin_user_id' => $adminId
+                ]);
+
+                $deleteNotificationPreferences = $db->prepare("
+                    DELETE FROM admin_notification_preferences
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteNotificationPreferences->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            // admin_invitations is ON DELETE CASCADE, while admin_audit_log
+            // keeps history through ON DELETE SET NULL.
+            $delete = $db->prepare("
+                DELETE FROM admin_users
+                WHERE id = :id
+            ");
+            $delete->execute(['id' => $adminId]);
+
+            if ($delete->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Не вдалося видалити адміністратора.'
+                );
+            }
+
+            $db->commit();
+
+            return $admin;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
     public static function createCustomRole($name, array $permissionKeys)
     {
         AdminAccess::ensureSchema();
@@ -349,6 +508,171 @@ class AdminManagement
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
+            throw $e;
+        }
+    }
+
+
+    public static function renameCustomRole($roleId, $name)
+    {
+        AdminAccess::ensureSchema();
+        $roleId = (int) $roleId;
+        $name = self::normalizeRoleName($name);
+
+        if ($roleId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректна роль адміністратора.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT id, name, slug, is_system
+                FROM admin_roles
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute(['id' => $roleId]);
+            $role = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$role) {
+                throw new RuntimeException(
+                    'Роль адміністратора не знайдено.'
+                );
+            }
+
+            if (!empty($role['is_system'])) {
+                throw new RuntimeException(
+                    'Назву системної ролі змінювати не можна.'
+                );
+            }
+
+            $duplicate = $db->prepare("
+                SELECT id
+                FROM admin_roles
+                WHERE name = :name
+                  AND id <> :id
+                LIMIT 1
+            ");
+            $duplicate->execute([
+                'name' => $name,
+                'id' => $roleId
+            ]);
+
+            if ($duplicate->fetchColumn()) {
+                throw new RuntimeException(
+                    'Роль із такою назвою вже існує.'
+                );
+            }
+
+            $update = $db->prepare("
+                UPDATE admin_roles
+                SET name = :name
+                WHERE id = :id
+            ");
+            $update->execute([
+                'name' => $name,
+                'id' => $roleId
+            ]);
+
+            $db->commit();
+
+            $role['old_name'] = (string) ($role['name'] ?? '');
+            $role['name'] = $name;
+
+            return $role;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    public static function deleteCustomRole($roleId)
+    {
+        AdminAccess::ensureSchema();
+        $roleId = (int) $roleId;
+
+        if ($roleId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректна роль адміністратора.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT id, name, slug, is_system
+                FROM admin_roles
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute(['id' => $roleId]);
+            $role = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$role) {
+                throw new RuntimeException(
+                    'Роль адміністратора не знайдено.'
+                );
+            }
+
+            if (!empty($role['is_system'])) {
+                throw new RuntimeException(
+                    'Системну роль видалити не можна.'
+                );
+            }
+
+            $assigned = $db->prepare("
+                SELECT id
+                FROM admin_users
+                WHERE role_id = :role_id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $assigned->execute([
+                'role_id' => $roleId
+            ]);
+
+            if ($assigned->fetchColumn()) {
+                throw new RuntimeException(
+                    'Спочатку призначте адміністраторам іншу роль.'
+                );
+            }
+
+            $delete = $db->prepare("
+                DELETE FROM admin_roles
+                WHERE id = :id
+                  AND is_system = 0
+            ");
+            $delete->execute([
+                'id' => $roleId
+            ]);
+
+            if ($delete->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Не вдалося видалити роль.'
+                );
+            }
+
+            // Role permissions and saved overrides are removed by FK CASCADE.
+            $db->commit();
+
+            return $role;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
             throw $e;
         }
     }

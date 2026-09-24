@@ -341,6 +341,34 @@ class AdminAdministratorController extends Controller
     }
 
 
+    public function deleteAdministrator()
+    {
+        try {
+            $this->verifyCsrf();
+            $admin = AdminManagement::deleteAdministrator(
+                $_POST['admin_id'] ?? 0
+            );
+
+            AdminAccess::audit(
+                'admin.deleted',
+                [
+                    'target_admin_id' => (int) ($admin['id'] ?? 0),
+                    'email' => (string) ($admin['email'] ?? ''),
+                    'role' => (string) ($admin['role_slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect(
+                'message',
+                'Обліковий запис адміністратора видалено.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
     public function createRole()
     {
         try {
@@ -363,6 +391,58 @@ class AdminAdministratorController extends Controller
             );
 
             $this->redirect('message', 'Власну роль створено.');
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function renameRole()
+    {
+        try {
+            $this->verifyCsrf();
+            $role = AdminManagement::renameCustomRole(
+                $_POST['role_id'] ?? 0,
+                $_POST['role_name'] ?? ''
+            );
+
+            AdminAccess::audit(
+                'admin.role_renamed',
+                [
+                    'role_id' => (int) ($role['id'] ?? 0),
+                    'old_name' => (string) ($role['old_name'] ?? ''),
+                    'role_name' => (string) ($role['name'] ?? ''),
+                    'role_slug' => (string) ($role['slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect('message', 'Назву ролі змінено.');
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function deleteRole()
+    {
+        try {
+            $this->verifyCsrf();
+            $role = AdminManagement::deleteCustomRole(
+                $_POST['role_id'] ?? 0
+            );
+
+            AdminAccess::audit(
+                'admin.role_deleted',
+                [
+                    'role_id' => (int) ($role['id'] ?? 0),
+                    'role_name' => (string) ($role['name'] ?? ''),
+                    'role_slug' => (string) ($role['slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect('message', 'Власну роль видалено.');
         } catch (Throwable $e) {
             $this->redirect('error', $e->getMessage());
         }

@@ -60,7 +60,7 @@ foreach ($permissions as $permission) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адміністратори') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=4">
 </head>
 <body>
 
@@ -371,6 +371,24 @@ foreach ($permissions as $permission) {
                                     </button>
                                 </form>
                             <?php endif; ?>
+
+                            <?php if (!$isCurrent): ?>
+                                <form
+                                    class="admin-staff-delete-form"
+                                    method="post"
+                                    action="/Anabelka/admin/administrators/delete"
+                                    data-anabelka-confirm="Видалити цього адміністратора назавжди? Запрошення та персональні стани сповіщень буде очищено."
+                                    data-anabelka-confirm-title="Видалення адміністратора"
+                                    data-anabelka-confirm-confirm-text="Видалити"
+                                    data-anabelka-confirm-danger="1"
+                                >
+                                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+                                    <button type="submit">
+                                        Видалити адміністратора
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </article>
@@ -436,6 +454,49 @@ foreach ($permissions as $permission) {
                             <?= $isOwnerRole
                                 ? 'Розробник завжди має всі права.'
                                 : 'Це готова системна роль. Її права можна змінювати; базовий доступ до адмін-панелі залишається обов’язковим.' ?>
+                        </div>
+                    <?php elseif ($canManage): ?>
+                        <div class="admin-custom-role-management">
+                            <form
+                                method="post"
+                                action="/Anabelka/admin/administrators/roles/rename"
+                            >
+                                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="role_id" value="<?= (int) ($role['id'] ?? 0) ?>">
+                                <label>
+                                    <span>Назва ролі</span>
+                                    <input
+                                        type="text"
+                                        name="role_name"
+                                        maxlength="100"
+                                        value="<?= htmlspecialchars((string) ($role['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                        required
+                                    >
+                                </label>
+                                <button type="submit">Перейменувати</button>
+                            </form>
+
+                            <form
+                                class="admin-custom-role-delete-form"
+                                method="post"
+                                action="/Anabelka/admin/administrators/roles/delete"
+                                data-anabelka-confirm="Видалити цю власну роль? Її права буде видалено без можливості відновлення."
+                                data-anabelka-confirm-title="Видалення ролі"
+                                data-anabelka-confirm-confirm-text="Видалити"
+                                data-anabelka-confirm-danger="1"
+                            >
+                                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="role_id" value="<?= (int) ($role['id'] ?? 0) ?>">
+                                <button
+                                    type="submit"
+                                    <?= (int) ($role['admin_count'] ?? 0) > 0 ? 'disabled' : '' ?>
+                                    title="<?= (int) ($role['admin_count'] ?? 0) > 0
+                                        ? 'Спочатку призначте адміністраторам іншу роль'
+                                        : 'Видалити власну роль' ?>"
+                                >
+                                    Видалити роль
+                                </button>
+                            </form>
                         </div>
                     <?php endif; ?>
 

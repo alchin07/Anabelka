@@ -39,11 +39,6 @@ $router->get(
 );
 
 $router->post(
-    '/admin/administrators/create',
-    'AdminAdministratorController@create'
-);
-
-$router->post(
     '/admin/administrators/invite',
     'AdminAdministratorController@createInvitation'
 );
@@ -74,8 +69,23 @@ $router->post(
 );
 
 $router->post(
+    '/admin/administrators/delete',
+    'AdminAdministratorController@deleteAdministrator'
+);
+
+$router->post(
     '/admin/administrators/roles/create',
     'AdminAdministratorController@createRole'
+);
+
+$router->post(
+    '/admin/administrators/roles/rename',
+    'AdminAdministratorController@renameRole'
+);
+
+$router->post(
+    '/admin/administrators/roles/delete',
+    'AdminAdministratorController@deleteRole'
 );
 
 $router->post(

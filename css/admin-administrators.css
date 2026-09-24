@@ -753,3 +753,94 @@ select:disabled {
         grid-template-columns: 1fr;
     }
 }
+
+
+.admin-staff-delete-form {
+    grid-column: 1 / -1;
+    display: block !important;
+    padding-top: 2px;
+}
+
+.admin-staff-delete-form button {
+    width: 100%;
+    min-height: 41px;
+    border: 1px solid #d8a8b4;
+    background: #fff;
+    color: var(--admin-security-danger);
+}
+
+.admin-custom-role-management {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    padding: 12px 14px;
+    border-top: 1px solid var(--admin-security-border);
+    background: #fcf9ff;
+}
+
+.admin-custom-role-management form:first-child {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: end;
+}
+
+.admin-custom-role-management label {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+}
+
+.admin-custom-role-management label > span {
+    color: var(--admin-security-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.admin-custom-role-management input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 41px;
+    padding: 0 10px;
+    border: 1px solid #d9cde3;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--admin-security-text);
+    font: inherit;
+}
+
+.admin-custom-role-management button {
+    min-height: 41px;
+    padding: 0 13px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--admin-security-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-custom-role-delete-form button {
+    border: 1px solid #d8a8b4;
+    background: #fff;
+    color: var(--admin-security-danger);
+}
+
+.admin-custom-role-delete-form button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+    .admin-custom-role-management,
+    .admin-custom-role-management form:first-child {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-custom-role-management button {
+        width: 100%;
+    }
+}
