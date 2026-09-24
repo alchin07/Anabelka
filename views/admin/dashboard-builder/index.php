@@ -67,7 +67,7 @@ $availableForAdd = array_filter(
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-dashboard-builder.css?v=3"
+        href="/Anabelka/css/admin-dashboard-builder.css?v=4"
     >
 </head>
 <body>
