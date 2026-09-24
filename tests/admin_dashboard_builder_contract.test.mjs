@@ -236,10 +236,11 @@ assert.match(view, /badge_count/);
 assert.match(view, /dashboard-builder-live-badge/);
 assert.match(view, /\$badgeTone\s*===\s*'error'/);
 assert.match(view, /99\+/);
-assert.match(view, /admin-dashboard-builder\.css\?v=4/);
+assert.match(view, /admin-dashboard-builder\.css\?v=5/);
 assert.match(view, /data-dashboard-builder-root/);
 assert.match(view, /data-dashboard-builder-block-list/);
 assert.match(view, /data-dashboard-builder-block-handle/);
+assert.match(view, /data-dashboard-builder-block-title/);
 assert.match(view, /data-dashboard-builder-link-list/);
 assert.match(view, /data-dashboard-builder-link-handle/);
 assert.match(view, /data-dashboard-builder-links-empty/);
@@ -261,6 +262,18 @@ assert.match(
     /\.dashboard-builder-block-actions,[\s\S]*?\.dashboard-builder-link-actions[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/
 );
 assert.match(css, /dashboard-builder-links-empty\[hidden\]/);
+assert.match(
+    css,
+    /dashboard-builder-block\.is-dragging[\s\S]*?min-height:\s*68px/
+);
+assert.match(
+    css,
+    /dashboard-builder-block\.is-dragging::after[\s\S]*?content:\s*attr\(data-dashboard-builder-block-title\)/
+);
+assert.match(
+    css,
+    /dashboard-builder-block\.is-dragging[\s\S]*?>\s*\.dashboard-builder-links[\s\S]*?display:\s*none\s*!important/
+);
 
 assert.match(js, /PointerEvent/);
 assert.match(js, /setPointerCapture/);
