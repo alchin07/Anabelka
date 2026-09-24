@@ -53,9 +53,10 @@ assert.match(audit, /\$renderAuditEntry\(\$entry, false\)/);
 assert.match(audit, /3 найсвіжіші дії/);
 assert.match(audit, /За адміністратором/);
 assert.match(audit, /admin-audit-group-head/);
+assert.match(audit, /admin-audit-new-badge/);
 assert.match(
     audit,
-    /admin-administrators\.css\?v=6/
+    /admin-administrators\\.css\\?v=7/
 );
 
 assert.match(css, /\.admin-audit-summary/);
