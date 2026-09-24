@@ -31,7 +31,7 @@ $creatableBlocks = array_filter(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle) ?></title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-home-page.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-home-page.css?v=4">
 </head>
 <body>
 
@@ -251,7 +251,7 @@ $creatableBlocks = array_filter(
                     $isActive = !empty($block['is_active']);
                     $isSystem = !empty($block['is_system']);
                     ?>
-                    <article class="admin-home-builder-block<?= $isActive ? '' : ' is-disabled' ?>" data-block-id="<?= $blockId ?>">
+                    <article class="admin-home-builder-block is-collapsed<?= $isActive ? '' : ' is-disabled' ?>" data-block-id="<?= $blockId ?>">
                         <div class="admin-home-builder-order">
                             <button
                                 type="button"
@@ -282,6 +282,29 @@ $creatableBlocks = array_filter(
                         </div>
 
                         <div class="admin-home-builder-content">
+                            <div class="admin-home-builder-summary">
+                                <div class="admin-home-builder-summary-copy">
+                                    <div class="admin-home-builder-title-row">
+                                        <h4><?= $escape($meta['label'] ?? $type) ?></h4>
+                                        <span class="admin-home-builder-kind">
+                                            <?= $isSystem ? 'Базовий' : 'Доданий' ?>
+                                        </span>
+                                    </div>
+                                    <span class="admin-home-builder-summary-status<?= $isActive ? ' is-active' : '' ?>">
+                                        <?= $isActive ? 'Увімкнено' : 'Вимкнено' ?>
+                                    </span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="admin-home-builder-editor-toggle"
+                                    data-home-builder-editor-toggle
+                                    aria-expanded="false"
+                                >
+                                    Редагувати
+                                </button>
+                            </div>
+
                             <div class="admin-home-builder-block-head">
                                 <div>
                                     <div class="admin-home-builder-title-row">
@@ -387,6 +410,6 @@ $creatableBlocks = array_filter(
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-home-page.js?v=3"></script>
+<script src="/Anabelka/js/admin-home-page.js?v=4"></script>
 </body>
 </html>
