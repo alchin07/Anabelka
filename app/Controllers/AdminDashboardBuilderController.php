@@ -20,7 +20,7 @@ class AdminDashboardBuilderController extends Controller
                     'Адмін-панель · Конструктор головної адмін-панелі',
                 'blocks' => AdminDashboardLayout::allForAdmin(),
                 'services' =>
-                    AdminDashboardServiceRegistry::available(),
+                    AdminDashboardServiceRegistry::availableWithBadges(),
                 'serviceGroups' =>
                     AdminDashboardServiceRegistry::groups(),
                 'usedServiceKeys' =>
