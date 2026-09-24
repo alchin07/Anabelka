@@ -1,5 +1,9 @@
 <?php
 $entries = is_array($entries ?? null) ? $entries : [];
+$auditUnreadTotal = max(0, (int) ($auditUnreadTotal ?? 0));
+$auditUnreadByActor = is_array($auditUnreadByActor ?? null)
+    ? $auditUnreadByActor
+    : [];
 $recentEntries = is_array($recentEntries ?? null)
     ? $recentEntries
     : array_slice($entries, 0, 3);
@@ -179,7 +183,7 @@ $formatDetail = static function ($key, $value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Журнал дій') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=6">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=7">
 </head>
 <body>
 
@@ -274,7 +278,8 @@ $formatDetail = static function ($key, $value) {
     ) use (
         $actionLabels,
         $detailLabels,
-        $formatDetail
+        $formatDetail,
+        $auditUnreadByActor
     ) {
         $details = json_decode(
             (string) ($entry['details'] ?? ''),
@@ -284,6 +289,14 @@ $formatDetail = static function ($key, $value) {
         $action = (string) ($entry['action'] ?? '');
         $actorName = trim((string) ($entry['admin_name'] ?? ''));
         $actorEmail = trim((string) ($entry['admin_email'] ?? ''));
+        $actorId = (int) ($entry['admin_user_id'] ?? 0);
+        $actorKey = $actorId > 0
+            ? 'admin-' . $actorId
+            : 'system';
+        $actorUnread = max(
+            0,
+            (int) ($auditUnreadByActor[$actorKey]['count'] ?? 0)
+        );
         ?>
         <details
             class="admin-audit-item"
@@ -294,12 +307,19 @@ $formatDetail = static function ($key, $value) {
                     <strong>
                         <?= htmlspecialchars($actionLabels[$action] ?? $action) ?>
                     </strong>
-                    <small>
-                        <?= htmlspecialchars(
-                            $actorName !== ''
-                                ? $actorName
-                                : 'Система / невідомий адміністратор'
-                        ) ?>
+                    <small class="admin-audit-summary-actor">
+                        <span>
+                            <?= htmlspecialchars(
+                                $actorName !== ''
+                                    ? $actorName
+                                    : 'Система / невідомий адміністратор'
+                            ) ?>
+                        </span>
+                        <?php if ($actorUnread > 0): ?>
+                            <b class="admin-audit-new-badge">
+                                <?= $actorUnread ?> нових
+                            </b>
+                        <?php endif; ?>
                     </small>
                 </span>
                 <span class="admin-audit-summary-side">
@@ -374,12 +394,24 @@ $formatDetail = static function ($key, $value) {
                     $groupEntries = is_array($group['entries'] ?? null)
                         ? $group['entries']
                         : [];
+                    $groupKey = (string) ($group['key'] ?? 'system');
+                    $groupUnread = max(
+                        0,
+                        (int) ($auditUnreadByActor[$groupKey]['count'] ?? 0)
+                    );
                     ?>
                     <section class="admin-audit-group">
                         <div class="admin-audit-group-head">
                             <div>
                                 <span>Адміністратор</span>
-                                <h3><?= htmlspecialchars($group['name'] ?? 'Система / невідомий адміністратор') ?></h3>
+                                <div class="admin-audit-group-name-row">
+                                    <h3><?= htmlspecialchars($group['name'] ?? 'Система / невідомий адміністратор') ?></h3>
+                                    <?php if ($groupUnread > 0): ?>
+                                        <span class="admin-audit-new-badge">
+                                            <?= $groupUnread ?> нових
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
                                 <?php if (!empty($group['email'])): ?>
                                     <small><?= htmlspecialchars($group['email']) ?></small>
                                 <?php endif; ?>
