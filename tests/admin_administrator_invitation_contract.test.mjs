@@ -31,21 +31,26 @@ const inviteView = fs.readFileSync(
 const router = fs.readFileSync('app/Core/Router.php', 'utf8');
 
 assert.match(
-    routes,
+    securityRoutes,
     /get\(\s*['"]\/admin\/administrators['"][\s\S]*?AdminAdministratorController@index/
 );
 assert.match(
-    routes,
+    securityRoutes,
     /post\(\s*['"]\/admin\/administrators\/invite['"][\s\S]*?AdminAdministratorController@createInvitation/
 );
 assert.match(
-    routes,
+    securityRoutes,
     /get\(\s*['"]\/admin\/audit['"][\s\S]*?AdminAdministratorController@audit/
 );
 assert.match(
-    routes,
+    securityRoutes,
     /get\(\s*['"]\/admin\/profile['"][\s\S]*?AdminAdministratorController@profile/
 );
+assert.match(
+    app,
+    /Models\/AdminInvitation\.php/
+);
+
 assert.match(
     routes,
     /post\(\s*['"]\/admin-invite['"][\s\S]*?csrf_family['"]\s*=>\s*['"]admin['"]/
