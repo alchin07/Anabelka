@@ -67,7 +67,7 @@ $availableForAdd = array_filter(
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-dashboard-builder.css?v=5"
+        href="/Anabelka/css/admin-dashboard-builder.css?v=6"
     >
 </head>
 <body>
@@ -165,7 +165,7 @@ $availableForAdd = array_filter(
                 : [];
             ?>
             <section
-                class="dashboard-builder-block<?= $blockActive
+                class="dashboard-builder-block is-collapsed<?= $blockActive
                     ? ''
                     : ' is-disabled' ?>"
                 data-dashboard-builder-block-id="<?= $blockId ?>"
@@ -182,6 +182,28 @@ $availableForAdd = array_filter(
                 >
                     <span aria-hidden="true">⠿</span>
                 </button>
+
+                <div class="dashboard-builder-block-summary">
+                    <div class="dashboard-builder-block-summary-copy">
+                        <strong>
+                            <?= $escape($block['title'] ?? '') ?>
+                        </strong>
+                        <span>
+                            <?= count($links) ?> ярл.
+                            ·
+                            <?= $blockActive ? 'Увімкнено' : 'Вимкнено' ?>
+                        </span>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="dashboard-builder-editor-toggle"
+                        data-dashboard-builder-editor-toggle
+                        aria-expanded="false"
+                    >
+                        Редагувати
+                    </button>
+                </div>
 
                 <div class="dashboard-builder-block-head">
                     <form
@@ -623,6 +645,6 @@ $availableForAdd = array_filter(
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-dashboard-builder.js?v=1"></script>
+<script src="/Anabelka/js/admin-dashboard-builder.js?v=2"></script>
 </body>
 </html>
