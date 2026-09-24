@@ -178,7 +178,86 @@
 }
 
 .dashboard-builder-block {
-    padding: 16px;
+    position: relative;
+    padding: 16px 16px 16px 76px;
+}
+
+.dashboard-builder-drag {
+    position: absolute;
+    z-index: 4;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #d8c1ea;
+    border-radius: 12px;
+    background: #f4eaff;
+    color: #6519b9;
+    font: inherit;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    box-shadow: 0 4px 12px rgba(101, 25, 185, .08);
+}
+
+.dashboard-builder-block-drag {
+    top: 16px;
+    left: 16px;
+}
+
+.dashboard-builder-link-drag {
+    top: 14px;
+    left: 14px;
+}
+
+.dashboard-builder-drag:active,
+.dashboard-builder-block.is-dragging
+.dashboard-builder-block-drag,
+.dashboard-builder-link.is-dragging
+.dashboard-builder-link-drag {
+    cursor: grabbing;
+}
+
+.dashboard-builder-block.is-dragging,
+.dashboard-builder-link.is-dragging {
+    z-index: 8;
+    border-color: #8A2BE2;
+    box-shadow: 0 12px 30px rgba(101, 25, 185, .18);
+    opacity: .94;
+}
+
+.dashboard-builder-block.is-link-drop-target {
+    border-color: #8A2BE2;
+    box-shadow:
+        0 0 0 2px rgba(138, 43, 226, .12),
+        0 8px 26px rgba(74, 44, 92, .08);
+}
+
+.dashboard-builder-links {
+    min-height: 48px;
+}
+
+.dashboard-builder-links-empty[hidden] {
+    display: none !important;
+}
+
+.admin-dashboard-builder.is-saving {
+    cursor: progress;
+}
+
+.admin-dashboard-builder.is-saving
+.dashboard-builder-drag {
+    opacity: .5;
+    pointer-events: none;
+}
+
+body.dashboard-builder-dragging {
+    user-select: none;
+    overscroll-behavior-y: contain;
 }
 
 .dashboard-builder-block.is-disabled,
@@ -246,7 +325,8 @@
 }
 
 .dashboard-builder-link {
-    padding: 14px;
+    position: relative;
+    padding: 14px 14px 14px 68px;
     border: 1px solid #e5d5f1;
     border-radius: 14px;
     background: #faf7ff;
@@ -359,9 +439,26 @@
         padding: 14px;
     }
 
-    .dashboard-builder-create,
-    .dashboard-builder-block {
+    .dashboard-builder-create {
         padding: 12px;
+    }
+
+    .dashboard-builder-block {
+        padding: 12px 12px 12px 66px;
+    }
+
+    .dashboard-builder-link {
+        padding: 12px 12px 12px 62px;
+    }
+
+    .dashboard-builder-block-drag {
+        top: 12px;
+        left: 12px;
+    }
+
+    .dashboard-builder-link-drag {
+        top: 12px;
+        left: 10px;
     }
 
     .dashboard-builder-create form,
