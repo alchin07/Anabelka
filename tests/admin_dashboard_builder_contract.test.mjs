@@ -147,9 +147,16 @@ assert.match(view, /name="block_id"/);
 assert.match(view, /name="link_id"/);
 assert.match(view, /service_key/);
 assert.match(view, /Служба та її дані залишаться без змін/);
+assert.match(view, /badge_count/);
+assert.match(view, /dashboard-builder-live-badge/);
+assert.match(view, /\$badgeTone\s*===\s*'error'/);
+assert.match(view, /99\+/);
 assert.match(view, /admin-dashboard-builder\.css\?v=1/);
 assert.match(css, /@media\s*\(max-width:\s*700px\)/);
 assert.match(css, /min-height:\s*44px/);
+assert.match(css, /dashboard-builder-live-badge/);
+assert.match(css, /background:\s*#8A2BE2/);
+assert.match(css, /dashboard-builder-live-badge\.is-error[\s\S]*?background:\s*#b63e48/);
 
 assert.match(
     migration,
@@ -171,6 +178,14 @@ assert.doesNotMatch(
 assert.match(
     registry,
     /public\s+static\s+function\s+canUse\s*\(/
+);
+assert.match(
+    registry,
+    /public\s+static\s+function\s+availableWithBadges\s*\(/
+);
+assert.match(
+    registry,
+    /SystemErrorNotification::unreadCount\s*\(/
 );
 
 process.stdout.write(
