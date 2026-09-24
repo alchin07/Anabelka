@@ -537,17 +537,47 @@ class AdminAdministratorController extends Controller
             'date_to' => $_GET['date_to'] ?? ''
         ]);
 
+        $auditUnreadState = [
+            'total' => 0,
+            'cursor' => 0,
+            'max_id' => 0,
+            'by_actor' => []
+        ];
+
+        if (class_exists('AdminNotificationCenter')) {
+            $auditUnreadState = AdminNotificationCenter::auditUnreadState(
+                AdminAccess::currentId()
+            );
+        }
+
         $entries = AdminManagement::auditLog($filters, 250);
         $recentEntries = array_slice($entries, 0, 3);
         $olderAuditGroups = AdminManagement::groupAuditEntriesByAdministrator(
             array_slice($entries, 3)
         );
 
+        $isFullJournal =
+            (int) ($filters['admin_id'] ?? 0) === 0
+            && (string) ($filters['action'] ?? '') === ''
+            && (string) ($filters['date_from'] ?? '') === ''
+            && (string) ($filters['date_to'] ?? '') === '';
+
+        if ($isFullJournal && class_exists('AdminNotificationCenter')) {
+            AdminNotificationCenter::markAuditSeen(
+                AdminAccess::currentId(),
+                (int) ($auditUnreadState['max_id'] ?? 0)
+            );
+        }
+
         $this->view('admin/administrators/audit', [
             'pageTitle' => 'Адмін-панель · Журнал дій',
             'entries' => $entries,
             'recentEntries' => $recentEntries,
             'olderAuditGroups' => $olderAuditGroups,
+            'auditUnreadTotal' => (int) ($auditUnreadState['total'] ?? 0),
+            'auditUnreadByActor' => is_array(
+                $auditUnreadState['by_actor'] ?? null
+            ) ? $auditUnreadState['by_actor'] : [],
             'auditAdministrators' => AdminManagement::auditAdministrators(),
             'auditActions' => AdminManagement::auditActions(),
             'filters' => $filters
