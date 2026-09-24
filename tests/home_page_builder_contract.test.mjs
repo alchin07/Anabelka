@@ -153,7 +153,11 @@ assert.match(admin, /\$isSystem \? 'Базовий' : 'Доданий'/);
 assert.match(admin, /data-home-builder-list/);
 assert.match(admin, /data-home-builder-drag-handle/);
 assert.match(admin, /data-block-id/);
-assert.match(admin, /admin-home-page\.js\?v=3/);
+assert.match(admin, /admin-home-builder-block is-collapsed/);
+assert.match(admin, /data-home-builder-editor-toggle/);
+assert.match(admin, /admin-home-builder-summary/);
+assert.match(admin, /admin-home-page\.css\?v=4/);
+assert.match(admin, /admin-home-page\.js\?v=4/);
 assert.match(admin, /data-home-builder-preview-frame="mobile"/);
 assert.match(admin, /data-home-builder-preview-frame="desktop"/);
 assert.match(admin, /data-home-builder-preview-tab="mobile"/);
@@ -165,6 +169,15 @@ assert.match(css, /admin-home-builder-delete/);
 assert.match(css, /admin-home-builder-drag/);
 assert.match(css, /touch-action:\s*none/);
 assert.match(css, /\.admin-home-builder-block\.is-dragging/);
+assert.match(css, /admin-home-builder-editor-toggle/);
+assert.match(
+    css,
+    /admin-home-builder-block\.is-collapsed[\s\S]*?admin-home-builder-block-head[\s\S]*?display:\s*none\s*!important/
+);
+assert.match(
+    css,
+    /admin-home-builder-block\.is-collapsed[\s\S]*?admin-home-builder-order form[\s\S]*?display:\s*none\s*!important/
+);
 assert.match(js, /PointerEvent/);
 assert.match(js, /setPointerCapture/);
 assert.match(js, /block_ids\[\]/);
@@ -175,6 +188,10 @@ assert.match(js, /postMessage/);
 assert.match(js, /broadcastZoneOrder/);
 assert.match(js, /data-home-builder-preview-tab/);
 assert.match(js, /data-preview-width/);
+assert.match(js, /setHomeBlockCollapsed/);
+assert.match(js, /collapseAllHomeBlocks/);
+assert.match(js, /data-home-builder-editor-toggle/);
+assert.match(js, /Згорнути/);
 assert.match(previewJs, /event\.origin\s*!==\s*allowedOrigin/);
 assert.match(previewJs, /event\.source\s*!==\s*window\.parent/);
 assert.match(previewJs, /anabelka-builder-preview-ready/);
