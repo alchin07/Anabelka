@@ -11,6 +11,9 @@ const access = read('app/Models/AdminAccess.php');
 const registry = read('app/Models/AdminDashboardServiceRegistry.php');
 const layout = read('app/Models/AdminDashboardLayout.php');
 const controller = read('app/Controllers/AdminDashboardBuilderController.php');
+const dashboardController = read('app/Controllers/AdminDashboardController.php');
+const dashboardView = read('views/admin/index.php');
+const dashboardCss = read('css/admin-dashboard.css');
 const routes = read('routes/Web.php');
 const header = read('views/admin/partials/header.php');
 const view = read('views/admin/dashboard-builder/index.php');
@@ -134,6 +137,51 @@ assert.match(
 assert.match(
     controller,
     /Сама служба та її дані залишилися без змін/
+);
+
+assert.match(
+    dashboardController,
+    /AdminDashboardLayout::activeForCurrentAdmin\s*\(/
+);
+assert.match(
+    dashboardController,
+    /'dashboardBuilderBlocks'\s*=>\s*\$dashboardBuilderBlocks/
+);
+assert.match(
+    dashboardView,
+    /\$dashboardBuilderBlocks/
+);
+assert.match(
+    dashboardView,
+    /dashboard-builder-layout/
+);
+assert.match(
+    dashboardView,
+    /dashboard-builder-service-link/
+);
+assert.match(
+    dashboardView,
+    /dashboard-builder-service-badge/
+);
+assert.match(
+    dashboardView,
+    /\$dashboardBadgeTone\s*===\s*'error'/
+);
+assert.match(
+    dashboardView,
+    /admin-dashboard\.css\?v=3/
+);
+assert.match(
+    dashboardCss,
+    /dashboard-builder-service-grid/
+);
+assert.match(
+    dashboardCss,
+    /dashboard-builder-service-badge[\s\S]*?background:\s*#8A2BE2/
+);
+assert.match(
+    dashboardCss,
+    /dashboard-builder-service-badge\.is-error[\s\S]*?background:\s*#b63e48/
 );
 
 assert.match(header, /\$canDashboardBuilder/);
