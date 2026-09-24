@@ -78,7 +78,7 @@ assert.match(view, /admin-product-category-thumbnails\.js\?v=4/);
 
 assert.match(
     selectJs,
-    /data\.anabelkaThumbnailEdit === '1'/
+    /option\.dataset\.anabelkaThumbnailEdit === '1'/
 );
 assert.match(
     selectJs,
