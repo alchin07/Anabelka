@@ -230,6 +230,17 @@ class Router
             return;
         }
 
+        if (
+            $path === '/admin/system'
+            || strpos($path, '/admin/system/') === 0
+        ) {
+            if (($admin['role_slug'] ?? '') === 'owner') {
+                return;
+            }
+
+            $this->forbidAdminAccess();
+        }
+
         if ($path === '/admin/audit') {
             $permission = 'audit.view';
         } elseif (
@@ -257,6 +268,12 @@ class Router
             return;
         }
 
+        $this->forbidAdminAccess();
+    }
+
+
+    private function forbidAdminAccess()
+    {
         http_response_code(403);
         header('Content-Type: text/html; charset=UTF-8');
 

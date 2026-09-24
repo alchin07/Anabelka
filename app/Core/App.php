@@ -53,6 +53,7 @@ class App
         require_once __DIR__ . '/../Models/RegistrationInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/SocialAuthInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/SocialConnectionsInterfaceTranslator.php';
+        require_once __DIR__ . '/../Models/SocialAuthProvider.php';
         require_once __DIR__ . '/../Models/CustomerRankRequest.php';
         require_once __DIR__ . '/../Models/CustomerRankRequestInterfaceTranslator.php';
         require_once __DIR__ . '/../Models/CustomerNotification.php';
@@ -139,6 +140,7 @@ class App
         require_once __DIR__ . '/../Controllers/CustomerOrderController.php';
         require_once __DIR__ . '/../Controllers/LanguageController.php';
         require_once __DIR__ . '/../Controllers/AdminAuthController.php';
+        require_once __DIR__ . '/../Controllers/AdminSocialAuthController.php';
         require_once __DIR__ . '/../Controllers/AdminDashboardController.php';
         require_once __DIR__ . '/../Controllers/AdminDashboardBuilderController.php';
         require_once __DIR__ . '/../Controllers/AdminOrderController.php';
@@ -166,6 +168,7 @@ class App
         $router = new Router();
 
         require __DIR__ . '/../../routes/AdminAuth.php';
+        require __DIR__ . '/../../routes/AdminSocialAuth.php';
         require __DIR__ . '/../../routes/AdminSecurity.php';
         require __DIR__ . '/../../routes/CustomerAccount.php';
         require __DIR__ . '/../../routes/Legal.php';

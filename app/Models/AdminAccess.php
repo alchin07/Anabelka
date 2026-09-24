@@ -378,6 +378,7 @@ class AdminAccess
             '/admin/reviews' => ['reviews.view', 'reviews.manage'],
             '/admin/mobile-navigation' => ['mobile_navigation.view', 'mobile_navigation.manage'],
             '/admin/home-page' => ['home_page.view', 'home_page.manage'],
+            '/admin/social-auth' => ['social_auth.view', 'social_auth.manage'],
             '/admin/vip-price-views' => ['vip_prices.view', 'vip_prices.view']
         ];
 
@@ -507,6 +508,8 @@ class AdminAccess
             ['home_page.manage', 'Керування конструктором головної', 'content', 129],
             ['administrators.view', 'Перегляд адміністраторів', 'security', 130],
             ['administrators.manage', 'Керування адміністраторами', 'security', 131],
+            ['social_auth.view', 'Перегляд налаштувань соціальної авторизації', 'security', 132],
+            ['social_auth.manage', 'Керування соціальною авторизацією', 'security', 133],
             ['audit.view', 'Перегляд журналу дій', 'security', 140],
             ['vip_prices.view', 'Перегляд журналу VIP-цін', 'security', 141]
         ];

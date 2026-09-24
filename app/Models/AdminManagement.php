@@ -513,10 +513,22 @@ class AdminManagement
         $valid = array_column(self::permissions(), 'permission_key');
         $validMap = array_fill_keys($valid, true);
 
+        foreach (array_keys($requested) as $key) {
+            if (substr($key, -7) !== '.manage') {
+                continue;
+            }
+
+            $viewKey = substr($key, 0, -7) . '.view';
+
+            if (isset($validMap[$viewKey])) {
+                $requested[$viewKey] = true;
+            }
+        }
+
         return array_values(array_filter(
-            array_keys($requested),
-            function ($key) use ($validMap) {
-                return isset($validMap[$key]);
+            $valid,
+            function ($key) use ($requested) {
+                return isset($requested[$key]);
             }
         ));
     }
