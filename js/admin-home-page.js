@@ -848,10 +848,15 @@
                 return;
             }
 
-            setHomeBlockCollapsed(
-                item,
-                !item.classList.contains('is-collapsed')
+            const shouldOpen = item.classList.contains(
+                'is-collapsed'
             );
+
+            collapseAllHomeBlocks();
+
+            if (shouldOpen) {
+                setHomeBlockCollapsed(item, false);
+            }
         });
     });
 
