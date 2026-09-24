@@ -44,6 +44,11 @@ $router->post(
 );
 
 $router->post(
+    '/admin/administrators/invite',
+    'AdminAdministratorController@createInvitation'
+);
+
+$router->post(
     '/admin/administrators/role',
     'AdminAdministratorController@changeRole'
 );
