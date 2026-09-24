@@ -336,6 +336,9 @@
     const thumbnailAuto = document.querySelector(
         '[data-category-thumbnail-auto]'
     );
+    const thumbnailUpload = document.getElementById(
+        'category-edit-thumbnail-upload'
+    );
     let thumbnailFallback = '';
 
     function setThumbnailPreview(path, mode)
@@ -402,6 +405,37 @@
         );
     }
 
+    function appendThumbnailChoice(path, labelText, titleText)
+    {
+        path = String(path || '').trim();
+
+        if (!thumbnailOptions || path === '') {
+            return;
+        }
+
+        const button = document.createElement('button');
+        const image = document.createElement('img');
+        const label = document.createElement('span');
+
+        button.type = 'button';
+        button.className = 'category-thumbnail-choice';
+        button.dataset.categoryThumbnailPath = path;
+        button.title = String(titleText || labelText || 'Фото');
+
+        image.src = path;
+        image.alt = '';
+        image.loading = 'lazy';
+        label.textContent = String(labelText || 'Фото');
+
+        button.appendChild(image);
+        button.appendChild(label);
+        button.addEventListener('click', function () {
+            chooseThumbnail(path);
+        });
+        thumbnailOptions.appendChild(button);
+    }
+
+
     function renderThumbnailEditor(category)
     {
         thumbnailFallback = String(
@@ -411,50 +445,41 @@
         const candidates = Array.isArray(category.thumbnail_candidates)
             ? category.thumbnail_candidates
             : [];
+        const candidatePaths = new Set();
 
         if (thumbnailOptions) {
             thumbnailOptions.replaceChildren();
 
-            if (candidates.length === 0) {
+            candidates.forEach(function (candidate) {
+                const path = String(candidate.path || '').trim();
+
+                if (path === '' || candidatePaths.has(path)) {
+                    return;
+                }
+
+                candidatePaths.add(path);
+                appendThumbnailChoice(
+                    path,
+                    String(candidate.product_name || 'Товар'),
+                    String(candidate.product_name || 'Фото товару')
+                );
+            });
+
+            if (current !== '' && !candidatePaths.has(current)) {
+                appendThumbnailChoice(
+                    current,
+                    'Завантажене фото',
+                    'Поточна завантажена мініатюра'
+                );
+            }
+
+            if (thumbnailOptions.children.length === 0) {
                 const empty = document.createElement('span');
 
                 empty.className = 'category-thumbnail-options-empty';
                 empty.textContent =
                     'У товарів цієї категорії поки немає фотографій.';
                 thumbnailOptions.appendChild(empty);
-            } else {
-                candidates.forEach(function (candidate) {
-                    const path = String(candidate.path || '').trim();
-
-                    if (path === '') {
-                        return;
-                    }
-
-                    const button = document.createElement('button');
-                    const image = document.createElement('img');
-                    const label = document.createElement('span');
-
-                    button.type = 'button';
-                    button.className = 'category-thumbnail-choice';
-                    button.dataset.categoryThumbnailPath = path;
-                    button.title = String(
-                        candidate.product_name || 'Фото товару'
-                    );
-
-                    image.src = path;
-                    image.alt = '';
-                    image.loading = 'lazy';
-                    label.textContent = String(
-                        candidate.product_name || 'Товар'
-                    );
-
-                    button.appendChild(image);
-                    button.appendChild(label);
-                    button.addEventListener('click', function () {
-                        chooseThumbnail(path);
-                    });
-                    thumbnailOptions.appendChild(button);
-                });
             }
         }
 
@@ -464,6 +489,71 @@
     if (thumbnailAuto) {
         thumbnailAuto.addEventListener('click', function () {
             chooseThumbnail('');
+        });
+    }
+
+    if (thumbnailUpload) {
+        thumbnailUpload.addEventListener('change', async function () {
+            const file = thumbnailUpload.files
+                ? thumbnailUpload.files[0]
+                : null;
+
+            if (!file) {
+                return;
+            }
+
+            const categoryId = Number(editId ? editId.value : 0);
+            const api = window.AnabelkaCategoryThumbnail;
+
+            if (
+                categoryId <= 0
+                || !api
+                || typeof api.save !== 'function'
+                || typeof api.validateFile !== 'function'
+            ) {
+                showMessage(
+                    'Завантаження мініатюри зараз недоступне.',
+                    true
+                );
+                thumbnailUpload.value = '';
+                return;
+            }
+
+            const validationError = api.validateFile(file);
+
+            if (validationError !== '') {
+                showMessage(validationError, true);
+                thumbnailUpload.value = '';
+                return;
+            }
+
+            thumbnailUpload.disabled = true;
+
+            try {
+                const stored = await api.save(categoryId, '', file);
+                const category = categoryById.get(categoryId);
+
+                if (category) {
+                    category.image = String(stored.image || '');
+                    category.thumbnail_image = String(
+                        stored.thumbnail_image || ''
+                    );
+                    renderThumbnailEditor(category);
+                }
+
+                showMessage(
+                    'Фото оброблено до 320×320 і встановлено як мініатюру.',
+                    false
+                );
+            } catch (error) {
+                showMessage(
+                    error.message || 'Не вдалося завантажити мініатюру.',
+                    true
+                );
+            } finally {
+                thumbnailUpload.disabled = false;
+                thumbnailUpload.value = '';
+            }
         });
     }
 
@@ -910,6 +1000,14 @@
             category.thumbnail_image = String(
                 detail.thumbnailImage || ''
             );
+
+            if (
+                editId
+                && Number(editId.value || 0)
+                    === Number(detail.categoryId || 0)
+            ) {
+                renderThumbnailEditor(category);
+            }
         }
     );
 

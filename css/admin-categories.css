@@ -574,6 +574,45 @@
     cursor: pointer;
 }
 
+.category-thumbnail-upload {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px 10px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px solid #d8c8e8;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.category-thumbnail-upload input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.category-thumbnail-upload span {
+    color: #6519b9;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.category-thumbnail-upload small {
+    color: #756a7a;
+    font-size: 10px;
+}
+
+.category-thumbnail-upload:focus-within {
+    border-color: #8A2BE2;
+    outline: 3px solid rgba(138, 43, 226, 0.13);
+}
+
+
 .category-thumbnail-preview {
     width: 76px;
     height: 76px;

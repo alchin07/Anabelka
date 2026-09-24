@@ -163,8 +163,33 @@ assert.match(
 );
 assert.match(
     categoryView,
-    /admin-product-category-thumbnails\.js\?v=2/
+    /admin-product-category-thumbnails\.js\?v=5/
 );
+assert.match(
+    categoryView,
+    /id="category-edit-thumbnail-upload"[\s\S]*?accept="image\/jpeg,image\/png,image\/webp"/
+);
+assert.match(
+    categoryView,
+    /＋ Завантажити фото/
+);
+assert.match(
+    thumbnailJs,
+    /window\.AnabelkaCategoryThumbnail\s*=/
+);
+assert.match(
+    thumbnailJs,
+    /validateFile:\s*validateThumbnailFile/
+);
+assert.match(
+    categoryJs,
+    /AnabelkaCategoryThumbnail/
+);
+assert.match(
+    categoryJs,
+    /api\.save\(categoryId, '', file\)/
+);
+
 assert.match(
     categoryJs,
     /function orderedMoveCandidates\s*\(/

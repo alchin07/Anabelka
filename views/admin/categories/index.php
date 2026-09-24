@@ -275,7 +275,7 @@ require __DIR__ . '/../../partials/header.php';
                 <div class="category-thumbnail-head">
                     <div>
                         <strong>Мініатюра категорії</strong>
-                        <span>Фото береться з товарів цієї категорії.</span>
+                        <span>Фото товару або власне фото з телефона / комп’ютера.</span>
                     </div>
                     <button
                         type="button"
@@ -283,6 +283,16 @@ require __DIR__ . '/../../partials/header.php';
                         data-category-thumbnail-auto
                     >Автоматично</button>
                 </div>
+
+                <label class="category-thumbnail-upload">
+                    <input
+                        type="file"
+                        id="category-edit-thumbnail-upload"
+                        accept="image/jpeg,image/png,image/webp"
+                    >
+                    <span>＋ Завантажити фото</span>
+                    <small>JPG, PNG або WebP · до 8 МБ</small>
+                </label>
 
                 <div class="category-thumbnail-current">
                     <span
@@ -479,7 +489,7 @@ require __DIR__ . '/../../partials/header.php';
 >
 <script src="/Anabelka/js/anabelka-notify.js?v=1"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-categories.js?v=8"></script>
-<script src="/Anabelka/js/admin-product-category-thumbnails.js?v=4"></script>
+<script src="/Anabelka/js/admin-product-category-thumbnails.js?v=5"></script>
+<script src="/Anabelka/js/admin-categories.js?v=9"></script>
 </body>
 </html>

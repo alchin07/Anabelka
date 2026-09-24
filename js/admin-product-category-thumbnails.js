@@ -183,15 +183,28 @@
     }
 
 
-    async function saveThumbnail(context, editor, path, file)
+    function validateThumbnailFile(file)
     {
-        const categoryId = Number(
-            context.option ? context.option.value : 0
-        );
+        if (!(file instanceof File)) {
+            return 'Фото не вибрано.';
+        }
 
-        if (categoryId <= 0) {
-            setStatus(editor, 'Категорію не знайдено.', true);
-            return;
+        if (file.size > 8388608) {
+            return 'Фото має бути не більше 8 МБ.';
+        }
+
+        if (!/^image\/(jpeg|png|webp)$/i.test(file.type || '')) {
+            return 'Підтримуються JPG, PNG та WebP.';
+        }
+
+        return '';
+    }
+
+
+    async function requestThumbnailSave(categoryId, path, file)
+    {
+        if (Number(categoryId || 0) <= 0) {
+            throw new Error('Категорію не знайдено.');
         }
 
         const payload = new FormData();
@@ -204,47 +217,100 @@
             payload.append('thumbnail_file', file, file.name);
         }
 
+        const response = await fetch(
+            '/Anabelka/admin/categories/thumbnail',
+            {
+                method: 'POST',
+                body: payload,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }
+        );
+        const text = await response.text();
+        let result = {};
+
+        try {
+            result = JSON.parse(text);
+        } catch (error) {
+            throw new Error(
+                response.ok
+                    ? 'Сервер повернув некоректну відповідь.'
+                    : 'Не вдалося зберегти мініатюру.'
+            );
+        }
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.message || 'Не вдалося зберегти мініатюру.'
+            );
+        }
+
+        return result.thumbnail || {};
+    }
+
+
+    async function saveCategoryThumbnail(categoryId, path, file)
+    {
+        const stored = await requestThumbnailSave(
+            categoryId,
+            path,
+            file
+        );
+        const state = categoryState(categoryId);
+        const manualImage = String(stored.image || '').trim();
+        const thumbnailImage = String(
+            stored.thumbnail_image || ''
+        ).trim();
+
+        state.image = manualImage;
+        state.thumbnail_image = thumbnailImage;
+        updateAllOptions(categoryId, thumbnailImage);
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:category-thumbnail-updated',
+            {
+                detail: {
+                    categoryId: Number(categoryId),
+                    image: manualImage,
+                    thumbnailImage: thumbnailImage
+                }
+            }
+        ));
+
+        return stored;
+    }
+
+
+    window.AnabelkaCategoryThumbnail = {
+        save: saveCategoryThumbnail,
+        validateFile: validateThumbnailFile
+    };
+
+
+    async function saveThumbnail(context, editor, path, file)
+    {
+        const categoryId = Number(
+            context.option ? context.option.value : 0
+        );
+
+        if (categoryId <= 0) {
+            setStatus(editor, 'Категорію не знайдено.', true);
+            return;
+        }
+
         editor.classList.add('is-saving');
 
         try {
-            const response = await fetch(
-                '/Anabelka/admin/categories/thumbnail',
-                {
-                    method: 'POST',
-                    body: payload,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                }
+            const stored = await saveCategoryThumbnail(
+                categoryId,
+                path,
+                file
             );
-            const text = await response.text();
-            let result = {};
-
-            try {
-                result = JSON.parse(text);
-            } catch (error) {
-                throw new Error(
-                    response.ok
-                        ? 'Сервер повернув некоректну відповідь.'
-                        : 'Не вдалося зберегти мініатюру.'
-                );
-            }
-
-            if (!response.ok || !result.success) {
-                throw new Error(
-                    result.message || 'Не вдалося зберегти мініатюру.'
-                );
-            }
-
-            const stored = result.thumbnail || {};
-            const state = categoryState(categoryId);
             const manualImage = String(stored.image || '').trim();
             const thumbnailImage = String(
                 stored.thumbnail_image || ''
             ).trim();
-
-            state.image = manualImage;
-            state.thumbnail_image = thumbnailImage;
 
             if (file instanceof File && manualImage !== '') {
                 const grid = editor.querySelector(
@@ -284,7 +350,6 @@
                 }
             }
 
-            updateAllOptions(categoryId, thumbnailImage);
             updateThumbnailNode(
                 context.button.querySelector(
                     '[data-anabelka-thumbnail-control]'
@@ -292,17 +357,6 @@
                 thumbnailImage
             );
             markChoice(editor, manualImage);
-
-            document.dispatchEvent(new CustomEvent(
-                'anabelka:category-thumbnail-updated',
-                {
-                    detail: {
-                        categoryId: categoryId,
-                        image: manualImage,
-                        thumbnailImage: thumbnailImage
-                    }
-                }
-            ));
 
             setStatus(
                 editor,
@@ -432,22 +486,10 @@
                 return;
             }
 
-            if (file.size > 8388608) {
-                setStatus(
-                    editor,
-                    'Фото має бути не більше 8 МБ.',
-                    true
-                );
-                uploadInput.value = '';
-                return;
-            }
+            const validationError = validateThumbnailFile(file);
 
-            if (!/^image\/(jpeg|png|webp)$/i.test(file.type || '')) {
-                setStatus(
-                    editor,
-                    'Підтримуються JPG, PNG та WebP.',
-                    true
-                );
+            if (validationError !== '') {
+                setStatus(editor, validationError, true);
                 uploadInput.value = '';
                 return;
             }
