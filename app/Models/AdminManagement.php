@@ -472,6 +472,23 @@ class AdminManagement
         AdminAccess::ensureSchema();
         $name = self::normalizeRoleName($name);
         $db = Database::connect();
+
+        $duplicate = $db->prepare("
+            SELECT id
+            FROM admin_roles
+            WHERE name = :name
+            LIMIT 1
+        ");
+        $duplicate->execute([
+            'name' => $name
+        ]);
+
+        if ($duplicate->fetchColumn()) {
+            throw new RuntimeException(
+                'Роль із такою назвою вже існує.'
+            );
+        }
+
         $slug = 'custom-' . substr(
             hash('sha256', $name . '|' . microtime(true) . '|' . random_int(1, PHP_INT_MAX)),
             0,
@@ -633,32 +650,60 @@ class AdminManagement
             }
 
             $assigned = $db->prepare("
-                SELECT id
+                SELECT COUNT(*)
                 FROM admin_users
                 WHERE role_id = :role_id
-                LIMIT 1
                 FOR UPDATE
             ");
             $assigned->execute([
                 'role_id' => $roleId
             ]);
+            $assignedCount = max(
+                0,
+                (int) $assigned->fetchColumn()
+            );
 
-            if ($assigned->fetchColumn()) {
+            if ($assignedCount > 0) {
                 throw new RuntimeException(
                     'Спочатку призначте адміністраторам іншу роль.'
                 );
             }
 
+            // The NOT EXISTS condition is the final database-level guard.
+            // It protects existing installations even when an old
+            // admin_users table does not have the expected foreign key,
+            // and it also closes the gap between the check and DELETE.
             $delete = $db->prepare("
                 DELETE FROM admin_roles
                 WHERE id = :id
                   AND is_system = 0
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM admin_users
+                      WHERE role_id = :assigned_role_id
+                  )
             ");
             $delete->execute([
-                'id' => $roleId
+                'id' => $roleId,
+                'assigned_role_id' => $roleId
             ]);
 
             if ($delete->rowCount() !== 1) {
+                $recheck = $db->prepare("
+                    SELECT COUNT(*)
+                    FROM admin_users
+                    WHERE role_id = :role_id
+                ");
+                $recheck->execute([
+                    'role_id' => $roleId
+                ]);
+
+                if ((int) $recheck->fetchColumn() > 0) {
+                    throw new RuntimeException(
+                        'Спочатку призначте адміністраторам іншу роль.'
+                    );
+                }
+
                 throw new RuntimeException(
                     'Не вдалося видалити роль.'
                 );

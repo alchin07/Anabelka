@@ -114,7 +114,23 @@ assert.match(
 );
 assert.match(
     management,
-    /SELECT id[\s\S]*?FROM admin_users[\s\S]*?WHERE role_id = :role_id[\s\S]*?FOR UPDATE/
+    /SELECT COUNT\(\*\)[\s\S]*?FROM admin_users[\s\S]*?WHERE role_id = :role_id[\s\S]*?FOR UPDATE/
+);
+assert.match(
+    management,
+    /DELETE FROM admin_roles[\s\S]*?NOT EXISTS \([\s\S]*?FROM admin_users[\s\S]*?role_id = :assigned_role_id/
+);
+assert.match(
+    management,
+    /\$assignedCount > 0[\s\S]*?Спочатку призначте адміністраторам іншу роль/
+);
+assert.match(
+    management,
+    /SELECT COUNT\(\*\)[\s\S]*?WHERE role_id = :role_id[\s\S]*?Не вдалося видалити роль/
+);
+assert.match(
+    management,
+    /createCustomRole[\s\S]*?WHERE name = :name[\s\S]*?Роль із такою назвою вже існує/
 );
 
 assert.match(
