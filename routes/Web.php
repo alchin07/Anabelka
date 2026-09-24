@@ -103,6 +103,51 @@ $router->get(
 );
 
 $router->get(
+    '/admin/dashboard-builder',
+    'AdminDashboardBuilderController@index'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/create',
+    'AdminDashboardBuilderController@createBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/update',
+    'AdminDashboardBuilderController@updateBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/toggle',
+    'AdminDashboardBuilderController@toggleBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/delete',
+    'AdminDashboardBuilderController@deleteBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/create',
+    'AdminDashboardBuilderController@createLink'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/update',
+    'AdminDashboardBuilderController@updateLink'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/toggle',
+    'AdminDashboardBuilderController@toggleLink'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/delete',
+    'AdminDashboardBuilderController@deleteLink'
+);
+
+$router->get(
     '/admin/orders',
     'AdminOrderController@index'
 );
