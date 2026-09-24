@@ -29,6 +29,42 @@
     let messageTimer = 0;
 
 
+    function setBlockCollapsed(block, collapsed)
+    {
+        if (!block) {
+            return;
+        }
+
+        const isCollapsed = Boolean(collapsed);
+        const button = block.querySelector(
+            '[data-dashboard-builder-editor-toggle]'
+        );
+
+        block.classList.toggle(
+            'is-collapsed',
+            isCollapsed
+        );
+
+        if (button) {
+            button.setAttribute(
+                'aria-expanded',
+                isCollapsed ? 'false' : 'true'
+            );
+            button.textContent = isCollapsed
+                ? 'Редагувати'
+                : 'Згорнути';
+        }
+    }
+
+
+    function collapseAllBlocks()
+    {
+        blockItems().forEach(function (block) {
+            setBlockCollapsed(block, true);
+        });
+    }
+
+
     function blockItems()
     {
         return Array.from(
@@ -423,6 +459,10 @@
         event.preventDefault();
         event.stopPropagation();
 
+        if (kind === 'block') {
+            setBlockCollapsed(item, true);
+        }
+
         activeDrag = {
             kind: kind,
             pointerId: event.pointerId,
@@ -709,6 +749,25 @@
 
 
     root.querySelectorAll(
+        '[data-dashboard-builder-editor-toggle]'
+    ).forEach(function (button) {
+        button.addEventListener('click', function () {
+            const block = button.closest(
+                '[data-dashboard-builder-block-id]'
+            );
+
+            if (!block || activeDrag || saving) {
+                return;
+            }
+
+            setBlockCollapsed(
+                block,
+                !block.classList.contains('is-collapsed')
+            );
+        });
+    });
+
+    root.querySelectorAll(
         '[data-dashboard-builder-block-handle]'
     ).forEach(function (handle) {
         handle.addEventListener(
@@ -748,5 +807,6 @@
         }
     );
 
+    collapseAllBlocks();
     syncEmptyStates();
 }());
