@@ -23,6 +23,12 @@ $escape = static function ($value) {
     );
 };
 
+$formatBadgeCount = static function ($count) {
+    $count = max(0, (int) $count);
+
+    return $count > 99 ? '99+' : (string) $count;
+};
+
 $badgeLabel = static function ($service) {
     $badge = is_array($service['badge'] ?? null)
         ? $service['badge']
@@ -61,7 +67,7 @@ $availableForAdd = array_filter(
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-dashboard-builder.css?v=1"
+        href="/Anabelka/css/admin-dashboard-builder.css?v=2"
     >
 </head>
 <body>
@@ -241,9 +247,21 @@ $availableForAdd = array_filter(
                         $currentKey = (string) (
                             $link['service_key'] ?? ''
                         );
-                        $service = is_array($link['service'] ?? null)
-                            ? $link['service']
-                            : [];
+                        $service = is_array($services[$currentKey] ?? null)
+                            ? $services[$currentKey]
+                            : (
+                                is_array($link['service'] ?? null)
+                                    ? $link['service']
+                                    : []
+                            );
+                        $badgeCount = max(
+                            0,
+                            (int) ($service['badge_count'] ?? 0)
+                        );
+                        $badgeTone = (string) (
+                            $service['badge']['tone']
+                            ?? 'notification'
+                        );
                         ?>
                         <article
                             class="dashboard-builder-link<?= $linkActive
@@ -268,11 +286,31 @@ $availableForAdd = array_filter(
                                     </span>
                                 </div>
 
-                                <?php if ($badgeLabel($service) !== ''): ?>
-                                    <span class="dashboard-builder-badge-source">
-                                        <?= $escape($badgeLabel($service)) ?>
-                                    </span>
-                                <?php endif; ?>
+                                <div class="dashboard-builder-badge-area">
+                                    <?php if ($badgeCount > 0): ?>
+                                        <span
+                                            class="dashboard-builder-live-badge<?= $badgeTone === 'error'
+                                                ? ' is-error'
+                                                : '' ?>"
+                                            aria-label="<?= $escape(
+                                                'Нових сповіщень: ' . $badgeCount
+                                            ) ?>"
+                                            title="<?= $escape(
+                                                'Нових сповіщень: ' . $badgeCount
+                                            ) ?>"
+                                        >
+                                            <?= $escape(
+                                                $formatBadgeCount($badgeCount)
+                                            ) ?>
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if ($badgeLabel($service) !== ''): ?>
+                                        <span class="dashboard-builder-badge-source">
+                                            <?= $escape($badgeLabel($service)) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
 
                             <form
@@ -532,9 +570,9 @@ $availableForAdd = array_filter(
     <section class="dashboard-builder-note">
         <strong>Наступний етап</strong>
         <p>
-            Після перевірки створення, редагування й видалення підключимо
-            реальні бейджі до ярликів, а потім drag-and-drop блоків
-            і посилань.
+            Живі бейджі вже підключено до наявних джерел сповіщень.
+            Наступним етапом ці блоки та ярлики виведемо на нову
+            головну адмін-панелі, після чого додамо drag-and-drop.
         </p>
     </section>
 </main>
