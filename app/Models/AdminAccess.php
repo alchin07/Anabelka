@@ -363,6 +363,7 @@ class AdminAccess
 
         $isWrite = $method !== 'GET' && $method !== 'HEAD';
         $areas = [
+            '/admin/dashboard-builder' => ['dashboard.manage', 'dashboard.manage'],
             '/admin/orders' => ['orders.view', 'orders.manage'],
             '/admin/search' => ['search.view', 'search.manage'],
             '/admin/users' => ['users.view', 'users.manage'],
@@ -475,6 +476,7 @@ class AdminAccess
         $permissions = [
             ['admin.access', 'Доступ до службових розділів', 'system', 10],
             ['dashboard.view', 'Перегляд головної адмін-панелі', 'dashboard', 20],
+            ['dashboard.manage', 'Керування конструктором головної адмін-панелі', 'dashboard', 21],
             ['orders.view', 'Перегляд замовлень', 'orders', 30],
             ['orders.manage', 'Зміна замовлень', 'orders', 31],
             ['search.view', 'Перегляд журналу пошуку', 'search', 40],
@@ -562,7 +564,7 @@ class AdminAccess
             function ($key) {
                 return !in_array(
                     $key,
-                    ['administrators.manage'],
+                    ['administrators.manage', 'dashboard.manage'],
                     true
                 );
             }
