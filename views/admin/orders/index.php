@@ -34,6 +34,8 @@ $statusOptions = is_array($statusOptions ?? null)
     ? $statusOptions
     : AdminOrder::statusOptions();
 $csrfToken = (string) ($csrfToken ?? '');
+$canManage = !class_exists('AdminAccess')
+    || AdminAccess::can('orders.manage');
 
 $escape = function ($value) {
     return htmlspecialchars(
@@ -499,6 +501,7 @@ $paymentStatusLabels = [
                         </div>
                     </details>
 
+                    <?php if ($canManage): ?>
                     <form
                         class="admin-order-actions"
                         action="/Anabelka/admin/orders/status"
@@ -529,6 +532,7 @@ $paymentStatusLabels = [
                             <?php endforeach; ?>
                         </div>
                     </form>
+                    <?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </section>

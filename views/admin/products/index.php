@@ -8,6 +8,8 @@ $filters = AdminProduct::normalizeFilters(
     is_array($filters ?? null) ? $filters : []
 );
 $csrfToken = (string) ($csrfToken ?? '');
+$canManage = !class_exists('AdminAccess')
+    || AdminAccess::can('products.manage');
 $translationStatusOptions = TranslationWorkflow::statusOptions();
 $escape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
@@ -145,6 +147,7 @@ require __DIR__ . '/../../partials/header.php';
             <p>Ціни, залишки, розміри, фотографії та переклади</p>
         </div>
 
+        <?php if ($canManage): ?>
         <button
             type="button"
             class="admin-product-add"
@@ -154,6 +157,7 @@ require __DIR__ . '/../../partials/header.php';
             <span aria-hidden="true">＋</span>
             Додати товар
         </button>
+        <?php endif; ?>
     </section>
 
     <?php if (!empty($flash)): ?>
@@ -287,6 +291,7 @@ require __DIR__ . '/../../partials/header.php';
                             </div>
                         </div>
 
+                        <?php if ($canManage): ?>
                         <div class="admin-product-actions">
                             <button
                                 type="button"
@@ -327,6 +332,7 @@ require __DIR__ . '/../../partials/header.php';
                                 </button>
                             </form>
                         </div>
+                        <?php endif; ?>
                     </article>
                 </div>
             <?php endforeach; ?>

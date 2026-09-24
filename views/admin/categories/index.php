@@ -4,6 +4,8 @@ $categories = is_array($categories ?? null) ? $categories : [];
 $categoryForest = is_array($categoryForest ?? null) ? $categoryForest : [];
 $languages = is_array($languages ?? null) ? $languages : [];
 $csrfToken = (string) ($csrfToken ?? '');
+$canManage = !class_exists('AdminAccess')
+    || AdminAccess::can('categories.manage');
 $translationStatusOptions = TranslationWorkflow::statusOptions();
 $escape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
@@ -21,7 +23,8 @@ $json = json_encode([
 $renderNodes = null;
 $renderNodes = function (array $nodes, $level = 0) use (
     &$renderNodes,
-    $escape
+    $escape,
+    $canManage
 ) {
     foreach ($nodes as $category) {
         $id = (int) ($category['id'] ?? 0);
@@ -52,6 +55,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
                     <span class="category-tree-placeholder" aria-hidden="true"></span>
                 <?php endif; ?>
 
+                <?php if ($canManage): ?>
                 <button
                     type="button"
                     class="category-tree-button"
@@ -68,6 +72,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
                     aria-label="Перемістити нижче"
                     title="Нижче"
                 >↓</button>
+                <?php endif; ?>
             </div>
 
             <article class="category-admin-card">
@@ -111,6 +116,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
                     <span>Перекладів: <?= $translationCount ?></span>
                 </div>
 
+                <?php if ($canManage): ?>
                 <div class="category-admin-actions">
                     <button
                         type="button"
@@ -147,6 +153,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
                             : 'Видалення заблоковано: є дочірні категорії або товари' ?>"
                     >Видалити</button>
                 </div>
+                <?php endif; ?>
             </article>
         </div>
 
@@ -155,6 +162,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
             id="category-children-<?= $id ?>"
             data-category-children="<?= $id ?>"
         >
+            <?php if ($canManage): ?>
             <button
                 type="button"
                 class="category-add-level"
@@ -162,6 +170,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
                 data-parent-id="<?= $id ?>"
                 data-department-id="<?= (int) ($category['department_id'] ?? 0) ?>"
             >+ Додати підкатегорію до «<?= $escape($category['name'] ?? '') ?>»</button>
+            <?php endif; ?>
 
             <?php if (empty($children)): ?>
                 <div class="category-level-empty">Підкатегорій поки немає.</div>
@@ -222,6 +231,7 @@ require __DIR__ . '/../../partials/header.php';
             </div>
 
             <div class="category-admin-list">
+                <?php if ($canManage): ?>
                 <button
                     type="button"
                     class="category-add-level is-root"
@@ -229,6 +239,7 @@ require __DIR__ . '/../../partials/header.php';
                     data-parent-id=""
                     data-department-id="<?= $departmentId ?>"
                 >+ Додати кореневу категорію</button>
+                <?php endif; ?>
 
                 <?php if (empty($roots)): ?>
                     <div class="category-level-empty">Категорій у підрозділі поки немає.</div>
