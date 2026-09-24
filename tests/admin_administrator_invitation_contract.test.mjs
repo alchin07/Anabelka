@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const routes = fs.readFileSync('routes/Web.php', 'utf8');
+const securityRoutes = fs.readFileSync('routes/AdminSecurity.php', 'utf8');
+const app = fs.readFileSync('app/Core/App.php', 'utf8');
 const controller = fs.readFileSync(
     'app/Controllers/AdminAdministratorController.php',
     'utf8'
