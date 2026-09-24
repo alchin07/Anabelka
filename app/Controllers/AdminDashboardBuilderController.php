@@ -199,6 +199,125 @@ class AdminDashboardBuilderController extends Controller
     }
 
 
+    public function reorderBlocks()
+    {
+        try {
+            $blockIds = is_array($_POST['block_ids'] ?? null)
+                ? $_POST['block_ids']
+                : [];
+            $changed = AdminDashboardLayout::reorderBlocks(
+                $blockIds
+            );
+
+            $this->audit(
+                'dashboard.builder.blocks.reorder',
+                [
+                    'block_ids' => array_values(
+                        array_map('intval', $blockIds)
+                    )
+                ]
+            );
+
+            $this->jsonSuccess(
+                'Порядок блоків збережено.',
+                ['changed' => (bool) $changed]
+            );
+        } catch (Throwable $e) {
+            $this->jsonFailure($e);
+        }
+    }
+
+
+    public function reorderLinks()
+    {
+        try {
+            $rawLayout = trim(
+                (string) ($_POST['layout'] ?? '')
+            );
+            $layout = $rawLayout !== ''
+                ? json_decode($rawLayout, true)
+                : null;
+
+            if (
+                $rawLayout === ''
+                || !is_array($layout)
+                || json_last_error() !== JSON_ERROR_NONE
+            ) {
+                throw new InvalidArgumentException(
+                    'Некоректна розкладка ярликів.'
+                );
+            }
+
+            $changed = AdminDashboardLayout::reorderLinks(
+                $layout
+            );
+
+            $this->audit(
+                'dashboard.builder.links.reorder',
+                [
+                    'blocks' => count($layout)
+                ]
+            );
+
+            $this->jsonSuccess(
+                'Розкладку ярликів збережено.',
+                ['changed' => (bool) $changed]
+            );
+        } catch (Throwable $e) {
+            $this->jsonFailure($e);
+        }
+    }
+
+
+    private function jsonSuccess($message, array $extra = [])
+    {
+        http_response_code(200);
+        header('Content-Type: application/json; charset=UTF-8');
+
+        echo json_encode(
+            array_merge(
+                [
+                    'success' => true,
+                    'message' => (string) $message
+                ],
+                $extra
+            ),
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+        exit;
+    }
+
+
+    private function jsonFailure(Throwable $error)
+    {
+        $expected = $error instanceof DomainException
+            || $error instanceof InvalidArgumentException;
+
+        if (!$expected) {
+            error_log(
+                'Admin dashboard builder reorder: '
+                . get_class($error)
+                . ': '
+                . $error->getMessage()
+            );
+        }
+
+        http_response_code($expected ? 422 : 500);
+        header('Content-Type: application/json; charset=UTF-8');
+
+        echo json_encode(
+            [
+                'success' => false,
+                'message' => $expected
+                    ? $error->getMessage()
+                    : 'Не вдалося зберегти новий порядок.'
+            ],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+        exit;
+    }
+
+
     private function audit($action, array $details)
     {
         if (!class_exists('AdminAccess')) {
