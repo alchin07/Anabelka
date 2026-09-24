@@ -93,7 +93,7 @@
 
 .admin-home-builder-list {
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 
 .admin-home-builder-block {
@@ -137,6 +137,69 @@
 
 .admin-home-builder-content {
     min-width: 0;
+}
+
+.admin-home-builder-summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.admin-home-builder-summary-copy {
+    min-width: 0;
+}
+
+.admin-home-builder-summary-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    margin-top: 5px;
+    padding: 0 8px;
+    border: 1px solid #c8bacf;
+    border-radius: 999px;
+    background: #fff;
+    color: #665d6b;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.admin-home-builder-summary-status.is-active {
+    border-color: #8A2BE2;
+    background: #f4eaff;
+    color: #6519b9;
+}
+
+.admin-home-builder-editor-toggle {
+    min-height: 40px;
+    flex: 0 0 auto;
+    padding: 0 12px;
+    border: 1px solid #8A2BE2;
+    border-radius: 999px;
+    background: #fff;
+    color: #6519b9;
+    font: inherit;
+    font-weight: 800;
+}
+
+.admin-home-builder-block.is-collapsed
+.admin-home-builder-block-head,
+.admin-home-builder-block.is-collapsed
+.admin-home-builder-settings,
+.admin-home-builder-block.is-collapsed
+.admin-home-builder-static-note {
+    display: none !important;
+}
+
+.admin-home-builder-block.is-collapsed
+.admin-home-builder-order form {
+    display: none !important;
+}
+
+.admin-home-builder-block:not(.is-collapsed)
+.admin-home-builder-block-head {
+    margin-top: 12px;
 }
 
 .admin-home-builder-block-head {
@@ -246,7 +309,26 @@
 
     .admin-home-builder-block {
         grid-template-columns: 44px minmax(0, 1fr);
-        padding: 9px;
+        padding: 8px;
+    }
+
+    .admin-home-builder-summary {
+        min-height: 44px;
+        gap: 8px;
+    }
+
+    .admin-home-builder-editor-toggle {
+        min-height: 40px;
+        padding: 0 10px;
+        font-size: 12px;
+    }
+
+    .admin-home-builder-summary-copy h4 {
+        font-size: 14px;
+    }
+
+    .admin-home-builder-summary-status {
+        font-size: 10px;
     }
 
     .admin-home-builder-order button,
