@@ -74,7 +74,7 @@ assert.match(view, /foreach \(\$categoryOptions as \$category\)/);
 assert.match(view, /data-anabelka-thumbnail-edit="1"/);
 assert.match(view, /id="category-thumbnail-data"/);
 assert.match(view, /id="category-thumbnail-csrf"/);
-assert.match(view, /admin-product-category-thumbnails\.js\?v=2/);
+assert.match(view, /admin-product-category-thumbnails\.js\?v=4/);
 
 assert.match(
     selectJs,
