@@ -462,6 +462,201 @@ class AdminDashboardLayout
     }
 
 
+    public static function reorderBlocks(array $blockIds)
+    {
+        self::ensureSchema();
+        $ids = self::normalizeIdList(
+            $blockIds,
+            'Некоректний список блоків для сортування.'
+        );
+
+        if (empty($ids)) {
+            throw new InvalidArgumentException(
+                'Список блоків для сортування порожній.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $currentIds = array_map(
+                'intval',
+                $db->query("
+                    SELECT id
+                    FROM admin_dashboard_blocks
+                    ORDER BY sort_order ASC, id ASC
+                    FOR UPDATE
+                ")->fetchAll(PDO::FETCH_COLUMN)
+            );
+
+            self::assertSameIdSet(
+                $currentIds,
+                $ids,
+                'Склад блоків змінився. Оновіть сторінку та повторіть переміщення.'
+            );
+
+            if ($currentIds === $ids) {
+                $db->commit();
+                return false;
+            }
+
+            $update = $db->prepare("
+                UPDATE admin_dashboard_blocks
+                SET sort_order = :sort_order
+                WHERE id = :id
+            ");
+
+            foreach ($ids as $position => $id) {
+                $update->execute([
+                    'sort_order' => ($position + 1) * 10,
+                    'id' => (int) $id
+                ]);
+            }
+
+            $db->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    public static function reorderLinks(array $layout)
+    {
+        self::ensureSchema();
+        $submitted = self::normalizeLinkLayout($layout);
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $currentBlockIds = array_map(
+                'intval',
+                $db->query("
+                    SELECT id
+                    FROM admin_dashboard_blocks
+                    ORDER BY id ASC
+                    FOR UPDATE
+                ")->fetchAll(PDO::FETCH_COLUMN)
+            );
+
+            self::assertSameIdSet(
+                $currentBlockIds,
+                array_keys($submitted),
+                'Склад блоків змінився. Оновіть сторінку та повторіть переміщення.'
+            );
+
+            $rows = $db->query("
+                SELECT id, block_id, service_key, sort_order
+                FROM admin_dashboard_links
+                ORDER BY id ASC
+                FOR UPDATE
+            ")->fetchAll(PDO::FETCH_ASSOC);
+
+            $currentById = [];
+            $currentLinkIds = [];
+
+            foreach ($rows as $row) {
+                $linkId = (int) ($row['id'] ?? 0);
+
+                if ($linkId <= 0) {
+                    continue;
+                }
+
+                $currentById[$linkId] = [
+                    'block_id' => (int) ($row['block_id'] ?? 0),
+                    'service_key' => (string) ($row['service_key'] ?? ''),
+                    'sort_order' => (int) ($row['sort_order'] ?? 0)
+                ];
+                $currentLinkIds[] = $linkId;
+            }
+
+            $submittedLinkIds = [];
+
+            foreach ($submitted as $blockId => $linkIds) {
+                foreach ($linkIds as $linkId) {
+                    $submittedLinkIds[] = (int) $linkId;
+                }
+            }
+
+            self::assertSameIdSet(
+                $currentLinkIds,
+                $submittedLinkIds,
+                'Склад ярликів змінився. Оновіть сторінку та повторіть переміщення.'
+            );
+
+            foreach ($submitted as $blockId => $linkIds) {
+                $serviceKeys = [];
+
+                foreach ($linkIds as $linkId) {
+                    $serviceKey = (string) (
+                        $currentById[(int) $linkId]['service_key']
+                        ?? ''
+                    );
+
+                    if ($serviceKey === '') {
+                        throw new InvalidArgumentException(
+                            'Службу ярлика не знайдено.'
+                        );
+                    }
+
+                    if (isset($serviceKeys[$serviceKey])) {
+                        throw new DomainException(
+                            'В одному блоці не можна розмістити дві однакові служби.'
+                        );
+                    }
+
+                    $serviceKeys[$serviceKey] = true;
+                }
+            }
+
+            $changed = false;
+            $update = $db->prepare("
+                UPDATE admin_dashboard_links
+                SET
+                    block_id = :block_id,
+                    sort_order = :sort_order
+                WHERE id = :id
+            ");
+
+            foreach ($submitted as $blockId => $linkIds) {
+                foreach ($linkIds as $position => $linkId) {
+                    $linkId = (int) $linkId;
+                    $sortOrder = ($position + 1) * 10;
+                    $current = $currentById[$linkId] ?? null;
+
+                    if (
+                        !is_array($current)
+                        || (int) $current['block_id'] !== (int) $blockId
+                        || (int) $current['sort_order'] !== $sortOrder
+                    ) {
+                        $changed = true;
+                    }
+
+                    $update->execute([
+                        'block_id' => (int) $blockId,
+                        'sort_order' => $sortOrder,
+                        'id' => $linkId
+                    ]);
+                }
+            }
+
+            $db->commit();
+            return $changed;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
     public static function usedServiceKeys()
     {
         self::ensureSchema();
@@ -655,6 +850,113 @@ class AdminDashboardLayout
                 'sort_order' => ($index + 1) * 10,
                 'id' => $id
             ]);
+        }
+    }
+
+
+    private static function normalizeIdList(
+        array $values,
+        $message
+    ) {
+        $ids = [];
+
+        foreach ($values as $value) {
+            $raw = trim((string) $value);
+
+            if ($raw === '' || !preg_match('/^\\d+$/', $raw)) {
+                throw new InvalidArgumentException(
+                    (string) $message
+                );
+            }
+
+            $id = (int) $raw;
+
+            if ($id <= 0) {
+                throw new InvalidArgumentException(
+                    (string) $message
+                );
+            }
+
+            $ids[] = $id;
+        }
+
+        if (count($ids) !== count(array_unique($ids))) {
+            throw new InvalidArgumentException(
+                (string) $message
+            );
+        }
+
+        return $ids;
+    }
+
+
+    private static function normalizeLinkLayout(array $layout)
+    {
+        if (empty($layout)) {
+            throw new InvalidArgumentException(
+                'Розкладка ярликів порожня.'
+            );
+        }
+
+        $result = [];
+        $allLinkIds = [];
+
+        foreach ($layout as $row) {
+            if (!is_array($row)) {
+                throw new InvalidArgumentException(
+                    'Некоректна розкладка ярликів.'
+                );
+            }
+
+            $blockId = self::positiveId(
+                $row['block_id'] ?? 0,
+                'Некоректний блок у розкладці ярликів.'
+            );
+
+            if (array_key_exists($blockId, $result)) {
+                throw new InvalidArgumentException(
+                    'Блок повторюється у розкладці ярликів.'
+                );
+            }
+
+            $linkIds = self::normalizeIdList(
+                is_array($row['link_ids'] ?? null)
+                    ? $row['link_ids']
+                    : [],
+                'Некоректний список ярликів.'
+            );
+
+            foreach ($linkIds as $linkId) {
+                if (isset($allLinkIds[$linkId])) {
+                    throw new InvalidArgumentException(
+                        'Ярлик повторюється у розкладці.'
+                    );
+                }
+
+                $allLinkIds[$linkId] = true;
+            }
+
+            $result[$blockId] = $linkIds;
+        }
+
+        return $result;
+    }
+
+
+    private static function assertSameIdSet(
+        array $expected,
+        array $submitted,
+        $message
+    ) {
+        $expected = array_map('intval', $expected);
+        $submitted = array_map('intval', $submitted);
+        sort($expected, SORT_NUMERIC);
+        sort($submitted, SORT_NUMERIC);
+
+        if ($expected !== $submitted) {
+            throw new InvalidArgumentException(
+                (string) $message
+            );
         }
     }
 
