@@ -107,11 +107,18 @@ if (!array_key_exists('translations', $adminNavBadges)) {
     );
 }
 
+if (!array_key_exists('audit', $adminNavBadges)) {
+    $adminNavBadges['audit'] = (int) (
+        $notificationByKey['audit'] ?? 0
+    );
+}
+
 $orderBadge = (int) ($adminNavBadges['orders'] ?? 0);
 $userBadge = (int) ($adminNavBadges['users'] ?? 0);
 $translationBadge = (int) (
     $adminNavBadges['translations'] ?? 0
 );
+$auditBadge = (int) ($adminNavBadges['audit'] ?? 0);
 
 if (class_exists('SocialAuthProvider')) {
     try {
@@ -441,6 +448,11 @@ $canVipPriceViews = $adminCan('vip_prices.view');
                     data-admin-route="/Anabelka/admin/audit"
                 >
                     <span>Журнал дій</span>
+                    <?php if ($auditBadge > 0): ?>
+                        <span class="admin-nav-badge">
+                            <?= $auditBadge ?>
+                        </span>
+                    <?php endif; ?>
                 </a>
             <?php endif; ?>
 
