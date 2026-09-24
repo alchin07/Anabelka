@@ -236,7 +236,7 @@ assert.match(view, /badge_count/);
 assert.match(view, /dashboard-builder-live-badge/);
 assert.match(view, /\$badgeTone\s*===\s*'error'/);
 assert.match(view, /99\+/);
-assert.match(view, /admin-dashboard-builder\.css\?v=3/);
+assert.match(view, /admin-dashboard-builder\.css\?v=4/);
 assert.match(view, /data-dashboard-builder-root/);
 assert.match(view, /data-dashboard-builder-block-list/);
 assert.match(view, /data-dashboard-builder-block-handle/);
@@ -252,6 +252,14 @@ assert.match(css, /dashboard-builder-live-badge\.is-error[\s\S]*?background:\s*#
 assert.match(css, /dashboard-builder-drag/);
 assert.match(css, /touch-action:\s*none/);
 assert.match(css, /is-link-drop-target/);
+assert.match(
+    css,
+    /@media\s*\(max-width:\s*700px\)[\s\S]*?\.dashboard-builder-title-form\s*\{[\s\S]*?flex:\s*0\s+0\s+auto/
+);
+assert.match(
+    css,
+    /\.dashboard-builder-block-actions,[\s\S]*?\.dashboard-builder-link-actions[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/
+);
 assert.match(css, /dashboard-builder-links-empty\[hidden\]/);
 
 assert.match(js, /PointerEvent/);
