@@ -1,5 +1,13 @@
 <?php
 $entries = is_array($entries ?? null) ? $entries : [];
+$recentEntries = is_array($recentEntries ?? null)
+    ? $recentEntries
+    : array_slice($entries, 0, 3);
+$olderAuditGroups = is_array($olderAuditGroups ?? null)
+    ? $olderAuditGroups
+    : AdminManagement::groupAuditEntriesByAdministrator(
+        array_slice($entries, 3)
+    );
 $auditAdministrators = is_array($auditAdministrators ?? null)
     ? $auditAdministrators
     : [];
@@ -171,7 +179,7 @@ $formatDetail = static function ($key, $value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Журнал дій') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=5">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=6">
 </head>
 <body>
 
@@ -259,43 +267,134 @@ $formatDetail = static function ($key, $value) {
         </form>
     </section>
 
+    <?php
+    $renderAuditEntry = static function (
+        array $entry,
+        $open
+    ) use (
+        $actionLabels,
+        $detailLabels,
+        $formatDetail
+    ) {
+        $details = json_decode(
+            (string) ($entry['details'] ?? ''),
+            true
+        );
+        $details = is_array($details) ? $details : [];
+        $action = (string) ($entry['action'] ?? '');
+        $actorName = trim((string) ($entry['admin_name'] ?? ''));
+        $actorEmail = trim((string) ($entry['admin_email'] ?? ''));
+        ?>
+        <details
+            class="admin-audit-item"
+            <?= $open ? 'open' : '' ?>
+        >
+            <summary class="admin-audit-summary">
+                <span class="admin-audit-summary-main">
+                    <strong>
+                        <?= htmlspecialchars($actionLabels[$action] ?? $action) ?>
+                    </strong>
+                    <small>
+                        <?= htmlspecialchars(
+                            $actorName !== ''
+                                ? $actorName
+                                : 'Система / невідомий адміністратор'
+                        ) ?>
+                    </small>
+                </span>
+                <span class="admin-audit-summary-side">
+                    <time><?= htmlspecialchars($entry['created_at'] ?? '') ?></time>
+                    <span class="admin-audit-chevron" aria-hidden="true">⌄</span>
+                </span>
+            </summary>
+
+            <div class="admin-audit-body">
+                <div class="admin-audit-head">
+                    <strong><?= htmlspecialchars($actionLabels[$action] ?? $action) ?></strong>
+                    <time><?= htmlspecialchars($entry['created_at'] ?? '') ?></time>
+                </div>
+
+                <div class="admin-audit-actor">
+                    <?php if ($actorName !== ''): ?>
+                        <span><?= htmlspecialchars($actorName) ?></span>
+                        <?php if ($actorEmail !== ''): ?>
+                            <small><?= htmlspecialchars($actorEmail) ?></small>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <span>Система / невідомий адміністратор</span>
+                    <?php endif; ?>
+                </div>
+
+                <?php if (!empty($details)): ?>
+                    <div class="admin-audit-details">
+                        <?php foreach ($details as $key => $value): ?>
+                            <span>
+                                <b><?= htmlspecialchars($detailLabels[$key] ?? (string) $key) ?>:</b>
+                                <?= htmlspecialchars($formatDetail((string) $key, $value)) ?>
+                            </span>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </details>
+        <?php
+    };
+    ?>
+
     <section class="admin-security-panel">
         <?php if (empty($entries)): ?>
             <div class="admin-audit-empty">За вибраними фільтрами записів немає.</div>
         <?php else: ?>
-            <div class="admin-audit-list">
-                <?php foreach ($entries as $entry): ?>
+            <?php if (!empty($recentEntries)): ?>
+                <section class="admin-audit-group is-recent">
+                    <div class="admin-audit-group-head">
+                        <div>
+                            <span>Останні</span>
+                            <h3>3 найсвіжіші дії</h3>
+                        </div>
+                        <strong><?= count($recentEntries) ?></strong>
+                    </div>
+
+                    <div class="admin-audit-list">
+                        <?php foreach ($recentEntries as $entry): ?>
+                            <?php $renderAuditEntry($entry, true); ?>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+            <?php endif; ?>
+
+            <?php if (!empty($olderAuditGroups)): ?>
+                <div class="admin-audit-older-title">
+                    <span>Старіші записи</span>
+                    <strong>За адміністратором</strong>
+                </div>
+
+                <?php foreach ($olderAuditGroups as $group): ?>
                     <?php
-                    $details = json_decode((string) ($entry['details'] ?? ''), true);
-                    $details = is_array($details) ? $details : [];
-                    $action = (string) ($entry['action'] ?? '');
+                    $groupEntries = is_array($group['entries'] ?? null)
+                        ? $group['entries']
+                        : [];
                     ?>
-                    <article class="admin-audit-item">
-                        <div class="admin-audit-head">
-                            <strong><?= htmlspecialchars($actionLabels[$action] ?? $action) ?></strong>
-                            <time><?= htmlspecialchars($entry['created_at'] ?? '') ?></time>
-                        </div>
-                        <div class="admin-audit-actor">
-                            <?php if (!empty($entry['admin_name'])): ?>
-                                <span><?= htmlspecialchars($entry['admin_name']) ?></span>
-                                <small><?= htmlspecialchars($entry['admin_email'] ?? '') ?></small>
-                            <?php else: ?>
-                                <span>Система / невідомий адміністратор</span>
-                            <?php endif; ?>
-                        </div>
-                        <?php if (!empty($details)): ?>
-                            <div class="admin-audit-details">
-                                <?php foreach ($details as $key => $value): ?>
-                                    <span>
-                                        <b><?= htmlspecialchars($detailLabels[$key] ?? (string) $key) ?>:</b>
-                                        <?= htmlspecialchars($formatDetail((string) $key, $value)) ?>
-                                    </span>
-                                <?php endforeach; ?>
+                    <section class="admin-audit-group">
+                        <div class="admin-audit-group-head">
+                            <div>
+                                <span>Адміністратор</span>
+                                <h3><?= htmlspecialchars($group['name'] ?? 'Система / невідомий адміністратор') ?></h3>
+                                <?php if (!empty($group['email'])): ?>
+                                    <small><?= htmlspecialchars($group['email']) ?></small>
+                                <?php endif; ?>
                             </div>
-                        <?php endif; ?>
-                    </article>
+                            <strong><?= (int) ($group['count'] ?? count($groupEntries)) ?></strong>
+                        </div>
+
+                        <div class="admin-audit-list">
+                            <?php foreach ($groupEntries as $entry): ?>
+                                <?php $renderAuditEntry($entry, false); ?>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
                 <?php endforeach; ?>
-            </div>
+            <?php endif; ?>
         <?php endif; ?>
     </section>
 </main>

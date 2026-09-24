@@ -848,6 +848,52 @@ class AdminManagement
     }
 
 
+    public static function groupAuditEntriesByAdministrator(array $entries)
+    {
+        $groups = [];
+        $order = [];
+
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $adminId = (int) ($entry['admin_user_id'] ?? 0);
+            $key = $adminId > 0
+                ? 'admin-' . $adminId
+                : 'system';
+
+            if (!isset($groups[$key])) {
+                $name = trim((string) ($entry['admin_name'] ?? ''));
+                $email = trim((string) ($entry['admin_email'] ?? ''));
+
+                $groups[$key] = [
+                    'key' => $key,
+                    'admin_id' => $adminId,
+                    'name' => $name !== ''
+                        ? $name
+                        : 'Система / невідомий адміністратор',
+                    'email' => $email,
+                    'entries' => []
+                ];
+                $order[] = $key;
+            }
+
+            $groups[$key]['entries'][] = $entry;
+        }
+
+        $result = [];
+
+        foreach ($order as $key) {
+            $group = $groups[$key];
+            $group['count'] = count($group['entries']);
+            $result[] = $group;
+        }
+
+        return $result;
+    }
+
+
     public static function auditAdministrators()
     {
         AdminAccess::ensureSchema();

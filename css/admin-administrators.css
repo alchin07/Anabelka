@@ -941,3 +941,194 @@ select:disabled {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* Compact grouped audit journal */
+.admin-audit-group + .admin-audit-group {
+    margin-top: 14px;
+}
+
+.admin-audit-group-head,
+.admin-audit-older-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.admin-audit-group-head {
+    margin-bottom: 7px;
+    padding: 0 2px;
+}
+
+.admin-audit-group-head > div {
+    min-width: 0;
+}
+
+.admin-audit-group-head span,
+.admin-audit-older-title span {
+    display: block;
+    color: var(--admin-security-muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.admin-audit-group-head h3,
+.admin-audit-older-title strong {
+    margin: 2px 0 0;
+    font-size: 14px;
+}
+
+.admin-audit-group-head small {
+    display: block;
+    margin-top: 2px;
+    color: var(--admin-security-muted);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.admin-audit-group-head > strong {
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #f1e5fb;
+    color: var(--admin-security-primary-dark);
+    font-size: 11px;
+}
+
+.admin-audit-group.is-recent .admin-audit-group-head {
+    padding: 8px 10px;
+    border: 1px solid var(--admin-security-border);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.admin-audit-older-title {
+    margin: 14px 0 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--admin-security-border);
+}
+
+details.admin-audit-item {
+    padding: 0;
+}
+
+details.admin-audit-item[open] {
+    background: var(--admin-security-soft);
+}
+
+.admin-audit-summary {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.admin-audit-summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-audit-summary-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-audit-summary-main strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--admin-security-text);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-audit-summary-main small {
+    color: var(--admin-security-muted);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.admin-audit-summary-side {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--admin-security-muted);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.admin-audit-chevron {
+    display: inline-block;
+    color: var(--admin-security-primary);
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+    transition: transform .15s ease;
+}
+
+details.admin-audit-item[open] .admin-audit-chevron {
+    transform: rotate(180deg);
+}
+
+.admin-audit-body {
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--admin-security-border);
+}
+
+details.admin-audit-item[open] .admin-audit-summary-main {
+    grid-template-columns: 1fr;
+    align-items: start;
+}
+
+details.admin-audit-item[open] .admin-audit-summary-main small {
+    white-space: normal;
+}
+
+@media (max-width: 560px) {
+    .admin-audit-summary {
+        align-items: flex-start;
+        gap: 7px;
+        padding: 7px 8px;
+    }
+
+    .admin-audit-summary-main {
+        grid-template-columns: 1fr;
+        gap: 3px;
+    }
+
+    .admin-audit-summary-main strong {
+        font-size: 11px;
+    }
+
+    .admin-audit-summary-main small {
+        overflow: hidden;
+        max-width: 100%;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .admin-audit-summary-side {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+        font-size: 9px;
+    }
+
+    .admin-audit-body {
+        padding: 8px;
+    }
+}

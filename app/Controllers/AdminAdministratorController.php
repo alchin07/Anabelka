@@ -537,9 +537,17 @@ class AdminAdministratorController extends Controller
             'date_to' => $_GET['date_to'] ?? ''
         ]);
 
+        $entries = AdminManagement::auditLog($filters, 250);
+        $recentEntries = array_slice($entries, 0, 3);
+        $olderAuditGroups = AdminManagement::groupAuditEntriesByAdministrator(
+            array_slice($entries, 3)
+        );
+
         $this->view('admin/administrators/audit', [
             'pageTitle' => 'Адмін-панель · Журнал дій',
-            'entries' => AdminManagement::auditLog($filters, 250),
+            'entries' => $entries,
+            'recentEntries' => $recentEntries,
+            'olderAuditGroups' => $olderAuditGroups,
             'auditAdministrators' => AdminManagement::auditAdministrators(),
             'auditActions' => AdminManagement::auditActions(),
             'filters' => $filters
