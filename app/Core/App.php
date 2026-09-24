@@ -63,6 +63,7 @@ class App
         require_once __DIR__ . '/../Models/CustomerOrderHistory.php';
         require_once __DIR__ . '/../Models/AdminOrder.php';
         require_once __DIR__ . '/../Models/AdminDashboard.php';
+        require_once __DIR__ . '/../Models/AdminDashboardLayout.php';
         require_once __DIR__ . '/../Models/Delivery.php';
         require_once __DIR__ . '/../Models/DeliveryRequirements.php';
         require_once __DIR__ . '/../Models/DeliveryOptionInput.php';
@@ -138,6 +139,7 @@ class App
         require_once __DIR__ . '/../Controllers/LanguageController.php';
         require_once __DIR__ . '/../Controllers/AdminAuthController.php';
         require_once __DIR__ . '/../Controllers/AdminDashboardController.php';
+        require_once __DIR__ . '/../Controllers/AdminDashboardBuilderController.php';
         require_once __DIR__ . '/../Controllers/AdminOrderController.php';
         require_once __DIR__ . '/../Controllers/AdminSearchController.php';
         require_once __DIR__ . '/../Controllers/AdminUserController.php';
