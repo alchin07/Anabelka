@@ -43,8 +43,12 @@ assert.match(
     /post\(\s*['"]\/admin\/categories\/thumbnail['"][\s\S]*?AdminCategoryController@thumbnail/
 );
 assert.match(
+    routes,
+    /post\(\s*['"]\/admin\/categories\/thumbnail['"][\s\S]*?AdminCategoryController@thumbnail[\s\S]*?['"]csrf['"]\s*=>\s*true/
+);
+assert.match(
     controller,
-    /public function thumbnail\(\)[\s\S]*?verifyCsrf\(\)[\s\S]*?CategoryManager::updateThumbnail/
+    /public function thumbnail\(\)[\s\S]*?CategoryManager::updateThumbnail/
 );
 assert.match(manager, /public static function updateThumbnail\s*\(/);
 assert.match(
