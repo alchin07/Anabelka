@@ -760,10 +760,15 @@
                 return;
             }
 
-            setBlockCollapsed(
-                block,
-                !block.classList.contains('is-collapsed')
+            const shouldOpen = block.classList.contains(
+                'is-collapsed'
             );
+
+            collapseAllBlocks();
+
+            if (shouldOpen) {
+                setBlockCollapsed(block, false);
+            }
         });
     });
 
