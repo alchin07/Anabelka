@@ -110,6 +110,18 @@ assert.match(controller, /admin\.invitation_accepted/);
 
 assert.match(management, /LEFT JOIN admin_invitations ai/);
 assert.match(management, /invitation_status/);
+assert.match(
+    management,
+    /toggleAdministrator[\s\S]*?assertInvitationActivatedForAccountActions\(\$adminId\)/
+);
+assert.match(
+    management,
+    /resetPassword[\s\S]*?assertInvitationActivatedForAccountActions\(\$adminId\)/
+);
+assert.match(
+    management,
+    /status !== '' && \$status !== 'accepted'/
+);
 
 assert.match(view, /Запросити адміністратора/);
 assert.match(view, /\/admin\/administrators\/invite/);

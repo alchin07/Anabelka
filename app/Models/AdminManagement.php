@@ -251,6 +251,8 @@ class AdminManagement
             throw new RuntimeException('Доступ розробника вимкнути не можна.');
         }
 
+        self::assertInvitationActivatedForAccountActions($adminId);
+
         $newState = empty($admin['is_active']) ? 1 : 0;
         $stmt = Database::connect()->prepare("
             UPDATE admin_users
@@ -286,6 +288,8 @@ class AdminManagement
                 'Пароль розробника змінюється окремо в налаштуваннях безпеки.'
             );
         }
+
+        self::assertInvitationActivatedForAccountActions($adminId);
 
         $stmt = Database::connect()->prepare("
             UPDATE admin_users
@@ -399,6 +403,33 @@ class AdminManagement
             ORDER BY l.id DESC
             LIMIT {$limit}
         ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+    private static function assertInvitationActivatedForAccountActions($adminId)
+    {
+        if (!class_exists('AdminInvitation')) {
+            return;
+        }
+
+        AdminInvitation::ensureSchema();
+
+        $stmt = Database::connect()->prepare("
+            SELECT status
+            FROM admin_invitations
+            WHERE admin_user_id = :admin_user_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'admin_user_id' => (int) $adminId
+        ]);
+        $status = trim((string) ($stmt->fetchColumn() ?: ''));
+
+        if ($status !== '' && $status !== 'accepted') {
+            throw new RuntimeException(
+                'Спочатку адміністратор має прийняти запрошення та встановити власний пароль.'
+            );
+        }
     }
 
 
