@@ -554,3 +554,131 @@ select:disabled {
         gap: 3px;
     }
 }
+
+
+.admin-invite-result {
+    border-color: #cfb6eb;
+    background: #fdfaff;
+}
+
+.admin-invite-channel {
+    display: inline-flex;
+    min-height: 30px;
+    align-items: center;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #f1e5fb;
+    color: var(--admin-security-primary-dark);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-invite-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 12px;
+}
+
+.admin-invite-meta span {
+    padding: 7px 9px;
+    border-radius: 9px;
+    background: #f5eef9;
+    color: #5c5262;
+    font-size: 12px;
+}
+
+.admin-invite-message-field {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-invite-message-field > span {
+    color: var(--admin-security-muted);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-invite-message-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    resize: vertical;
+    padding: 11px 12px;
+    border: 1px solid #d9cde3;
+    border-radius: 11px;
+    background: #fff;
+    color: var(--admin-security-text);
+    font: inherit;
+    line-height: 1.45;
+}
+
+.admin-invite-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.admin-invite-actions button {
+    min-height: 41px;
+    padding: 0 13px;
+    border: 1px solid var(--admin-security-primary);
+    border-radius: 10px;
+    background: var(--admin-security-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-invite-actions button + button {
+    background: #fff;
+    color: var(--admin-security-primary-dark);
+}
+
+#admin-invite-copy-status {
+    color: var(--admin-security-muted);
+    font-size: 12px;
+}
+
+.admin-staff-status.is-pending {
+    background: #fff3d8;
+    color: #8a641e;
+}
+
+.admin-staff-status.is-expired {
+    background: #f8e9ec;
+    color: #9a4553;
+}
+
+.admin-invite-create-form {
+    grid-template-columns:
+        minmax(150px, .9fr)
+        minmax(190px, 1.1fr)
+        minmax(160px, .9fr)
+        minmax(140px, .8fr)
+        minmax(180px, 1fr)
+        auto;
+}
+
+@media (max-width: 900px) {
+    .admin-invite-create-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .admin-invite-create-form {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-invite-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .admin-invite-actions button {
+        width: 100%;
+    }
+}

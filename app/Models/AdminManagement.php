@@ -6,6 +6,10 @@ class AdminManagement
     {
         AdminAccess::ensureSchema();
 
+        if (class_exists('AdminInvitation')) {
+            AdminInvitation::ensureSchema();
+        }
+
         return Database::connect()->query("
             SELECT
                 au.id,
@@ -17,9 +21,20 @@ class AdminManagement
                 au.created_at,
                 ar.name AS role_name,
                 ar.slug AS role_slug,
-                ar.is_system AS role_is_system
+                ar.is_system AS role_is_system,
+                CASE
+                    WHEN ai.status IN ('created', 'sent')
+                         AND ai.expires_at <= NOW()
+                    THEN 'expired'
+                    ELSE ai.status
+                END AS invitation_status,
+                ai.channel AS invitation_channel,
+                ai.contact AS invitation_contact,
+                ai.expires_at AS invitation_expires_at
             FROM admin_users au
             INNER JOIN admin_roles ar ON ar.id = au.role_id
+            LEFT JOIN admin_invitations ai
+                ON ai.admin_user_id = au.id
             ORDER BY
                 CASE WHEN ar.slug = 'owner' THEN 0 ELSE 1 END,
                 au.is_active DESC,

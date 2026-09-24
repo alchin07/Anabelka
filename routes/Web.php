@@ -63,6 +63,17 @@ $router->post(
 );
 
 $router->get(
+    '/admin-invite',
+    'AdminAdministratorController@inviteForm'
+);
+
+$router->post(
+    '/admin-invite',
+    'AdminAdministratorController@acceptInvitation',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->get(
     '/checkout',
     'OrderController@checkout'
 );
@@ -100,6 +111,71 @@ $router->get(
 $router->get(
     '/admin',
     'AdminDashboardController@index'
+);
+
+$router->get(
+    '/admin/administrators',
+    'AdminAdministratorController@index'
+);
+
+$router->post(
+    '/admin/administrators/create',
+    'AdminAdministratorController@create'
+);
+
+$router->post(
+    '/admin/administrators/invite',
+    'AdminAdministratorController@createInvitation'
+);
+
+$router->post(
+    '/admin/administrators/role',
+    'AdminAdministratorController@changeRole'
+);
+
+$router->post(
+    '/admin/administrators/password',
+    'AdminAdministratorController@resetPassword'
+);
+
+$router->post(
+    '/admin/administrators/toggle',
+    'AdminAdministratorController@toggle'
+);
+
+$router->post(
+    '/admin/administrators/roles/create',
+    'AdminAdministratorController@createRole'
+);
+
+$router->post(
+    '/admin/administrators/roles/permissions',
+    'AdminAdministratorController@updateRolePermissions'
+);
+
+$router->get(
+    '/admin/audit',
+    'AdminAdministratorController@audit'
+);
+
+$router->get(
+    '/admin/profile',
+    'AdminAdministratorController@profile'
+);
+
+$router->post(
+    '/admin/profile',
+    'AdminAdministratorController@updateProfile'
+);
+
+$router->post(
+    '/admin/profile/password',
+    'AdminAdministratorController@changeOwnPassword'
+);
+
+$router->post(
+    '/admin/profile/notification-badge',
+    'AdminAdministratorController@updateNotificationBadge'
 );
 
 $router->get(
