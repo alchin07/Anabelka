@@ -399,6 +399,8 @@
 
         const fullIds = orderIds(list);
 
+        collapseAllHomeBlocks();
+
         if (!visibleIds.every(function (id) {
             return fullIds.includes(id);
         })) {
