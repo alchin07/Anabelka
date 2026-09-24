@@ -410,6 +410,6 @@ $creatableBlocks = array_filter(
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-home-page.js?v=4"></script>
+<script src="/Anabelka/js/admin-home-page.js?v=5"></script>
 </body>
 </html>
