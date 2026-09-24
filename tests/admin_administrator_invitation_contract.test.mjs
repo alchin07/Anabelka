@@ -40,6 +40,14 @@ assert.match(
 );
 assert.match(
     securityRoutes,
+    /post\(\s*['"]\/admin\/administrators\/invite\/reissue['"][\s\S]*?AdminAdministratorController@reissueInvitation/
+);
+assert.match(
+    securityRoutes,
+    /post\(\s*['"]\/admin\/administrators\/invite\/revoke['"][\s\S]*?AdminAdministratorController@revokeInvitation/
+);
+assert.match(
+    securityRoutes,
     /get\(\s*['"]\/admin\/audit['"][\s\S]*?AdminAdministratorController@audit/
 );
 assert.match(
@@ -80,10 +88,24 @@ assert.match(
     /SET[\s\S]*?password_hash = :password_hash,[\s\S]*?is_active = 1/
 );
 assert.match(invitation, /slug <> 'owner'/);
+assert.match(invitation, /public static function reissue\s*\(/);
+assert.match(
+    invitation,
+    /status = 'created'[\s\S]*?token_hash = :token_hash/
+);
+assert.match(invitation, /public static function revoke\s*\(/);
+assert.match(
+    invitation,
+    /status = 'revoked'[\s\S]*?token_hash = NULL/
+);
 
 assert.match(controller, /public function createInvitation\(\)/);
+assert.match(controller, /public function reissueInvitation\(\)/);
+assert.match(controller, /public function revokeInvitation\(\)/);
 assert.match(controller, /public function acceptInvitation\(\)/);
 assert.match(controller, /admin\.invitation_created/);
+assert.match(controller, /admin\.invitation_reissued/);
+assert.match(controller, /admin\.invitation_revoked/);
 assert.match(controller, /admin\.invitation_accepted/);
 
 assert.match(management, /LEFT JOIN admin_invitations ai/);
@@ -93,6 +115,9 @@ assert.match(view, /Запросити адміністратора/);
 assert.match(view, /\/admin\/administrators\/invite/);
 assert.match(view, /navigator\.share/);
 assert.match(view, /Копіювати текст/);
+assert.match(view, /Повторно видати запрошення/);
+assert.match(view, /Відкликати запрошення/);
+assert.match(view, /\$isInvitationRestricted/);
 
 assert.match(inviteView, /action="\/Anabelka\/admin-invite"/);
 assert.match(inviteView, /name="_csrf"/);

@@ -332,6 +332,246 @@ class AdminInvitation
     }
 
 
+    public static function reissue($adminId, $createdByAdminId)
+    {
+        self::ensureSchema();
+
+        $adminId = (int) $adminId;
+        $createdByAdminId = (int) $createdByAdminId;
+
+        if ($adminId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректний адміністратор.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT
+                    ai.id,
+                    ai.status,
+                    ai.channel,
+                    ai.contact,
+                    au.id AS admin_id,
+                    au.name,
+                    au.email,
+                    au.is_active,
+                    ar.id AS role_id,
+                    ar.name AS role_name,
+                    ar.slug AS role_slug
+                FROM admin_invitations ai
+                INNER JOIN admin_users au
+                    ON au.id = ai.admin_user_id
+                INNER JOIN admin_roles ar
+                    ON ar.id = au.role_id
+                WHERE ai.admin_user_id = :admin_user_id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute([
+                'admin_user_id' => $adminId
+            ]);
+            $invite = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$invite) {
+                throw new RuntimeException(
+                    'Запрошення цього адміністратора не знайдено.'
+                );
+            }
+
+            if (($invite['role_slug'] ?? '') === 'owner') {
+                throw new RuntimeException(
+                    'Запрошення розробника змінювати не можна.'
+                );
+            }
+
+            if (
+                ($invite['status'] ?? '') === 'accepted'
+                || !empty($invite['is_active'])
+            ) {
+                throw new RuntimeException(
+                    'Адміністратор уже активував свій акаунт.'
+                );
+            }
+
+            $token = bin2hex(random_bytes(24));
+            $tokenHash = hash('sha256', $token);
+            $expiresAt = (string) $db->query("
+                SELECT DATE_FORMAT(
+                    DATE_ADD(NOW(), INTERVAL 7 DAY),
+                    '%Y-%m-%d %H:%i:%s'
+                )
+            ")->fetchColumn();
+
+            $update = $db->prepare("
+                UPDATE admin_invitations
+                SET
+                    status = 'created',
+                    token_hash = :token_hash,
+                    expires_at = :expires_at,
+                    created_by_admin_id = :created_by_admin_id,
+                    sent_at = NULL,
+                    accepted_at = NULL
+                WHERE id = :id
+            ");
+            $update->execute([
+                'token_hash' => $tokenHash,
+                'expires_at' => $expiresAt,
+                'created_by_admin_id' => $createdByAdminId > 0
+                    ? $createdByAdminId
+                    : null,
+                'id' => (int) $invite['id']
+            ]);
+
+            $disable = $db->prepare("
+                UPDATE admin_users
+                SET is_active = 0
+                WHERE id = :id
+            ");
+            $disable->execute([
+                'id' => $adminId
+            ]);
+
+            $db->commit();
+
+            return [
+                'admin_id' => $adminId,
+                'name' => (string) $invite['name'],
+                'email' => (string) $invite['email'],
+                'role_id' => (int) $invite['role_id'],
+                'role_name' => (string) $invite['role_name'],
+                'role_slug' => (string) $invite['role_slug'],
+                'channel' => (string) $invite['channel'],
+                'contact' => (string) $invite['contact'],
+                'expires_at' => $expiresAt,
+                'invite_token' => $token
+            ];
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    public static function revoke($adminId, $createdByAdminId)
+    {
+        self::ensureSchema();
+
+        $adminId = (int) $adminId;
+        $createdByAdminId = (int) $createdByAdminId;
+
+        if ($adminId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректний адміністратор.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT
+                    ai.id,
+                    ai.status,
+                    au.id AS admin_id,
+                    au.name,
+                    au.email,
+                    au.is_active,
+                    ar.name AS role_name,
+                    ar.slug AS role_slug
+                FROM admin_invitations ai
+                INNER JOIN admin_users au
+                    ON au.id = ai.admin_user_id
+                INNER JOIN admin_roles ar
+                    ON ar.id = au.role_id
+                WHERE ai.admin_user_id = :admin_user_id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute([
+                'admin_user_id' => $adminId
+            ]);
+            $invite = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$invite) {
+                throw new RuntimeException(
+                    'Запрошення цього адміністратора не знайдено.'
+                );
+            }
+
+            if (($invite['role_slug'] ?? '') === 'owner') {
+                throw new RuntimeException(
+                    'Запрошення розробника змінювати не можна.'
+                );
+            }
+
+            if (
+                ($invite['status'] ?? '') === 'accepted'
+                || !empty($invite['is_active'])
+            ) {
+                throw new RuntimeException(
+                    'Активований акаунт не можна відкликати як запрошення.'
+                );
+            }
+
+            if (($invite['status'] ?? '') === 'revoked') {
+                throw new RuntimeException(
+                    'Запрошення вже відкликано.'
+                );
+            }
+
+            $update = $db->prepare("
+                UPDATE admin_invitations
+                SET
+                    status = 'revoked',
+                    token_hash = NULL,
+                    created_by_admin_id = :created_by_admin_id,
+                    sent_at = NULL,
+                    accepted_at = NULL
+                WHERE id = :id
+            ");
+            $update->execute([
+                'created_by_admin_id' => $createdByAdminId > 0
+                    ? $createdByAdminId
+                    : null,
+                'id' => (int) $invite['id']
+            ]);
+
+            $disable = $db->prepare("
+                UPDATE admin_users
+                SET is_active = 0
+                WHERE id = :id
+            ");
+            $disable->execute([
+                'id' => $adminId
+            ]);
+
+            $db->commit();
+
+            return [
+                'admin_id' => $adminId,
+                'name' => (string) $invite['name'],
+                'email' => (string) $invite['email'],
+                'role_name' => (string) $invite['role_name'],
+                'role_slug' => (string) $invite['role_slug']
+            ];
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
     private static function normalizeName($name)
     {
         $name = trim((string) $name);

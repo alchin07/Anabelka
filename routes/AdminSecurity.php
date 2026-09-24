@@ -49,6 +49,16 @@ $router->post(
 );
 
 $router->post(
+    '/admin/administrators/invite/reissue',
+    'AdminAdministratorController@reissueInvitation'
+);
+
+$router->post(
+    '/admin/administrators/invite/revoke',
+    'AdminAdministratorController@revokeInvitation'
+);
+
+$router->post(
     '/admin/administrators/role',
     'AdminAdministratorController@changeRole'
 );

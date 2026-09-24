@@ -60,7 +60,7 @@ foreach ($permissions as $permission) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адміністратори') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=3">
 </head>
 <body>
 
@@ -225,6 +225,12 @@ foreach ($permissions as $permission) {
                     true
                 );
                 $isExpiredInvite = $inviteStatus === 'expired';
+                $isRevokedInvite = $inviteStatus === 'revoked';
+                $isInvitationRestricted = (
+                    $isPendingInvite
+                    || $isExpiredInvite
+                    || $isRevokedInvite
+                );
                 ?>
                 <article class="admin-staff-card <?= $isOwner ? 'is-owner' : '' ?>">
                     <div class="admin-staff-main">
@@ -247,6 +253,10 @@ foreach ($permissions as $permission) {
                                 <span class="admin-staff-status is-expired">
                                     Запрошення прострочено
                                 </span>
+                            <?php elseif ($isRevokedInvite): ?>
+                                <span class="admin-staff-status is-revoked">
+                                    Запрошення відкликано
+                                </span>
                             <?php else: ?>
                                 <span class="admin-staff-status <?= $isActive ? 'is-active' : 'is-disabled' ?>">
                                     <?= $isActive ? 'Активний' : 'Вимкнений' ?>
@@ -263,7 +273,7 @@ foreach ($permissions as $permission) {
                             Розробник має повний доступ. Його роль і доступ не можна змінити з цієї сторінки.
                         </div>
                     <?php elseif ($canManage): ?>
-                        <div class="admin-staff-actions">
+                        <div class="admin-staff-actions<?= $isInvitationRestricted ? ' has-invitation' : '' ?>">
                             <form method="post" action="/Anabelka/admin/administrators/role" onsubmit="return confirm('Змінити роль цього адміністратора?');">
                                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="admin_id" value="<?= $adminId ?>">
@@ -281,23 +291,86 @@ foreach ($permissions as $permission) {
                                 <button type="submit" <?= $isCurrent ? 'disabled' : '' ?>>Зберегти роль</button>
                             </form>
 
-                            <form method="post" action="/Anabelka/admin/administrators/password" autocomplete="off" onsubmit="return confirm('Встановити новий пароль цьому адміністратору?');">
-                                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                <input type="hidden" name="admin_id" value="<?= $adminId ?>">
-                                <label>
-                                    <span>Новий пароль</span>
-                                    <input type="password" name="password" minlength="10" autocomplete="new-password" required>
-                                </label>
-                                <button type="submit">Змінити пароль</button>
-                            </form>
+                            <?php if ($isInvitationRestricted): ?>
+                                <div class="admin-invite-card-actions">
+                                    <div class="admin-invite-card-copy">
+                                        <strong>
+                                            <?= $isRevokedInvite
+                                                ? 'Активацію скасовано'
+                                                : ($isExpiredInvite
+                                                    ? 'Потрібне нове запрошення'
+                                                    : 'Очікуємо активацію') ?>
+                                        </strong>
+                                        <span>
+                                            <?php if ($isPendingInvite): ?>
+                                                Посилання діє до
+                                                <?= htmlspecialchars((string) ($admin['invitation_expires_at'] ?? '')) ?>.
+                                            <?php elseif ($isExpiredInvite): ?>
+                                                Попереднє посилання вже не працює.
+                                            <?php else: ?>
+                                                Старе посилання недійсне.
+                                            <?php endif; ?>
+                                        </span>
+                                        <?php if (!empty($admin['invitation_contact'])): ?>
+                                            <small>
+                                                Контакт:
+                                                <?= htmlspecialchars((string) $admin['invitation_contact']) ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    </div>
 
-                            <form class="admin-access-toggle-form" method="post" action="/Anabelka/admin/administrators/toggle" onsubmit="return confirm('<?= $isActive ? 'Вимкнути доступ цього адміністратора?' : 'Увімкнути доступ цього адміністратора?' ?>');">
-                                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                <input type="hidden" name="admin_id" value="<?= $adminId ?>">
-                                <button class="<?= $isActive ? 'is-danger' : 'is-enable' ?>" type="submit" <?= ($isCurrent || $isPendingInvite || $isExpiredInvite) ? 'disabled' : '' ?>>
-                                    <?= $isActive ? 'Вимкнути доступ' : 'Увімкнути доступ' ?>
-                                </button>
-                            </form>
+                                    <div class="admin-invite-card-buttons">
+                                        <form
+                                            method="post"
+                                            action="/Anabelka/admin/administrators/invite/reissue"
+                                            data-anabelka-confirm="Створити нове одноразове запрошення? Попереднє посилання одразу перестане працювати."
+                                            data-anabelka-confirm-title="Нове запрошення"
+                                            data-anabelka-confirm-confirm-text="Створити"
+                                        >
+                                            <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+                                            <button type="submit">
+                                                Повторно видати запрошення
+                                            </button>
+                                        </form>
+
+                                        <?php if (!$isRevokedInvite): ?>
+                                            <form
+                                                method="post"
+                                                action="/Anabelka/admin/administrators/invite/revoke"
+                                                data-anabelka-confirm="Відкликати запрошення? Посилання перестане працювати, а акаунт залишиться неактивним."
+                                                data-anabelka-confirm-title="Відкликати запрошення"
+                                                data-anabelka-confirm-confirm-text="Відкликати"
+                                                data-anabelka-confirm-danger="1"
+                                            >
+                                                <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+                                                <button class="is-danger" type="submit">
+                                                    Відкликати запрошення
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <form method="post" action="/Anabelka/admin/administrators/password" autocomplete="off" onsubmit="return confirm('Встановити новий пароль цьому адміністратору?');">
+                                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+                                    <label>
+                                        <span>Новий пароль</span>
+                                        <input type="password" name="password" minlength="10" autocomplete="new-password" required>
+                                    </label>
+                                    <button type="submit">Змінити пароль</button>
+                                </form>
+
+                                <form class="admin-access-toggle-form" method="post" action="/Anabelka/admin/administrators/toggle" onsubmit="return confirm('<?= $isActive ? 'Вимкнути доступ цього адміністратора?' : 'Увімкнути доступ цього адміністратора?' ?>');">
+                                    <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                    <input type="hidden" name="admin_id" value="<?= $adminId ?>">
+                                    <button class="<?= $isActive ? 'is-danger' : 'is-enable' ?>" type="submit" <?= $isCurrent ? 'disabled' : '' ?>>
+                                        <?= $isActive ? 'Вимкнути доступ' : 'Увімкнути доступ' ?>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </article>

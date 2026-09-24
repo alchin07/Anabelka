@@ -682,3 +682,74 @@ select:disabled {
         width: 100%;
     }
 }
+
+
+.admin-staff-status.is-revoked {
+    background: #eee8f2;
+    color: #62566b;
+}
+
+.admin-staff-actions.has-invitation {
+    grid-template-columns: minmax(240px, .9fr) minmax(300px, 1.4fr);
+}
+
+.admin-invite-card-actions {
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.admin-invite-card-copy {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    padding: 9px 10px;
+    border: 1px solid #e3d4ef;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.admin-invite-card-copy strong {
+    color: var(--admin-security-primary-dark);
+    font-size: 13px;
+}
+
+.admin-invite-card-copy span,
+.admin-invite-card-copy small {
+    color: var(--admin-security-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.admin-invite-card-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.admin-invite-card-buttons form {
+    display: block;
+}
+
+.admin-invite-card-buttons button {
+    width: 100%;
+    min-height: 43px;
+}
+
+.admin-invite-card-buttons button.is-danger {
+    border: 1px solid #d8a8b4;
+    background: #fff;
+    color: var(--admin-security-danger);
+}
+
+@media (max-width: 900px) {
+    .admin-staff-actions.has-invitation {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .admin-invite-card-buttons {
+        grid-template-columns: 1fr;
+    }
+}

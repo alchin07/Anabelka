@@ -191,6 +191,69 @@ class AdminAdministratorController extends Controller
     }
 
 
+    public function reissueInvitation()
+    {
+        try {
+            $this->verifyCsrf();
+
+            $result = AdminInvitation::reissue(
+                $_POST['admin_id'] ?? 0,
+                AdminAccess::currentId()
+            );
+
+            $_SESSION['admin_administrator_invite_flash'] = $result;
+
+            AdminAccess::audit(
+                'admin.invitation_reissued',
+                [
+                    'target_admin_id' => (int) ($result['admin_id'] ?? 0),
+                    'email' => (string) ($result['email'] ?? ''),
+                    'role' => (string) ($result['role_slug'] ?? ''),
+                    'channel' => (string) ($result['channel'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect(
+                'message',
+                'Нове одноразове запрошення створено. Попереднє посилання більше не працює.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function revokeInvitation()
+    {
+        try {
+            $this->verifyCsrf();
+
+            $result = AdminInvitation::revoke(
+                $_POST['admin_id'] ?? 0,
+                AdminAccess::currentId()
+            );
+
+            AdminAccess::audit(
+                'admin.invitation_revoked',
+                [
+                    'target_admin_id' => (int) ($result['admin_id'] ?? 0),
+                    'email' => (string) ($result['email'] ?? ''),
+                    'role' => (string) ($result['role_slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect(
+                'message',
+                'Запрошення адміністратора відкликано.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
     public function changeRole()
     {
         try {
