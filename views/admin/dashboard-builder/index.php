@@ -67,7 +67,7 @@ $availableForAdd = array_filter(
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-dashboard-builder.css?v=4"
+        href="/Anabelka/css/admin-dashboard-builder.css?v=5"
     >
 </head>
 <body>
@@ -169,6 +169,9 @@ $availableForAdd = array_filter(
                     ? ''
                     : ' is-disabled' ?>"
                 data-dashboard-builder-block-id="<?= $blockId ?>"
+                data-dashboard-builder-block-title="<?= $escape(
+                    $block['title'] ?? ''
+                ) ?>"
             >
                 <button
                     type="button"
