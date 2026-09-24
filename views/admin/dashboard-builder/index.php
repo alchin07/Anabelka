@@ -264,14 +264,13 @@ $availableForAdd = array_filter(
                     data-dashboard-builder-link-list
                     data-dashboard-builder-block-id="<?= $blockId ?>"
                 >
-                    <?php if (empty($links)): ?>
-                        <div
-                            class="dashboard-builder-links-empty"
-                            data-dashboard-builder-links-empty
-                        >
-                            У цьому блоці ще немає служб.
-                        </div>
-                    <?php endif; ?>
+                    <div
+                        class="dashboard-builder-links-empty"
+                        data-dashboard-builder-links-empty
+                        <?= empty($links) ? '' : 'hidden' ?>
+                    >
+                        У цьому блоці ще немає служб.
+                    </div>
 
                     <?php foreach ($links as $link): ?>
                         <?php
