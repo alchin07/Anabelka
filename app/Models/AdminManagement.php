@@ -460,6 +460,14 @@ class AdminManagement
                     'admin_user_id' => $adminId
                 ]);
 
+                $deleteWorkSessions = $db->prepare("
+                    DELETE FROM admin_work_activity_sessions
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteWorkSessions->execute([
+                    'admin_user_id' => $adminId
+                ]);
+
                 $deleteCompensation = $db->prepare("
                     DELETE FROM admin_work_compensation
                     WHERE admin_user_id = :admin_user_id
