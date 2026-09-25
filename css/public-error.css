@@ -19,24 +19,8 @@
     text-align: center;
 }
 
-.public-error-code {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 54px;
-    min-height: 34px;
-    box-sizing: border-box;
-    padding: 6px 12px;
-    border: 1px solid #8A2BE2;
-    border-radius: 999px;
-    background: #f3e8ff;
-    color: #6519b9;
-    font-size: 14px;
-    font-weight: 800;
-}
-
 .public-error-card h1 {
-    margin: 16px 0 10px;
+    margin: 0 0 12px;
     color: #20202a;
     font-size: clamp(26px, 7vw, 38px);
     line-height: 1.15;
@@ -99,7 +83,7 @@
     }
 
     .public-error-card h1 {
-        margin: 14px 0 8px;
+        margin: 0 0 10px;
     }
 
     .public-error-actions {
