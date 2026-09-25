@@ -1191,3 +1191,41 @@ details.admin-audit-item[open] .admin-audit-summary-main small {
 .admin-audit-group-head .admin-audit-new-badge {
     color: #fff;
 }
+
+
+.admin-audit-clear-all {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--admin-security-border);
+    border-radius: 14px;
+    background: #fff;
+}
+
+.admin-audit-clear-all form {
+    margin: 0;
+}
+
+.admin-audit-clear-all button {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--admin-security-primary);
+    border-radius: 10px;
+    background: var(--admin-security-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-audit-clear-all button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.admin-audit-clear-all small {
+    display: block;
+    margin-top: 7px;
+    color: var(--admin-security-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
