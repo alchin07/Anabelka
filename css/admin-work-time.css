@@ -1,0 +1,347 @@
+:root {
+    --work-primary: #8A2BE2;
+    --work-primary-dark: #6519b9;
+    --work-light: #f4eaff;
+    --work-soft: #faf7ff;
+    --work-border: #eadcf7;
+    --work-text: #2d2731;
+    --work-muted: #766f7b;
+}
+
+body {
+    margin: 0;
+    background: #f8f6fa;
+    color: var(--work-text);
+    font-family: Arial, sans-serif;
+}
+
+.admin-work-time-page {
+    width: min(1180px, calc(100% - 24px));
+    margin: 0 auto;
+    padding: 18px 0 44px;
+}
+
+.admin-work-time-hero,
+.admin-work-time-range,
+.admin-work-time-card,
+.admin-work-time-periods {
+    border: 1px solid var(--work-border);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 8px 26px rgba(82, 48, 100, .05);
+}
+
+.admin-work-time-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px;
+}
+
+.admin-work-time-hero > div {
+    min-width: 0;
+}
+
+.admin-work-time-hero > div > span {
+    color: var(--work-primary);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.admin-work-time-hero h2 {
+    margin: 4px 0 0;
+}
+
+.admin-work-time-hero p {
+    max-width: 720px;
+    margin: 7px 0 0;
+    color: var(--work-muted);
+    line-height: 1.5;
+}
+
+.admin-work-time-hero > a {
+    min-height: 40px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border: 1px solid var(--work-primary);
+    border-radius: 11px;
+    color: var(--work-primary-dark);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.admin-work-time-periods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 10px;
+}
+
+.admin-work-time-periods a {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    border: 1px solid var(--work-border);
+    border-radius: 10px;
+    color: var(--work-primary-dark);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.admin-work-time-periods a.is-active {
+    border-color: var(--work-primary);
+    background: var(--work-primary);
+    color: #fff;
+}
+
+.admin-work-time-range {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 12px 14px;
+}
+
+.admin-work-time-range span {
+    color: var(--work-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.admin-work-time-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.admin-work-time-card {
+    overflow: hidden;
+}
+
+.admin-work-time-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px;
+}
+
+.admin-work-time-card-head > div {
+    min-width: 0;
+}
+
+.admin-work-time-card-head strong,
+.admin-work-time-card-head span,
+.admin-work-time-card-head small {
+    display: block;
+}
+
+.admin-work-time-card-head > div > strong {
+    overflow: hidden;
+    font-size: 17px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-work-time-card-head span {
+    margin-top: 3px;
+    color: var(--work-primary-dark);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.admin-work-time-card-head small {
+    margin-top: 4px;
+    color: var(--work-muted);
+}
+
+.admin-work-time-card-head > b {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: var(--work-light);
+    color: var(--work-primary-dark);
+    font-size: 13px;
+}
+
+.admin-work-time-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 14px 14px;
+}
+
+.admin-work-time-metrics > div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--work-border);
+    border-radius: 11px;
+    background: var(--work-soft);
+}
+
+.admin-work-time-metrics span,
+.admin-work-time-metrics strong {
+    display: block;
+}
+
+.admin-work-time-metrics span {
+    color: var(--work-muted);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.admin-work-time-metrics strong {
+    margin-top: 4px;
+    color: var(--work-text);
+    font-size: 14px;
+}
+
+.admin-work-time-boundaries {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    padding: 11px 14px;
+    border-top: 1px solid var(--work-border);
+    color: var(--work-muted);
+    font-size: 11px;
+}
+
+.admin-work-time-boundaries b {
+    color: var(--work-text);
+}
+
+.admin-work-time-days {
+    border-top: 1px solid var(--work-border);
+}
+
+.admin-work-time-days > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 14px;
+    cursor: pointer;
+    color: var(--work-primary-dark);
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+}
+
+.admin-work-time-days > summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-work-time-days > summary span {
+    min-width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--work-light);
+}
+
+.admin-work-time-day-list {
+    display: grid;
+    gap: 6px;
+    padding: 0 12px 12px;
+}
+
+.admin-work-time-day {
+    display: grid;
+    grid-template-columns: minmax(100px, 1.1fr) repeat(4, minmax(90px, 1fr));
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid var(--work-border);
+    border-radius: 10px;
+    background: #fff;
+    font-size: 11px;
+}
+
+.admin-work-time-day span {
+    color: var(--work-muted);
+}
+
+.admin-work-time-note {
+    margin: 16px 2px 0;
+    color: var(--work-muted);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+    .admin-work-time-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-work-time-day {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .admin-work-time-page {
+        width: calc(100% - 14px);
+        padding-top: 10px;
+    }
+
+    .admin-work-time-hero {
+        display: block;
+        padding: 12px;
+        border-radius: 14px;
+    }
+
+    .admin-work-time-hero > a {
+        width: 100%;
+        box-sizing: border-box;
+        margin-top: 12px;
+    }
+
+    .admin-work-time-periods {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        padding: 7px;
+        border-radius: 14px;
+    }
+
+    .admin-work-time-periods a {
+        min-height: 36px;
+        padding: 0 8px;
+        font-size: 11px;
+    }
+
+    .admin-work-time-range {
+        border-radius: 14px;
+    }
+
+    .admin-work-time-card {
+        border-radius: 14px;
+    }
+
+    .admin-work-time-card-head {
+        padding: 12px;
+    }
+
+    .admin-work-time-card-head > b {
+        font-size: 11px;
+    }
+
+    .admin-work-time-metrics {
+        padding: 0 12px 12px;
+    }
+
+    .admin-work-time-day {
+        grid-template-columns: 1fr;
+    }
+}
