@@ -438,6 +438,14 @@ class AdminManagement
                 $deleteNotificationPreferences->execute([
                     'admin_user_id' => $adminId
                 ]);
+
+                $deleteAuditReadState = $db->prepare("
+                    DELETE FROM admin_audit_read_state
+                    WHERE viewer_admin_user_id = :admin_user_id
+                ");
+                $deleteAuditReadState->execute([
+                    'admin_user_id' => $adminId
+                ]);
             }
 
             // admin_invitations is ON DELETE CASCADE, while admin_audit_log
