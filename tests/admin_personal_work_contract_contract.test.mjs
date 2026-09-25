@@ -44,23 +44,23 @@ assert.match(
 );
 assert.match(
     model,
-    /'admin_seconds' => \$adminSeconds/
+    /AdminWorkActivity::rangeSummary/
 );
 assert.match(
     model,
-    /'public_seconds' => \$publicSeconds/
+    /'android_seconds'/
 );
 assert.match(
     model,
-    /'session_count' => \$sessionCount/
+    /'ios_seconds'/
 );
 assert.match(
     model,
-    /'active_days' => count\(\$daily\)/
+    /'session_count'/
 );
 assert.match(
     model,
-    /ORDER BY work_date DESC/
+    /'active_days'/
 );
 
 assert.match(
@@ -79,11 +79,13 @@ assert.match(view, /Тип виплати/);
 assert.match(view, /Період розрахунку/);
 assert.match(view, /Адмін-панель/);
 assert.match(view, />Сайт</);
+assert.match(view, />Android</);
+assert.match(view, />iPhone</);
 assert.match(view, /Сесій/);
 assert.match(view, /Активних днів/);
 assert.match(view, /Робочий час по днях/);
 assert.match(view, /Умови контракту змінюються лише Розробником або Власником/);
-assert.match(view, /admin-profile\.css\?v=3/);
+assert.match(view, /admin-profile\\.css\\?v=4/);
 
 const contractStart = view.indexOf(
     'admin-profile-card admin-profile-work-contract'
