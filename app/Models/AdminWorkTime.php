@@ -472,6 +472,167 @@ class AdminWorkTime
     }
 
 
+    public static function currentAdminContract()
+    {
+        self::ensureSchema();
+
+        if (!class_exists('AdminAccess')) {
+            return [
+                'has_contract' => false
+            ];
+        }
+
+        $adminUserId = AdminAccess::currentId();
+
+        if ($adminUserId <= 0) {
+            return [
+                'has_contract' => false
+            ];
+        }
+
+        $db = Database::connect();
+        $admin = self::adminIdentity($db, $adminUserId);
+
+        if (!$admin || empty($admin['is_active'])) {
+            return [
+                'has_contract' => false
+            ];
+        }
+
+        $stmt = $db->prepare("
+            SELECT
+                admin_user_id,
+                hourly_rate_minor,
+                currency,
+                payout_type,
+                one_time_from,
+                one_time_to,
+                created_at,
+                updated_at
+            FROM admin_work_compensation
+            WHERE admin_user_id = :admin_user_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'admin_user_id' => $adminUserId
+        ]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return [
+                'has_contract' => false,
+                'admin_user_id' => $adminUserId
+            ];
+        }
+
+        $agreement = self::normalizeCompensationRow($row);
+        $earnings = self::calculateCompensation(
+            $db,
+            $adminUserId,
+            $agreement
+        );
+
+        $daily = [];
+        $adminSeconds = 0;
+        $publicSeconds = 0;
+        $sessionCount = 0;
+        $firstActivityAt = '';
+        $lastActivityAt = '';
+
+        if (
+            ($earnings['date_from'] ?? '') !== ''
+            && ($earnings['date_to'] ?? '') !== ''
+        ) {
+            $dailyStmt = $db->prepare("
+                SELECT
+                    work_date,
+                    admin_seconds,
+                    public_seconds,
+                    session_count,
+                    first_activity_at,
+                    last_activity_at
+                FROM admin_work_time_daily
+                WHERE admin_user_id = :admin_user_id
+                  AND work_date BETWEEN :date_from AND :date_to
+                ORDER BY work_date DESC
+            ");
+            $dailyStmt->execute([
+                'admin_user_id' => $adminUserId,
+                'date_from' => $earnings['date_from'],
+                'date_to' => $earnings['date_to']
+            ]);
+
+            foreach ($dailyStmt->fetchAll(PDO::FETCH_ASSOC) as $day) {
+                $day['admin_seconds'] = max(
+                    0,
+                    (int) ($day['admin_seconds'] ?? 0)
+                );
+                $day['public_seconds'] = max(
+                    0,
+                    (int) ($day['public_seconds'] ?? 0)
+                );
+                $day['total_seconds'] =
+                    $day['admin_seconds']
+                    + $day['public_seconds'];
+                $day['session_count'] = max(
+                    0,
+                    (int) ($day['session_count'] ?? 0)
+                );
+
+                $adminSeconds += $day['admin_seconds'];
+                $publicSeconds += $day['public_seconds'];
+                $sessionCount += $day['session_count'];
+
+                $dayFirst = trim((string) (
+                    $day['first_activity_at'] ?? ''
+                ));
+                $dayLast = trim((string) (
+                    $day['last_activity_at'] ?? ''
+                ));
+
+                if (
+                    $dayFirst !== ''
+                    && (
+                        $firstActivityAt === ''
+                        || strcmp($dayFirst, $firstActivityAt) < 0
+                    )
+                ) {
+                    $firstActivityAt = $dayFirst;
+                }
+
+                if (
+                    $dayLast !== ''
+                    && (
+                        $lastActivityAt === ''
+                        || strcmp($dayLast, $lastActivityAt) > 0
+                    )
+                ) {
+                    $lastActivityAt = $dayLast;
+                }
+
+                $daily[] = $day;
+            }
+        }
+
+        return [
+            'has_contract' => true,
+            'admin_user_id' => $adminUserId,
+            'agreement' => $agreement,
+            'earnings' => $earnings,
+            'work' => [
+                'admin_seconds' => $adminSeconds,
+                'public_seconds' => $publicSeconds,
+                'total_seconds' => $adminSeconds + $publicSeconds,
+                'session_count' => $sessionCount,
+                'active_days' => count($daily),
+                'first_activity_at' => $firstActivityAt,
+                'last_activity_at' => $lastActivityAt
+            ],
+            'daily' => $daily
+        ];
+    }
+
+
     public static function saveCompensation(
         $adminUserId,
         $hourlyRate,
@@ -654,6 +815,9 @@ class AdminWorkTime
             ),
             'one_time_to' => trim(
                 (string) ($row['one_time_to'] ?? '')
+            ),
+            'created_at' => trim(
+                (string) ($row['created_at'] ?? '')
             ),
             'updated_at' => trim(
                 (string) ($row['updated_at'] ?? '')
