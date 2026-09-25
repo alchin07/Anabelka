@@ -459,6 +459,14 @@ class AdminManagement
                 $deleteWorkPresence->execute([
                     'admin_user_id' => $adminId
                 ]);
+
+                $deleteCompensation = $db->prepare("
+                    DELETE FROM admin_work_compensation
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteCompensation->execute([
+                    'admin_user_id' => $adminId
+                ]);
             }
 
             // admin_invitations is ON DELETE CASCADE, while admin_audit_log
