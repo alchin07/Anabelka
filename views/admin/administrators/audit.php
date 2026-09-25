@@ -244,7 +244,7 @@ $formatDetail = static function ($key, $value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Журнал дій') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=9">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=10">
 </head>
 <body>
 
@@ -477,8 +477,8 @@ $formatDetail = static function ($key, $value) {
                         (int) ($auditUnreadByActor[$groupKey]['count'] ?? 0)
                     );
                     ?>
-                    <section class="admin-audit-group">
-                        <div class="admin-audit-group-head">
+                    <details class="admin-audit-group admin-audit-admin-group">
+                        <summary class="admin-audit-group-head admin-audit-group-summary">
                             <div>
                                 <span>Адміністратор</span>
                                 <div class="admin-audit-group-name-row">
@@ -497,15 +497,21 @@ $formatDetail = static function ($key, $value) {
                                     <small><?= htmlspecialchars($group['email']) ?></small>
                                 <?php endif; ?>
                             </div>
-                            <strong><?= (int) ($group['count'] ?? count($groupEntries)) ?></strong>
-                        </div>
 
-                        <div class="admin-audit-list">
+                            <span class="admin-audit-group-summary-side">
+                                <strong class="admin-audit-total-badge">
+                                    <?= (int) ($group['count'] ?? count($groupEntries)) ?>
+                                </strong>
+                                <span class="admin-audit-group-chevron" aria-hidden="true">⌄</span>
+                            </span>
+                        </summary>
+
+                        <div class="admin-audit-list admin-audit-group-body">
                             <?php foreach ($groupEntries as $entry): ?>
                                 <?php $renderAuditEntry($entry, false); ?>
                             <?php endforeach; ?>
                         </div>
-                    </section>
+                    </details>
                 <?php endforeach; ?>
             <?php endif; ?>
         <?php endif; ?>
