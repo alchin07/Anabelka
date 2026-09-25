@@ -208,6 +208,18 @@ $payoutLabels = [
                     ) ?></strong>
                 </div>
                 <div>
+                    <span>Android</span>
+                    <strong><?= htmlspecialchars(
+                        $formatDuration($workSummary['android_seconds'] ?? 0)
+                    ) ?></strong>
+                </div>
+                <div>
+                    <span>iPhone</span>
+                    <strong><?= htmlspecialchars(
+                        $formatDuration($workSummary['ios_seconds'] ?? 0)
+                    ) ?></strong>
+                </div>
+                <div>
                     <span>Сесій</span>
                     <strong><?= (int) ($workSummary['session_count'] ?? 0) ?></strong>
                 </div>
@@ -280,6 +292,22 @@ $payoutLabels = [
                                     <?= htmlspecialchars(
                                         $formatDuration(
                                             $day['public_seconds'] ?? 0
+                                        )
+                                    ) ?>
+                                </span>
+                                <span>
+                                    Android:
+                                    <?= htmlspecialchars(
+                                        $formatDuration(
+                                            $day['android_seconds'] ?? 0
+                                        )
+                                    ) ?>
+                                </span>
+                                <span>
+                                    iPhone:
+                                    <?= htmlspecialchars(
+                                        $formatDuration(
+                                            $day['ios_seconds'] ?? 0
                                         )
                                     ) ?>
                                 </span>
