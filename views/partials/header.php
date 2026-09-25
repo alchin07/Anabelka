@@ -641,9 +641,9 @@ if (
 
 <?php if ($currentAdmin): ?>
     <script
-        src="/Anabelka/js/admin-work-time.js?v=1"
+        src="/Anabelka/js/admin-work-time.js?v=2"
         data-admin-work-time
-        data-work-surface="public"
+        data-work-source="web_public"
         data-work-endpoint="/Anabelka/admin/work-time/heartbeat"
         data-work-csrf="<?= htmlspecialchars(
             AdminAccess::csrfToken(),
