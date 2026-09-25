@@ -4,6 +4,13 @@ $auditUnreadTotal = max(0, (int) ($auditUnreadTotal ?? 0));
 $auditUnreadByActor = is_array($auditUnreadByActor ?? null)
     ? $auditUnreadByActor
     : [];
+$auditUnreadEntryIds = is_array($auditUnreadEntryIds ?? null)
+    ? array_values(array_unique(array_map('intval', $auditUnreadEntryIds)))
+    : [];
+$auditUnreadEntryLookup = array_fill_keys($auditUnreadEntryIds, true);
+$canClearAuditUnread = !empty($canClearAuditUnread);
+$csrfToken = (string) ($csrfToken ?? '');
+$flash = is_array($flash ?? null) ? $flash : null;
 $recentEntries = is_array($recentEntries ?? null)
     ? $recentEntries
     : array_slice($entries, 0, 3);
@@ -237,13 +244,18 @@ $formatDetail = static function ($key, $value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Журнал дій') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=8">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=9">
 </head>
 <body>
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
-<main class="admin-security-page">
+<main
+    class="admin-security-page"
+    data-admin-audit-journal
+    data-audit-seen-endpoint="/Anabelka/admin/audit/seen"
+    data-audit-csrf="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>"
+>
     <section class="admin-security-hero">
         <div>
             <span class="admin-security-kicker">Безпека</span>
@@ -257,6 +269,12 @@ $formatDetail = static function ($key, $value) {
             <a class="admin-security-audit-link" href="/Anabelka/admin/administrators">Адміністратори</a>
         <?php endif; ?>
     </section>
+
+    <?php if ($flash): ?>
+        <div class="admin-security-message <?= ($flash['type'] ?? '') === 'error' ? 'is-error' : 'is-success' ?>" role="status">
+            <?= htmlspecialchars((string) ($flash['message'] ?? '')) ?>
+        </div>
+    <?php endif; ?>
 
     <section class="admin-security-panel">
         <form
@@ -333,7 +351,7 @@ $formatDetail = static function ($key, $value) {
         $actionLabels,
         $detailLabels,
         $formatDetail,
-        $auditUnreadByActor
+        $auditUnreadEntryLookup
     ) {
         $details = json_decode(
             (string) ($entry['details'] ?? ''),
@@ -347,13 +365,15 @@ $formatDetail = static function ($key, $value) {
         $actorKey = $actorId > 0
             ? 'admin-' . $actorId
             : 'system';
-        $actorUnread = max(
-            0,
-            (int) ($auditUnreadByActor[$actorKey]['count'] ?? 0)
-        );
+        $entryId = (int) ($entry['id'] ?? 0);
+        $entryUnread = $entryId > 0
+            && isset($auditUnreadEntryLookup[$entryId]);
         ?>
         <details
             class="admin-audit-item"
+            data-audit-entry-id="<?= $entryId ?>"
+            data-audit-actor-key="<?= htmlspecialchars($actorKey, ENT_QUOTES, 'UTF-8') ?>"
+            data-audit-unread="<?= $entryUnread ? '1' : '0' ?>"
             <?= $open ? 'open' : '' ?>
         >
             <summary class="admin-audit-summary">
@@ -369,9 +389,12 @@ $formatDetail = static function ($key, $value) {
                                     : 'Система / невідомий адміністратор'
                             ) ?>
                         </span>
-                        <?php if ($actorUnread > 0): ?>
-                            <b class="admin-audit-new-badge">
-                                <?= $actorUnread ?> нових
+                        <?php if ($entryUnread): ?>
+                            <b
+                                class="admin-audit-new-badge"
+                                data-audit-entry-new-badge
+                            >
+                                1 нове
                             </b>
                         <?php endif; ?>
                     </small>
@@ -461,7 +484,11 @@ $formatDetail = static function ($key, $value) {
                                 <div class="admin-audit-group-name-row">
                                     <h3><?= htmlspecialchars($group['name'] ?? 'Система / невідомий адміністратор') ?></h3>
                                     <?php if ($groupUnread > 0): ?>
-                                        <span class="admin-audit-new-badge">
+                                        <span
+                                            class="admin-audit-new-badge"
+                                            data-audit-group-badge="<?= htmlspecialchars($groupKey, ENT_QUOTES, 'UTF-8') ?>"
+                                            data-audit-count="<?= $groupUnread ?>"
+                                        >
                                             <?= $groupUnread ?> нових
                                         </span>
                                     <?php endif; ?>
@@ -483,7 +510,35 @@ $formatDetail = static function ($key, $value) {
             <?php endif; ?>
         <?php endif; ?>
     </section>
+
+    <?php if ($canClearAuditUnread): ?>
+        <section class="admin-audit-clear-all">
+            <form
+                method="post"
+                action="/Anabelka/admin/audit/seen-all"
+                data-anabelka-confirm="Позначити всі поточні дії прочитаними? Історія журналу не буде видалена."
+                data-anabelka-confirm-title="Обнулити нові дії"
+                data-anabelka-confirm-confirm-text="Позначити прочитаними"
+            >
+                <input
+                    type="hidden"
+                    name="_csrf"
+                    value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>"
+                >
+                <button
+                    type="submit"
+                    <?= $auditUnreadTotal > 0 ? '' : 'disabled' ?>
+                >
+                    Позначити всі дії прочитаними
+                </button>
+            </form>
+            <small>
+                Доступно лише Розробнику та Власнику. Записи журналу не видаляються.
+            </small>
+        </section>
+    <?php endif; ?>
 </main>
 
+<script src="/Anabelka/js/admin-audit-read-state.js?v=1" defer></script>
 </body>
 </html>
