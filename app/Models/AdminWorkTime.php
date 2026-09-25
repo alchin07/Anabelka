@@ -70,217 +70,34 @@ class AdminWorkTime
               COLLATE=utf8mb4_unicode_ci
         ");
 
+        if (class_exists('AdminWorkActivity')) {
+            AdminWorkActivity::ensureSchema();
+        }
+
         self::$schemaReady = true;
     }
 
 
     public static function heartbeat(
         $adminUserId,
-        $surface,
-        $activeSeconds
+        $source,
+        $clientSessionId,
+        $active
     ) {
         self::ensureSchema();
 
-        $adminUserId = (int) $adminUserId;
-        $surface = strtolower(trim((string) $surface));
-        $activeSeconds = max(
-            0,
-            min(
-                self::MAX_HEARTBEAT_SECONDS,
-                (int) $activeSeconds
-            )
-        );
-
-        if ($adminUserId <= 0) {
-            throw new InvalidArgumentException(
-                'Некоректний адміністратор.'
-            );
-        }
-
-        if (!in_array($surface, ['admin', 'public'], true)) {
-            throw new InvalidArgumentException(
-                'Некоректний тип робочої поверхні.'
-            );
-        }
-
-        if ($activeSeconds <= 0) {
-            return [
-                'credited_seconds' => 0,
-                'surface' => $surface
-            ];
-        }
-
-        $db = Database::connect();
-        $admin = self::adminIdentity($db, $adminUserId);
-
-        if (!$admin || empty($admin['is_active'])) {
+        if (!class_exists('AdminWorkActivity')) {
             throw new RuntimeException(
-                'Активного адміністратора не знайдено.'
+                'Модуль робочої активності недоступний.'
             );
         }
 
-        $db->beginTransaction();
-
-        try {
-            $seed = $db->prepare("
-                INSERT IGNORE INTO admin_work_time_presence
-                    (admin_user_id, last_heartbeat_at, last_surface)
-                VALUES
-                    (:admin_user_id, NULL, :last_surface)
-            ");
-            $seed->execute([
-                'admin_user_id' => $adminUserId,
-                'last_surface' => $surface
-            ]);
-
-            $presenceStmt = $db->prepare("
-                SELECT
-                    last_heartbeat_at,
-                    last_surface
-                FROM admin_work_time_presence
-                WHERE admin_user_id = :admin_user_id
-                LIMIT 1
-                FOR UPDATE
-            ");
-            $presenceStmt->execute([
-                'admin_user_id' => $adminUserId
-            ]);
-            $presence = $presenceStmt->fetch(PDO::FETCH_ASSOC) ?: [];
-
-            $now = (string) $db->query(
-                "SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')"
-            )->fetchColumn();
-            $workDate = substr($now, 0, 10);
-            $lastHeartbeat = trim((string) (
-                $presence['last_heartbeat_at'] ?? ''
-            ));
-
-            $elapsed = null;
-            if ($lastHeartbeat !== '') {
-                $elapsed = max(
-                    0,
-                    strtotime($now) - strtotime($lastHeartbeat)
-                );
-            }
-
-            $creditedSeconds = $activeSeconds;
-
-            if ($elapsed !== null) {
-                $creditedSeconds = min(
-                    $activeSeconds,
-                    max(
-                        0,
-                        min(
-                            self::MAX_HEARTBEAT_SECONDS,
-                            $elapsed + 2
-                        )
-                    )
-                );
-            }
-
-            $newSession = 0;
-
-            if (
-                $lastHeartbeat === ''
-                || substr($lastHeartbeat, 0, 10) !== $workDate
-                || (
-                    $elapsed !== null
-                    && $elapsed > self::IDLE_SESSION_SECONDS
-                )
-            ) {
-                $newSession = 1;
-            }
-
-            if ($creditedSeconds > 0) {
-                $adminSeconds = $surface === 'admin'
-                    ? $creditedSeconds
-                    : 0;
-                $publicSeconds = $surface === 'public'
-                    ? $creditedSeconds
-                    : 0;
-
-                $daily = $db->prepare("
-                    INSERT INTO admin_work_time_daily
-                    (
-                        admin_user_id,
-                        work_date,
-                        admin_seconds,
-                        public_seconds,
-                        session_count,
-                        first_activity_at,
-                        last_activity_at,
-                        admin_name,
-                        admin_email
-                    )
-                    VALUES
-                    (
-                        :admin_user_id,
-                        :work_date,
-                        :admin_seconds,
-                        :public_seconds,
-                        :session_count,
-                        :first_activity_at,
-                        :last_activity_at,
-                        :admin_name,
-                        :admin_email
-                    )
-                    ON DUPLICATE KEY UPDATE
-                        admin_seconds =
-                            admin_seconds + VALUES(admin_seconds),
-                        public_seconds =
-                            public_seconds + VALUES(public_seconds),
-                        session_count =
-                            session_count + VALUES(session_count),
-                        first_activity_at =
-                            COALESCE(
-                                first_activity_at,
-                                VALUES(first_activity_at)
-                            ),
-                        last_activity_at = VALUES(last_activity_at),
-                        admin_name = VALUES(admin_name),
-                        admin_email = VALUES(admin_email)
-                ");
-                $daily->execute([
-                    'admin_user_id' => $adminUserId,
-                    'work_date' => $workDate,
-                    'admin_seconds' => $adminSeconds,
-                    'public_seconds' => $publicSeconds,
-                    'session_count' => $newSession,
-                    'first_activity_at' => $now,
-                    'last_activity_at' => $now,
-                    'admin_name' => (string) ($admin['name'] ?? ''),
-                    'admin_email' => (string) ($admin['email'] ?? '')
-                ]);
-            }
-
-            $presenceUpdate = $db->prepare("
-                UPDATE admin_work_time_presence
-                SET
-                    last_heartbeat_at = :last_heartbeat_at,
-                    last_surface = :last_surface
-                WHERE admin_user_id = :admin_user_id
-            ");
-            $presenceUpdate->execute([
-                'last_heartbeat_at' => $now,
-                'last_surface' => $surface,
-                'admin_user_id' => $adminUserId
-            ]);
-
-            $db->commit();
-
-            return [
-                'credited_seconds' => $creditedSeconds,
-                'surface' => $surface,
-                'new_session' => $newSession,
-                'work_date' => $workDate
-            ];
-        } catch (Throwable $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-
-            throw $e;
-        }
+        return AdminWorkActivity::heartbeat(
+            (int) $adminUserId,
+            $source,
+            $clientSessionId,
+            (bool) $active
+        );
     }
 
 
@@ -344,32 +161,17 @@ class AdminWorkTime
         $range = self::periodRange($period);
         $db = Database::connect();
 
-        $stmt = $db->prepare("
+        $stmt = $db->query("
             SELECT
                 au.id AS admin_user_id,
                 au.name AS admin_name,
                 au.email AS admin_email,
                 ar.name AS role_name,
-                ar.slug AS role_slug,
-                COALESCE(SUM(d.admin_seconds), 0) AS admin_seconds,
-                COALESCE(SUM(d.public_seconds), 0) AS public_seconds,
-                COALESCE(SUM(d.session_count), 0) AS session_count,
-                MIN(d.first_activity_at) AS first_activity_at,
-                MAX(d.last_activity_at) AS last_activity_at,
-                COUNT(DISTINCT d.work_date) AS active_days
+                ar.slug AS role_slug
             FROM admin_users au
             INNER JOIN admin_roles ar
                 ON ar.id = au.role_id
-            LEFT JOIN admin_work_time_daily d
-                ON d.admin_user_id = au.id
-               AND d.work_date BETWEEN :date_from AND :date_to
             WHERE au.is_active = 1
-            GROUP BY
-                au.id,
-                au.name,
-                au.email,
-                ar.name,
-                ar.slug
             ORDER BY
                 CASE ar.slug
                     WHEN 'owner' THEN 0
@@ -379,36 +181,77 @@ class AdminWorkTime
                 au.name ASC,
                 au.id ASC
         ");
-        $stmt->execute([
-            'date_from' => $range['date_from'],
-            'date_to' => $range['date_to']
-        ]);
         $administrators = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         $compensationMap = self::compensationMap($db);
+        $dailyByAdmin = [];
 
         foreach ($administrators as &$administrator) {
-            $administrator['admin_seconds'] = max(
-                0,
-                (int) ($administrator['admin_seconds'] ?? 0)
+            $adminId = (int) (
+                $administrator['admin_user_id'] ?? 0
             );
-            $administrator['public_seconds'] = max(
-                0,
-                (int) ($administrator['public_seconds'] ?? 0)
-            );
-            $administrator['total_seconds'] =
-                $administrator['admin_seconds']
-                + $administrator['public_seconds'];
-            $administrator['session_count'] = max(
-                0,
-                (int) ($administrator['session_count'] ?? 0)
-            );
-            $administrator['active_days'] = max(
-                0,
-                (int) ($administrator['active_days'] ?? 0)
+            $activity = class_exists('AdminWorkActivity')
+                ? AdminWorkActivity::rangeSummary(
+                    $adminId,
+                    $range['date_from'],
+                    $range['date_to']
+                )
+                : [
+                    'admin_seconds' => 0,
+                    'public_seconds' => 0,
+                    'android_seconds' => 0,
+                    'ios_seconds' => 0,
+                    'total_seconds' => 0,
+                    'session_count' => 0,
+                    'active_days' => 0,
+                    'first_activity_at' => '',
+                    'last_activity_at' => '',
+                    'daily' => []
+                ];
+
+            $administrator = array_merge(
+                $administrator,
+                [
+                    'admin_seconds' => max(
+                        0,
+                        (int) ($activity['admin_seconds'] ?? 0)
+                    ),
+                    'public_seconds' => max(
+                        0,
+                        (int) ($activity['public_seconds'] ?? 0)
+                    ),
+                    'android_seconds' => max(
+                        0,
+                        (int) ($activity['android_seconds'] ?? 0)
+                    ),
+                    'ios_seconds' => max(
+                        0,
+                        (int) ($activity['ios_seconds'] ?? 0)
+                    ),
+                    'total_seconds' => max(
+                        0,
+                        (int) ($activity['total_seconds'] ?? 0)
+                    ),
+                    'session_count' => max(
+                        0,
+                        (int) ($activity['session_count'] ?? 0)
+                    ),
+                    'active_days' => max(
+                        0,
+                        (int) ($activity['active_days'] ?? 0)
+                    ),
+                    'first_activity_at' => (string) (
+                        $activity['first_activity_at'] ?? ''
+                    ),
+                    'last_activity_at' => (string) (
+                        $activity['last_activity_at'] ?? ''
+                    )
+                ]
             );
 
-            $adminId = (int) ($administrator['admin_user_id'] ?? 0);
+            $dailyByAdmin[$adminId] = is_array(
+                $activity['daily'] ?? null
+            ) ? $activity['daily'] : [];
+
             $agreement = self::normalizeCompensationRow(
                 $compensationMap[$adminId] ?? []
             );
@@ -420,49 +263,6 @@ class AdminWorkTime
             );
         }
         unset($administrator);
-
-        $dailyStmt = $db->prepare("
-            SELECT
-                admin_user_id,
-                work_date,
-                admin_seconds,
-                public_seconds,
-                session_count,
-                first_activity_at,
-                last_activity_at
-            FROM admin_work_time_daily
-            WHERE work_date BETWEEN :date_from AND :date_to
-            ORDER BY work_date DESC, admin_user_id ASC
-        ");
-        $dailyStmt->execute([
-            'date_from' => $range['date_from'],
-            'date_to' => $range['date_to']
-        ]);
-
-        $dailyByAdmin = [];
-        foreach ($dailyStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $adminId = (int) ($row['admin_user_id'] ?? 0);
-            if ($adminId <= 0) {
-                continue;
-            }
-
-            $row['admin_seconds'] = max(
-                0,
-                (int) ($row['admin_seconds'] ?? 0)
-            );
-            $row['public_seconds'] = max(
-                0,
-                (int) ($row['public_seconds'] ?? 0)
-            );
-            $row['total_seconds'] =
-                $row['admin_seconds']
-                + $row['public_seconds'];
-            $row['session_count'] = max(
-                0,
-                (int) ($row['session_count'] ?? 0)
-            );
-            $dailyByAdmin[$adminId][] = $row;
-        }
 
         return [
             'range' => $range,
@@ -531,87 +331,29 @@ class AdminWorkTime
             $adminUserId,
             $agreement
         );
-
-        $daily = [];
-        $adminSeconds = 0;
-        $publicSeconds = 0;
-        $sessionCount = 0;
-        $firstActivityAt = '';
-        $lastActivityAt = '';
+        $activity = [
+            'admin_seconds' => 0,
+            'public_seconds' => 0,
+            'android_seconds' => 0,
+            'ios_seconds' => 0,
+            'total_seconds' => 0,
+            'session_count' => 0,
+            'active_days' => 0,
+            'first_activity_at' => '',
+            'last_activity_at' => '',
+            'daily' => []
+        ];
 
         if (
-            ($earnings['date_from'] ?? '') !== ''
+            class_exists('AdminWorkActivity')
+            && ($earnings['date_from'] ?? '') !== ''
             && ($earnings['date_to'] ?? '') !== ''
         ) {
-            $dailyStmt = $db->prepare("
-                SELECT
-                    work_date,
-                    admin_seconds,
-                    public_seconds,
-                    session_count,
-                    first_activity_at,
-                    last_activity_at
-                FROM admin_work_time_daily
-                WHERE admin_user_id = :admin_user_id
-                  AND work_date BETWEEN :date_from AND :date_to
-                ORDER BY work_date DESC
-            ");
-            $dailyStmt->execute([
-                'admin_user_id' => $adminUserId,
-                'date_from' => $earnings['date_from'],
-                'date_to' => $earnings['date_to']
-            ]);
-
-            foreach ($dailyStmt->fetchAll(PDO::FETCH_ASSOC) as $day) {
-                $day['admin_seconds'] = max(
-                    0,
-                    (int) ($day['admin_seconds'] ?? 0)
-                );
-                $day['public_seconds'] = max(
-                    0,
-                    (int) ($day['public_seconds'] ?? 0)
-                );
-                $day['total_seconds'] =
-                    $day['admin_seconds']
-                    + $day['public_seconds'];
-                $day['session_count'] = max(
-                    0,
-                    (int) ($day['session_count'] ?? 0)
-                );
-
-                $adminSeconds += $day['admin_seconds'];
-                $publicSeconds += $day['public_seconds'];
-                $sessionCount += $day['session_count'];
-
-                $dayFirst = trim((string) (
-                    $day['first_activity_at'] ?? ''
-                ));
-                $dayLast = trim((string) (
-                    $day['last_activity_at'] ?? ''
-                ));
-
-                if (
-                    $dayFirst !== ''
-                    && (
-                        $firstActivityAt === ''
-                        || strcmp($dayFirst, $firstActivityAt) < 0
-                    )
-                ) {
-                    $firstActivityAt = $dayFirst;
-                }
-
-                if (
-                    $dayLast !== ''
-                    && (
-                        $lastActivityAt === ''
-                        || strcmp($dayLast, $lastActivityAt) > 0
-                    )
-                ) {
-                    $lastActivityAt = $dayLast;
-                }
-
-                $daily[] = $day;
-            }
+            $activity = AdminWorkActivity::rangeSummary(
+                $adminUserId,
+                $earnings['date_from'],
+                $earnings['date_to']
+            );
         }
 
         return [
@@ -620,15 +362,44 @@ class AdminWorkTime
             'agreement' => $agreement,
             'earnings' => $earnings,
             'work' => [
-                'admin_seconds' => $adminSeconds,
-                'public_seconds' => $publicSeconds,
-                'total_seconds' => $adminSeconds + $publicSeconds,
-                'session_count' => $sessionCount,
-                'active_days' => count($daily),
-                'first_activity_at' => $firstActivityAt,
-                'last_activity_at' => $lastActivityAt
+                'admin_seconds' => max(
+                    0,
+                    (int) ($activity['admin_seconds'] ?? 0)
+                ),
+                'public_seconds' => max(
+                    0,
+                    (int) ($activity['public_seconds'] ?? 0)
+                ),
+                'android_seconds' => max(
+                    0,
+                    (int) ($activity['android_seconds'] ?? 0)
+                ),
+                'ios_seconds' => max(
+                    0,
+                    (int) ($activity['ios_seconds'] ?? 0)
+                ),
+                'total_seconds' => max(
+                    0,
+                    (int) ($activity['total_seconds'] ?? 0)
+                ),
+                'session_count' => max(
+                    0,
+                    (int) ($activity['session_count'] ?? 0)
+                ),
+                'active_days' => max(
+                    0,
+                    (int) ($activity['active_days'] ?? 0)
+                ),
+                'first_activity_at' => (string) (
+                    $activity['first_activity_at'] ?? ''
+                ),
+                'last_activity_at' => (string) (
+                    $activity['last_activity_at'] ?? ''
+                )
             ],
-            'daily' => $daily
+            'daily' => is_array($activity['daily'] ?? null)
+                ? $activity['daily']
+                : []
         ];
     }
 
@@ -838,22 +609,17 @@ class AdminWorkTime
             $range['date_from'] !== ''
             && $range['date_to'] !== ''
             && strcmp($range['date_from'], $range['date_to']) <= 0
+            && class_exists('AdminWorkActivity')
         ) {
-            $stmt = $db->prepare("
-                SELECT COALESCE(
-                    SUM(admin_seconds + public_seconds),
-                    0
-                )
-                FROM admin_work_time_daily
-                WHERE admin_user_id = :admin_user_id
-                  AND work_date BETWEEN :date_from AND :date_to
-            ");
-            $stmt->execute([
-                'admin_user_id' => (int) $adminUserId,
-                'date_from' => $range['date_from'],
-                'date_to' => $range['date_to']
-            ]);
-            $seconds = max(0, (int) $stmt->fetchColumn());
+            $activity = AdminWorkActivity::rangeSummary(
+                (int) $adminUserId,
+                $range['date_from'],
+                $range['date_to']
+            );
+            $seconds = max(
+                0,
+                (int) ($activity['total_seconds'] ?? 0)
+            );
         }
 
         $rateMinor = max(
@@ -988,6 +754,12 @@ class AdminWorkTime
         $stmt->execute([
             'admin_user_id' => (int) $adminUserId
         ]);
+
+        if (class_exists('AdminWorkActivity')) {
+            AdminWorkActivity::forgetSessions(
+                (int) $adminUserId
+            );
+        }
     }
 
 
