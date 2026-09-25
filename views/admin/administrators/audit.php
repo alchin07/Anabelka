@@ -49,6 +49,7 @@ $actionLabels = [
     'admin.profile_updated' => 'Оновлено власний профіль',
     'admin.password_changed' => 'Змінено власний пароль',
     'admin.notification_badge_preferences_updated' => 'Оновлено налаштування бейджа сповіщень',
+    'admin.compensation_updated' => 'Оновлено умови оплати адміністратора',
 
     'dashboard.builder.block.create' => 'Створено блок адмін-главної',
     'dashboard.builder.block.update' => 'Оновлено блок адмін-главної',
