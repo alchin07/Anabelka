@@ -56,12 +56,21 @@ assert.match(audit, /admin-audit-group-head/);
 assert.match(audit, /admin-audit-new-badge/);
 assert.match(
     audit,
-    /admin-administrators\\.css\\?v=9/
+    /<details class="admin-audit-group admin-audit-admin-group">/
+);
+assert.match(audit, /admin-audit-total-badge/);
+assert.match(audit, /admin-audit-group-body/);
+assert.match(
+    audit,
+    /admin-administrators\\.css\\?v=10/
 );
 
 assert.match(css, /\.admin-audit-summary/);
 assert.match(css, /details\.admin-audit-item\[open\]/);
 assert.match(css, /\.admin-audit-group/);
+assert.match(css, /details\.admin-audit-admin-group/);
+assert.match(css, /\.admin-audit-total-badge/);
+assert.match(css, /\.admin-audit-group-chevron/);
 
 process.stdout.write(
     'compact grouped administrator audit journal contract passed\n'
