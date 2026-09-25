@@ -433,6 +433,17 @@ class AdminAccess
                 return;
             }
 
+            if (
+                in_array($action, ['admin.login', 'admin.logout'], true)
+                && self::isSeniorSessionAudit(
+                    $adminUserId !== null
+                        ? (int) $adminUserId
+                        : self::currentId()
+                )
+            ) {
+                return;
+            }
+
             $encoded = !empty($details)
                 ? json_encode(
                     $details,
@@ -456,6 +467,33 @@ class AdminAccess
         } catch (Throwable $e) {
             error_log('Admin audit error: ' . $e->getMessage());
         }
+    }
+
+
+    private static function isSeniorSessionAudit($adminUserId)
+    {
+        $adminUserId = (int) $adminUserId;
+
+        if ($adminUserId <= 0) {
+            return false;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT ar.slug
+            FROM admin_users au
+            INNER JOIN admin_roles ar ON ar.id = au.role_id
+            WHERE au.id = :id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'id' => $adminUserId
+        ]);
+
+        return in_array(
+            (string) ($stmt->fetchColumn() ?: ''),
+            ['owner', 'store_owner'],
+            true
+        );
     }
 
 
