@@ -772,6 +772,14 @@ class AdminWorkActivity
 
     private static function migrateLegacyDaily(PDO $db)
     {
+        $legacyTable = $db->query(
+            "SHOW TABLES LIKE 'admin_work_time_daily'"
+        )->fetchColumn();
+
+        if (!$legacyTable) {
+            return;
+        }
+
         $db->exec("
             INSERT INTO admin_work_time_source_daily
             (
