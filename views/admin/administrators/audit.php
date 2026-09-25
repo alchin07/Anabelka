@@ -237,7 +237,7 @@ $formatDetail = static function ($key, $value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Журнал дій') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=7">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=8">
 </head>
 <body>
 
