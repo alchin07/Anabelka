@@ -61,13 +61,74 @@ class AdminWorkTimeController extends Controller
 
         $period = trim((string) ($_GET['period'] ?? 'today'));
         $report = AdminWorkTime::report($period);
+        $flash = is_array($_SESSION['admin_work_time_flash'] ?? null)
+            ? $_SESSION['admin_work_time_flash']
+            : null;
+        unset($_SESSION['admin_work_time_flash']);
 
         $this->view('admin/administrators/work-time', [
             'pageTitle' => 'Адмін-панель · Робочий час',
             'report' => $report,
             'period' => (string) (
                 $report['range']['period'] ?? 'today'
-            )
+            ),
+            'csrfToken' => AdminAccess::csrfToken(),
+            'flash' => $flash
         ]);
+    }
+
+
+    public function saveCompensation()
+    {
+        $period = trim((string) ($_POST['return_period'] ?? 'today'));
+        if (!in_array($period, ['today', 'week', 'month'], true)) {
+            $period = 'today';
+        }
+
+        try {
+            $admin = AdminAccess::current();
+
+            if (!AdminWorkTime::canViewReport($admin)) {
+                throw new RuntimeException(
+                    'Змінювати умови оплати може лише Розробник або Власник.'
+                );
+            }
+
+            $targetAdminId = (int) ($_POST['admin_user_id'] ?? 0);
+
+            AdminWorkTime::saveCompensation(
+                $targetAdminId,
+                $_POST['hourly_rate'] ?? '',
+                $_POST['currency'] ?? 'UAH',
+                $_POST['payout_type'] ?? 'monthly',
+                $_POST['one_time_from'] ?? '',
+                $_POST['one_time_to'] ?? '',
+                (int) ($admin['id'] ?? 0)
+            );
+
+            AdminAccess::audit(
+                'admin.compensation_updated',
+                [
+                    'target_admin_id' => $targetAdminId
+                ],
+                (int) ($admin['id'] ?? 0)
+            );
+
+            $_SESSION['admin_work_time_flash'] = [
+                'type' => 'success',
+                'message' => 'Умови оплати збережено.'
+            ];
+        } catch (Throwable $e) {
+            $_SESSION['admin_work_time_flash'] = [
+                'type' => 'error',
+                'message' => $e->getMessage()
+            ];
+        }
+
+        header(
+            'Location: /Anabelka/admin/work-time?'
+            . http_build_query(['period' => $period])
+        );
+        exit;
     }
 }
