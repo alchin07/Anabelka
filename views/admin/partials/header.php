@@ -558,9 +558,9 @@ $canVipPriceViews = $adminCan('vip_prices.view');
 
 <?php if ($currentAdmin): ?>
     <script
-        src="/Anabelka/js/admin-work-time.js?v=1"
+        src="/Anabelka/js/admin-work-time.js?v=2"
         data-admin-work-time
-        data-work-surface="admin"
+        data-work-source="web_admin"
         data-work-endpoint="/Anabelka/admin/work-time/heartbeat"
         data-work-csrf="<?= htmlspecialchars(
             $adminCsrfToken,
