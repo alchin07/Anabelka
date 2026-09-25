@@ -158,7 +158,7 @@ $canVipPriceViews = $adminCan('vip_prices.view');
 
 <link
     rel="stylesheet"
-    href="/Anabelka/css/admin-layout.css?v=3"
+    href="/Anabelka/css/admin-layout.css?v=4"
 >
 <link
     rel="stylesheet"
