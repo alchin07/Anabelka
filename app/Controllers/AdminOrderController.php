@@ -44,7 +44,7 @@ class AdminOrderController extends Controller
                 'statusOptions' => AdminOrder::statusOptions(),
                 'ordersError' => $ordersError,
                 'flash' => is_array($flash) ? $flash : null,
-                'csrfToken' => $this->csrfToken(),
+                'csrfToken' => AdminAccess::csrfToken(),
                 'navBadges' => [
                     'orders' => (int) ($allSummary['new'] ?? 0)
                 ]
@@ -58,8 +58,6 @@ class AdminOrderController extends Controller
         $orderId = (int) ($_POST['order_id'] ?? 0);
         $orderType = trim((string) ($_POST['order_type'] ?? ''));
         $status = trim((string) ($_POST['status'] ?? ''));
-        $submittedToken = (string) ($_POST['csrf_token'] ?? '');
-
         $filters = AdminOrder::normalizeFilters([
             'type' => $_POST['filter_type'] ?? 'all',
             'status' => $_POST['filter_status'] ?? 'all',
@@ -67,12 +65,6 @@ class AdminOrderController extends Controller
         ]);
 
         try {
-            if (!hash_equals($this->csrfToken(), $submittedToken)) {
-                throw new RuntimeException(
-                    'Сторінка застаріла. Оновіть її та повторіть дію.'
-                );
-            }
-
             AdminOrderStatus::update(
                 $orderType,
                 $orderId,
@@ -113,17 +105,5 @@ class AdminOrderController extends Controller
 
         return '/Anabelka/admin/orders'
             . (empty($query) ? '' : '?' . http_build_query($query));
-    }
-
-
-    private function csrfToken()
-    {
-        if (empty($_SESSION['admin_order_csrf'])) {
-            $_SESSION['admin_order_csrf'] = bin2hex(
-                random_bytes(24)
-            );
-        }
-
-        return (string) $_SESSION['admin_order_csrf'];
     }
 }
