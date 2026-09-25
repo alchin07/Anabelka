@@ -79,6 +79,7 @@ class App
         require_once __DIR__ . '/../Models/AdminAccess.php';
         require_once __DIR__ . '/../Models/AdminInvitation.php';
         require_once __DIR__ . '/../Models/AdminNotificationCenter.php';
+        require_once __DIR__ . '/../Models/AdminWorkActivity.php';
         require_once __DIR__ . '/../Models/AdminWorkTime.php';
         require_once __DIR__ . '/../Models/AdminDashboardServiceRegistry.php';
         require_once __DIR__ . '/../Models/AdminActionAudit.php';
