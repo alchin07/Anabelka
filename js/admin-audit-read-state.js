@@ -10,6 +10,9 @@
     const endpoint = root.getAttribute('data-audit-seen-endpoint') || '';
     const csrf = root.getAttribute('data-audit-csrf') || '';
     const navBadge = document.querySelector('[data-admin-audit-badge]');
+    const clearAllButton = root.querySelector(
+        '[data-audit-clear-all-button]'
+    );
     const detailsItems = Array.from(
         root.querySelectorAll('details[data-audit-entry-id]')
     );
@@ -71,6 +74,10 @@
 
     function updateNavBadge(count)
     {
+        if (clearAllButton) {
+            clearAllButton.disabled = count <= 0;
+        }
+
         if (!navBadge) {
             return;
         }
