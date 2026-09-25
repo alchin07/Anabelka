@@ -41,6 +41,18 @@ $actionLabels = [
     'admin.role_permissions_updated' => 'Змінено права ролі',
     'admin.profile_updated' => 'Оновлено власний профіль',
     'admin.password_changed' => 'Змінено власний пароль',
+    'admin.notification_badge_preferences_updated' => 'Оновлено налаштування бейджа сповіщень',
+
+    'dashboard.builder.block.create' => 'Створено блок адмін-главної',
+    'dashboard.builder.block.update' => 'Оновлено блок адмін-главної',
+    'dashboard.builder.block.toggle' => 'Змінено активність блока адмін-главної',
+    'dashboard.builder.block.delete' => 'Видалено блок адмін-главної',
+    'dashboard.builder.link.create' => 'Створено ярлик адмін-главної',
+    'dashboard.builder.link.update' => 'Оновлено ярлик адмін-главної',
+    'dashboard.builder.link.toggle' => 'Змінено активність ярлика адмін-главної',
+    'dashboard.builder.link.delete' => 'Видалено ярлик адмін-главної',
+    'dashboard.builder.blocks.reorder' => 'Змінено порядок блоків адмін-главної',
+    'dashboard.builder.links.reorder' => 'Змінено порядок ярликів адмін-главної',
 
     'order.status_changed' => 'Змінено стан замовлення',
 
@@ -50,7 +62,12 @@ $actionLabels = [
     'product.duplicated' => 'Створено копію товару',
     'product.variant_stock_updated' => 'Оновлено залишки варіантів товару',
 
+    'category.created' => 'Створено категорію',
     'category.updated' => 'Оновлено категорію',
+    'category.reordered' => 'Змінено порядок категорій',
+    'category.moved' => 'Переміщено категорію',
+    'category.flag_changed' => 'Змінено стан категорії',
+    'category.deleted' => 'Видалено категорію',
 
     'customer.invitation_created' => 'Створено запрошення покупця',
     'customer.invitation_marked_sent' => 'Запрошення позначено як надіслане',
@@ -76,6 +93,31 @@ $actionLabels = [
     'delivery.option_created' => 'Створено опцію доставки',
     'delivery.option_field_updated' => 'Оновлено додаткове поле доставки',
     'delivery.translations_updated' => 'Оновлено переклади доставки',
+
+    'mobile_navigation.create' => 'Створено пункт мобільного меню',
+    'mobile_navigation.update' => 'Оновлено пункт мобільного меню',
+    'mobile_navigation.toggle' => 'Змінено активність пункту мобільного меню',
+    'mobile_navigation.move' => 'Переміщено пункт мобільного меню',
+    'mobile_navigation.delete' => 'Видалено пункт мобільного меню',
+
+    'news.create' => 'Створено новину',
+    'news.update' => 'Оновлено новину',
+    'news.publish' => 'Змінено публікацію новини',
+    'news.delete' => 'Видалено новину',
+
+    'review.moderate' => 'Змінено модерацію відгуку',
+    'review.delete' => 'Видалено відгук',
+
+    'social_auth.provider_toggled' => 'Змінено активність способу входу',
+    'social_auth.provider_moved' => 'Змінено порядок способів входу',
+
+    'system.error_status.update' => 'Змінено статус системної помилки',
+    'system.error_note.update' => 'Оновлено нотатку системної помилки',
+    'system.error_external_notifications.update' => 'Оновлено зовнішні сповіщення про помилки',
+    'system.error_external_notifications.test' => 'Виконано тест зовнішніх сповіщень',
+    'system.error_test' => 'Виконано тест обробника помилок',
+    'system.backup_created' => 'Створено резервну копію',
+    'system.backup_downloaded' => 'Завантажено резервну копію',
 
     'language.created' => 'Додано мову',
     'language.updated' => 'Оновлено назву мови',
@@ -135,12 +177,24 @@ $detailLabels = [
     'language_code' => 'Код мови',
     'translation_key' => 'Ключ перекладу',
 
+    'block_id' => 'ID блока',
+    'block_ids' => 'Блоки',
+    'link_id' => 'ID ярлика',
+    'link_ids' => 'Ярлики',
+    'service_key' => 'Служба',
+    'provider' => 'Провайдер',
+    'enabled' => 'Увімкнено',
+    'reference' => 'Код помилки',
+    'status' => 'Статус',
+    'group_key' => 'Група помилки',
+    'action' => 'Дія',
+
     'name' => 'Назва',
     'is_active' => 'Активний'
 ];
 
 $formatDetail = static function ($key, $value) {
-    if (in_array($key, ['is_active', 'is_enabled', 'name_changed'], true)) {
+    if (in_array($key, ['is_active', 'is_enabled', 'enabled', 'name_changed'], true)) {
         return (string) ((int) $value === 1 ? 'Так' : 'Ні');
     }
 
