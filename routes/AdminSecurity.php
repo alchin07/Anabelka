@@ -98,6 +98,16 @@ $router->get(
     'AdminAdministratorController@audit'
 );
 
+$router->post(
+    '/admin/audit/seen',
+    'AdminAdministratorController@markAuditEntrySeen'
+);
+
+$router->post(
+    '/admin/audit/seen-all',
+    'AdminAdministratorController@clearAuditUnread'
+);
+
 $router->get(
     '/admin/vip-price-views',
     'AdminVipPriceViewController@index'
