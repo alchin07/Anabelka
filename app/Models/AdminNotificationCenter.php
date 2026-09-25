@@ -55,6 +55,19 @@ class AdminNotificationCenter
               COLLATE=utf8mb4_unicode_ci
         ");
 
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS admin_audit_read_state
+            (
+                viewer_admin_user_id INT UNSIGNED NOT NULL,
+                audit_log_id BIGINT UNSIGNED NOT NULL,
+                viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (viewer_admin_user_id, audit_log_id),
+                KEY idx_admin_audit_read_log (audit_log_id)
+            ) ENGINE=InnoDB
+              DEFAULT CHARSET=utf8mb4
+              COLLATE=utf8mb4_unicode_ci
+        ");
+
         self::$schemaReady = true;
     }
 
@@ -432,16 +445,19 @@ class AdminNotificationCenter
 
         self::ensureSchema();
         $maxId = self::currentMaxAuditId();
-        $cursor = self::cursor(
+
+        // The audit cursor is only a baseline. On the first use it is set
+        // to the current maximum so old history does not become "new".
+        $baseline = self::cursor(
             $adminUserId,
             'audit',
             $maxId
         );
 
-        if ($maxId <= $cursor) {
+        if ($maxId <= $baseline) {
             return [
                 'total' => 0,
-                'cursor' => $cursor,
+                'cursor' => $baseline,
                 'max_id' => $maxId,
                 'by_actor' => []
             ];
@@ -456,8 +472,12 @@ class AdminNotificationCenter
             FROM admin_audit_log l
             LEFT JOIN admin_users au
                 ON au.id = l.admin_user_id
-            WHERE l.id > :cursor
+            LEFT JOIN admin_audit_read_state rs
+                ON rs.audit_log_id = l.id
+               AND rs.viewer_admin_user_id = :viewer_admin_user_id
+            WHERE l.id > :baseline
               AND l.id <= :max_id
+              AND rs.audit_log_id IS NULL
             GROUP BY
                 l.admin_user_id,
                 au.name,
@@ -465,7 +485,8 @@ class AdminNotificationCenter
             ORDER BY MAX(l.id) DESC
         ");
         $stmt->execute([
-            'cursor' => $cursor,
+            'viewer_admin_user_id' => $adminUserId,
+            'baseline' => $baseline,
             'max_id' => $maxId
         ]);
 
@@ -490,20 +511,160 @@ class AdminNotificationCenter
 
         return [
             'total' => $total,
-            'cursor' => $cursor,
+            'cursor' => $baseline,
             'max_id' => $maxId,
             'by_actor' => $byActor
         ];
     }
 
 
-    public static function markAuditSeen($adminUserId = null, $throughId = null)
-    {
+    public static function auditUnreadEntryIds(
+        array $auditLogIds,
+        $adminUserId = null
+    ) {
         if (
             !class_exists('AdminAccess')
             || !AdminAccess::can('audit.view')
         ) {
-            return;
+            return [];
+        }
+
+        $adminUserId = $adminUserId !== null
+            ? (int) $adminUserId
+            : AdminAccess::currentId();
+
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $auditLogIds),
+            static function ($id) {
+                return $id > 0;
+            }
+        )));
+
+        if ($adminUserId <= 0 || empty($ids)) {
+            return [];
+        }
+
+        self::ensureSchema();
+        $baseline = self::cursor(
+            $adminUserId,
+            'audit',
+            self::currentMaxAuditId()
+        );
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge(
+            [$adminUserId, $baseline],
+            $ids
+        );
+
+        $stmt = Database::connect()->prepare("
+            SELECT l.id
+            FROM admin_audit_log l
+            LEFT JOIN admin_audit_read_state rs
+                ON rs.audit_log_id = l.id
+               AND rs.viewer_admin_user_id = ?
+            WHERE l.id > ?
+              AND l.id IN ({$placeholders})
+              AND rs.audit_log_id IS NULL
+        ");
+        $stmt->execute($params);
+
+        return array_map(
+            'intval',
+            $stmt->fetchAll(PDO::FETCH_COLUMN)
+        );
+    }
+
+
+    public static function markAuditEntrySeen(
+        $auditLogId,
+        $adminUserId = null
+    ) {
+        if (
+            !class_exists('AdminAccess')
+            || !AdminAccess::can('audit.view')
+        ) {
+            throw new RuntimeException(
+                'Недостатньо прав для перегляду журналу дій.'
+            );
+        }
+
+        $auditLogId = (int) $auditLogId;
+        $adminUserId = $adminUserId !== null
+            ? (int) $adminUserId
+            : AdminAccess::currentId();
+
+        if ($auditLogId <= 0 || $adminUserId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректний запис журналу.'
+            );
+        }
+
+        self::ensureSchema();
+        $db = Database::connect();
+
+        $entry = $db->prepare("
+            SELECT id, admin_user_id
+            FROM admin_audit_log
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $entry->execute(['id' => $auditLogId]);
+        $row = $entry->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            throw new RuntimeException(
+                'Запис журналу дій не знайдено.'
+            );
+        }
+
+        $baseline = self::cursor(
+            $adminUserId,
+            'audit',
+            self::currentMaxAuditId()
+        );
+
+        if ($auditLogId > $baseline) {
+            $insert = $db->prepare("
+                INSERT IGNORE INTO admin_audit_read_state
+                    (viewer_admin_user_id, audit_log_id)
+                VALUES
+                    (:viewer_admin_user_id, :audit_log_id)
+            ");
+            $insert->execute([
+                'viewer_admin_user_id' => $adminUserId,
+                'audit_log_id' => $auditLogId
+            ]);
+        }
+
+        unset(self::$summaryCache[$adminUserId]);
+
+        $state = self::auditUnreadState($adminUserId);
+        $actorId = (int) ($row['admin_user_id'] ?? 0);
+        $actorKey = $actorId > 0
+            ? 'admin-' . $actorId
+            : 'system';
+
+        return [
+            'audit_log_id' => $auditLogId,
+            'actor_key' => $actorKey,
+            'actor_remaining' => max(
+                0,
+                (int) ($state['by_actor'][$actorKey]['count'] ?? 0)
+            ),
+            'remaining_total' => max(
+                0,
+                (int) ($state['total'] ?? 0)
+            )
+        ];
+    }
+
+
+    public static function markAuditAllSeen($adminUserId = null)
+    {
+        if (!self::canClearAuditUnread()) {
+            throw new RuntimeException(
+                'Обнулити всі нові дії може лише Розробник або Власник.'
+            );
         }
 
         $adminUserId = $adminUserId !== null
@@ -511,27 +672,54 @@ class AdminNotificationCenter
             : AdminAccess::currentId();
 
         if ($adminUserId <= 0) {
-            return;
+            throw new RuntimeException(
+                'Адміністратора не знайдено.'
+            );
         }
 
         self::ensureSchema();
-
-        $throughId = $throughId !== null
-            ? max(0, (int) $throughId)
-            : self::currentMaxAuditId();
-
-        $current = self::cursor(
-            $adminUserId,
-            'audit',
-            $throughId
-        );
-
+        $maxId = self::currentMaxAuditId();
         self::saveCursor(
             $adminUserId,
             'audit',
-            max($current, $throughId)
+            $maxId
         );
+
+        $cleanup = Database::connect()->prepare("
+            DELETE FROM admin_audit_read_state
+            WHERE viewer_admin_user_id = :viewer_admin_user_id
+              AND audit_log_id <= :max_id
+        ");
+        $cleanup->execute([
+            'viewer_admin_user_id' => $adminUserId,
+            'max_id' => $maxId
+        ]);
+
         unset(self::$summaryCache[$adminUserId]);
+
+        return $maxId;
+    }
+
+
+    public static function canClearAuditUnread($admin = null)
+    {
+        if (!class_exists('AdminAccess')) {
+            return false;
+        }
+
+        $admin = is_array($admin)
+            ? $admin
+            : AdminAccess::current();
+
+        if (!$admin) {
+            return false;
+        }
+
+        return in_array(
+            (string) ($admin['role_slug'] ?? ''),
+            ['owner', 'store_owner'],
+            true
+        );
     }
 
 
