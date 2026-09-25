@@ -74,7 +74,12 @@ class Router
             );
         }
 
-        $this->guardAdminRoute($path, $method, $uri);
+        $this->guardAdminRoute(
+            $path,
+            $method,
+            $uri,
+            $routeMatch !== null
+        );
 
         if (class_exists('AdminActionAudit')) {
             AdminActionAudit::watch($path, $method);
@@ -172,8 +177,12 @@ class Router
     }
 
 
-    private function guardAdminRoute($path, $method, $uri)
-    {
+    private function guardAdminRoute(
+        $path,
+        $method,
+        $uri,
+        $routeExists = false
+    ) {
         $isAdminPath = $path === '/admin'
             || strpos($path, '/admin/') === 0;
 
@@ -207,14 +216,21 @@ class Router
         $admin = AdminAccess::current();
 
         if (!$admin) {
-            $returnTo = '/Anabelka' . $path;
-            $query = parse_url((string) $uri, PHP_URL_QUERY);
+            if (
+                strtoupper((string) $method) === 'GET'
+                && $routeExists
+            ) {
+                $returnTo = '/Anabelka' . $path;
+                $query = parse_url((string) $uri, PHP_URL_QUERY);
 
-            if (is_string($query) && $query !== '') {
-                $returnTo .= '?' . $query;
+                if (is_string($query) && $query !== '') {
+                    $returnTo .= '?' . $query;
+                }
+
+                $_SESSION['admin_return_to'] = $returnTo;
+                $_SESSION['admin_return_to_validated'] = 1;
             }
 
-            $_SESSION['admin_return_to'] = $returnTo;
             header('Location: /Anabelka/admin/login');
             exit;
         }
