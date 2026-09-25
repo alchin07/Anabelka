@@ -248,7 +248,13 @@ class AdminAccess
             ]);
         }
 
-        self::audit('admin.login', [], $adminId);
+        if (!in_array(
+            (string) ($admin['role_slug'] ?? ''),
+            ['owner', 'store_owner'],
+            true
+        )) {
+            self::audit('admin.login', [], $adminId);
+        }
 
         return self::current();
     }
