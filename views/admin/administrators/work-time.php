@@ -150,6 +150,8 @@ $payoutLabels = [
             $totalSeconds = (int) ($admin['total_seconds'] ?? 0);
             $adminSeconds = (int) ($admin['admin_seconds'] ?? 0);
             $publicSeconds = (int) ($admin['public_seconds'] ?? 0);
+            $androidSeconds = (int) ($admin['android_seconds'] ?? 0);
+            $iosSeconds = (int) ($admin['ios_seconds'] ?? 0);
             $dailyRows = is_array($dailyByAdmin[$adminId] ?? null)
                 ? $dailyByAdmin[$adminId]
                 : [];
@@ -209,6 +211,14 @@ $payoutLabels = [
                     <div>
                         <span>Сайт</span>
                         <strong><?= $escape($formatDuration($publicSeconds)) ?></strong>
+                    </div>
+                    <div>
+                        <span>Android</span>
+                        <strong><?= $escape($formatDuration($androidSeconds)) ?></strong>
+                    </div>
+                    <div>
+                        <span>iPhone</span>
+                        <strong><?= $escape($formatDuration($iosSeconds)) ?></strong>
                     </div>
                     <div>
                         <span>Сесій</span>
@@ -401,6 +411,14 @@ $payoutLabels = [
                                     <span>
                                         Сайт:
                                         <?= $escape($formatDuration($day['public_seconds'] ?? 0)) ?>
+                                    </span>
+                                    <span>
+                                        Android:
+                                        <?= $escape($formatDuration($day['android_seconds'] ?? 0)) ?>
+                                    </span>
+                                    <span>
+                                        iPhone:
+                                        <?= $escape($formatDuration($day['ios_seconds'] ?? 0)) ?>
                                     </span>
                                     <span>
                                         Сесій:
