@@ -86,16 +86,19 @@ test('front controller installs the shared public error renderer', () => {
     assert.match(php, /PublicErrorPage::register/);
 });
 
-test('shared error renderer and view keep JSON 404s intact and offer navigation', () => {
+test('shared error renderer keeps JSON 404s intact and hides technical codes', () => {
     const renderer = read('app/Core/PublicErrorPage.php');
     const view = read('views/errors/public.php');
 
     assert.match(renderer, /http_response_code\(\) !== 404/);
     assert.match(renderer, /application\/json/);
-    assert.match(view, /partials\/header\.php/);
-    assert.match(view, /\/Anabelka\/catalog/);
+    assert.match(renderer, /public static function renderGeneric/);
     assert.match(view, /\/Anabelka\//);
-    assert.match(view, /public-error\.css\?v=2/);
+    assert.match(view, /public-error\.css\?v=3/);
+    assert.doesNotMatch(view, /public-error-code/);
+    assert.doesNotMatch(view, /\$errorCode/);
+    assert.doesNotMatch(view, /\/Anabelka\/catalog/);
+    assert.doesNotMatch(view, /partials\/header\.php/);
 });
 
 test('mobile public error card starts close to the header instead of vertical centering', () => {
