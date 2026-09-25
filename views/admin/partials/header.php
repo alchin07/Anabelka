@@ -152,6 +152,12 @@ $canAiTranslation = $adminCan('ai_translation.view');
 $canSocialAuth = $adminCan('social_auth.view');
 $canAdministrators = $adminCan('administrators.view');
 $canAudit = $adminCan('audit.view');
+$canWorkTime = is_array($currentAdmin)
+    && in_array(
+        (string) ($currentAdmin['role_slug'] ?? ''),
+        ['owner', 'store_owner'],
+        true
+    );
 $canVipPriceViews = $adminCan('vip_prices.view');
 
 ?>
@@ -421,7 +427,7 @@ $canVipPriceViews = $adminCan('vip_prices.view');
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($canSocialAuth || $canAdministrators || $canAudit || $canVipPriceViews || $isDeveloper): ?>
+        <?php if ($canSocialAuth || $canAdministrators || $canAudit || $canWorkTime || $canVipPriceViews || $isDeveloper): ?>
             <span class="admin-nav-group-title">Безпека</span>
 
             <?php if ($canSocialAuth): ?>
@@ -439,6 +445,15 @@ $canVipPriceViews = $adminCan('vip_prices.view');
                     data-admin-route="/Anabelka/admin/administrators"
                 >
                     <span>Адміністратори</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canWorkTime): ?>
+                <a
+                    href="/Anabelka/admin/work-time"
+                    data-admin-route="/Anabelka/admin/work-time"
+                >
+                    <span>Робочий час</span>
                 </a>
             <?php endif; ?>
 
@@ -540,3 +555,18 @@ $canVipPriceViews = $adminCan('vip_prices.view');
 <script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=3"></script>
 <script defer src="/Anabelka/js/admin-order-variants.js?v=1"></script>
 <script src="/Anabelka/js/admin-nav.js?v=27"></script>
+
+<?php if ($currentAdmin): ?>
+    <script
+        src="/Anabelka/js/admin-work-time.js?v=1"
+        data-admin-work-time
+        data-work-surface="admin"
+        data-work-endpoint="/Anabelka/admin/work-time/heartbeat"
+        data-work-csrf="<?= htmlspecialchars(
+            $adminCsrfToken,
+            ENT_QUOTES,
+            'UTF-8'
+        ) ?>"
+        defer
+    ></script>
+<?php endif; ?>
