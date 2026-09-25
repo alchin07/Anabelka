@@ -448,11 +448,13 @@ $canVipPriceViews = $adminCan('vip_prices.view');
                     data-admin-route="/Anabelka/admin/audit"
                 >
                     <span>Журнал дій</span>
-                    <?php if ($auditBadge > 0): ?>
-                        <span class="admin-nav-badge">
-                            <?= $auditBadge ?>
-                        </span>
-                    <?php endif; ?>
+                    <span
+                        class="admin-nav-badge"
+                        data-admin-audit-badge
+                        <?= $auditBadge > 0 ? '' : 'hidden' ?>
+                    >
+                        <?= $auditBadge ?>
+                    </span>
                 </a>
             <?php endif; ?>
 
