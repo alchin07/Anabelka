@@ -79,6 +79,7 @@ class App
         require_once __DIR__ . '/../Models/AdminAccess.php';
         require_once __DIR__ . '/../Models/AdminInvitation.php';
         require_once __DIR__ . '/../Models/AdminNotificationCenter.php';
+        require_once __DIR__ . '/../Models/AdminWorkTime.php';
         require_once __DIR__ . '/../Models/AdminDashboardServiceRegistry.php';
         require_once __DIR__ . '/../Models/AdminActionAudit.php';
         require_once __DIR__ . '/../Models/AdminManagement.php';
@@ -148,6 +149,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminUserController.php';
         require_once __DIR__ . '/../Controllers/AdminUserRankController.php';
         require_once __DIR__ . '/../Controllers/AdminAdministratorController.php';
+        require_once __DIR__ . '/../Controllers/AdminWorkTimeController.php';
         require_once __DIR__ . '/../Controllers/AdminBackupController.php';
         require_once __DIR__ . '/../Controllers/AdminNewsController.php';
         require_once __DIR__ . '/../Controllers/AdminReviewController.php';
