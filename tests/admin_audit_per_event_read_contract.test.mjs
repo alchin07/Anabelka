@@ -32,7 +32,11 @@ const script = fs.readFileSync(
 
 assert.match(
     access,
-    /\['owner', 'store_owner'\][\s\S]*?self::audit\('admin\.login'/
+    /in_array\(\$action, \['admin\.login', 'admin\.logout'\], true\)[\s\S]*?isSeniorSessionAudit/
+);
+assert.match(
+    access,
+    /private static function isSeniorSessionAudit\(\$adminUserId\)[\s\S]*?\['owner', 'store_owner'\]/
 );
 
 assert.match(
