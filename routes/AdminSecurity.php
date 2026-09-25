@@ -109,6 +109,11 @@ $router->post(
 );
 
 $router->post(
+    '/admin/work-time/compensation',
+    'AdminWorkTimeController@saveCompensation'
+);
+
+$router->post(
     '/admin/audit/seen',
     'AdminAdministratorController@markAuditEntrySeen'
 );
