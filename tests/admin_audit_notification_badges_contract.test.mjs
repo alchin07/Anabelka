@@ -36,20 +36,28 @@ assert.match(
 );
 assert.match(
     notifications,
-    /WHERE l\.id > :cursor[\s\S]*?AND l\.id <= :max_id[\s\S]*?GROUP BY[\s\S]*?l\.admin_user_id/
+    /WHERE l\.id > :baseline[\s\S]*?AND l\.id <= :max_id[\s\S]*?rs\.audit_log_id IS NULL[\s\S]*?GROUP BY[\s\S]*?l\.admin_user_id/
 );
 assert.match(
     notifications,
-    /public static function markAuditSeen\s*\(/
+    /public static function auditUnreadEntryIds\s*\(/
+);
+assert.match(
+    notifications,
+    /public static function markAuditEntrySeen\s*\(/
+);
+assert.match(
+    notifications,
+    /public static function markAuditAllSeen\s*\(/
 );
 
 assert.match(
     controller,
-    /auditUnreadState\([\s\S]*?\$isFullJournal[\s\S]*?markAuditSeen/
+    /auditUnreadState\([\s\S]*?auditUnreadEntryIds/
 );
-assert.match(
+assert.doesNotMatch(
     controller,
-    /\$isFullJournal =[\s\S]*?admin_id[\s\S]*?action[\s\S]*?date_from[\s\S]*?date_to/
+    /\$isFullJournal[\s\S]*?markAuditSeen/
 );
 
 assert.match(
@@ -67,6 +75,9 @@ assert.match(
 );
 
 assert.match(audit, /\$auditUnreadByActor/);
+assert.match(audit, /\$auditUnreadEntryLookup/);
+assert.match(audit, /data-audit-entry-id/);
+assert.match(audit, /data-audit-entry-new-badge/);
 assert.match(audit, /admin-audit-new-badge/);
 assert.match(
     audit,
