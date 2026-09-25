@@ -56,7 +56,7 @@ assert.match(audit, /admin-audit-group-head/);
 assert.match(audit, /admin-audit-new-badge/);
 assert.match(
     audit,
-    /admin-administrators\\.css\\?v=7/
+    /admin-administrators\\.css\\?v=9/
 );
 
 assert.match(css, /\.admin-audit-summary/);
