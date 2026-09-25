@@ -544,30 +544,37 @@ class AdminAdministratorController extends Controller
             'by_actor' => []
         ];
 
+        $entries = AdminManagement::auditLog($filters, 250);
+        $entryIds = array_map(
+            static function ($entry) {
+                return (int) ($entry['id'] ?? 0);
+            },
+            $entries
+        );
+        $auditUnreadEntryIds = [];
+
         if (class_exists('AdminNotificationCenter')) {
             $auditUnreadState = AdminNotificationCenter::auditUnreadState(
                 AdminAccess::currentId()
             );
+            $auditUnreadEntryIds =
+                AdminNotificationCenter::auditUnreadEntryIds(
+                    $entryIds,
+                    AdminAccess::currentId()
+                );
         }
 
-        $entries = AdminManagement::auditLog($filters, 250);
         $recentEntries = array_slice($entries, 0, 3);
         $olderAuditGroups = AdminManagement::groupAuditEntriesByAdministrator(
             array_slice($entries, 3)
         );
 
-        $isFullJournal =
-            (int) ($filters['admin_id'] ?? 0) === 0
-            && (string) ($filters['action'] ?? '') === ''
-            && (string) ($filters['date_from'] ?? '') === ''
-            && (string) ($filters['date_to'] ?? '') === '';
+        $flash = is_array($_SESSION['admin_audit_flash'] ?? null)
+            ? $_SESSION['admin_audit_flash']
+            : null;
+        unset($_SESSION['admin_audit_flash']);
 
-        if ($isFullJournal && class_exists('AdminNotificationCenter')) {
-            AdminNotificationCenter::markAuditSeen(
-                AdminAccess::currentId(),
-                (int) ($auditUnreadState['max_id'] ?? 0)
-            );
-        }
+        $currentAdmin = AdminAccess::current();
 
         $this->view('admin/administrators/audit', [
             'pageTitle' => 'Адмін-панель · Журнал дій',
@@ -578,10 +585,85 @@ class AdminAdministratorController extends Controller
             'auditUnreadByActor' => is_array(
                 $auditUnreadState['by_actor'] ?? null
             ) ? $auditUnreadState['by_actor'] : [],
+            'auditUnreadEntryIds' => $auditUnreadEntryIds,
+            'canClearAuditUnread' => class_exists('AdminNotificationCenter')
+                && AdminNotificationCenter::canClearAuditUnread(
+                    $currentAdmin
+                ),
+            'csrfToken' => AdminAccess::csrfToken(),
+            'flash' => $flash,
             'auditAdministrators' => AdminManagement::auditAdministrators(),
             'auditActions' => AdminManagement::auditActions(),
             'filters' => $filters
         ]);
+    }
+
+
+    public function markAuditEntrySeen()
+    {
+        try {
+            $this->verifyCsrf();
+
+            if (!class_exists('AdminNotificationCenter')) {
+                throw new RuntimeException(
+                    'Центр сповіщень недоступний.'
+                );
+            }
+
+            $result = AdminNotificationCenter::markAuditEntrySeen(
+                $_POST['audit_log_id'] ?? 0,
+                AdminAccess::currentId()
+            );
+
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(
+                ['ok' => true] + $result,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+            exit;
+        } catch (Throwable $e) {
+            http_response_code(400);
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(
+                [
+                    'ok' => false,
+                    'message' => $e->getMessage()
+                ],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+            exit;
+        }
+    }
+
+
+    public function clearAuditUnread()
+    {
+        try {
+            $this->verifyCsrf();
+
+            if (!class_exists('AdminNotificationCenter')) {
+                throw new RuntimeException(
+                    'Центр сповіщень недоступний.'
+                );
+            }
+
+            AdminNotificationCenter::markAuditAllSeen(
+                AdminAccess::currentId()
+            );
+
+            $_SESSION['admin_audit_flash'] = [
+                'type' => 'success',
+                'message' => 'Усі нові дії позначено прочитаними.'
+            ];
+        } catch (Throwable $e) {
+            $_SESSION['admin_audit_flash'] = [
+                'type' => 'error',
+                'message' => $e->getMessage()
+            ];
+        }
+
+        header('Location: /Anabelka/admin/audit');
+        exit;
     }
 
 
