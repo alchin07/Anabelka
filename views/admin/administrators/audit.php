@@ -527,6 +527,7 @@ $formatDetail = static function ($key, $value) {
                 >
                 <button
                     type="submit"
+                    data-audit-clear-all-button
                     <?= $auditUnreadTotal > 0 ? '' : 'disabled' ?>
                 >
                     Позначити всі дії прочитаними
