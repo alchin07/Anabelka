@@ -288,14 +288,22 @@ class AdminSystemErrorController extends Controller
 
         if ((string) ($admin['role_slug'] ?? '') !== 'owner') {
             http_response_code(403);
+
+            if (
+                class_exists('PublicErrorPage')
+                && method_exists('PublicErrorPage', 'renderGeneric')
+            ) {
+                PublicErrorPage::renderGeneric(403);
+                exit;
+            }
+
             header('Content-Type: text/html; charset=UTF-8');
-            echo '<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8">'
+            echo '<!doctype html><html lang="uk"><head><meta charset="UTF-8">'
                 . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-                . '<title>Доступ заборонено — Анабелька</title></head>'
-                . '<body style="font-family:Arial,sans-serif;padding:24px">'
-                . '<h1>403 — Недостатньо прав</h1>'
-                . '<p>Журнал системних помилок доступний лише Розробнику.</p>'
-                . '<p><a href="/Anabelka/admin">Повернутися до адмін-панелі</a></p>'
+                . '<title>Анабелька</title></head><body>'
+                . '<h1>Щось пішло не так</h1>'
+                . '<p>Спробуйте ще раз.</p>'
+                . '<p><a href="/Anabelka/">На головну</a></p>'
                 . '</body></html>';
             exit;
         }
