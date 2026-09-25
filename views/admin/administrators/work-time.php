@@ -85,7 +85,7 @@ $payoutLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Робочий час') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-work-time.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-work-time.css?v=3">
 </head>
 <body>
 
