@@ -98,6 +98,16 @@ $router->get(
     'AdminAdministratorController@audit'
 );
 
+$router->get(
+    '/admin/work-time',
+    'AdminWorkTimeController@index'
+);
+
+$router->post(
+    '/admin/work-time/heartbeat',
+    'AdminWorkTimeController@heartbeat'
+);
+
 $router->post(
     '/admin/audit/seen',
     'AdminAdministratorController@markAuditEntrySeen'
