@@ -76,7 +76,11 @@ assert.match(
 );
 assert.match(
     model,
-    /SUM\(admin_seconds \+ public_seconds\)/
+    /AdminWorkActivity::rangeSummary/
+);
+assert.match(
+    model,
+    /\$activity\['total_seconds'\]/
 );
 
 assert.match(
@@ -122,7 +126,7 @@ assert.match(view, /Щомісячна виплата/);
 assert.match(view, /data-work-payout-type/);
 assert.match(view, /data-work-one-time-fields/);
 assert.match(view, /admin-work-time-compensation\.js\?v=1/);
-assert.match(view, /admin-work-time\.css\?v=2/);
+assert.match(view, /admin-work-time\\.css\\?v=3/);
 
 assert.match(
     script,
