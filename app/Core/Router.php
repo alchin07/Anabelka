@@ -241,7 +241,10 @@ class Router
             $this->forbidAdminAccess();
         }
 
-        if ($path === '/admin/audit') {
+        if (
+            $path === '/admin/audit'
+            || strpos($path, '/admin/audit/') === 0
+        ) {
             $permission = 'audit.view';
         } elseif (
             $path === '/admin/administrators'
