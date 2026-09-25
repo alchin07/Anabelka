@@ -13,10 +13,35 @@ class AdminWorkTimeController extends Controller
                 );
             }
 
+            $adminId = (int) ($admin['id'] ?? 0);
+            $source = $_POST['source']
+                ?? $_POST['surface']
+                ?? '';
+            $clientSessionId = trim((string) (
+                $_POST['session_id'] ?? ''
+            ));
+
+            if ($clientSessionId === '') {
+                $clientSessionId = 'legacy-web-'
+                    . substr(
+                        hash(
+                            'sha256',
+                            session_id() . '|' . $adminId
+                        ),
+                        0,
+                        32
+                    );
+            }
+
+            $active = array_key_exists('active', $_POST)
+                ? (int) $_POST['active'] === 1
+                : (int) ($_POST['active_seconds'] ?? 0) > 0;
+
             $result = AdminWorkTime::heartbeat(
-                (int) ($admin['id'] ?? 0),
-                $_POST['surface'] ?? '',
-                $_POST['active_seconds'] ?? 0
+                $adminId,
+                $source,
+                $clientSessionId,
+                $active
             );
 
             header('Content-Type: application/json; charset=UTF-8');
