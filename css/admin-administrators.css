@@ -1229,3 +1229,92 @@ details.admin-audit-item[open] .admin-audit-summary-main small {
     font-size: 11px;
     line-height: 1.4;
 }
+
+
+/* Collapsible audit groups by administrator */
+details.admin-audit-admin-group {
+    overflow: hidden;
+    border: 1px solid var(--admin-security-border);
+    border-radius: 14px;
+    background: #fff;
+}
+
+details.admin-audit-admin-group + details.admin-audit-admin-group {
+    margin-top: 10px;
+}
+
+.admin-audit-group-summary {
+    margin: 0;
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+    background: #fff;
+}
+
+.admin-audit-group-summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-audit-group-summary-side {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-audit-total-badge {
+    min-width: 32px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #f1e5fb;
+    color: var(--admin-security-primary-dark);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.admin-audit-group-chevron {
+    color: var(--admin-security-primary);
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+    transition: transform .15s ease;
+}
+
+details.admin-audit-admin-group[open] .admin-audit-group-chevron {
+    transform: rotate(180deg);
+}
+
+.admin-audit-group-body {
+    padding: 0 10px 10px;
+    border-top: 1px solid var(--admin-security-border);
+}
+
+details.admin-audit-admin-group[open] .admin-audit-group-summary {
+    background: var(--admin-security-soft);
+}
+
+@media (max-width: 560px) {
+    .admin-audit-group-summary {
+        padding: 9px 10px;
+    }
+
+    .admin-audit-group-summary-side {
+        gap: 6px;
+    }
+
+    .admin-audit-total-badge {
+        min-width: 28px;
+        height: 27px;
+        padding: 0 7px;
+        font-size: 11px;
+    }
+
+    .admin-audit-group-body {
+        padding: 0 7px 7px;
+    }
+}
