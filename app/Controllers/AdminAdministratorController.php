@@ -44,12 +44,27 @@ class AdminAdministratorController extends Controller
             }
         }
 
+        $workContract = [
+            'has_contract' => false
+        ];
+
+        if (class_exists('AdminWorkTime')) {
+            try {
+                $workContract = AdminWorkTime::currentAdminContract();
+            } catch (Throwable $e) {
+                $workContract = [
+                    'has_contract' => false
+                ];
+            }
+        }
+
         $this->view('admin/administrators/profile', [
             'pageTitle' => 'Адмін-панель · Профіль',
             'admin' => $admin,
             'csrfToken' => AdminAccess::csrfToken(),
             'canCustomizeNotificationBadge' => $canCustomizeNotificationBadge,
             'notificationBadgeOptions' => $notificationBadgeOptions,
+            'workContract' => $workContract,
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
         ]);
