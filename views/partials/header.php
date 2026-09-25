@@ -639,6 +639,21 @@ if (
     ></script>
 <?php endif; ?>
 
+<?php if ($currentAdmin): ?>
+    <script
+        src="/Anabelka/js/admin-work-time.js?v=1"
+        data-admin-work-time
+        data-work-surface="public"
+        data-work-endpoint="/Anabelka/admin/work-time/heartbeat"
+        data-work-csrf="<?= htmlspecialchars(
+            AdminAccess::csrfToken(),
+            ENT_QUOTES,
+            'UTF-8'
+        ) ?>"
+        defer
+    ></script>
+<?php endif; ?>
+
 <?php if ($isCheckoutPage): ?>
     <link
         rel="stylesheet"
