@@ -85,28 +85,30 @@ class Csrf
             echo json_encode(
                 [
                     'success' => false,
-                    'message' => 'CSRF token is missing or invalid.'
+                    'message' => 'Не вдалося виконати дію. Спробуйте ще раз.'
                 ],
                 JSON_UNESCAPED_UNICODE
             );
             exit;
         }
 
+        if (
+            class_exists('PublicErrorPage')
+            && method_exists('PublicErrorPage', 'renderGeneric')
+        ) {
+            PublicErrorPage::renderGeneric(403);
+            exit;
+        }
+
         header('Content-Type: text/html; charset=UTF-8');
 
-        echo '<!doctype html>'
-            . '<html lang="uk">'
-            . '<head>'
-            . '<meta charset="UTF-8">'
+        echo '<!doctype html><html lang="uk"><head><meta charset="UTF-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            . '<title>403 — Анабелька</title>'
-            . '</head>'
-            . '<body style="font-family:system-ui,sans-serif;padding:24px">'
-            . '<h1>403 — Запит відхилено</h1>'
-            . '<p>Сесію форми застаріло або CSRF-токен недійсний.</p>'
-            . '<p>Оновіть сторінку та повторіть дію.</p>'
-            . '</body>'
-            . '</html>';
+            . '<title>Анабелька</title></head><body>'
+            . '<h1>Щось пішло не так</h1>'
+            . '<p>Спробуйте ще раз.</p>'
+            . '<p><a href="/Anabelka/">На головну</a></p>'
+            . '</body></html>';
         exit;
     }
 }
