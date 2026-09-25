@@ -509,7 +509,7 @@ $paymentStatusLabels = [
                     >
                         <input type="hidden" name="order_id" value="<?= $orderId ?>">
                         <input type="hidden" name="order_type" value="<?= $escape($orderType) ?>">
-                        <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                        <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
                         <input type="hidden" name="filter_type" value="<?= $escape($filters['type'] ?? 'all') ?>">
                         <input type="hidden" name="filter_status" value="<?= $escape($filters['status'] ?? 'all') ?>">
                         <input type="hidden" name="filter_q" value="<?= $escape($filters['q'] ?? '') ?>">
