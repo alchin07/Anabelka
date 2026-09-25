@@ -45,15 +45,65 @@ class PublicErrorPage
         }
 
         [$errorTitle, $errorMessage] = self::copyFor($body);
-        $errorCode = 404;
-        $view = self::$projectRoot . '/views/errors/public.php';
+        self::renderView(
+            404,
+            $errorTitle,
+            $errorMessage
+        );
+    }
+
+
+    public static function renderGeneric($statusCode = 500)
+    {
+        $statusCode = (int) $statusCode;
+
+        if ($statusCode < 400 || $statusCode > 599) {
+            $statusCode = 500;
+        }
+
+        if (!headers_sent()) {
+            http_response_code($statusCode);
+            header('Content-Type: text/html; charset=UTF-8');
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+        }
+
+        self::renderView(
+            $statusCode,
+            'Щось пішло не так',
+            'Спробуйте ще раз.'
+        );
+    }
+
+
+    private static function renderView($statusCode, $errorTitle, $errorMessage)
+    {
+        $statusCode = (int) $statusCode;
+        $errorTitle = trim((string) $errorTitle);
+        $errorMessage = trim((string) $errorMessage);
+
+        if ($errorTitle === '') {
+            $errorTitle = 'Щось пішло не так';
+        }
+
+        if ($errorMessage === '') {
+            $errorMessage = 'Спробуйте ще раз.';
+        }
+
+        $root = self::$projectRoot !== ''
+            ? self::$projectRoot
+            : dirname(__DIR__, 2);
+        $view = $root . '/views/errors/public.php';
 
         if (!is_file($view)) {
-            echo '404 — ' . htmlspecialchars(
-                $errorTitle,
-                ENT_QUOTES,
-                'UTF-8'
-            );
+            echo '<!doctype html><html lang="uk"><head><meta charset="UTF-8">'
+                . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                . '<title>Анабелька</title></head><body>'
+                . '<h1>'
+                . htmlspecialchars($errorTitle, ENT_QUOTES, 'UTF-8')
+                . '</h1><p>'
+                . htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8')
+                . '</p><p><a href="/Anabelka/">На головну</a></p>'
+                . '</body></html>';
             return;
         }
 
