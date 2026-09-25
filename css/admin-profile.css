@@ -59,7 +59,7 @@
 }
 
 .admin-profile-contract-hours {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .admin-profile-contract-terms > div,
@@ -145,7 +145,7 @@
 
 .admin-profile-contract-day {
     display: grid;
-    grid-template-columns: minmax(95px, 1.1fr) repeat(4, minmax(80px, 1fr));
+    grid-template-columns: minmax(95px, 1.1fr) repeat(6, minmax(80px, 1fr));
     gap: 7px;
     padding: 9px 10px;
     border: 1px solid #eadcf7;
