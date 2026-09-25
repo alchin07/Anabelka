@@ -439,3 +439,8 @@ body.admin-menu-open {
         transition: none;
     }
 }
+
+
+.admin-nav-badge[hidden] {
+    display: none !important;
+}
