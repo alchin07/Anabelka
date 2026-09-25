@@ -332,6 +332,9 @@ class AdminManagement
         if (class_exists('AdminNotificationCenter')) {
             AdminNotificationCenter::ensureSchema();
         }
+        if (class_exists('AdminWorkTime')) {
+            AdminWorkTime::ensureSchema();
+        }
         if (class_exists('SystemErrorNotification')) {
             SystemErrorNotification::ensureSchema();
         }
@@ -444,6 +447,16 @@ class AdminManagement
                     WHERE viewer_admin_user_id = :admin_user_id
                 ");
                 $deleteAuditReadState->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('AdminWorkTime')) {
+                $deleteWorkPresence = $db->prepare("
+                    DELETE FROM admin_work_time_presence
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteWorkPresence->execute([
                     'admin_user_id' => $adminId
                 ]);
             }
