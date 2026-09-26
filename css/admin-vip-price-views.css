@@ -1,0 +1,326 @@
+.admin-vip-price-page {
+    width: min(1500px, calc(100% - 24px));
+    margin: 24px auto 56px;
+}
+
+.admin-vip-price-card {
+    padding: 20px;
+    border: 1px solid #eadcf7;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(32, 32, 42, 0.06);
+}
+
+.admin-vip-price-head h2 {
+    margin: 0;
+}
+
+.admin-vip-price-head p {
+    margin: 8px 0 0;
+    color: #69616f;
+    line-height: 1.5;
+}
+
+.admin-vip-price-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.admin-vip-price-summary > div {
+    padding: 14px;
+    border-radius: 14px;
+    background: #faf7ff;
+    border: 1px solid #eadcf7;
+}
+
+.admin-vip-price-summary strong,
+.admin-vip-price-summary span {
+    display: block;
+}
+
+.admin-vip-price-summary strong {
+    color: #8A2BE2;
+    font-size: 22px;
+}
+
+.admin-vip-price-summary span {
+    margin-top: 4px;
+    color: #69616f;
+    font-size: 13px;
+}
+
+.admin-vip-price-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 14px;
+    background: #faf7ff;
+    border: 1px solid #eadcf7;
+}
+
+.admin-vip-price-filters label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.admin-vip-price-filters label > span {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4e4654;
+}
+
+.admin-vip-price-filters input,
+.admin-vip-price-filters select {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 9px 10px;
+    border: 1px solid #d9c7e9;
+    border-radius: 10px;
+    background: #fff;
+    color: #20202a;
+    font: inherit;
+}
+
+.admin-vip-price-filters input:focus,
+.admin-vip-price-filters select:focus {
+    outline: 2px solid #8A2BE2;
+    outline-offset: 1px;
+}
+
+.admin-vip-price-code-input {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.admin-vip-price-filter-actions {
+    display: flex;
+    align-items: end;
+    gap: 8px;
+}
+
+.admin-vip-price-filter-actions button,
+.admin-vip-price-filter-actions a,
+.admin-vip-price-pagination a {
+    min-height: 44px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    font: inherit;
+    font-weight: 700;
+}
+
+.admin-vip-price-filter-actions button {
+    border: 1px solid #8A2BE2;
+    background: #8A2BE2;
+    color: #fff;
+}
+
+.admin-vip-price-filter-actions a,
+.admin-vip-price-pagination a {
+    border: 1px solid #d9c7e9;
+    background: #fff;
+    color: #6519b9;
+}
+
+.admin-vip-price-result-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 18px 0 10px;
+}
+
+.admin-vip-price-result-head small {
+    color: #69616f;
+}
+
+.admin-vip-price-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #eadcf7;
+    border-radius: 14px;
+}
+
+.admin-vip-price-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 980px;
+}
+
+.admin-vip-price-table th,
+.admin-vip-price-table td {
+    padding: 11px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid #f0e7f8;
+}
+
+.admin-vip-price-table th {
+    background: #faf7ff;
+    color: #514958;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.admin-vip-price-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.admin-vip-price-table td strong,
+.admin-vip-price-table td small {
+    display: block;
+}
+
+.admin-vip-price-table td small {
+    margin-top: 4px;
+    color: #746b78;
+    font-size: 12px;
+}
+
+.admin-vip-price-table a {
+    color: #6519b9;
+    font-weight: 700;
+}
+
+.admin-vip-price-amount {
+    color: #8A2BE2;
+    white-space: nowrap;
+}
+
+.admin-vip-price-code {
+    display: inline-block;
+    padding: 5px 8px;
+    border-radius: 8px;
+    background: #f4eaff;
+    color: #6519b9;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+.admin-vip-price-empty {
+    padding: 24px 16px;
+    text-align: center;
+    border: 1px dashed #d9c7e9;
+    border-radius: 14px;
+    color: #69616f;
+}
+
+.admin-vip-price-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+    .admin-vip-price-summary,
+    .admin-vip-price-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-vip-price-page {
+        width: min(100% - 12px, 1500px);
+        margin-top: 12px;
+    }
+
+    .admin-vip-price-card {
+        padding: 12px;
+        border-radius: 14px;
+    }
+
+    .admin-vip-price-summary,
+    .admin-vip-price-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-vip-price-filter-actions {
+        align-items: stretch;
+    }
+
+    .admin-vip-price-filter-actions button,
+    .admin-vip-price-filter-actions a {
+        flex: 1 1 0;
+    }
+
+    .admin-vip-price-result-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .admin-vip-price-table-wrap {
+        overflow: visible;
+        border: 0;
+    }
+
+    .admin-vip-price-table {
+        min-width: 0;
+    }
+
+    .admin-vip-price-table thead {
+        display: none;
+    }
+
+    .admin-vip-price-table,
+    .admin-vip-price-table tbody,
+    .admin-vip-price-table tr,
+    .admin-vip-price-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .admin-vip-price-table tr {
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border: 1px solid #eadcf7;
+        border-radius: 14px;
+        background: #fff;
+    }
+
+    .admin-vip-price-table td {
+        display: grid;
+        grid-template-columns: 108px minmax(0, 1fr);
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px solid #f0e7f8;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-vip-price-table td:last-child {
+        border-bottom: 0;
+    }
+
+    .admin-vip-price-table td::before {
+        content: attr(data-label);
+        color: #746b78;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .admin-vip-price-pagination {
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .admin-vip-price-pagination span {
+        text-align: center;
+        font-size: 13px;
+    }
+
+    .admin-vip-price-pagination a {
+        min-width: 0;
+        padding-inline: 10px;
+    }
+}

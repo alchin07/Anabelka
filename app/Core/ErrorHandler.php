@@ -351,7 +351,7 @@ class ErrorHandler
             header('Cache-Control: no-store, no-cache, must-revalidate');
         }
 
-        $message = 'Виникла внутрішня помилка. Спробуйте ще раз.';
+        $message = 'Спробуйте ще раз.';
 
         if (self::expectsJson()) {
             if (!headers_sent()) {
@@ -361,11 +361,18 @@ class ErrorHandler
             echo json_encode(
                 [
                     'ok' => false,
-                    'error' => $message,
-                    'reference' => (string) $reference
+                    'error' => $message
                 ],
                 JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
             );
+            return;
+        }
+
+        if (
+            class_exists('PublicErrorPage')
+            && method_exists('PublicErrorPage', 'renderGeneric')
+        ) {
+            PublicErrorPage::renderGeneric(500);
             return;
         }
 
@@ -373,22 +380,18 @@ class ErrorHandler
             header('Content-Type: text/html; charset=UTF-8');
         }
 
-        $safeReference = htmlspecialchars((string) $reference, ENT_QUOTES, 'UTF-8');
         echo '<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            . '<title>Помилка — Анабелька</title>'
+            . '<title>Анабелька</title>'
             . '<style>body{margin:0;background:#faf7ff;color:#302735;font-family:Arial,sans-serif}'
             . '.e{width:min(560px,calc(100% - 32px));margin:12vh auto;padding:26px;box-sizing:border-box;'
             . 'background:#fff;border:1px solid #eadcf7;border-radius:18px;text-align:center}'
             . 'h1{margin:0 0 10px;font-size:24px}p{line-height:1.5;color:#6b6170}'
             . 'a{display:inline-block;margin-top:8px;padding:11px 16px;border-radius:11px;'
-            . 'background:#8a2be2;color:#fff;text-decoration:none;font-weight:700}'
-            . 'small{display:block;margin-top:16px;color:#9a909e}</style></head><body>'
+            . 'background:#8a2be2;color:#fff;text-decoration:none;font-weight:700}</style></head><body>'
             . '<main class="e"><h1>Щось пішло не так</h1><p>'
             . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
-            . '</p><a href="/Anabelka/">На головну</a><small>Код помилки: '
-            . $safeReference
-            . '</small></main></body></html>';
+            . '</p><a href="/Anabelka/">На головну</a></main></body></html>';
     }
 
 

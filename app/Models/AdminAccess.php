@@ -248,7 +248,13 @@ class AdminAccess
             ]);
         }
 
-        self::audit('admin.login', [], $adminId);
+        if (!in_array(
+            (string) ($admin['role_slug'] ?? ''),
+            ['owner', 'store_owner'],
+            true
+        )) {
+            self::audit('admin.login', [], $adminId);
+        }
 
         return self::current();
     }
@@ -363,6 +369,7 @@ class AdminAccess
 
         $isWrite = $method !== 'GET' && $method !== 'HEAD';
         $areas = [
+            '/admin/dashboard-builder' => ['dashboard.manage', 'dashboard.manage'],
             '/admin/orders' => ['orders.view', 'orders.manage'],
             '/admin/search' => ['search.view', 'search.manage'],
             '/admin/users' => ['users.view', 'users.manage'],
@@ -372,7 +379,13 @@ class AdminAccess
             '/admin/ai-translation' => ['ai_translation.view', 'ai_translation.manage'],
             '/admin/categories' => ['categories.view', 'categories.manage'],
             '/admin/products' => ['products.view', 'products.manage'],
-            '/admin/delivery' => ['delivery.view', 'delivery.manage']
+            '/admin/delivery' => ['delivery.view', 'delivery.manage'],
+            '/admin/news' => ['news.view', 'news.manage'],
+            '/admin/reviews' => ['reviews.view', 'reviews.manage'],
+            '/admin/mobile-navigation' => ['mobile_navigation.view', 'mobile_navigation.manage'],
+            '/admin/home-page' => ['home_page.view', 'home_page.manage'],
+            '/admin/social-auth' => ['social_auth.view', 'social_auth.manage'],
+            '/admin/vip-price-views' => ['vip_prices.view', 'vip_prices.view']
         ];
 
         foreach ($areas as $prefix => $permissions) {
@@ -420,6 +433,17 @@ class AdminAccess
                 return;
             }
 
+            if (
+                in_array($action, ['admin.login', 'admin.logout'], true)
+                && self::isSeniorSessionAudit(
+                    $adminUserId !== null
+                        ? (int) $adminUserId
+                        : self::currentId()
+                )
+            ) {
+                return;
+            }
+
             $encoded = !empty($details)
                 ? json_encode(
                     $details,
@@ -443,6 +467,33 @@ class AdminAccess
         } catch (Throwable $e) {
             error_log('Admin audit error: ' . $e->getMessage());
         }
+    }
+
+
+    private static function isSeniorSessionAudit($adminUserId)
+    {
+        $adminUserId = (int) $adminUserId;
+
+        if ($adminUserId <= 0) {
+            return false;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT ar.slug
+            FROM admin_users au
+            INNER JOIN admin_roles ar ON ar.id = au.role_id
+            WHERE au.id = :id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'id' => $adminUserId
+        ]);
+
+        return in_array(
+            (string) ($stmt->fetchColumn() ?: ''),
+            ['owner', 'store_owner'],
+            true
+        );
     }
 
 
@@ -470,6 +521,7 @@ class AdminAccess
         $permissions = [
             ['admin.access', 'Доступ до службових розділів', 'system', 10],
             ['dashboard.view', 'Перегляд головної адмін-панелі', 'dashboard', 20],
+            ['dashboard.manage', 'Керування конструктором головної адмін-панелі', 'dashboard', 21],
             ['orders.view', 'Перегляд замовлень', 'orders', 30],
             ['orders.manage', 'Зміна замовлень', 'orders', 31],
             ['search.view', 'Перегляд журналу пошуку', 'search', 40],
@@ -490,9 +542,20 @@ class AdminAccess
             ['translations.manage', 'Керування перекладами', 'translations', 111],
             ['ai_translation.view', 'Перегляд налаштувань ШІ', 'translations', 120],
             ['ai_translation.manage', 'Керування ШІ-перекладом', 'translations', 121],
+            ['news.view', 'Перегляд новин', 'content', 122],
+            ['news.manage', 'Керування новинами', 'content', 123],
+            ['reviews.view', 'Перегляд відгуків', 'content', 124],
+            ['reviews.manage', 'Модерація відгуків', 'content', 125],
+            ['mobile_navigation.view', 'Перегляд мобільного меню', 'content', 126],
+            ['mobile_navigation.manage', 'Керування мобільним меню', 'content', 127],
+            ['home_page.view', 'Перегляд конструктора головної', 'content', 128],
+            ['home_page.manage', 'Керування конструктором головної', 'content', 129],
             ['administrators.view', 'Перегляд адміністраторів', 'security', 130],
             ['administrators.manage', 'Керування адміністраторами', 'security', 131],
-            ['audit.view', 'Перегляд журналу дій', 'security', 140]
+            ['social_auth.view', 'Перегляд налаштувань соціальної авторизації', 'security', 132],
+            ['social_auth.manage', 'Керування соціальною авторизацією', 'security', 133],
+            ['audit.view', 'Перегляд журналу дій', 'security', 140],
+            ['vip_prices.view', 'Перегляд журналу VIP-цін', 'security', 141]
         ];
 
         $stmt = $db->prepare("
@@ -548,7 +611,7 @@ class AdminAccess
             function ($key) {
                 return !in_array(
                     $key,
-                    ['administrators.manage'],
+                    ['administrators.manage', 'dashboard.manage'],
                     true
                 );
             }
@@ -574,7 +637,15 @@ class AdminAccess
                 'languages.view',
                 'translations.view',
                 'translations.manage',
-                'ai_translation.view'
+                'ai_translation.view',
+                'news.view',
+                'news.manage',
+                'reviews.view',
+                'reviews.manage',
+                'mobile_navigation.view',
+                'mobile_navigation.manage',
+                'home_page.view',
+                'home_page.manage'
             ]
         ];
 

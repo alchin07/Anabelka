@@ -2,7 +2,12 @@
 
 class CatalogSearch
 {
-    public static function run($query, $languageCode)
+    public static function run(
+        $query,
+        $languageCode,
+        $productLimit = 100,
+        $categoryLimit = 50
+    )
     {
         $query = self::normalizeQuery($query);
         $languageCode = strtolower(trim((string) $languageCode));
@@ -16,9 +21,27 @@ class CatalogSearch
 
         ProductTranslator::getForProduct(0);
         CategoryTranslator::getForCategory(0);
+        $visibleCategoryIds = Category::visibleCategoryIds();
 
-        $products = self::searchProducts($query, $languageCode);
-        $categories = self::searchCategories($query, $languageCode);
+        if (empty($visibleCategoryIds)) {
+            return [
+                'products' => [],
+                'categories' => []
+            ];
+        }
+
+        $products = self::searchProducts(
+            $query,
+            $languageCode,
+            $visibleCategoryIds,
+            $productLimit
+        );
+        $categories = self::searchCategories(
+            $query,
+            $languageCode,
+            $visibleCategoryIds,
+            $categoryLimit
+        );
 
         /*
          * На окремих збірках MySQL/MariaDB у KSWEB Unicode-пошук через
@@ -26,18 +49,45 @@ class CatalogSearch
          * не знайшов, виконуємо резервний Unicode-пошук у PHP.
          */
         if (empty($products)) {
-            $products = self::searchProductsFallback($query, $languageCode);
+            $products = self::searchProductsFallback(
+                $query,
+                $languageCode,
+                $visibleCategoryIds,
+                $productLimit
+            );
         }
 
         if (empty($categories)) {
-            $categories = self::searchCategoriesFallback($query, $languageCode);
+            $categories = self::searchCategoriesFallback(
+                $query,
+                $languageCode,
+                $visibleCategoryIds,
+                $categoryLimit
+            );
         }
+
+        $products = array_values(array_filter(
+            $products,
+            function ($product) {
+                return Category::isEffectivelyActive(
+                    (int) ($product['category_id'] ?? 0)
+                );
+            }
+        ));
+        $categories = array_values(array_filter(
+            $categories,
+            function ($category) {
+                return Category::isEffectivelyActive(
+                    (int) ($category['id'] ?? 0)
+                );
+            }
+        ));
 
         if (!AdultAccess::canShowAdultContent()) {
             $products = array_values(array_filter(
                 $products,
                 function ($product) {
-                    return !HomePage::isAdultCategoryId(
+                    return !Category::isEffectivelyAdult(
                         (int) ($product['category_id'] ?? 0)
                     );
                 }
@@ -46,7 +96,7 @@ class CatalogSearch
             $categories = array_values(array_filter(
                 $categories,
                 function ($category) {
-                    return !HomePage::isAdultCategoryId(
+                    return !Category::isEffectivelyAdult(
                         (int) ($category['id'] ?? 0)
                     );
                 }
@@ -70,7 +120,7 @@ class CatalogSearch
                 $products
             );
 
-            $variants = ProductImage::colorVariantsForProducts($productIds);
+            $variants = ProductColor::variantsForProducts($productIds);
 
             foreach ($products as &$product) {
                 $productId = (int) ($product['id'] ?? 0);
@@ -82,6 +132,56 @@ class CatalogSearch
         return [
             'products' => $products,
             'categories' => $categories
+        ];
+    }
+
+    public static function page(
+        $query,
+        $languageCode,
+        $pageInput,
+        $perPage = 24
+    )
+    {
+        $perPage = max(1, min(96, (int) $perPage));
+        $results = self::run(
+            $query,
+            $languageCode,
+            0,
+            50
+        );
+        $products = is_array($results['products'] ?? null)
+            ? $results['products']
+            : [];
+        $categories = is_array($results['categories'] ?? null)
+            ? $results['categories']
+            : [];
+        $totalProducts = count($products);
+        $totalCategories = count($categories);
+        $totalPages = max(
+            1,
+            (int) ceil($totalProducts / $perPage)
+        );
+        $page = min(
+            self::normalizePageNumber($pageInput),
+            $totalPages
+        );
+        $offset = ($page - 1) * $perPage;
+
+        return [
+            'products' => array_slice(
+                $products,
+                $offset,
+                $perPage
+            ),
+            'categories' => $categories,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total_products' => $totalProducts,
+            'total_categories' => $totalCategories,
+            'total' => $totalProducts + $totalCategories,
+            'total_pages' => $totalPages,
+            'has_previous' => $page > 1,
+            'has_next' => $page < $totalPages
         ];
     }
 
@@ -103,9 +203,19 @@ class CatalogSearch
     }
 
 
-    private static function searchProducts($query, $languageCode)
+    private static function searchProducts(
+        $query,
+        $languageCode,
+        array $visibleCategoryIds,
+        $limit = 100
+    )
     {
         $db = Database::connect();
+        $categoryList = self::categoryIdList($visibleCategoryIds);
+        $limit = max(0, (int) $limit);
+        $limitSql = $limit > 0
+            ? "\n            LIMIT " . $limit
+            : '';
 
         $stmt = $db->prepare("
             SELECT
@@ -136,6 +246,7 @@ class CatalogSearch
                AND ct.language_code = :category_language_code
                AND ct.status IN ('approved', 'outdated')
             WHERE p.is_active = 1
+              AND p.category_id IN ({$categoryList})
               AND LOCATE(
                     LOWER(:query),
                     LOWER(CONCAT_WS(
@@ -160,7 +271,7 @@ class CatalogSearch
                     ELSE 3
                 END,
                 p.id DESC
-            LIMIT 100
+            {$limitSql}
         ");
 
         $stmt->execute([
@@ -176,9 +287,19 @@ class CatalogSearch
     }
 
 
-    private static function searchCategories($query, $languageCode)
+    private static function searchCategories(
+        $query,
+        $languageCode,
+        array $visibleCategoryIds,
+        $limit = 50
+    )
     {
         $db = Database::connect();
+        $categoryList = self::categoryIdList($visibleCategoryIds);
+        $limit = max(0, (int) $limit);
+        $limitSql = $limit > 0
+            ? "\n            LIMIT " . $limit
+            : '';
 
         $stmt = $db->prepare("
             SELECT
@@ -188,13 +309,17 @@ class CatalogSearch
                 c.name,
                 c.slug,
                 c.description,
-                c.image
+                c.image,
+                d.slug AS department_slug
             FROM categories c
+            INNER JOIN departments d
+                ON d.id = c.department_id
             LEFT JOIN category_translations ct
                 ON ct.category_id = c.id
                AND ct.language_code = :language_code
                AND ct.status IN ('approved', 'outdated')
             WHERE c.is_active = 1
+              AND c.id IN ({$categoryList})
               AND LOCATE(
                     LOWER(:query),
                     LOWER(CONCAT_WS(
@@ -213,7 +338,7 @@ class CatalogSearch
                 END,
                 c.sort_order ASC,
                 c.name ASC
-            LIMIT 50
+            {$limitSql}
         ");
 
         $stmt->execute([
@@ -227,9 +352,15 @@ class CatalogSearch
     }
 
 
-    private static function searchProductsFallback($query, $languageCode)
+    private static function searchProductsFallback(
+        $query,
+        $languageCode,
+        array $visibleCategoryIds,
+        $limit = 100
+    )
     {
         $db = Database::connect();
+        $categoryList = self::categoryIdList($visibleCategoryIds);
         $stmt = $db->prepare("
             SELECT
                 p.id,
@@ -265,6 +396,7 @@ class CatalogSearch
                AND ct.language_code = :category_language_code
                AND ct.status IN ('approved', 'outdated')
             WHERE p.is_active = 1
+              AND p.category_id IN ({$categoryList})
             ORDER BY p.id DESC
         ");
 
@@ -304,7 +436,7 @@ class CatalogSearch
 
             $result[] = $row;
 
-            if (count($result) >= 100) {
+            if ($limit > 0 && count($result) >= (int) $limit) {
                 break;
             }
         }
@@ -313,9 +445,15 @@ class CatalogSearch
     }
 
 
-    private static function searchCategoriesFallback($query, $languageCode)
+    private static function searchCategoriesFallback(
+        $query,
+        $languageCode,
+        array $visibleCategoryIds,
+        $limit = 50
+    )
     {
         $db = Database::connect();
+        $categoryList = self::categoryIdList($visibleCategoryIds);
         $stmt = $db->prepare("
             SELECT
                 c.id,
@@ -325,14 +463,18 @@ class CatalogSearch
                 c.slug,
                 c.description,
                 c.image,
+                d.slug AS department_slug,
                 ct.name AS translated_name,
                 ct.description AS translated_description
             FROM categories c
+            INNER JOIN departments d
+                ON d.id = c.department_id
             LEFT JOIN category_translations ct
                 ON ct.category_id = c.id
                AND ct.language_code = :language_code
                AND ct.status IN ('approved', 'outdated')
             WHERE c.is_active = 1
+              AND c.id IN ({$categoryList})
             ORDER BY c.sort_order ASC, c.name ASC
         ");
 
@@ -357,12 +499,42 @@ class CatalogSearch
             unset($row['translated_name'], $row['translated_description']);
             $result[] = $row;
 
-            if (count($result) >= 50) {
+            if ($limit > 0 && count($result) >= (int) $limit) {
                 break;
             }
         }
 
         return $result;
+    }
+
+    private static function normalizePageNumber($pageInput)
+    {
+        if (is_int($pageInput)) {
+            return $pageInput > 0 ? $pageInput : 1;
+        }
+
+        if (!is_string($pageInput)) {
+            return 1;
+        }
+
+        $pageInput = trim($pageInput);
+
+        if (!preg_match('/^[1-9][0-9]*$/', $pageInput)) {
+            return 1;
+        }
+
+        $validated = filter_var(
+            $pageInput,
+            FILTER_VALIDATE_INT,
+            [
+                'options' => [
+                    'min_range' => 1,
+                    'max_range' => PHP_INT_MAX
+                ]
+            ]
+        );
+
+        return $validated === false ? 1 : (int) $validated;
     }
 
 
@@ -381,5 +553,22 @@ class CatalogSearch
 
         return stripos($haystack, $needle) !== false
             || strpos($haystack, $needle) !== false;
+    }
+
+
+    private static function categoryIdList(array $categoryIds)
+    {
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map('intval', $categoryIds),
+            function ($categoryId) {
+                return $categoryId > 0;
+            }
+        )));
+
+        if (empty($categoryIds)) {
+            return '0';
+        }
+
+        return implode(',', $categoryIds);
     }
 }

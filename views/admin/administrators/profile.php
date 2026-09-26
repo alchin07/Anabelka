@@ -7,6 +7,74 @@ $canCustomizeNotificationBadge = !empty($canCustomizeNotificationBadge);
 $notificationBadgeOptions = is_array($notificationBadgeOptions ?? null)
     ? $notificationBadgeOptions
     : [];
+$workContract = is_array($workContract ?? null)
+    ? $workContract
+    : ['has_contract' => false];
+$workAgreement = is_array($workContract['agreement'] ?? null)
+    ? $workContract['agreement']
+    : [];
+$workEarnings = is_array($workContract['earnings'] ?? null)
+    ? $workContract['earnings']
+    : [];
+$workSummary = is_array($workContract['work'] ?? null)
+    ? $workContract['work']
+    : [];
+$workDaily = is_array($workContract['daily'] ?? null)
+    ? $workContract['daily']
+    : [];
+$workError = trim((string) ($workContract['work_error'] ?? ''));
+$workLoadError = !empty($workContract['load_error']);
+
+$formatDuration = static function ($seconds) {
+    $seconds = max(0, (int) $seconds);
+    $hours = intdiv($seconds, 3600);
+    $minutes = intdiv($seconds % 3600, 60);
+
+    if ($hours > 0) {
+        return $hours . ' год ' . $minutes . ' хв';
+    }
+
+    if ($minutes > 0) {
+        return $minutes . ' хв';
+    }
+
+    return $seconds > 0 ? $seconds . ' с' : '0 хв';
+};
+
+$currencySymbols = [
+    'UAH' => '₴',
+    'EUR' => '€',
+    'USD' => '$',
+    'PLN' => 'zł'
+];
+
+$formatMoney = static function ($minor, $currency) use ($currencySymbols) {
+    $minor = max(0, (int) $minor);
+    $currency = strtoupper(trim((string) $currency));
+    $symbol = $currencySymbols[$currency] ?? $currency;
+
+    return number_format($minor / 100, 2, ',', ' ') . ' ' . $symbol;
+};
+
+$formatDateTime = static function ($value) {
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return '—';
+    }
+
+    $timestamp = strtotime($value);
+
+    return $timestamp
+        ? date('d.m.Y H:i', $timestamp)
+        : $value;
+};
+
+$payoutLabels = [
+    'one_time' => 'Разова виплата',
+    'weekly' => 'Щотижнева виплата',
+    'monthly' => 'Щомісячна виплата'
+];
 ?>
 <!DOCTYPE html>
 <html lang="uk">
@@ -14,7 +82,7 @@ $notificationBadgeOptions = is_array($notificationBadgeOptions ?? null)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адмін-панель · Профіль') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-profile.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/admin-profile.css?v=6">
 </head>
 <body>
 
@@ -25,7 +93,7 @@ $notificationBadgeOptions = is_array($notificationBadgeOptions ?? null)
         <div>
             <span>Безпека акаунта</span>
             <h2>Мій профіль</h2>
-            <p>Особисті дані, сповіщення та пароль поточного адміністратора.</p>
+            <p>Особисті дані, робочий контракт, сповіщення та пароль поточного адміністратора.</p>
         </div>
         <div class="admin-profile-role">
             <small>Роль</small>
@@ -43,6 +111,248 @@ $notificationBadgeOptions = is_array($notificationBadgeOptions ?? null)
         <div class="admin-profile-message is-error">
             <?= htmlspecialchars($error) ?>
         </div>
+    <?php endif; ?>
+
+    <?php if (!empty($workContract['has_contract'])): ?>
+        <?php
+        $contractCurrency = strtoupper((string) (
+            $workAgreement['currency'] ?? 'UAH'
+        ));
+        $contractPayoutType = (string) (
+            $workAgreement['payout_type'] ?? 'monthly'
+        );
+        $contractFrom = trim((string) (
+            $workEarnings['date_from'] ?? ''
+        ));
+        $contractTo = trim((string) (
+            $workEarnings['date_to'] ?? ''
+        ));
+        ?>
+        <section class="admin-profile-card admin-profile-work-contract">
+            <div class="admin-profile-card-head">
+                <div>
+                    <span class="admin-profile-contract-kicker">Робота</span>
+                    <h3>Мій робочий контракт</h3>
+                    <p>
+                        Умови оплати та фактичний активний час за поточний
+                        розрахунковий період.
+                    </p>
+                </div>
+                <div class="admin-profile-contract-amount">
+                    <small>Нараховано</small>
+                    <strong>
+                        <?= htmlspecialchars(
+                            $formatMoney(
+                                $workEarnings['amount_minor'] ?? 0,
+                                $contractCurrency
+                            )
+                        ) ?>
+                    </strong>
+                </div>
+            </div>
+
+            <div class="admin-profile-contract-terms">
+                <div>
+                    <span>Ставка</span>
+                    <strong>
+                        <?= htmlspecialchars(
+                            $formatMoney(
+                                $workAgreement['hourly_rate_minor'] ?? 0,
+                                $contractCurrency
+                            )
+                        ) ?>/год
+                    </strong>
+                </div>
+                <div>
+                    <span>Тип виплати</span>
+                    <strong>
+                        <?= htmlspecialchars(
+                            $payoutLabels[$contractPayoutType]
+                                ?? 'Щомісячна виплата'
+                        ) ?>
+                    </strong>
+                </div>
+                <div>
+                    <span>Період розрахунку</span>
+                    <strong>
+                        <?= $contractFrom !== ''
+                            ? htmlspecialchars($contractFrom)
+                            : '—' ?>
+                        —
+                        <?= $contractTo !== ''
+                            ? htmlspecialchars($contractTo)
+                            : '—' ?>
+                    </strong>
+                </div>
+                <div>
+                    <span>Валюта</span>
+                    <strong><?= htmlspecialchars($contractCurrency) ?></strong>
+                </div>
+            </div>
+
+            <div class="admin-profile-contract-hours">
+                <div>
+                    <span>Разом</span>
+                    <strong><?= htmlspecialchars(
+                        $formatDuration($workSummary['total_seconds'] ?? 0)
+                    ) ?></strong>
+                </div>
+                <div>
+                    <span>Адмін-панель</span>
+                    <strong><?= htmlspecialchars(
+                        $formatDuration($workSummary['admin_seconds'] ?? 0)
+                    ) ?></strong>
+                </div>
+                <div>
+                    <span>Сайт</span>
+                    <strong><?= htmlspecialchars(
+                        $formatDuration($workSummary['public_seconds'] ?? 0)
+                    ) ?></strong>
+                </div>
+                <div>
+                    <span>Android</span>
+                    <strong><?= htmlspecialchars(
+                        $formatDuration($workSummary['android_seconds'] ?? 0)
+                    ) ?></strong>
+                </div>
+                <div>
+                    <span>iPhone</span>
+                    <strong><?= htmlspecialchars(
+                        $formatDuration($workSummary['ios_seconds'] ?? 0)
+                    ) ?></strong>
+                </div>
+                <div>
+                    <span>Сесій</span>
+                    <strong><?= (int) ($workSummary['session_count'] ?? 0) ?></strong>
+                </div>
+                <div>
+                    <span>Активних днів</span>
+                    <strong><?= (int) ($workSummary['active_days'] ?? 0) ?></strong>
+                </div>
+            </div>
+
+            <div class="admin-profile-contract-boundaries">
+                <span>
+                    Перша активність:
+                    <b><?= htmlspecialchars(
+                        $formatDateTime(
+                            $workSummary['first_activity_at'] ?? ''
+                        )
+                    ) ?></b>
+                </span>
+                <span>
+                    Остання активність:
+                    <b><?= htmlspecialchars(
+                        $formatDateTime(
+                            $workSummary['last_activity_at'] ?? ''
+                        )
+                    ) ?></b>
+                </span>
+                <span>
+                    Умови оновлено:
+                    <b><?= htmlspecialchars(
+                        $formatDateTime(
+                            $workAgreement['updated_at'] ?? ''
+                        )
+                    ) ?></b>
+                </span>
+            </div>
+
+            <?php if ($workError !== ''): ?>
+                <div class="admin-profile-contract-warning" role="status">
+                    <?= htmlspecialchars($workError) ?>
+                    Умови контракту вище залишаються чинними та доступними для перегляду.
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($workDaily)): ?>
+                <details class="admin-profile-contract-days">
+                    <summary>
+                        Робочий час по днях
+                        <span><?= count($workDaily) ?></span>
+                    </summary>
+
+                    <div class="admin-profile-contract-day-list">
+                        <?php foreach ($workDaily as $day): ?>
+                            <div class="admin-profile-contract-day">
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        (string) ($day['work_date'] ?? '')
+                                    ) ?>
+                                </strong>
+                                <span>
+                                    Разом:
+                                    <?= htmlspecialchars(
+                                        $formatDuration(
+                                            $day['total_seconds'] ?? 0
+                                        )
+                                    ) ?>
+                                </span>
+                                <span>
+                                    Адмін:
+                                    <?= htmlspecialchars(
+                                        $formatDuration(
+                                            $day['admin_seconds'] ?? 0
+                                        )
+                                    ) ?>
+                                </span>
+                                <span>
+                                    Сайт:
+                                    <?= htmlspecialchars(
+                                        $formatDuration(
+                                            $day['public_seconds'] ?? 0
+                                        )
+                                    ) ?>
+                                </span>
+                                <span>
+                                    Android:
+                                    <?= htmlspecialchars(
+                                        $formatDuration(
+                                            $day['android_seconds'] ?? 0
+                                        )
+                                    ) ?>
+                                </span>
+                                <span>
+                                    iPhone:
+                                    <?= htmlspecialchars(
+                                        $formatDuration(
+                                            $day['ios_seconds'] ?? 0
+                                        )
+                                    ) ?>
+                                </span>
+                                <span>
+                                    Сесій:
+                                    <?= (int) ($day['session_count'] ?? 0) ?>
+                                </span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </details>
+            <?php endif; ?>
+
+            <p class="admin-profile-contract-note">
+                Умови контракту змінюються лише Розробником або Власником.
+                У цьому профілі вони доступні тільки для перегляду.
+            </p>
+        </section>
+    <?php else: ?>
+        <section class="admin-profile-card admin-profile-work-contract">
+            <div class="admin-profile-card-head">
+                <div>
+                    <span class="admin-profile-contract-kicker">Робота</span>
+                    <h3>Мій робочий контракт</h3>
+                    <p>
+                        <?php if ($workLoadError): ?>
+                            Умови контракту тимчасово не вдалося завантажити.
+                            Оновіть сторінку або зверніться до Розробника чи Власника.
+                        <?php else: ?>
+                            Для цього облікового запису умови робочого контракту
+                            ще не задані Розробником або Власником.
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
+        </section>
     <?php endif; ?>
 
     <section class="admin-profile-card">

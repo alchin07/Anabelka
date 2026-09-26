@@ -22,7 +22,9 @@ $adminPageLabelMap = [
     'Поиск' => 'Пошук',
     'Пользователи' => 'Користувачі',
     'Администраторы' => 'Адміністратори',
-    'Журнал действий' => 'Журнал дій'
+    'Журнал действий' => 'Журнал дій',
+    'Новости' => 'Новини',
+    'Отзывы' => 'Відгуки'
 ];
 
 $adminPageLabel = $adminPageLabelMap[$adminPageLabel]
@@ -105,11 +107,18 @@ if (!array_key_exists('translations', $adminNavBadges)) {
     );
 }
 
+if (!array_key_exists('audit', $adminNavBadges)) {
+    $adminNavBadges['audit'] = (int) (
+        $notificationByKey['audit'] ?? 0
+    );
+}
+
 $orderBadge = (int) ($adminNavBadges['orders'] ?? 0);
 $userBadge = (int) ($adminNavBadges['users'] ?? 0);
 $translationBadge = (int) (
     $adminNavBadges['translations'] ?? 0
 );
+$auditBadge = (int) ($adminNavBadges['audit'] ?? 0);
 
 if (class_exists('SocialAuthProvider')) {
     try {
@@ -125,6 +134,7 @@ $adminCan = static function ($permission) {
 };
 
 $canDashboard = $adminCan('dashboard.view');
+$canDashboardBuilder = $adminCan('dashboard.manage');
 $canOrders = $adminCan('orders.view');
 $canSearch = $adminCan('search.view');
 $canUsers = $adminCan('users.view');
@@ -132,18 +142,29 @@ $canRanks = $adminCan('ranks.view');
 $canProducts = $adminCan('products.view');
 $canCategories = $adminCan('categories.view');
 $canDelivery = $adminCan('delivery.view');
+$canNews = $adminCan('news.view');
+$canReviews = $adminCan('reviews.view');
+$canMobileNavigation = $adminCan('mobile_navigation.view');
+$canHomePage = $adminCan('home_page.view');
 $canLanguages = $adminCan('languages.view');
 $canTranslations = $adminCan('translations.view');
 $canAiTranslation = $adminCan('ai_translation.view');
 $canSocialAuth = $adminCan('social_auth.view');
 $canAdministrators = $adminCan('administrators.view');
 $canAudit = $adminCan('audit.view');
+$canWorkTime = is_array($currentAdmin)
+    && in_array(
+        (string) ($currentAdmin['role_slug'] ?? ''),
+        ['owner', 'store_owner'],
+        true
+    );
+$canVipPriceViews = $adminCan('vip_prices.view');
 
 ?>
 
 <link
     rel="stylesheet"
-    href="/Anabelka/css/admin-layout.css?v=3"
+    href="/Anabelka/css/admin-layout.css?v=4"
 >
 <link
     rel="stylesheet"
@@ -152,6 +173,14 @@ $canAudit = $adminCan('audit.view');
 <link
     rel="stylesheet"
     href="/Anabelka/css/admin-product-editor-fixes.css?v=1"
+>
+<link
+    rel="stylesheet"
+    href="/Anabelka/css/anabelka-dialog.css?v=1"
+>
+<link
+    rel="stylesheet"
+    href="/Anabelka/css/anabelka-select.css?v=5"
 >
 
 <header class="admin-site-header">
@@ -222,7 +251,7 @@ $canAudit = $adminCan('audit.view');
     </div>
 
     <nav id="admin-section-nav" class="admin-section-nav">
-        <?php if ($canDashboard || $canOrders || $canSearch || $canUsers || $canRanks): ?>
+        <?php if ($canDashboard || $canDashboardBuilder || $canOrders || $canSearch || $canUsers || $canRanks): ?>
             <span class="admin-nav-group-title">Огляд</span>
 
             <?php if ($canDashboard): ?>
@@ -232,6 +261,15 @@ $canAudit = $adminCan('audit.view');
                     data-admin-exact="true"
                 >
                     <span>Головна</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canDashboardBuilder): ?>
+                <a
+                    href="/Anabelka/admin/dashboard-builder"
+                    data-admin-route="/Anabelka/admin/dashboard-builder"
+                >
+                    <span>Конструктор адмін-главної</span>
                 </a>
             <?php endif; ?>
 
@@ -313,6 +351,46 @@ $canAudit = $adminCan('audit.view');
             <?php endif; ?>
         <?php endif; ?>
 
+        <?php if ($canHomePage || $canNews || $canReviews || $canMobileNavigation): ?>
+            <span class="admin-nav-group-title">Контент</span>
+
+            <?php if ($canHomePage): ?>
+                <a
+                    href="/Anabelka/admin/home-page"
+                    data-admin-route="/Anabelka/admin/home-page"
+                >
+                    <span>Головна сторінка</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canNews): ?>
+                <a
+                    href="/Anabelka/admin/news"
+                    data-admin-route="/Anabelka/admin/news"
+                >
+                    <span>Новини</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canReviews): ?>
+                <a
+                    href="/Anabelka/admin/reviews"
+                    data-admin-route="/Anabelka/admin/reviews"
+                >
+                    <span>Відгуки</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canMobileNavigation): ?>
+                <a
+                    href="/Anabelka/admin/mobile-navigation"
+                    data-admin-route="/Anabelka/admin/mobile-navigation"
+                >
+                    <span>Мобільне меню</span>
+                </a>
+            <?php endif; ?>
+        <?php endif; ?>
+
         <?php if ($canLanguages || $canTranslations || $canAiTranslation): ?>
             <span class="admin-nav-group-title">Мови та ШІ</span>
 
@@ -349,7 +427,7 @@ $canAudit = $adminCan('audit.view');
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($canSocialAuth || $canAdministrators || $canAudit || $isDeveloper): ?>
+        <?php if ($canSocialAuth || $canAdministrators || $canAudit || $canWorkTime || $canVipPriceViews || $isDeveloper): ?>
             <span class="admin-nav-group-title">Безпека</span>
 
             <?php if ($canSocialAuth): ?>
@@ -370,16 +448,48 @@ $canAudit = $adminCan('audit.view');
                 </a>
             <?php endif; ?>
 
+            <?php if ($canWorkTime): ?>
+                <a
+                    href="/Anabelka/admin/work-time"
+                    data-admin-route="/Anabelka/admin/work-time"
+                >
+                    <span>Робочий час</span>
+                </a>
+            <?php endif; ?>
+
             <?php if ($canAudit): ?>
                 <a
                     href="/Anabelka/admin/audit"
                     data-admin-route="/Anabelka/admin/audit"
                 >
                     <span>Журнал дій</span>
+                    <span
+                        class="admin-nav-badge"
+                        data-admin-audit-badge
+                        <?= $auditBadge > 0 ? '' : 'hidden' ?>
+                    >
+                        <?= $auditBadge ?>
+                    </span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canVipPriceViews): ?>
+                <a
+                    href="/Anabelka/admin/vip-price-views"
+                    data-admin-route="/Anabelka/admin/vip-price-views"
+                >
+                    <span>VIP-ціни</span>
                 </a>
             <?php endif; ?>
 
             <?php if ($isDeveloper): ?>
+                <a
+                    href="/Anabelka/admin/system/backup"
+                    data-admin-route="/Anabelka/admin/system/backup"
+                >
+                    <span>Резервна копія</span>
+                </a>
+
                 <a
                     href="/Anabelka/admin/system/errors"
                     data-admin-route="/Anabelka/admin/system/errors"
@@ -426,9 +536,37 @@ $canAudit = $adminCan('audit.view');
     </a>
 </aside>
 
+<script
+    id="anabelka-csrf-script"
+    src="/Anabelka/js/anabelka-csrf.js?v=1"
+    data-csrf-token="<?= htmlspecialchars(
+        $adminCsrfToken,
+        ENT_QUOTES,
+        'UTF-8'
+    ) ?>"
+    defer
+></script>
+<script src="/Anabelka/js/anabelka-admin-back.js?v=3"></script>
+<script src="/Anabelka/js/anabelka-select.js?v=11"></script>
+<script src="/Anabelka/js/anabelka-dialog.js?v=3"></script>
 <script src="/Anabelka/js/admin-ui-focus-policy.js?v=2"></script>
 <script src="/Anabelka/js/admin-product-preview.js?v=1"></script>
-<script defer src="/Anabelka/js/admin-product-variant-stock.js?v=2"></script>
-<script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=1"></script>
+<script defer src="/Anabelka/js/admin-product-variant-stock.js?v=18"></script>
+<script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=3"></script>
 <script defer src="/Anabelka/js/admin-order-variants.js?v=1"></script>
-<script src="/Anabelka/js/admin-nav.js?v=17"></script>
+<script src="/Anabelka/js/admin-nav.js?v=27"></script>
+
+<?php if ($currentAdmin): ?>
+    <script
+        src="/Anabelka/js/admin-work-time.js?v=2"
+        data-admin-work-time
+        data-work-source="web_admin"
+        data-work-endpoint="/Anabelka/admin/work-time/heartbeat"
+        data-work-csrf="<?= htmlspecialchars(
+            $adminCsrfToken,
+            ENT_QUOTES,
+            'UTF-8'
+        ) ?>"
+        defer
+    ></script>
+<?php endif; ?>

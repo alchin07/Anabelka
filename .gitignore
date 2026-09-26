@@ -4,3 +4,5 @@ config/social-auth.local.php
 config/error-notifications.local.php
 uploads/products/*
 !uploads/products/.gitkeep
+storage/full-backups/
+storage/deploy-backups/

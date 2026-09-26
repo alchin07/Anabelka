@@ -29,6 +29,16 @@
         href="/Anabelka/css/product-gallery.css?v=1"
     >
 
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/reviews.css?v=1"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/vip-price-protection.css?v=1"
+    >
+
 </head>
 
 <body>
@@ -130,9 +140,16 @@
 
             <?php
 
+$availabilityProduct = $product;
+$availabilityProduct['stock'] = (int) (
+    $product['stock_on_hand']
+    ?? $product['stock']
+    ?? 0
+);
+
 $isAvailable =
     Product::isAvailable(
-        $product
+        $availabilityProduct
     );
 
 ?>
@@ -282,6 +299,10 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                         <?php foreach ($prices as $priceItem): ?>
 
                             <?php
+                            $priceRankId = (int) ($priceItem['rank_id'] ?? 0);
+                            $vipWatermark = is_array($vipPriceWatermarks ?? null)
+                                ? ($vipPriceWatermarks[$priceRankId] ?? null)
+                                : null;
                             $isCurrent = $priceItem['rank_slug'] === $currentRankSlug;
                             $basePrice = (float) $priceItem['price'];
                             $discountPrice = $basePrice;
@@ -295,6 +316,7 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                             ?>
 
                             <div
+                                class="product-rank-price<?= is_array($vipWatermark) ? ' vip-price-protected' : '' ?>"
                                 style="
                                     display:flex;
                                     justify-content:space-between;
@@ -307,6 +329,19 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                         : '' ?>
                                 "
                             >
+                                <?php if (is_array($vipWatermark)): ?>
+                                    <span
+                                        class="vip-price-watermark"
+                                        aria-hidden="true"
+                                    >
+                                        <?= htmlspecialchars(
+                                            (string) ($vipWatermark['label'] ?? ''),
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+
                                 <span>
                                     <?php if ($priceItem['rank_slug'] === 'guest'): ?>
                                         Цена
@@ -415,8 +450,28 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                 <?php if ($attribute['attribute_slug'] === 'size'): ?>
 
                                     <?php
-                                    $sizeStock = (int) ($attribute['stock'] ?? 0);
-                                    $isAvailable = $sizeStock > 0;
+                                    $sizeStockOnHand = max(
+                                        0,
+                                        (int) (
+                                            $attribute['stock_on_hand']
+                                            ?? $attribute['stock']
+                                            ?? 0
+                                        )
+                                    );
+                                    $sizeInCart = max(
+                                        0,
+                                        (int) ($attribute['cart_quantity'] ?? 0)
+                                    );
+                                    $sizeAvailable = max(
+                                        0,
+                                        (int) (
+                                            $attribute['available_stock']
+                                            ?? $attribute['stock']
+                                            ?? 0
+                                        )
+                                    );
+                                    $sizeStock = $sizeAvailable;
+                                    $isAvailable = $sizeAvailable > 0;
                                     ?>
 
                                     <label
@@ -436,7 +491,9 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
 
                                         <span
                                             class="size-button"
-                                            data-stock="<?= $sizeStock ?>"
+                                            data-stock="<?= $sizeAvailable ?>"
+                                            data-stock-on-hand="<?= $sizeStockOnHand ?>"
+                                            data-cart-quantity="<?= $sizeInCart ?>"
                                             style="
                                                 display:inline-block;
                                                 padding:9px 15px;
@@ -450,22 +507,23 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                         >
                                             <?= htmlspecialchars($attribute['value']) ?>
 
-                                            <?php if (!empty($product['show_stock_quantity'])): ?>
+                                            <?php if (
+                                                !empty($product['show_stock_quantity'])
+                                                || $sizeAvailable <= 0
+                                            ): ?>
                                                 <small
                                                     class="size-stock"
-                                                    data-show-quantity="1"
+                                                    data-show-quantity="<?= !empty($product['show_stock_quantity']) ? '1' : '0' ?>"
+                                                    data-stock-on-hand="<?= $sizeStockOnHand ?>"
+                                                    data-cart-quantity="<?= $sizeInCart ?>"
+                                                    data-available="<?= $sizeAvailable ?>"
                                                     style="margin-left:5px;font-size:11px;font-weight:normal;"
                                                 >
-                                                    <?= $sizeStock > 0
-                                                        ? $sizeStock . ' шт.'
-                                                        : 'Нет в наличии' ?>
-                                                </small>
-                                            <?php elseif ($sizeStock <= 0): ?>
-                                                <small
-                                                    class="size-stock"
-                                                    style="margin-left:5px;font-size:11px;font-weight:normal;"
-                                                >
-                                                    Нет в наличии
+                                                    <?php if (!empty($product['show_stock_quantity'])): ?>
+                                                        <?= $sizeAvailable ?> шт.
+                                                    <?php else: ?>
+                                                        Нет в наличии
+                                                    <?php endif; ?>
                                                 </small>
                                             <?php endif; ?>
                                         </span>
@@ -479,10 +537,56 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                 <?php endif; ?>
 
 
-                <p data-product-stock-summary style="padding: 0 15px 15px;">
-                    В наличии:
-                    <?= (int) $product['stock'] ?> шт.
-                </p>
+                <?php
+                $stockOnHand = max(
+                    0,
+                    (int) (
+                        $product['stock_on_hand']
+                        ?? $product['stock']
+                        ?? 0
+                    )
+                );
+                $cartQuantity = max(
+                    0,
+                    (int) ($product['cart_quantity'] ?? 0)
+                );
+                $availableToAdd = max(
+                    0,
+                    (int) (
+                        $product['available_stock']
+                        ?? $product['stock']
+                        ?? 0
+                    )
+                );
+                ?>
+
+                <div
+                    data-product-stock-summary
+                    data-stock-on-hand="<?= $stockOnHand ?>"
+                    data-cart-quantity="<?= $cartQuantity ?>"
+                    data-available="<?= $availableToAdd ?>"
+                    style="
+                        padding: 0 15px 15px;
+                        display: grid;
+                        gap: 4px;
+                    "
+                >
+                    <div>
+                        <span data-stock-label="stock_on_hand">На складе</span>:
+                        <strong data-stock-value="stock_on_hand"><?= $stockOnHand ?></strong>
+                        <span data-stock-unit>шт.</span>
+                    </div>
+                    <div>
+                        <span data-stock-label="in_your_cart">В вашей корзине</span>:
+                        <strong data-stock-value="in_your_cart"><?= $cartQuantity ?></strong>
+                        <span data-stock-unit>шт.</span>
+                    </div>
+                    <div>
+                        <span data-stock-label="available_to_add">Доступно добавить</span>:
+                        <strong data-stock-value="available_to_add"><?= $availableToAdd ?></strong>
+                        <span data-stock-unit>шт.</span>
+                    </div>
+                </div>
 
 
                 <div style="padding: 0 15px 20px;">
@@ -507,6 +611,8 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
             </form>
 
         </section>
+
+        <?php require __DIR__ . '/partials/reviews.php'; ?>
 
     </main>
 
@@ -548,6 +654,261 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
         document.getElementById(
             'cart-form'
         );
+
+
+    function applyLegacyAvailability(availability) {
+
+        if (
+            !availability
+            || typeof availability !== 'object'
+            || !cartForm
+        ) {
+            return;
+        }
+
+        const ui =
+            window.AnabelkaProductI18n || {};
+
+        const availableSizes =
+            availability.available_sizes
+            && typeof availability.available_sizes === 'object'
+                ? availability.available_sizes
+                : (availability.sizes || {});
+
+        const stockSizes =
+            availability.stock_sizes
+            && typeof availability.stock_sizes === 'object'
+                ? availability.stock_sizes
+                : {};
+
+        const cartSizes =
+            availability.cart_sizes
+            && typeof availability.cart_sizes === 'object'
+                ? availability.cart_sizes
+                : {};
+
+        sizeCheckboxes.forEach(
+            checkbox => {
+
+                const key =
+                    String(checkbox.value);
+
+                const rawAvailable =
+                    availableSizes[key];
+
+                if (typeof rawAvailable === 'undefined') {
+                    return;
+                }
+
+                const availableStock =
+                    Math.max(
+                        0,
+                        Number(rawAvailable) || 0
+                    );
+
+                const stockOnHand =
+                    Math.max(
+                        0,
+                        Number(stockSizes[key]) || 0
+                    );
+
+                const inCart =
+                    Math.max(
+                        0,
+                        Number(cartSizes[key]) || 0
+                    );
+
+                const available =
+                    availableStock > 0;
+
+                const label =
+                    checkbox.closest('label');
+
+                const button =
+                    checkbox.nextElementSibling;
+
+                let stockElement =
+                    button
+                        ? button.querySelector('.size-stock')
+                        : null;
+
+                if (
+                    !stockElement
+                    && button
+                    && (inCart > 0 || !available)
+                ) {
+                    stockElement =
+                        document.createElement('small');
+
+                    stockElement.className =
+                        'size-stock';
+
+                    stockElement.dataset.showQuantity =
+                        '0';
+
+                    stockElement.style.marginLeft =
+                        '5px';
+
+                    stockElement.style.fontSize =
+                        '11px';
+
+                    stockElement.style.fontWeight =
+                        'normal';
+
+                    button.appendChild(stockElement);
+                }
+
+                checkbox.checked = false;
+                checkbox.disabled = !available;
+
+                if (label) {
+                    label.style.cursor =
+                        available
+                            ? 'pointer'
+                            : 'not-allowed';
+
+                    label.style.opacity =
+                        available ? '1' : '0.45';
+                }
+
+                if (button) {
+                    button.dataset.stock =
+                        String(availableStock);
+
+                    button.dataset.stockOnHand =
+                        String(stockOnHand);
+
+                    button.dataset.cartQuantity =
+                        String(inCart);
+
+                    button.style.background =
+                        available
+                            ? '#fff'
+                            : '#f3f3f3';
+
+                    button.style.color =
+                        available
+                            ? 'var(--primary-color)'
+                            : '#888888';
+
+                    button.style.borderColor =
+                        available
+                            ? 'var(--primary-color)'
+                            : '#aaaaaa';
+                }
+
+                if (stockElement) {
+                    const unit =
+                        ui.pcs || 'шт.';
+
+                    const showQuantity =
+                        stockElement.dataset.showQuantity
+                            === '1';
+
+                    stockElement.dataset.stockOnHand =
+                        String(stockOnHand);
+
+                    stockElement.dataset.cartQuantity =
+                        String(inCart);
+
+                    stockElement.dataset.available =
+                        String(availableStock);
+
+                    if (showQuantity) {
+                        stockElement.textContent =
+                            availableStock
+                            + ' '
+                            + unit;
+
+                        stockElement.style.display =
+                            'inline';
+                    } else if (!available) {
+                        stockElement.textContent =
+                            ui.out_of_stock
+                            || 'Нет в наличии';
+
+                        stockElement.style.display =
+                            'inline';
+                    } else {
+                        stockElement.textContent = '';
+                        stockElement.style.display = 'none';
+                    }
+                }
+            }
+        );
+
+        const summary =
+            cartForm.querySelector(
+                '[data-product-stock-summary]'
+            );
+
+        if (!summary) {
+            return;
+        }
+
+        const stockTotal =
+            Math.max(
+                0,
+                Number(
+                    availability.stock_total
+                    ?? summary.dataset.stockOnHand
+                    ?? 0
+                )
+            );
+
+        const cartTotal =
+            Math.max(
+                0,
+                Number(
+                    availability.cart_total
+                    ?? summary.dataset.cartQuantity
+                    ?? 0
+                )
+            );
+
+        const availableTotal =
+            Math.max(
+                0,
+                Number(
+                    availability.available_total
+                    ?? availability.total
+                    ?? summary.dataset.available
+                    ?? 0
+                )
+            );
+
+        summary.dataset.stockOnHand =
+            String(stockTotal);
+
+        summary.dataset.cartQuantity =
+            String(cartTotal);
+
+        summary.dataset.available =
+            String(availableTotal);
+
+        const values = {
+            stock_on_hand: stockTotal,
+            in_your_cart: cartTotal,
+            available_to_add: availableTotal
+        };
+
+        Object.entries(values).forEach(
+            function (entry) {
+
+                const element =
+                    summary.querySelector(
+                        '[data-stock-value="'
+                        + entry[0]
+                        + '"]'
+                    );
+
+                if (element) {
+                    element.textContent =
+                        String(entry[1]);
+                }
+            }
+        );
+    }
 
 
     sizeCheckboxes.forEach((checkbox) => {
@@ -619,22 +980,28 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                     }
 
 
+                    if (data.availability) {
+                        applyLegacyAvailability(
+                            data.availability
+                        );
+                    } else {
+                        sizeCheckboxes.forEach(
+                            checkbox => {
+                                checkbox.checked = false;
+
+                                const button =
+                                    checkbox.nextElementSibling;
+
+                                button.style.background = '#fff';
+                                button.style.color =
+                                    'var(--primary-color)';
+                            }
+                        );
+                    }
+
+
                     showSiteMessage(
                         '✓ Товар добавлен в корзину'
-                    );
-
-
-                    sizeCheckboxes.forEach(
-                        checkbox => {
-                            checkbox.checked = false;
-
-                            const button =
-                                checkbox.nextElementSibling;
-
-                            button.style.background = '#fff';
-                            button.style.color =
-                                'var(--primary-color)';
-                        }
                     );
                 })
                 .catch(() => {

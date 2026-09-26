@@ -296,7 +296,7 @@ class AdminProduct
                 :show_stock_quantity,
                 :brand,
                 :country,
-                NULL,
+                '',
                 :is_active
             )
         ");
@@ -849,6 +849,7 @@ class AdminProduct
         ]);
 
         ProductImage::duplicateForProduct((int) $sourceId, $targetId);
+        ProductColor::duplicateForProduct((int) $sourceId, $targetId);
 
         return $targetId;
     }
@@ -868,6 +869,7 @@ class AdminProduct
         }
 
         $imageMap = ProductImage::forProducts($ids);
+        $colorMap = ProductColor::editorColorsForProducts($ids);
         $db = Database::connect();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
@@ -931,6 +933,7 @@ class AdminProduct
         foreach ($products as &$product) {
             $productId = (int) $product['id'];
             $product['images'] = $imageMap[$productId] ?? [];
+            $product['colors'] = $colorMap[$productId] ?? [];
             $product['rank_prices'] = $priceMap[$productId] ?? [];
             $product['sizes'] = $sizeMap[$productId] ?? [];
             $product['material'] =

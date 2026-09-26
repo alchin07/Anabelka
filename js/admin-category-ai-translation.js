@@ -117,13 +117,33 @@
         }
 
         const statusTitle = status.querySelector('span');
+        const statusSelect = status.querySelector('select');
 
         if (statusTitle) {
             statusTitle.textContent = 'Стан перекладу';
         }
 
+        if (statusSelect) {
+            statusSelect.setAttribute('data-anabelka-select', '');
+
+            if (
+                window.AnabelkaSelect
+                && typeof window.AnabelkaSelect.enhance === 'function'
+            ) {
+                window.AnabelkaSelect.enhance(statusSelect);
+            }
+        }
+
         status.classList.add('category-translation-status-below');
         descriptionGroup.insertAdjacentElement('afterend', status);
+
+        if (
+            statusSelect
+            && window.AnabelkaSelect
+            && typeof window.AnabelkaSelect.refresh === 'function'
+        ) {
+            window.AnabelkaSelect.refresh(statusSelect);
+        }
     }
 
 

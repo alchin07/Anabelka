@@ -4,12 +4,16 @@ class AdminAdministratorController extends Controller
 {
     public function index()
     {
+        $inviteFlash = $_SESSION['admin_administrator_invite_flash'] ?? null;
+        unset($_SESSION['admin_administrator_invite_flash']);
+
         $this->view('admin/administrators/index', [
             'pageTitle' => 'Адмін-панель · Адміністратори',
             'administrators' => AdminManagement::administrators(),
             'roles' => AdminManagement::roles(),
             'assignableRoles' => AdminManagement::assignableRoles(),
             'permissions' => AdminManagement::permissions(),
+            'inviteFlash' => is_array($inviteFlash) ? $inviteFlash : null,
             'csrfToken' => AdminAccess::csrfToken(),
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
@@ -40,12 +44,32 @@ class AdminAdministratorController extends Controller
             }
         }
 
+        $workContract = [
+            'has_contract' => false
+        ];
+
+        if (class_exists('AdminWorkTime')) {
+            try {
+                $workContract = AdminWorkTime::currentAdminContract();
+            } catch (Throwable $e) {
+                error_log(
+                    'Admin profile work contract: '
+                    . $e->getMessage()
+                );
+                $workContract = [
+                    'has_contract' => false,
+                    'load_error' => true
+                ];
+            }
+        }
+
         $this->view('admin/administrators/profile', [
             'pageTitle' => 'Адмін-панель · Профіль',
             'admin' => $admin,
             'csrfToken' => AdminAccess::csrfToken(),
             'canCustomizeNotificationBadge' => $canCustomizeNotificationBadge,
             'notificationBadgeOptions' => $notificationBadgeOptions,
+            'workContract' => $workContract,
             'message' => trim((string) ($_GET['message'] ?? '')),
             'error' => trim((string) ($_GET['error'] ?? ''))
         ]);
@@ -150,6 +174,106 @@ class AdminAdministratorController extends Controller
     }
 
 
+    public function createInvitation()
+    {
+        try {
+            $this->verifyCsrf();
+
+            $result = AdminInvitation::create(
+                $_POST['name'] ?? '',
+                $_POST['email'] ?? '',
+                $_POST['role_id'] ?? 0,
+                $_POST['invite_channel'] ?? 'other',
+                $_POST['invite_contact'] ?? '',
+                AdminAccess::currentId()
+            );
+
+            $_SESSION['admin_administrator_invite_flash'] = $result;
+
+            AdminAccess::audit(
+                'admin.invitation_created',
+                [
+                    'created_admin_id' => (int) ($result['admin_id'] ?? 0),
+                    'email' => (string) ($result['email'] ?? ''),
+                    'role' => (string) ($result['role_slug'] ?? ''),
+                    'channel' => (string) ($result['channel'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect(
+                'message',
+                'Запрошення адміністратора створено.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function reissueInvitation()
+    {
+        try {
+            $this->verifyCsrf();
+
+            $result = AdminInvitation::reissue(
+                $_POST['admin_id'] ?? 0,
+                AdminAccess::currentId()
+            );
+
+            $_SESSION['admin_administrator_invite_flash'] = $result;
+
+            AdminAccess::audit(
+                'admin.invitation_reissued',
+                [
+                    'target_admin_id' => (int) ($result['admin_id'] ?? 0),
+                    'email' => (string) ($result['email'] ?? ''),
+                    'role' => (string) ($result['role_slug'] ?? ''),
+                    'channel' => (string) ($result['channel'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect(
+                'message',
+                'Нове одноразове запрошення створено. Попереднє посилання більше не працює.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function revokeInvitation()
+    {
+        try {
+            $this->verifyCsrf();
+
+            $result = AdminInvitation::revoke(
+                $_POST['admin_id'] ?? 0,
+                AdminAccess::currentId()
+            );
+
+            AdminAccess::audit(
+                'admin.invitation_revoked',
+                [
+                    'target_admin_id' => (int) ($result['admin_id'] ?? 0),
+                    'email' => (string) ($result['email'] ?? ''),
+                    'role' => (string) ($result['role_slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect(
+                'message',
+                'Запрошення адміністратора відкликано.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
     public function changeRole()
     {
         try {
@@ -237,6 +361,34 @@ class AdminAdministratorController extends Controller
     }
 
 
+    public function deleteAdministrator()
+    {
+        try {
+            $this->verifyCsrf();
+            $admin = AdminManagement::deleteAdministrator(
+                $_POST['admin_id'] ?? 0
+            );
+
+            AdminAccess::audit(
+                'admin.deleted',
+                [
+                    'target_admin_id' => (int) ($admin['id'] ?? 0),
+                    'email' => (string) ($admin['email'] ?? ''),
+                    'role' => (string) ($admin['role_slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect(
+                'message',
+                'Обліковий запис адміністратора видалено.'
+            );
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
     public function createRole()
     {
         try {
@@ -259,6 +411,58 @@ class AdminAdministratorController extends Controller
             );
 
             $this->redirect('message', 'Власну роль створено.');
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function renameRole()
+    {
+        try {
+            $this->verifyCsrf();
+            $role = AdminManagement::renameCustomRole(
+                $_POST['role_id'] ?? 0,
+                $_POST['role_name'] ?? ''
+            );
+
+            AdminAccess::audit(
+                'admin.role_renamed',
+                [
+                    'role_id' => (int) ($role['id'] ?? 0),
+                    'old_name' => (string) ($role['old_name'] ?? ''),
+                    'role_name' => (string) ($role['name'] ?? ''),
+                    'role_slug' => (string) ($role['slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect('message', 'Назву ролі змінено.');
+        } catch (Throwable $e) {
+            $this->redirect('error', $e->getMessage());
+        }
+    }
+
+
+    public function deleteRole()
+    {
+        try {
+            $this->verifyCsrf();
+            $role = AdminManagement::deleteCustomRole(
+                $_POST['role_id'] ?? 0
+            );
+
+            AdminAccess::audit(
+                'admin.role_deleted',
+                [
+                    'role_id' => (int) ($role['id'] ?? 0),
+                    'role_name' => (string) ($role['name'] ?? ''),
+                    'role_slug' => (string) ($role['slug'] ?? '')
+                ],
+                AdminAccess::currentId()
+            );
+
+            $this->redirect('message', 'Власну роль видалено.');
         } catch (Throwable $e) {
             $this->redirect('error', $e->getMessage());
         }
@@ -292,11 +496,213 @@ class AdminAdministratorController extends Controller
     }
 
 
+    public function inviteForm()
+    {
+        $token = trim((string) ($_GET['token'] ?? ''));
+        $this->renderInvitation(
+            $token,
+            $token === '' ? 'Посилання запрошення неповне.' : ''
+        );
+    }
+
+
+    public function acceptInvitation()
+    {
+        $token = trim((string) ($_POST['token'] ?? ''));
+        $password = (string) ($_POST['password'] ?? '');
+        $passwordConfirm = (string) ($_POST['password_confirm'] ?? '');
+
+        if ($password !== $passwordConfirm) {
+            $this->renderInvitation($token, 'Паролі не співпадають.');
+            return;
+        }
+
+        try {
+            $admin = AdminInvitation::accept($token, $password);
+
+            AdminAccess::audit(
+                'admin.invitation_accepted',
+                [
+                    'target_admin_id' => (int) ($admin['id'] ?? 0),
+                    'email' => (string) ($admin['email'] ?? ''),
+                    'role' => (string) ($admin['role_slug'] ?? '')
+                ],
+                (int) ($admin['id'] ?? 0)
+            );
+
+            $authenticated = AdminAccess::authenticate(
+                $admin['email'] ?? '',
+                $password
+            );
+
+            if (!$authenticated) {
+                header('Location: /Anabelka/admin/login');
+                exit;
+            }
+
+            header('Location: /Anabelka/admin');
+            exit;
+        } catch (Throwable $e) {
+            $this->renderInvitation($token, $e->getMessage());
+        }
+    }
+
+
     public function audit()
     {
+        $filters = AdminManagement::normalizeAuditFilters([
+            'admin_id' => $_GET['admin_id'] ?? 0,
+            'action' => $_GET['action'] ?? '',
+            'date_from' => $_GET['date_from'] ?? '',
+            'date_to' => $_GET['date_to'] ?? ''
+        ]);
+
+        $auditUnreadState = [
+            'total' => 0,
+            'cursor' => 0,
+            'max_id' => 0,
+            'by_actor' => []
+        ];
+
+        $entries = AdminManagement::auditLog($filters, 250);
+        $entryIds = array_map(
+            static function ($entry) {
+                return (int) ($entry['id'] ?? 0);
+            },
+            $entries
+        );
+        $auditUnreadEntryIds = [];
+
+        if (class_exists('AdminNotificationCenter')) {
+            $auditUnreadState = AdminNotificationCenter::auditUnreadState(
+                AdminAccess::currentId()
+            );
+            $auditUnreadEntryIds =
+                AdminNotificationCenter::auditUnreadEntryIds(
+                    $entryIds,
+                    AdminAccess::currentId()
+                );
+        }
+
+        $recentEntries = array_slice($entries, 0, 3);
+        $olderAuditGroups = AdminManagement::groupAuditEntriesByAdministrator(
+            array_slice($entries, 3)
+        );
+
+        $flash = is_array($_SESSION['admin_audit_flash'] ?? null)
+            ? $_SESSION['admin_audit_flash']
+            : null;
+        unset($_SESSION['admin_audit_flash']);
+
+        $currentAdmin = AdminAccess::current();
+
         $this->view('admin/administrators/audit', [
             'pageTitle' => 'Адмін-панель · Журнал дій',
-            'entries' => AdminManagement::auditLog(250)
+            'entries' => $entries,
+            'recentEntries' => $recentEntries,
+            'olderAuditGroups' => $olderAuditGroups,
+            'auditUnreadTotal' => (int) ($auditUnreadState['total'] ?? 0),
+            'auditUnreadByActor' => is_array(
+                $auditUnreadState['by_actor'] ?? null
+            ) ? $auditUnreadState['by_actor'] : [],
+            'auditUnreadEntryIds' => $auditUnreadEntryIds,
+            'canClearAuditUnread' => class_exists('AdminNotificationCenter')
+                && AdminNotificationCenter::canClearAuditUnread(
+                    $currentAdmin
+                ),
+            'csrfToken' => AdminAccess::csrfToken(),
+            'flash' => $flash,
+            'auditAdministrators' => AdminManagement::auditAdministrators(),
+            'auditActions' => AdminManagement::auditActions(),
+            'filters' => $filters
+        ]);
+    }
+
+
+    public function markAuditEntrySeen()
+    {
+        try {
+            $this->verifyCsrf();
+
+            if (!class_exists('AdminNotificationCenter')) {
+                throw new RuntimeException(
+                    'Центр сповіщень недоступний.'
+                );
+            }
+
+            $result = AdminNotificationCenter::markAuditEntrySeen(
+                $_POST['audit_log_id'] ?? 0,
+                AdminAccess::currentId()
+            );
+
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(
+                ['ok' => true] + $result,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+            exit;
+        } catch (Throwable $e) {
+            http_response_code(400);
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(
+                [
+                    'ok' => false,
+                    'message' => $e->getMessage()
+                ],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+            exit;
+        }
+    }
+
+
+    public function clearAuditUnread()
+    {
+        try {
+            $this->verifyCsrf();
+
+            if (!class_exists('AdminNotificationCenter')) {
+                throw new RuntimeException(
+                    'Центр сповіщень недоступний.'
+                );
+            }
+
+            AdminNotificationCenter::markAuditAllSeen(
+                AdminAccess::currentId()
+            );
+
+            $_SESSION['admin_audit_flash'] = [
+                'type' => 'success',
+                'message' => 'Усі нові дії позначено прочитаними.'
+            ];
+        } catch (Throwable $e) {
+            $_SESSION['admin_audit_flash'] = [
+                'type' => 'error',
+                'message' => $e->getMessage()
+            ];
+        }
+
+        header('Location: /Anabelka/admin/audit');
+        exit;
+    }
+
+
+    private function renderInvitation($token, $error = '')
+    {
+        $token = trim((string) $token);
+        $invite = $token !== ''
+            ? AdminInvitation::findByToken($token)
+            : null;
+
+        if (!$invite && trim((string) $error) === '') {
+            $error = 'Запрошення недійсне або строк його дії закінчився.';
+        }
+
+        $this->view('admin/auth/invite', [
+            'token' => $token,
+            'invite' => $invite,
+            'csrfToken' => AdminAccess::csrfToken(),
+            'error' => trim((string) $error)
         ]);
     }
 

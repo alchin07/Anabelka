@@ -18,7 +18,11 @@ $router->get('/catalog', 'CatalogController@index');
 $router->get('/search', 'SearchController@index');
 $router->get('/search/suggest', 'SearchController@suggest');
 
-$router->get('/catalog/{slug}', 'CatalogController@category');
+$router->get(
+    '/catalog/{department_slug}/{category_slug}',
+    'CatalogController@category'
+);
+$router->get('/catalog/{slug}', 'CatalogController@legacyCategory');
 
 $router->get('/product/{slug}/variants', 'ProductController@variants');
 $router->get('/product/{slug}', 'ProductController@show');
@@ -59,6 +63,17 @@ $router->post(
 );
 
 $router->get(
+    '/admin-invite',
+    'AdminAdministratorController@inviteForm'
+);
+
+$router->post(
+    '/admin-invite',
+    'AdminAdministratorController@acceptInvitation',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->get(
     '/checkout',
     'OrderController@checkout'
 );
@@ -96,6 +111,61 @@ $router->get(
 $router->get(
     '/admin',
     'AdminDashboardController@index'
+);
+
+$router->get(
+    '/admin/dashboard-builder',
+    'AdminDashboardBuilderController@index'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/create',
+    'AdminDashboardBuilderController@createBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/update',
+    'AdminDashboardBuilderController@updateBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/toggle',
+    'AdminDashboardBuilderController@toggleBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/blocks/delete',
+    'AdminDashboardBuilderController@deleteBlock'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/create',
+    'AdminDashboardBuilderController@createLink'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/update',
+    'AdminDashboardBuilderController@updateLink'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/toggle',
+    'AdminDashboardBuilderController@toggleLink'
+);
+
+$router->post(
+    '/admin/dashboard-builder/links/delete',
+    'AdminDashboardBuilderController@deleteLink'
+);
+
+$router->post(
+    '/admin/dashboard-builder/reorder-blocks',
+    'AdminDashboardBuilderController@reorderBlocks'
+);
+
+$router->post(
+    '/admin/dashboard-builder/reorder-links',
+    'AdminDashboardBuilderController@reorderLinks'
 );
 
 $router->get(
@@ -215,12 +285,12 @@ $router->post(
 
 $router->get(
     '/admin/translations',
-    'AdminTranslationController@index'
+    'AdminMobileNavigationTranslationController@index'
 );
 
 $router->get(
     '/admin/translations/missing',
-    'AdminTranslationController@missing'
+    'AdminMobileNavigationTranslationController@missing'
 );
 
 $router->get(
@@ -269,8 +339,39 @@ $router->get(
 );
 
 $router->post(
+    '/admin/categories/create',
+    'AdminCategoryController@create',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
     '/admin/categories/update',
-    'AdminCategoryController@update'
+    'AdminCategoryController@update',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/categories/thumbnail',
+    'AdminCategoryController@thumbnail',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/categories/move',
+    'AdminCategoryController@move',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/categories/toggle',
+    'AdminCategoryController@toggle',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/categories/delete',
+    'AdminCategoryController@delete',
+    ['csrf' => true, 'csrf_family' => 'admin']
 );
 
 $router->get(

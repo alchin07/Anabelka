@@ -10,6 +10,8 @@ require_once __DIR__ . '/../app/Controllers/AdminSystemErrorController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorExternalNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
+require_once __DIR__ . '/../app/Models/VipPriceViewLog.php';
+require_once __DIR__ . '/../app/Controllers/AdminVipPriceViewController.php';
 
 $router->get(
     '/admin/profile',
@@ -37,8 +39,18 @@ $router->get(
 );
 
 $router->post(
-    '/admin/administrators/create',
-    'AdminAdministratorController@create'
+    '/admin/administrators/invite',
+    'AdminAdministratorController@createInvitation'
+);
+
+$router->post(
+    '/admin/administrators/invite/reissue',
+    'AdminAdministratorController@reissueInvitation'
+);
+
+$router->post(
+    '/admin/administrators/invite/revoke',
+    'AdminAdministratorController@revokeInvitation'
 );
 
 $router->post(
@@ -57,8 +69,23 @@ $router->post(
 );
 
 $router->post(
+    '/admin/administrators/delete',
+    'AdminAdministratorController@deleteAdministrator'
+);
+
+$router->post(
     '/admin/administrators/roles/create',
     'AdminAdministratorController@createRole'
+);
+
+$router->post(
+    '/admin/administrators/roles/rename',
+    'AdminAdministratorController@renameRole'
+);
+
+$router->post(
+    '/admin/administrators/roles/delete',
+    'AdminAdministratorController@deleteRole'
 );
 
 $router->post(
@@ -69,6 +96,51 @@ $router->post(
 $router->get(
     '/admin/audit',
     'AdminAdministratorController@audit'
+);
+
+$router->get(
+    '/admin/work-time',
+    'AdminWorkTimeController@index'
+);
+
+$router->post(
+    '/admin/work-time/heartbeat',
+    'AdminWorkTimeController@heartbeat'
+);
+
+$router->post(
+    '/admin/work-time/compensation',
+    'AdminWorkTimeController@saveCompensation'
+);
+
+$router->post(
+    '/admin/audit/seen',
+    'AdminAdministratorController@markAuditEntrySeen'
+);
+
+$router->post(
+    '/admin/audit/seen-all',
+    'AdminAdministratorController@clearAuditUnread'
+);
+
+$router->get(
+    '/admin/vip-price-views',
+    'AdminVipPriceViewController@index'
+);
+
+$router->get(
+    '/admin/system/backup',
+    'AdminBackupController@index'
+);
+
+$router->post(
+    '/admin/system/backup/create',
+    'AdminBackupController@create'
+);
+
+$router->get(
+    '/admin/system/backup/download',
+    'AdminBackupController@download'
 );
 
 $router->get(

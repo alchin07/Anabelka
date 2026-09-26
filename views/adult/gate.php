@@ -23,7 +23,7 @@ $escape = function ($value) {
     <title><?= $escape($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/adult-gate.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/adult-gate.css?v=2">
 </head>
 <body>
 
@@ -67,7 +67,7 @@ $escape = function ($value) {
 
         <?php if (!$accessDenied): ?>
             <form
-                action="/Anabelka/18-plus/<?= $escape($category['slug'] ?? '') ?>"
+                action="<?= $escape(AdultAccess::gateUrl($category)) ?>"
                 method="post"
                 class="adult-gate-actions"
             >

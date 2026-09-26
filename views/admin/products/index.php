@@ -8,6 +8,8 @@ $filters = AdminProduct::normalizeFilters(
     is_array($filters ?? null) ? $filters : []
 );
 $csrfToken = (string) ($csrfToken ?? '');
+$canManage = !class_exists('AdminAccess')
+    || AdminAccess::can('products.manage');
 $translationStatusOptions = TranslationWorkflow::statusOptions();
 $escape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
@@ -34,6 +36,31 @@ $categoryDepth = function ($category) use (&$categoryById) {
 
     return $depth;
 };
+
+$categoryOptions = [];
+$categoryForest = Category::buildAdminForest($categories);
+$appendCategoryOptions = null;
+$appendCategoryOptions = function (array $nodes, $depth = 0) use (
+    &$appendCategoryOptions,
+    &$categoryOptions
+) {
+    foreach ($nodes as $node) {
+        $children = is_array($node['children'] ?? null)
+            ? $node['children']
+            : [];
+        $node['_depth'] = (int) $depth;
+        $categoryOptions[] = $node;
+
+        if (!empty($children)) {
+            $appendCategoryOptions($children, $depth + 1);
+        }
+    }
+};
+
+foreach ($categoryForest as $nodes) {
+    $appendCategoryOptions($nodes, 0);
+}
+
 $productsUrl = function (array $changes = []) use ($filters) {
     $values = array_merge($filters, $changes);
     $query = [];
@@ -75,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=5">
 </head>
 <body>
 
@@ -91,6 +118,7 @@ require __DIR__ . '/../../partials/header.php';
             <p>Ціни, залишки, розміри, фотографії та переклади</p>
         </div>
 
+        <?php if ($canManage): ?>
         <button
             type="button"
             class="admin-product-add"
@@ -100,6 +128,7 @@ require __DIR__ . '/../../partials/header.php';
             <span aria-hidden="true">＋</span>
             Додати товар
         </button>
+        <?php endif; ?>
     </section>
 
     <?php if (!empty($flash)): ?>
@@ -147,16 +176,24 @@ require __DIR__ . '/../../partials/header.php';
 
         <label>
             <span class="visually-hidden">Категорія</span>
-            <select name="category_id">
+            <select
+                name="category_id"
+                id="product-filter-category"
+                data-anabelka-select
+            >
                 <option value="0">Усі категорії</option>
-                <?php foreach ($categories as $category): ?>
-                    <?php $depth = $categoryDepth($category); ?>
+                <?php foreach ($categoryOptions as $category): ?>
+                    <?php $depth = (int) ($category['_depth'] ?? 0); ?>
                     <option
                         value="<?= (int) $category['id'] ?>"
+                        data-anabelka-rich="1"
+                        data-anabelka-label="<?= $escape($category['name']) ?>"
+                        data-anabelka-thumbnail="<?= $escape($category['thumbnail_image'] ?? '') ?>"
+                        data-anabelka-depth="<?= $depth ?>"
                         <?= $filters['category_id'] === (int) $category['id'] ? 'selected' : '' ?>
                     >
                         <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
-                        <?= empty($category['is_active']) ? ' · прихована' : '' ?>
+                        <?= empty($category['effective_active']) ? ' · прихована деревом' : '' ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -233,6 +270,7 @@ require __DIR__ . '/../../partials/header.php';
                             </div>
                         </div>
 
+                        <?php if ($canManage): ?>
                         <div class="admin-product-actions">
                             <button
                                 type="button"
@@ -248,7 +286,7 @@ require __DIR__ . '/../../partials/header.php';
                                 action="/Anabelka/admin/products/duplicate"
                                 data-product-duplicate-form
                             >
-                                <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                                <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
                                 <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
                                 <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
                                 <input type="hidden" name="filter_category_id" value="<?= (int) $filters['category_id'] ?>">
@@ -262,7 +300,7 @@ require __DIR__ . '/../../partials/header.php';
                                 data-product-toggle-form
                                 data-next-active="<?= $isActive ? '0' : '1' ?>"
                             >
-                                <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                                <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
                                 <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
                                 <input type="hidden" name="is_active" value="<?= $isActive ? '0' : '1' ?>">
                                 <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
@@ -273,6 +311,7 @@ require __DIR__ . '/../../partials/header.php';
                                 </button>
                             </form>
                         </div>
+                        <?php endif; ?>
                     </article>
                 </div>
             <?php endforeach; ?>
@@ -308,7 +347,7 @@ require __DIR__ . '/../../partials/header.php';
             method="POST"
             enctype="multipart/form-data"
         >
-            <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
             <input type="hidden" name="product_id" id="product-edit-id" value="0">
 
             <div class="product-editor-body">
@@ -325,13 +364,24 @@ require __DIR__ . '/../../partials/header.php';
                     <div class="product-form-grid">
                         <label class="product-form-field is-wide">
                             <span>Категорія *</span>
-                            <select name="category_id" id="product-edit-category" required>
+                            <select
+                                name="category_id"
+                                id="product-edit-category"
+                                required
+                                data-anabelka-select
+                            >
                                 <option value="">Оберіть категорію</option>
-                                <?php foreach ($categories as $category): ?>
-                                    <?php $depth = $categoryDepth($category); ?>
-                                    <option value="<?= (int) $category['id'] ?>">
+                                <?php foreach ($categoryOptions as $category): ?>
+                                    <?php $depth = (int) ($category['_depth'] ?? 0); ?>
+                                    <option
+                                        value="<?= (int) $category['id'] ?>"
+                                        data-anabelka-rich="1"
+                                        data-anabelka-label="<?= $escape($category['name']) ?>"
+                                        data-anabelka-thumbnail="<?= $escape($category['thumbnail_image'] ?? '') ?>"
+                                        data-anabelka-depth="<?= (int) $depth ?>"
+                                    >
                                         <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
-                                        <?= empty($category['is_active']) ? ' · прихована' : '' ?>
+                                        <?= empty($category['effective_active']) ? ' · прихована деревом' : '' ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -435,6 +485,36 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
                 </details>
 
+                <details class="product-form-section" open data-product-colors-section>
+                    <summary>
+                        <span>Кольори</span>
+                        <small>Не залежать від фотографій</small>
+                    </summary>
+
+                    <div class="product-details-content">
+                        <p class="product-colors-help">
+                            Колір можна додати навіть без фотографії.
+                            Фото за потреби прив’яжете до кольору пізніше.
+                        </p>
+
+                        <div class="product-colors-head">
+                            <div>
+                                <strong>Кольори товару</strong>
+                                <span>Кожен колір зберігається окремо від фото.</span>
+                            </div>
+                            <button type="button" data-product-color-add>
+                                ＋ Додати колір
+                            </button>
+                        </div>
+
+                        <div
+                            id="product-color-list"
+                            class="product-color-list"
+                            aria-live="polite"
+                        ></div>
+                    </div>
+                </details>
+
                 <details class="product-form-section">
                     <summary>
                         <span>Матеріал</span>
@@ -463,8 +543,8 @@ require __DIR__ . '/../../partials/header.php';
 
                     <div class="product-details-content">
                         <p class="product-image-color-help">
-                            Натисніть «Вибрати колір» біля потрібної фотографії.
-                            Можна обрати готовий колір або взяти його прямо з фото.
+                            Фотографії необов’язкові: товар можна зберегти зараз і додати їх пізніше.
+                            Якщо фото вже є, натисніть «Вибрати колір» біля потрібної фотографії.
                         </p>
 
                         <div id="product-image-list" class="product-image-list"></div>
@@ -614,7 +694,7 @@ require __DIR__ . '/../../partials/header.php';
     >
         <header class="product-color-picker-head">
             <div>
-                <span>Фотографія товару</span>
+                <span data-color-picker-context>Колір товару</span>
                 <h3 id="product-color-picker-title">Колір товару</h3>
             </div>
             <button
@@ -729,7 +809,8 @@ require __DIR__ . '/../../partials/header.php';
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=5"></script>
-<script src="/Anabelka/js/admin-product-color-picker.js?v=2"></script>
+<script src="/Anabelka/js/admin-products.js?v=10"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
+<script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>
 </html>

@@ -51,6 +51,86 @@
     };
 
     let uploadPreviewUrls = [];
+    let productEditorHistoryArmed = false;
+    let productEditorHistoryToken = 0;
+    const productEditorHistoryKey = '__anabelkaProductEditor';
+
+
+    function currentProductEditorUrl()
+    {
+        return window.location.pathname
+            + window.location.search
+            + window.location.hash;
+    }
+
+
+    function cleanProductEditorState(source)
+    {
+        const state = source && typeof source === 'object'
+            ? Object.assign({}, source)
+            : {};
+
+        delete state[productEditorHistoryKey];
+
+        return state;
+    }
+
+
+    function armProductEditorHistory()
+    {
+        /*
+         * Each opening owns a fresh history entry. Do not trust a boolean
+         * left from an earlier Back cycle: Android may restore history state
+         * independently from JavaScript variables.
+         */
+        productEditorHistoryToken += 1;
+
+        const baseState = cleanProductEditorState(history.state);
+
+        history.replaceState(
+            baseState,
+            '',
+            currentProductEditorUrl()
+        );
+
+        const editorState = Object.assign({}, baseState);
+
+        editorState[productEditorHistoryKey] =
+            productEditorHistoryToken;
+
+        history.pushState(
+            editorState,
+            '',
+            currentProductEditorUrl()
+        );
+        productEditorHistoryArmed = true;
+    }
+
+
+    function disarmProductEditorHistory()
+    {
+        if (!productEditorHistoryArmed) {
+            return;
+        }
+
+        productEditorHistoryArmed = false;
+        history.back();
+    }
+
+
+    if (
+        editor.hidden
+        && history.state
+        && typeof history.state === 'object'
+        && history.state[productEditorHistoryKey]
+    ) {
+        history.replaceState(
+            cleanProductEditorState(history.state),
+            '',
+            currentProductEditorUrl()
+        );
+    }
+
 
     function showMessage(text)
     {
@@ -164,6 +244,8 @@
             .querySelector('[data-size-remove]')
             .addEventListener('click', function () {
                 row.remove();
+                validateSizeUniqueness();
+                syncBySizeTotalFromRows();
             });
 
         fields.sizeList.appendChild(fragment);
@@ -192,6 +274,125 @@
         ).some(function (input) {
             return input.value.trim() !== '';
         });
+    }
+
+
+    function normalizeSizeName(value)
+    {
+        return String(value || '')
+            .trim()
+            .toLocaleLowerCase();
+    }
+
+
+    function validateSizeUniqueness()
+    {
+        const seen = new Map();
+        let duplicate = null;
+
+        fields.sizeList
+            .querySelectorAll('[data-size-name]')
+            .forEach(function (input) {
+                input.setCustomValidity('');
+
+                const name = String(input.value || '').trim();
+                const key = normalizeSizeName(name);
+
+                if (key === '' || duplicate) {
+                    return;
+                }
+
+                if (seen.has(key)) {
+                    input.setCustomValidity(
+                        'Цей розмір уже додано.'
+                    );
+                    duplicate = {
+                        input: input,
+                        name: name
+                    };
+                    return;
+                }
+
+                seen.set(key, input);
+            });
+
+        return duplicate;
+    }
+
+
+    function focusDuplicateSize(duplicate)
+    {
+        if (!duplicate || !duplicate.input) {
+            return;
+        }
+
+        const details = duplicate.input.closest(
+            'details.product-form-section'
+        );
+
+        if (details) {
+            details.open = true;
+        }
+
+        showMessage(
+            'Розмір «'
+            + duplicate.name
+            + '» додано двічі. Видаліть дублікат або вкажіть інший розмір.'
+        );
+
+        window.setTimeout(function () {
+            duplicate.input.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            duplicate.input.focus();
+            duplicate.input.select();
+        }, 30);
+    }
+
+
+    function syncBySizeTotalFromRows()
+    {
+        if (
+            !fields.stock
+            || !fields.stockMode
+            || fields.stockMode.value !== 'by_size'
+        ) {
+            return;
+        }
+
+        if (
+            form.querySelector(
+                '[data-variant-stock-input]'
+            )
+        ) {
+            return;
+        }
+
+        const seen = new Set();
+        let total = 0;
+
+        fields.sizeList
+            .querySelectorAll('.product-size-row')
+            .forEach(function (row) {
+                const name = row.querySelector('[data-size-name]');
+                const stock = row.querySelector('[data-size-stock]');
+                const key = normalizeSizeName(
+                    name ? name.value : ''
+                );
+
+                if (!stock || key === '' || seen.has(key)) {
+                    return;
+                }
+
+                seen.add(key);
+                total += Math.max(
+                    0,
+                    parseInt(stock.value || '0', 10) || 0
+                );
+            });
+
+        fields.stock.value = String(total);
     }
 
 
@@ -486,11 +687,26 @@
         const hint = form.querySelector('[data-size-stock-hint]');
 
         if (totalField) {
-            totalField.hidden = bySize;
+            totalField.hidden = false;
+
+            const totalLabel = totalField.querySelector('span');
+
+            if (totalLabel) {
+                totalLabel.textContent = bySize
+                    ? 'Загальний залишок, шт. (автоматично)'
+                    : 'Загальний залишок, шт.';
+            }
         }
 
         if (fields.stock) {
             fields.stock.required = !bySize;
+            fields.stock.readOnly = bySize;
+
+            if (bySize) {
+                fields.stock.setAttribute('aria-readonly', 'true');
+            } else {
+                fields.stock.removeAttribute('aria-readonly');
+            }
         }
 
         form.querySelectorAll('[data-size-stock]').forEach(function (stock) {
@@ -499,15 +715,55 @@
 
         if (hint) {
             hint.textContent = bySize
-                ? 'Вкажіть окрему кількість для кожного розміру.'
+                ? 'Залишки задаються за розмірами. Загальний залишок рахується автоматично.'
                 : 'Для загального залишку кількість задається вище.';
+        }
+
+        if (bySize) {
+            syncBySizeTotalFromRows();
         }
     }
 
 
     function requestedTranslationFocus(productId)
     {
-        const params = new URLSearchParams(window.location.search);
+        window.addEventListener('popstate', function (event) {
+        const state = event.state
+            && typeof event.state === 'object'
+            ? event.state
+            : {};
+        const stateToken = Number(
+            state[productEditorHistoryKey] || 0
+        );
+
+        /*
+         * Forward navigation can land on the editor-owned entry again.
+         * In that case keep the editor state armed. Back from the editor
+         * lands on the clean base entry and closes it.
+         */
+        if (
+            !editor.hidden
+            && stateToken === productEditorHistoryToken
+            && stateToken > 0
+        ) {
+            productEditorHistoryArmed = true;
+            return;
+        }
+
+        if (!editor.hidden) {
+            productEditorHistoryArmed = false;
+            closeEditor({ syncHistory: false });
+            return;
+        }
+
+        productEditorHistoryArmed = Boolean(
+            stateToken === productEditorHistoryToken
+            && stateToken > 0
+        );
+    });
+
+
+    const params = new URLSearchParams(window.location.search);
         const requestedId = String(params.get('highlight') || '').trim();
         const language = String(params.get('focus_language') || '')
             .trim()
@@ -630,16 +886,56 @@
 
         editor.hidden = false;
         document.body.classList.add('product-editor-open');
+        armProductEditorHistory();
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         window.setTimeout(function () {
             focusEditor(isEdit ? product.id : 0);
         }, 30);
     }
 
 
-    function closeEditor()
+    function closeEditor(options)
     {
+        const settings = options && typeof options === 'object'
+            ? options
+            : {};
+        const syncHistory = settings.syncHistory !== false;
+
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
+
+        if (syncHistory) {
+            disarmProductEditorHistory();
+        }
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         clearUploadPreviews();
     }
 
@@ -705,7 +1001,75 @@
     });
 
     fields.stockMode.addEventListener('change', updateStockMode);
+
+    fields.sizeList.addEventListener('input', function (event) {
+        if (event.target.matches('[data-size-name]')) {
+            validateSizeUniqueness();
+            syncBySizeTotalFromRows();
+            return;
+        }
+
+        if (event.target.matches('[data-size-stock]')) {
+            syncBySizeTotalFromRows();
+        }
+    });
+
     fields.imageInput.addEventListener('change', renderUploadPreviews);
+
+    const translationDetails = form.querySelector(
+        '[data-translation-details]'
+    );
+
+    if (translationDetails) {
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.register === 'function'
+        ) {
+            window.AnabelkaAdminBack.register({
+                key: 'product-translations',
+                priority: 60,
+                isActive: function () {
+                    return !editor.hidden && translationDetails.open;
+                },
+                close: function () {
+                    translationDetails.open = false;
+
+                    if (
+                        window.AnabelkaAdminBack
+                        && typeof window.AnabelkaAdminBack.syncNow
+                            === 'function'
+                    ) {
+                        window.AnabelkaAdminBack.syncNow();
+                    }
+                }
+            });
+        }
+
+        translationDetails.addEventListener('toggle', function () {
+            if (
+                window.AnabelkaAdminBack
+                && typeof window.AnabelkaAdminBack.syncNow === 'function'
+            ) {
+                window.AnabelkaAdminBack.syncNow();
+            }
+
+            window.AnabelkaAIEditingContext = translationDetails.open
+                ? 'product-translations'
+                : '';
+
+            document.dispatchEvent(new CustomEvent(
+                'anabelka:ai-context-change'
+            ));
+
+            if (
+                window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.refreshVisibility
+                    === 'function'
+            ) {
+                window.AnabelkaAITranslation.refreshVisibility();
+            }
+        });
+    }
 
     form.addEventListener('input', function (event) {
         const field = event.target;
@@ -814,6 +1178,13 @@
 
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
+
+        const duplicateSize = validateSizeUniqueness();
+
+        if (duplicateSize) {
+            focusDuplicateSize(duplicateSize);
+            return;
+        }
 
         if (!form.reportValidity()) {
             return;

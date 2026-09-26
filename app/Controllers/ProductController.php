@@ -15,9 +15,13 @@ class ProductController extends Controller
             (int) ($product['category_id'] ?? 0)
         );
 
+        if (!$productCategory) {
+            http_response_code(404);
+            die('Категорію товару не знайдено');
+        }
+
         if (
-            $productCategory
-            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            !empty($productCategory['effective_adult'])
             && !AdultAccess::isConfirmed()
         ) {
             $returnUrl = $_SERVER['REQUEST_URI']
@@ -26,7 +30,7 @@ class ProductController extends Controller
             header(
                 'Location: '
                 . AdultAccess::gateUrl(
-                    (string) ($productCategory['slug'] ?? ''),
+                    $productCategory,
                     $returnUrl
                 )
             );
@@ -41,8 +45,7 @@ class ProductController extends Controller
                 die('Категория товара не найдена');
             }
 
-            $url = '/Anabelka/catalog/'
-                . rawurlencode((string) $category['slug'])
+            $url = Category::catalogUrl($category)
                 . '?highlight_product='
                 . rawurlencode((string) $product['slug']);
 
@@ -96,6 +99,11 @@ class ProductController extends Controller
             }
         }
 
+        $productStockOnHand = max(
+            0,
+            (int) ($product['stock'] ?? 0)
+        );
+
         if ($stockMode === 'by_size') {
             $availableTotal = 0;
 
@@ -105,31 +113,59 @@ class ProductController extends Controller
                 }
 
                 $sizeId = (int) ($attribute['value_id'] ?? 0);
-                $stock = (int) ($attribute['stock'] ?? 0);
-                $inCart = (int) ($cartSizeQuantities[$sizeId] ?? 0);
-                $available = max(0, $stock - $inCart);
+                $stockOnHand = max(
+                    0,
+                    (int) ($attribute['stock'] ?? 0)
+                );
+                $inCart = max(
+                    0,
+                    (int) ($cartSizeQuantities[$sizeId] ?? 0)
+                );
+                $available = max(0, $stockOnHand - $inCart);
+
+                $attribute['stock_on_hand'] = $stockOnHand;
+                $attribute['cart_quantity'] = $inCart;
+                $attribute['available_stock'] = $available;
                 $attribute['stock'] = $available;
                 $availableTotal += $available;
             }
             unset($attribute);
-            $product['stock'] = $availableTotal;
         } else {
             $availableTotal = max(
                 0,
-                (int) ($product['stock'] ?? 0) - $cartProductQuantity
+                $productStockOnHand - $cartProductQuantity
             );
-            $product['stock'] = $availableTotal;
 
             foreach ($attributes as &$attribute) {
-                if (($attribute['attribute_slug'] ?? '') === 'size') {
-                    $attribute['stock'] = $availableTotal;
+                if (($attribute['attribute_slug'] ?? '') !== 'size') {
+                    continue;
                 }
+
+                $sizeId = (int) ($attribute['value_id'] ?? 0);
+
+                $attribute['stock_on_hand'] = $productStockOnHand;
+                $attribute['cart_quantity'] = max(
+                    0,
+                    (int) ($cartSizeQuantities[$sizeId] ?? 0)
+                );
+                $attribute['available_stock'] = $availableTotal;
+                $attribute['stock'] = $availableTotal;
             }
             unset($attribute);
         }
 
+        $product['stock_on_hand'] = $productStockOnHand;
+        $product['cart_quantity'] = max(0, $cartProductQuantity);
+        $product['available_stock'] = $availableTotal;
+        $product['stock'] = $availableTotal;
+
         $prices = Product::getPricesByRanks($productId);
         $currentRankSlug = Product::getCurrentRankSlug();
+        $vipPriceWatermarks = VipPriceProtection::forVisiblePrices(
+            $productId,
+            $prices,
+            'product'
+        );
         $badges = Product::getBadges($productId);
         $currentLanguage = Translator::currentLanguage();
         $product = ProductTranslator::localize(
@@ -137,13 +173,44 @@ class ProductController extends Controller
             $currentLanguage['code'] ?? Language::SOURCE_CODE
         );
 
+        $reviews = [];
+        $canReview = false;
+        $reviewCsrfToken = '';
+        $reviewFlash = is_array($_SESSION['product_review_flash'] ?? null)
+            ? $_SESSION['product_review_flash']
+            : null;
+        unset($_SESSION['product_review_flash']);
+
+        try {
+            $reviews = ProductReview::approvedForProduct($productId);
+            $reviewUserId = CustomerAccount::currentId();
+
+            if ($reviewUserId > 0) {
+                $canReview = !ProductReview::hasReview(
+                    $productId,
+                    $reviewUserId
+                );
+                $reviewCsrfToken = CustomerAccount::csrfToken();
+            }
+        } catch (Throwable $e) {
+            error_log('Product reviews: ' . $e->getMessage());
+            $reviews = [];
+            $canReview = false;
+            $reviewCsrfToken = '';
+        }
+
         $this->view('product/show', [
             'product' => $product,
             'attributes' => $attributes,
             'images' => $images,
             'prices' => $prices,
             'currentRankSlug' => $currentRankSlug,
-            'badges' => $badges
+            'vipPriceWatermarks' => $vipPriceWatermarks,
+            'badges' => $badges,
+            'reviews' => $reviews,
+            'canReview' => $canReview,
+            'reviewCsrfToken' => $reviewCsrfToken,
+            'reviewFlash' => $reviewFlash
         ]);
     }
 
@@ -163,50 +230,78 @@ class ProductController extends Controller
             (int) ($product['category_id'] ?? 0)
         );
 
+        if (!$productCategory) {
+            $this->json([
+                'success' => false,
+                'message' => 'Категорію товару не знайдено'
+            ], 404);
+        }
+
         if (
-            $productCategory
-            && HomePage::isAdultCategoryId((int) ($productCategory['id'] ?? 0))
+            !empty($productCategory['effective_adult'])
             && !AdultAccess::isConfirmed()
         ) {
             $this->json([
                 'success' => false,
                 'message' => 'Потрібне підтвердження віку.',
                 'gate_url' => AdultAccess::gateUrl(
-                    (string) ($productCategory['slug'] ?? ''),
+                    $productCategory,
                     '/Anabelka/product/' . rawurlencode((string) $slug)
                 )
             ], 403);
         }
 
         $productId = (int) $product['id'];
-        $variantsByProduct = ProductImage::colorVariantsForProducts([
+        $variantsByProduct = ProductColor::variantsForProducts([
             $productId
         ]);
         $imageColors = $variantsByProduct[$productId] ?? [];
         $rows = ProductVariantStock::forProduct($productId);
         $usesVariantStock = !empty($rows);
+        $normalizeColorName = static function ($name) {
+            $name = trim((string) $name);
+
+            return function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+        };
+        $matrixColorsByName = [];
+
+        foreach ($rows as $row) {
+            $normalizedName = $normalizeColorName(
+                $row['color_name'] ?? ''
+            );
+
+            if ($normalizedName !== '' && !isset($matrixColorsByName[$normalizedName])) {
+                $matrixColorsByName[$normalizedName] = $row;
+            }
+        }
+
         $colors = [];
         $seenColors = [];
 
         foreach ($imageColors as $variant) {
             $name = trim((string) ($variant['name'] ?? ''));
             $hex = strtolower(trim((string) ($variant['hex'] ?? '')));
+            $normalizedName = $normalizeColorName($name);
 
-            if ($name === '') {
+            if ($normalizedName === '' || isset($seenColors[$normalizedName])) {
                 continue;
             }
 
-            $key = ProductVariantStock::colorKey($name, $hex);
+            $matrixColor = $matrixColorsByName[$normalizedName] ?? null;
+            $key = is_array($matrixColor)
+                ? (string) ($matrixColor['color_key'] ?? '')
+                : ProductVariantStock::colorKey($name, $hex);
+            $matrixHex = is_array($matrixColor)
+                ? strtolower(trim((string) ($matrixColor['color_hex'] ?? '')))
+                : '';
 
-            if (isset($seenColors[$key])) {
-                continue;
-            }
-
-            $seenColors[$key] = true;
+            $seenColors[$normalizedName] = true;
             $colors[] = [
                 'key' => $key,
                 'name' => $name,
-                'hex' => $hex,
+                'hex' => $matrixHex !== '' ? $matrixHex : $hex,
                 'image' => (string) ($variant['path'] ?? ''),
                 'image_id' => (int) ($variant['image_id'] ?? 0)
             ];
@@ -239,13 +334,18 @@ class ProductController extends Controller
                 }
             }
 
+            $available = max(0, $stock - $inCart);
+
             $availableRows[] = [
                 'size_id' => $sizeId,
                 'size_name' => (string) ($row['size_name'] ?? ''),
                 'color_key' => $colorKey,
                 'color_name' => (string) ($row['color_name'] ?? ''),
                 'color_hex' => (string) ($row['color_hex'] ?? ''),
-                'stock' => max(0, $stock - $inCart)
+                'stock_on_hand' => $stock,
+                'in_cart' => max(0, $inCart),
+                'available' => $available,
+                'stock' => $available
             ];
         }
 

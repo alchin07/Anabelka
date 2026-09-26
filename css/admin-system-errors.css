@@ -601,3 +601,232 @@
         font-size: 10px;
     }
 }
+
+
+/* Compact grouped system-error list */
+.system-errors-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.system-error-category-group {
+    min-width: 0;
+}
+
+.system-error-category-head,
+.system-errors-older-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.system-error-category-head {
+    margin-bottom: 7px;
+    padding: 0 2px;
+}
+
+.system-error-category-head > div {
+    min-width: 0;
+}
+
+.system-error-category-head span,
+.system-errors-older-title span {
+    display: block;
+    color: var(--se-muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.system-error-category-head h3,
+.system-errors-older-title strong {
+    margin: 2px 0 0;
+    font-size: 14px;
+}
+
+.system-error-category-head > strong {
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #f1e5fb;
+    color: #6519b9;
+    font-size: 11px;
+}
+
+.system-error-category-group.is-recent .system-error-category-head {
+    padding: 8px 10px;
+    border: 1px solid var(--se-border);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.system-errors-older-title {
+    margin: 3px 0 -2px;
+    padding: 8px 2px 0;
+}
+
+.system-error-category-list {
+    display: grid;
+    gap: 6px;
+}
+
+details.system-error-card {
+    padding: 0;
+    overflow: hidden;
+    background: #fff;
+}
+
+details.system-error-card[open] {
+    background: var(--se-bg);
+}
+
+.system-error-compact-summary {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.system-error-compact-summary::-webkit-details-marker {
+    display: none;
+}
+
+.system-error-compact-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+
+.system-error-compact-summary .system-error-badges {
+    flex-wrap: nowrap;
+}
+
+.system-error-category-badge {
+    display: inline-flex;
+    min-height: 22px;
+    align-items: center;
+    padding: 2px 7px;
+    border: 1px solid #ddc9ef;
+    border-radius: 999px;
+    background: #faf7ff;
+    color: #6519b9;
+    font-size: 9px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.system-error-compact-message {
+    min-width: 0;
+    overflow: hidden;
+    color: #4f4654;
+    font-size: 12px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.system-error-compact-side {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--se-muted);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.system-error-chevron {
+    display: inline-block;
+    color: var(--se-primary);
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+    transition: transform .15s ease;
+}
+
+details.system-error-card[open] .system-error-chevron {
+    transform: rotate(180deg);
+}
+
+.system-error-card-body {
+    padding: 0 10px 10px;
+    border-top: 1px solid var(--se-border);
+}
+
+details.system-error-card[open] .system-error-compact-summary {
+    padding-bottom: 9px;
+}
+
+details.system-error-card[open] .system-error-compact-message {
+    white-space: normal;
+}
+
+details.system-error-card[open] .system-error-compact-main {
+    grid-template-columns: 1fr;
+    align-items: start;
+}
+
+details.system-error-card[open] .system-error-compact-summary .system-error-badges {
+    flex-wrap: wrap;
+}
+
+.system-error-card-body .system-error-reference {
+    margin-top: 9px;
+}
+
+@media (min-width: 700px) {
+    .system-errors-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .system-error-compact-summary {
+        align-items: flex-start;
+        gap: 7px;
+        padding: 7px 8px;
+    }
+
+    .system-error-compact-main {
+        grid-template-columns: 1fr;
+        gap: 5px;
+    }
+
+    .system-error-compact-summary .system-error-badges {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .system-error-compact-message {
+        max-width: 100%;
+        font-size: 11px;
+    }
+
+    .system-error-compact-side {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+        font-size: 9px;
+    }
+
+    .system-error-card-body {
+        padding: 0 8px 8px;
+    }
+
+    .system-error-category-badge {
+        display: none;
+    }
+}

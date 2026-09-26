@@ -1,1 +1,352 @@
 .admin-profile-page{max-width:920px;margin:0 auto;padding:18px 14px 40px}.admin-profile-hero{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px;padding:18px;border:1px solid #eadcf7;border-radius:16px;background:#faf7ff}.admin-profile-hero span{display:block;margin-bottom:4px;color:#7b6f84;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.admin-profile-hero h2{margin:0 0 6px;color:#2f2635;font-size:24px}.admin-profile-hero p{margin:0;color:#6e6574}.admin-profile-role{min-width:150px;padding:10px 12px;border:1px solid #dfcfef;border-radius:12px;background:#fff}.admin-profile-role small{display:block;color:#7b6f84;font-size:11px}.admin-profile-role strong{display:block;margin-top:3px;color:#5f2b88;font-size:14px}.admin-profile-message{margin:0 0 14px;padding:11px 13px;border-radius:11px;font-weight:700}.admin-profile-message.is-success{border:1px solid #b9ddc4;background:#f2fbf5;color:#27623a}.admin-profile-message.is-error{border:1px solid #e7b9c0;background:#fff4f6;color:#9f3445}.admin-profile-card{margin-bottom:16px;padding:16px;border:1px solid #eadcf7;border-radius:16px;background:#fff}.admin-profile-card-head{margin-bottom:14px}.admin-profile-card-head h3{margin:0 0 4px;color:#342d39}.admin-profile-card-head p{margin:0;color:#77717e;font-size:13px}.admin-profile-card form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.admin-profile-card label{display:grid;gap:5px}.admin-profile-card label span{color:#4e4554;font-size:12px;font-weight:800}.admin-profile-card input{width:100%;min-height:44px;box-sizing:border-box;padding:10px 11px;border:1px solid #d9cbe5;border-radius:10px;background:#fff;color:#2f2635;font:inherit}.admin-profile-card input:focus{outline:3px solid rgba(138,43,226,.14);border-color:#9b63c9}.admin-profile-card button{grid-column:1/-1;min-height:44px;padding:9px 14px;border:0;border-radius:10px;background:#7a36b2;color:#fff;font:inherit;font-weight:800;cursor:pointer}.admin-profile-badge-form{display:block!important}.admin-profile-badge-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:11px}.admin-profile-badge-option{display:flex!important;align-items:center;gap:10px;min-height:48px;padding:10px 12px;border:1px solid #e3d6ee;border-radius:11px;background:#faf7ff;cursor:pointer}.admin-profile-badge-option input{width:20px!important;min-height:20px!important;height:20px;flex:0 0 20px;margin:0;padding:0;accent-color:#7a36b2}.admin-profile-badge-option span{font-size:13px!important;line-height:1.3}.admin-profile-badge-note{display:block;margin:0 0 12px;color:#77717e;font-size:12px;line-height:1.4}.admin-profile-badge-form button{width:100%;margin-top:0}.admin-profile-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.admin-profile-meta>div{padding:12px;border:1px solid #eadcf7;border-radius:12px;background:#faf7ff}.admin-profile-meta span{display:block;color:#77717e;font-size:11px}.admin-profile-meta strong{display:block;margin-top:3px;color:#3d3442;font-size:13px}@media(max-width:650px){.admin-profile-page{padding:12px 10px 30px}.admin-profile-hero{display:grid;padding:14px}.admin-profile-hero h2{font-size:21px}.admin-profile-role{min-width:0}.admin-profile-card{padding:13px}.admin-profile-card form{grid-template-columns:1fr}.admin-profile-card button{grid-column:auto}.admin-profile-badge-options{grid-template-columns:1fr}.admin-profile-badge-option{min-height:44px;padding:9px 10px}.admin-profile-meta{grid-template-columns:1fr}}
+
+
+.admin-profile-work-contract {
+    border-color: #ddc8ef;
+    background: #fdfaff;
+}
+
+.admin-profile-work-contract .admin-profile-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.admin-profile-contract-kicker {
+    display: block;
+    margin-bottom: 4px;
+    color: #8A2BE2;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.admin-profile-contract-amount {
+    flex: 0 0 auto;
+    min-width: 150px;
+    padding: 10px 12px;
+    border: 1px solid #dfcfef;
+    border-radius: 12px;
+    background: #fff;
+    text-align: right;
+}
+
+.admin-profile-contract-amount small {
+    display: block;
+    color: #77717e;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.admin-profile-contract-amount strong {
+    display: block;
+    margin-top: 3px;
+    color: #6519b9;
+    font-size: 18px;
+}
+
+.admin-profile-contract-terms,
+.admin-profile-contract-hours {
+    display: grid;
+    gap: 9px;
+}
+
+.admin-profile-contract-terms {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 10px;
+}
+
+.admin-profile-contract-hours {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.admin-profile-contract-terms > div,
+.admin-profile-contract-hours > div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #eadcf7;
+    border-radius: 11px;
+    background: #fff;
+}
+
+.admin-profile-contract-terms span,
+.admin-profile-contract-hours span {
+    display: block;
+    color: #77717e;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.admin-profile-contract-terms strong,
+.admin-profile-contract-hours strong {
+    display: block;
+    margin-top: 4px;
+    color: #342d39;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.admin-profile-contract-boundaries {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px 18px;
+    margin-top: 11px;
+    padding-top: 11px;
+    border-top: 1px solid #eadcf7;
+    color: #77717e;
+    font-size: 11px;
+}
+
+.admin-profile-contract-boundaries b {
+    color: #342d39;
+}
+
+.admin-profile-contract-days {
+    margin-top: 12px;
+    border-top: 1px solid #eadcf7;
+}
+
+.admin-profile-contract-days > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 0 0;
+    cursor: pointer;
+    color: #6519b9;
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+}
+
+.admin-profile-contract-days > summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-profile-contract-days > summary span {
+    min-width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #f4eaff;
+    color: #6519b9;
+}
+
+.admin-profile-contract-day-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.admin-profile-contract-day {
+    display: grid;
+    grid-template-columns: minmax(95px, 1.1fr) repeat(6, minmax(80px, 1fr));
+    gap: 7px;
+    padding: 9px 10px;
+    border: 1px solid #eadcf7;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 11px;
+}
+
+.admin-profile-contract-day span {
+    color: #77717e;
+}
+
+.admin-profile-contract-note {
+    margin: 12px 0 0;
+    color: #77717e;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+@media(max-width:760px) {
+    .admin-profile-contract-terms {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    .admin-profile-contract-hours {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    .admin-profile-contract-day {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+}
+
+@media(max-width:650px) {
+    .admin-profile-work-contract .admin-profile-card-head {
+        display: grid;
+    }
+
+    .admin-profile-contract-amount {
+        min-width: 0;
+        text-align: left;
+    }
+
+    .admin-profile-contract-terms,
+    .admin-profile-contract-hours,
+    .admin-profile-contract-day {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+.admin-profile-contract-warning {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid #ead8b5;
+    border-radius: 11px;
+    background: #fffaf0;
+    color: #76571d;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+
+@media(max-width:650px) {
+    .admin-profile-work-contract {
+        padding: 10px;
+        margin-bottom: 12px;
+        border-radius: 14px;
+    }
+
+    .admin-profile-work-contract .admin-profile-card-head {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) auto;
+        align-items: start;
+        gap: 8px;
+        margin-bottom: 9px;
+    }
+
+    .admin-profile-work-contract .admin-profile-card-head h3 {
+        margin-bottom: 2px;
+        font-size: 18px;
+        line-height: 1.1;
+    }
+
+    .admin-profile-work-contract .admin-profile-card-head p {
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+    .admin-profile-contract-kicker {
+        margin-bottom: 2px;
+        font-size: 8px;
+    }
+
+    .admin-profile-contract-amount {
+        min-width: 92px;
+        padding: 7px 8px;
+        border-radius: 10px;
+        text-align: right;
+    }
+
+    .admin-profile-contract-amount small {
+        font-size: 8px;
+    }
+
+    .admin-profile-contract-amount strong {
+        margin-top: 2px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .admin-profile-contract-terms,
+    .admin-profile-contract-hours {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 6px;
+    }
+
+    .admin-profile-contract-terms {
+        margin-bottom: 6px;
+    }
+
+    .admin-profile-contract-terms > div,
+    .admin-profile-contract-hours > div {
+        padding: 7px 8px;
+        border-radius: 9px;
+    }
+
+    .admin-profile-contract-terms span,
+    .admin-profile-contract-hours span {
+        font-size: 8px;
+    }
+
+    .admin-profile-contract-terms strong,
+    .admin-profile-contract-hours strong {
+        margin-top: 2px;
+        font-size: 11px;
+        line-height: 1.2;
+    }
+
+    .admin-profile-contract-hours > div:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .admin-profile-contract-boundaries {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 4px 8px;
+        margin-top: 7px;
+        padding-top: 7px;
+        font-size: 9px;
+        line-height: 1.3;
+    }
+
+    .admin-profile-contract-boundaries > span:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .admin-profile-contract-warning {
+        margin-top: 8px;
+        padding: 8px 9px;
+        border-radius: 9px;
+        font-size: 10px;
+    }
+
+    .admin-profile-contract-days {
+        margin-top: 8px;
+    }
+
+    .admin-profile-contract-days > summary {
+        gap: 7px;
+        padding-top: 8px;
+        font-size: 10px;
+    }
+
+    .admin-profile-contract-days > summary span {
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        font-size: 9px;
+    }
+
+    .admin-profile-contract-day-list {
+        gap: 5px;
+        margin-top: 7px;
+    }
+
+    .admin-profile-contract-day {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 4px 7px;
+        padding: 7px 8px;
+        border-radius: 8px;
+        font-size: 9px;
+    }
+
+    .admin-profile-contract-day > strong {
+        grid-column: 1 / -1;
+    }
+
+    .admin-profile-contract-note {
+        margin-top: 8px;
+        font-size: 9px;
+        line-height: 1.35;
+    }
+}

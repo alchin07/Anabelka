@@ -12,6 +12,7 @@
         options: root.querySelector('[data-color-picker-options]'),
         presets: root.querySelector('[data-color-picker-presets]'),
         preview: root.querySelector('[data-color-picker-preview]'),
+        context: root.querySelector('[data-color-picker-context]'),
         name: root.querySelector('[data-color-picker-name]'),
         photoButton: root.querySelector('[data-color-picker-photo]'),
         systemButton: root.querySelector('[data-color-picker-system]'),
@@ -337,6 +338,17 @@
         nameInput.value = String(name || '').trim();
         hexInput.value = normalizedHex(hex);
         refreshImageColorGroup(activeGroup);
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:product-color-change',
+            {
+                detail: {
+                    group: activeGroup,
+                    name: nameInput.value,
+                    hex: hexInput.value
+                }
+            }
+        ));
     }
 
 
@@ -357,6 +369,13 @@
         root.hidden = true;
         document.body.classList.remove('product-color-picker-open');
         activeGroup = null;
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
         picker.photoImage.removeAttribute('src');
 
         if (
@@ -385,10 +404,27 @@
         pickerHasColor = nameInput.value.trim() !== '';
         picker.name.value = nameInput.value;
         picker.systemInput.value = normalizedHex(hexInput.value);
+
+        const sourceImage = selectedSourceImage();
+        picker.photoButton.disabled = !sourceImage;
+
+        if (picker.context) {
+            picker.context.textContent = sourceImage
+                ? 'Фотографія товару'
+                : 'Колір товару без фото';
+        }
+
         showColorOptions();
         updatePickerPreview();
         root.hidden = false;
         document.body.classList.add('product-color-picker-open');
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
 
         window.setTimeout(function () {
             if (picker.close) {
@@ -420,7 +456,10 @@
             : '';
 
         if (source === '') {
-            showMessage('Спочатку додайте фотографію товару.');
+            showMessage(
+                'Цей колір можна зберегти без фото. '
+                + 'Виберіть готовий відтінок або «Інший відтінок».'
+            );
             return;
         }
 
@@ -662,6 +701,22 @@
         event.stopImmediatePropagation();
         closePicker(true);
     });
+
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'product-color-picker',
+            priority: 110,
+            isActive: function () {
+                return !root.hidden;
+            },
+            close: function () {
+                closePicker(true);
+            }
+        });
+    }
 
     renderPresets();
 })();
