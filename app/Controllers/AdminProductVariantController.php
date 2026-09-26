@@ -67,10 +67,7 @@ class AdminProductVariantController extends Controller
 
     private function assertCsrf()
     {
-        $submitted = (string) ($_POST['csrf_token'] ?? '');
-        $stored = (string) ($_SESSION['admin_product_csrf'] ?? '');
-
-        if ($stored === '' || !hash_equals($stored, $submitted)) {
+        if (!Csrf::verify('admin')) {
             throw new InvalidArgumentException(
                 'Сторінка застаріла. Оновіть її та повторіть дію.'
             );
