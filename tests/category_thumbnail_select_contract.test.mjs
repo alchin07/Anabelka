@@ -48,6 +48,18 @@ assert.doesNotMatch(productView, /data-anabelka-thumbnail-edit/);
 assert.doesNotMatch(productView, /data-category-thumbnail-select/);
 assert.doesNotMatch(productView, /category-thumbnail-data/);
 assert.doesNotMatch(productView, /admin-product-category-thumbnails\.js/);
+assert.match(
+    productView,
+    /id="product-filter-category"[\s\S]*?data-anabelka-select/
+);
+assert.match(
+    productView,
+    /id="product-filter-category"[\s\S]*?data-anabelka-rich="1"[\s\S]*?data-anabelka-depth=/
+);
+assert.doesNotMatch(
+    productView,
+    /id="product-filter-category"[\s\S]*?data-anabelka-thumbnail-edit/
+);
 
 assert.match(selectJs, /function renderPresentation\s*\(/);
 assert.match(selectJs, /anabelka-select-thumbnail/);
