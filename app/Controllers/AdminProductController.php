@@ -473,7 +473,10 @@ class AdminProductController extends Controller
                 : strtolower($name);
 
             if (isset($seen[$key])) {
-                continue;
+                throw new InvalidArgumentException(
+                    'Розмір «' . $name
+                    . '» додано двічі. Залиште один рядок для кожного розміру.'
+                );
             }
 
             $seen[$key] = true;
