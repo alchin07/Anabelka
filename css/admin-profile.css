@@ -207,3 +207,146 @@
     font-size: 12px;
     line-height: 1.45;
 }
+
+
+@media(max-width:650px) {
+    .admin-profile-work-contract {
+        padding: 10px;
+        margin-bottom: 12px;
+        border-radius: 14px;
+    }
+
+    .admin-profile-work-contract .admin-profile-card-head {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) auto;
+        align-items: start;
+        gap: 8px;
+        margin-bottom: 9px;
+    }
+
+    .admin-profile-work-contract .admin-profile-card-head h3 {
+        margin-bottom: 2px;
+        font-size: 18px;
+        line-height: 1.1;
+    }
+
+    .admin-profile-work-contract .admin-profile-card-head p {
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+    .admin-profile-contract-kicker {
+        margin-bottom: 2px;
+        font-size: 8px;
+    }
+
+    .admin-profile-contract-amount {
+        min-width: 92px;
+        padding: 7px 8px;
+        border-radius: 10px;
+        text-align: right;
+    }
+
+    .admin-profile-contract-amount small {
+        font-size: 8px;
+    }
+
+    .admin-profile-contract-amount strong {
+        margin-top: 2px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .admin-profile-contract-terms,
+    .admin-profile-contract-hours {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 6px;
+    }
+
+    .admin-profile-contract-terms {
+        margin-bottom: 6px;
+    }
+
+    .admin-profile-contract-terms > div,
+    .admin-profile-contract-hours > div {
+        padding: 7px 8px;
+        border-radius: 9px;
+    }
+
+    .admin-profile-contract-terms span,
+    .admin-profile-contract-hours span {
+        font-size: 8px;
+    }
+
+    .admin-profile-contract-terms strong,
+    .admin-profile-contract-hours strong {
+        margin-top: 2px;
+        font-size: 11px;
+        line-height: 1.2;
+    }
+
+    .admin-profile-contract-hours > div:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .admin-profile-contract-boundaries {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 4px 8px;
+        margin-top: 7px;
+        padding-top: 7px;
+        font-size: 9px;
+        line-height: 1.3;
+    }
+
+    .admin-profile-contract-boundaries > span:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .admin-profile-contract-warning {
+        margin-top: 8px;
+        padding: 8px 9px;
+        border-radius: 9px;
+        font-size: 10px;
+    }
+
+    .admin-profile-contract-days {
+        margin-top: 8px;
+    }
+
+    .admin-profile-contract-days > summary {
+        gap: 7px;
+        padding-top: 8px;
+        font-size: 10px;
+    }
+
+    .admin-profile-contract-days > summary span {
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        font-size: 9px;
+    }
+
+    .admin-profile-contract-day-list {
+        gap: 5px;
+        margin-top: 7px;
+    }
+
+    .admin-profile-contract-day {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 4px 7px;
+        padding: 7px 8px;
+        border-radius: 8px;
+        font-size: 9px;
+    }
+
+    .admin-profile-contract-day > strong {
+        grid-column: 1 / -1;
+    }
+
+    .admin-profile-contract-note {
+        margin-top: 8px;
+        font-size: 9px;
+        line-height: 1.35;
+    }
+}
