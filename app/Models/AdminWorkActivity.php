@@ -801,26 +801,26 @@ class AdminWorkActivity
             WHERE admin_seconds > 0
             ON DUPLICATE KEY UPDATE
                 active_seconds = GREATEST(
-                    active_seconds,
+                    admin_work_time_source_daily.active_seconds,
                     VALUES(active_seconds)
                 ),
                 first_activity_at = CASE
-                    WHEN first_activity_at IS NULL
+                    WHEN admin_work_time_source_daily.first_activity_at IS NULL
                     THEN VALUES(first_activity_at)
                     WHEN VALUES(first_activity_at) IS NULL
-                    THEN first_activity_at
+                    THEN admin_work_time_source_daily.first_activity_at
                     ELSE LEAST(
-                        first_activity_at,
+                        admin_work_time_source_daily.first_activity_at,
                         VALUES(first_activity_at)
                     )
                 END,
                 last_activity_at = CASE
-                    WHEN last_activity_at IS NULL
+                    WHEN admin_work_time_source_daily.last_activity_at IS NULL
                     THEN VALUES(last_activity_at)
                     WHEN VALUES(last_activity_at) IS NULL
-                    THEN last_activity_at
+                    THEN admin_work_time_source_daily.last_activity_at
                     ELSE GREATEST(
-                        last_activity_at,
+                        admin_work_time_source_daily.last_activity_at,
                         VALUES(last_activity_at)
                     )
                 END
@@ -847,26 +847,26 @@ class AdminWorkActivity
             WHERE public_seconds > 0
             ON DUPLICATE KEY UPDATE
                 active_seconds = GREATEST(
-                    active_seconds,
+                    admin_work_time_source_daily.active_seconds,
                     VALUES(active_seconds)
                 ),
                 first_activity_at = CASE
-                    WHEN first_activity_at IS NULL
+                    WHEN admin_work_time_source_daily.first_activity_at IS NULL
                     THEN VALUES(first_activity_at)
                     WHEN VALUES(first_activity_at) IS NULL
-                    THEN first_activity_at
+                    THEN admin_work_time_source_daily.first_activity_at
                     ELSE LEAST(
-                        first_activity_at,
+                        admin_work_time_source_daily.first_activity_at,
                         VALUES(first_activity_at)
                     )
                 END,
                 last_activity_at = CASE
-                    WHEN last_activity_at IS NULL
+                    WHEN admin_work_time_source_daily.last_activity_at IS NULL
                     THEN VALUES(last_activity_at)
                     WHEN VALUES(last_activity_at) IS NULL
-                    THEN last_activity_at
+                    THEN admin_work_time_source_daily.last_activity_at
                     ELSE GREATEST(
-                        last_activity_at,
+                        admin_work_time_source_daily.last_activity_at,
                         VALUES(last_activity_at)
                     )
                 END
