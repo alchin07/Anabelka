@@ -244,6 +244,8 @@
             .querySelector('[data-size-remove]')
             .addEventListener('click', function () {
                 row.remove();
+                validateSizeUniqueness();
+                syncBySizeTotalFromRows();
             });
 
         fields.sizeList.appendChild(fragment);
@@ -272,6 +274,125 @@
         ).some(function (input) {
             return input.value.trim() !== '';
         });
+    }
+
+
+    function normalizeSizeName(value)
+    {
+        return String(value || '')
+            .trim()
+            .toLocaleLowerCase();
+    }
+
+
+    function validateSizeUniqueness()
+    {
+        const seen = new Map();
+        let duplicate = null;
+
+        fields.sizeList
+            .querySelectorAll('[data-size-name]')
+            .forEach(function (input) {
+                input.setCustomValidity('');
+
+                const name = String(input.value || '').trim();
+                const key = normalizeSizeName(name);
+
+                if (key === '' || duplicate) {
+                    return;
+                }
+
+                if (seen.has(key)) {
+                    input.setCustomValidity(
+                        'Цей розмір уже додано.'
+                    );
+                    duplicate = {
+                        input: input,
+                        name: name
+                    };
+                    return;
+                }
+
+                seen.set(key, input);
+            });
+
+        return duplicate;
+    }
+
+
+    function focusDuplicateSize(duplicate)
+    {
+        if (!duplicate || !duplicate.input) {
+            return;
+        }
+
+        const details = duplicate.input.closest(
+            'details.product-form-section'
+        );
+
+        if (details) {
+            details.open = true;
+        }
+
+        showMessage(
+            'Розмір «'
+            + duplicate.name
+            + '» додано двічі. Видаліть дублікат або вкажіть інший розмір.'
+        );
+
+        window.setTimeout(function () {
+            duplicate.input.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            duplicate.input.focus();
+            duplicate.input.select();
+        }, 30);
+    }
+
+
+    function syncBySizeTotalFromRows()
+    {
+        if (
+            !fields.stock
+            || !fields.stockMode
+            || fields.stockMode.value !== 'by_size'
+        ) {
+            return;
+        }
+
+        if (
+            form.querySelector(
+                '[data-variant-stock-input]'
+            )
+        ) {
+            return;
+        }
+
+        const seen = new Set();
+        let total = 0;
+
+        fields.sizeList
+            .querySelectorAll('.product-size-row')
+            .forEach(function (row) {
+                const name = row.querySelector('[data-size-name]');
+                const stock = row.querySelector('[data-size-stock]');
+                const key = normalizeSizeName(
+                    name ? name.value : ''
+                );
+
+                if (!stock || key === '' || seen.has(key)) {
+                    return;
+                }
+
+                seen.add(key);
+                total += Math.max(
+                    0,
+                    parseInt(stock.value || '0', 10) || 0
+                );
+            });
+
+        fields.stock.value = String(total);
     }
 
 
@@ -566,11 +687,26 @@
         const hint = form.querySelector('[data-size-stock-hint]');
 
         if (totalField) {
-            totalField.hidden = bySize;
+            totalField.hidden = false;
+
+            const totalLabel = totalField.querySelector('span');
+
+            if (totalLabel) {
+                totalLabel.textContent = bySize
+                    ? 'Загальний залишок, шт. (автоматично)'
+                    : 'Загальний залишок, шт.';
+            }
         }
 
         if (fields.stock) {
             fields.stock.required = !bySize;
+            fields.stock.readOnly = bySize;
+
+            if (bySize) {
+                fields.stock.setAttribute('aria-readonly', 'true');
+            } else {
+                fields.stock.removeAttribute('aria-readonly');
+            }
         }
 
         form.querySelectorAll('[data-size-stock]').forEach(function (stock) {
@@ -579,8 +715,12 @@
 
         if (hint) {
             hint.textContent = bySize
-                ? 'Вкажіть окрему кількість для кожного розміру.'
+                ? 'Залишки задаються за розмірами. Загальний залишок рахується автоматично.'
                 : 'Для загального залишку кількість задається вище.';
+        }
+
+        if (bySize) {
+            syncBySizeTotalFromRows();
         }
     }
 
@@ -861,6 +1001,19 @@
     });
 
     fields.stockMode.addEventListener('change', updateStockMode);
+
+    fields.sizeList.addEventListener('input', function (event) {
+        if (event.target.matches('[data-size-name]')) {
+            validateSizeUniqueness();
+            syncBySizeTotalFromRows();
+            return;
+        }
+
+        if (event.target.matches('[data-size-stock]')) {
+            syncBySizeTotalFromRows();
+        }
+    });
+
     fields.imageInput.addEventListener('change', renderUploadPreviews);
 
     const translationDetails = form.querySelector(
@@ -1025,6 +1178,13 @@
 
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
+
+        const duplicateSize = validateSizeUniqueness();
+
+        if (duplicateSize) {
+            focusDuplicateSize(duplicateSize);
+            return;
+        }
 
         if (!form.reportValidity()) {
             return;
