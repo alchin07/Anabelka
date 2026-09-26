@@ -509,7 +509,6 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
 
                                             <?php if (
                                                 !empty($product['show_stock_quantity'])
-                                                || $sizeInCart > 0
                                                 || $sizeAvailable <= 0
                                             ): ?>
                                                 <small
@@ -521,12 +520,7 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                                     style="margin-left:5px;font-size:11px;font-weight:normal;"
                                                 >
                                                     <?php if (!empty($product['show_stock_quantity'])): ?>
-                                                        На складе <?= $sizeStockOnHand ?> шт.
-                                                        · В вашей корзине <?= $sizeInCart ?> шт.
-                                                        · Доступно добавить <?= $sizeAvailable ?> шт.
-                                                    <?php elseif ($sizeInCart > 0): ?>
-                                                        В вашей корзине <?= $sizeInCart ?> шт.
-                                                        · Доступно добавить <?= $sizeAvailable ?> шт.
+                                                        <?= $sizeAvailable ?> шт.
                                                     <?php else: ?>
                                                         Нет в наличии
                                                     <?php endif; ?>
@@ -822,37 +816,7 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
 
                     if (showQuantity) {
                         stockElement.textContent =
-                            (ui.stock_on_hand || 'На складе')
-                            + ' '
-                            + stockOnHand
-                            + ' '
-                            + unit
-                            + ' · '
-                            + (ui.in_your_cart || 'В вашей корзине')
-                            + ' '
-                            + inCart
-                            + ' '
-                            + unit
-                            + ' · '
-                            + (ui.available_to_add || 'Доступно добавить')
-                            + ' '
-                            + availableStock
-                            + ' '
-                            + unit;
-
-                        stockElement.style.display =
-                            'inline';
-                    } else if (inCart > 0) {
-                        stockElement.textContent =
-                            (ui.in_your_cart || 'В вашей корзине')
-                            + ' '
-                            + inCart
-                            + ' '
-                            + unit
-                            + ' · '
-                            + (ui.available_to_add || 'Доступно добавить')
-                            + ' '
-                            + availableStock
+                            availableStock
                             + ' '
                             + unit;
 
