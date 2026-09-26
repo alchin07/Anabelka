@@ -195,3 +195,15 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+.admin-profile-contract-warning {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid #ead8b5;
+    border-radius: 11px;
+    background: #fffaf0;
+    color: #76571d;
+    font-size: 12px;
+    line-height: 1.45;
+}
