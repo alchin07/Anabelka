@@ -53,7 +53,7 @@ class AdminProductController extends Controller
                 'filters' => $filters,
                 'productsError' => $productsError,
                 'flash' => is_array($flash) ? $flash : null,
-                'csrfToken' => $this->csrfToken(),
+                'csrfToken' => AdminAccess::csrfToken(),
                 'categoryCsrfToken' => AdminAccess::csrfToken()
             ]
         );
@@ -1080,25 +1080,11 @@ class AdminProductController extends Controller
 
     private function assertCsrf()
     {
-        $submitted = (string) ($_POST['csrf_token'] ?? '');
-
-        if (!hash_equals($this->csrfToken(), $submitted)) {
+        if (!Csrf::verify('admin')) {
             throw new InvalidArgumentException(
                 'Сторінка застаріла. Оновіть її та повторіть дію.'
             );
         }
-    }
-
-
-    private function csrfToken()
-    {
-        if (empty($_SESSION['admin_product_csrf'])) {
-            $_SESSION['admin_product_csrf'] = bin2hex(
-                random_bytes(24)
-            );
-        }
-
-        return (string) $_SESSION['admin_product_csrf'];
     }
 
 
