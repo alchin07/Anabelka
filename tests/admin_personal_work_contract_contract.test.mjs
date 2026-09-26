@@ -85,7 +85,7 @@ assert.match(view, /Сесій/);
 assert.match(view, /Активних днів/);
 assert.match(view, /Робочий час по днях/);
 assert.match(view, /Умови контракту змінюються лише Розробником або Власником/);
-assert.match(view, /admin-profile\.css\?v=5/);
+assert.match(view, /admin-profile\.css\?v=6/);
 
 const contractStart = view.indexOf(
     'admin-profile-card admin-profile-work-contract'
@@ -138,4 +138,22 @@ assert.match(
 assert.match(
     css,
     /\.admin-profile-contract-warning/
+);
+
+
+assert.match(
+    css,
+    /@media\(max-width:650px\)[\s\S]*?\.admin-profile-work-contract[\s\S]*?padding:\s*10px/
+);
+assert.match(
+    css,
+    /grid-template-columns:\s*minmax\(0,1fr\) auto/
+);
+assert.match(
+    css,
+    /\.admin-profile-contract-terms,[\s\S]*?\.admin-profile-contract-hours[\s\S]*?grid-template-columns:\s*repeat\(2,minmax\(0,1fr\)\)/
+);
+assert.match(
+    css,
+    /\.admin-profile-contract-hours > div:first-child[\s\S]*?grid-column:\s*1 \/ -1/
 );
