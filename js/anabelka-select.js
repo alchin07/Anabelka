@@ -7,88 +7,8 @@
 
     let sequence = 0;
     let openInstance = null;
-    let categorySelectHistoryToken = 0;
-    const categorySelectHistoryKey = '__anabelkaCategorySelect';
     const instances = new WeakMap();
     const allInstances = new Set();
-
-    function currentSelectUrl()
-    {
-        return window.location.pathname
-            + window.location.search
-            + window.location.hash;
-    }
-
-
-    function isCategoryThumbnailSelect(instance)
-    {
-        return Boolean(
-            instance
-            && instance.select
-            && instance.select.hasAttribute(
-                'data-category-thumbnail-select'
-            )
-        );
-    }
-
-
-    function cleanCategorySelectState(source)
-    {
-        const state = source && typeof source === 'object'
-            ? Object.assign({}, source)
-            : {};
-
-        delete state[categorySelectHistoryKey];
-
-        return state;
-    }
-
-
-    function armCategorySelectHistory(instance)
-    {
-        if (!isCategoryThumbnailSelect(instance)) {
-            return;
-        }
-
-        categorySelectHistoryToken += 1;
-
-        const baseState = cleanCategorySelectState(history.state);
-
-        history.replaceState(
-            baseState,
-            '',
-            currentSelectUrl()
-        );
-
-        const selectState = Object.assign({}, baseState);
-
-        selectState[categorySelectHistoryKey] =
-            categorySelectHistoryToken;
-
-        history.pushState(
-            selectState,
-            '',
-            currentSelectUrl()
-        );
-
-        instance.categoryHistoryToken =
-            categorySelectHistoryToken;
-        instance.categoryHistoryArmed = true;
-    }
-
-
-    function disarmCategorySelectHistory(instance)
-    {
-        if (
-            !isCategoryThumbnailSelect(instance)
-            || !instance.categoryHistoryArmed
-        ) {
-            return;
-        }
-
-        instance.categoryHistoryArmed = false;
-        history.back();
-    }
 
 
     function optionButtons(instance)
@@ -123,18 +43,9 @@
             return;
         }
 
-        const settings = options && typeof options === 'object'
-            ? options
-            : {};
-        const syncHistory = settings.syncHistory !== false;
-
         instance.list.hidden = true;
         instance.trigger.setAttribute('aria-expanded', 'false');
         instance.wrapper.classList.remove('is-open', 'is-up');
-
-        if (syncHistory) {
-            disarmCategorySelectHistory(instance);
-        }
 
         if (openInstance === instance) {
             openInstance = null;
@@ -186,10 +97,6 @@
         instance.trigger.setAttribute('aria-expanded', 'true');
         instance.wrapper.classList.add('is-open');
         openInstance = instance;
-
-        if (isCategoryThumbnailSelect(instance)) {
-            armCategorySelectHistory(instance);
-        }
 
         if (
             window.AnabelkaAdminBack
@@ -255,11 +162,6 @@
         label.className = 'anabelka-select-rich-label';
         subtitle.className = 'anabelka-select-rich-subtitle';
 
-        if (option.dataset.anabelkaThumbnailEdit === '1') {
-            thumbnail.classList.add('is-editable');
-            thumbnail.dataset.anabelkaThumbnailControl = '';
-            thumbnail.title = 'Редагувати мініатюру';
-        }
         label.textContent = optionLabel(option);
 
         if (path !== '') {
@@ -380,32 +282,6 @@
             button.addEventListener('click', function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-
-                const thumbnail = event.target.closest(
-                    '[data-anabelka-thumbnail-control]'
-                );
-
-                if (
-                    thumbnail
-                    && button.contains(thumbnail)
-                    && option.dataset.anabelkaThumbnailEdit === '1'
-                ) {
-                    instance.select.dispatchEvent(new CustomEvent(
-                        'anabelka:thumbnail-edit',
-                        {
-                            bubbles: true,
-                            detail: {
-                                optionIndex: index,
-                                option: option,
-                                button: button,
-                                list: instance.list,
-                                thumbnail: thumbnail
-                            }
-                        }
-                    ));
-                    return;
-                }
-
                 choose(instance, index);
             });
 
@@ -671,41 +547,6 @@
         }
     });
 
-    window.addEventListener('popstate', function (event) {
-        if (!isCategoryThumbnailSelect(openInstance)) {
-            return;
-        }
-
-        const state = event.state
-            && typeof event.state === 'object'
-            ? event.state
-            : {};
-        const stateToken = Number(
-            state[categorySelectHistoryKey] || 0
-        );
-        const instanceToken = Number(
-            openInstance.categoryHistoryToken || 0
-        );
-
-        /*
-         * Back from the thumbnail editor lands on this select-owned
-         * history entry. Keep the category list open. The next Back
-         * lands on the product editor entry and closes the list.
-         */
-        if (
-            stateToken > 0
-            && stateToken === instanceToken
-        ) {
-            openInstance.categoryHistoryArmed = true;
-            return;
-        }
-
-        openInstance.categoryHistoryArmed = false;
-        close(openInstance, true, {
-            syncHistory: false
-        });
-    });
-
 
     if (
         window.AnabelkaAdminBack
@@ -717,7 +558,6 @@
             isActive: function () {
                 return Boolean(
                     openInstance
-                    && !isCategoryThumbnailSelect(openInstance)
                     && openInstance.trigger.getAttribute('aria-expanded')
                         === 'true'
                 );
@@ -765,18 +605,6 @@
 
     function init()
     {
-        if (
-            history.state
-            && typeof history.state === 'object'
-            && history.state[categorySelectHistoryKey]
-        ) {
-            history.replaceState(
-                cleanCategorySelectState(history.state),
-                '',
-                currentSelectUrl()
-            );
-        }
-
         markPageSelects();
         enhanceAll(document);
     }
