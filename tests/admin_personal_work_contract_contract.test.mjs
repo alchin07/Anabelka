@@ -109,3 +109,33 @@ assert.match(css, /\.admin-profile-contract-day/);
 process.stdout.write(
     'personal administrator work contract profile passed\n'
 );
+
+
+assert.match(
+    model,
+    /'work_error' => \$workError/
+);
+assert.match(
+    model,
+    /catch \(Throwable \$e\)[\s\S]*?Admin work contract activity/
+);
+assert.match(
+    controller,
+    /Admin profile work contract/
+);
+assert.match(
+    controller,
+    /'load_error' => true/
+);
+assert.match(
+    view,
+    /admin-profile-contract-warning/
+);
+assert.match(
+    view,
+    /Для цього облікового запису умови робочого контракту/
+);
+assert.match(
+    css,
+    /\.admin-profile-contract-warning/
+);
