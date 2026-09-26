@@ -239,38 +239,24 @@
             stockElement.dataset.available = String(details.available);
 
             const unit = stockUi.pcs || 'шт.';
-            const onHandLabel = stockUi.stock_on_hand || 'На складе';
-            const inCartLabel = stockUi.in_your_cart || 'В вашей корзине';
-            const availableLabel = stockUi.available_to_add || 'Доступно добавить';
             const showQuantity = stockElement.dataset.showQuantity === '1';
-            let parts = [];
 
             if (showQuantity) {
-                parts = [
-                    onHandLabel + ' ' + details.stockOnHand + ' ' + unit,
-                    inCartLabel + ' ' + details.inCart + ' ' + unit,
-                    availableLabel + ' ' + details.available + ' ' + unit
-                ];
-            } else if (details.inCart > 0) {
-                parts = [
-                    inCartLabel + ' ' + details.inCart + ' ' + unit,
-                    availableLabel + ' ' + details.available + ' ' + unit
-                ];
-            } else if (details.available <= 0) {
+                stockElement.textContent =
+                    details.available + ' ' + unit;
+                stockElement.style.display = 'inline';
+                return;
+            }
+
+            if (details.available <= 0) {
                 stockElement.textContent =
                     stockUi.out_of_stock || 'Нет в наличии';
                 stockElement.style.display = 'inline';
                 return;
             }
 
-            if (parts.length === 0) {
-                stockElement.textContent = '';
-                stockElement.style.display = 'none';
-                return;
-            }
-
-            stockElement.textContent = parts.join(' · ');
-            stockElement.style.display = 'inline';
+            stockElement.textContent = '';
+            stockElement.style.display = 'none';
         }
 
 
@@ -428,7 +414,7 @@
                 if (
                     !stockElement
                     && button
-                    && (details.inCart > 0 || details.available <= 0)
+                    && details.available <= 0
                 ) {
                     stockElement = document.createElement('small');
                     stockElement.className = 'size-stock';
