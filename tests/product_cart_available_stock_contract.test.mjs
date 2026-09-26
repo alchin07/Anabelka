@@ -7,7 +7,10 @@ function read(path) {
 }
 
 const cartController = read('app/Controllers/CartController.php');
+const productController = read('app/Controllers/ProductController.php');
 const productView = read('views/product/show.php');
+const productI18n = read('views/partials/product-i18n.php');
+const productTranslator = read('app/Models/ProductInterfaceTranslator.php');
 const colorVariants = read('js/product-color-variants.js');
 const publicHeader = read('views/partials/header.php');
 
@@ -81,6 +84,98 @@ test('variant cart handler also applies legacy availability response', () => {
     );
     assert.match(
         publicHeader,
-        /product-color-variants\.js\?v=3/
+        /product-color-variants\.js\?v=4/
+    );
+});
+
+
+test('product card separates warehouse stock, own cart, and addable quantity', () => {
+    assert.match(
+        productController,
+        /\$product\['stock_on_hand'\]\s*=\s*\$productStockOnHand/
+    );
+    assert.match(
+        productController,
+        /\$product\['cart_quantity'\]\s*=\s*max\(0, \$cartProductQuantity\)/
+    );
+    assert.match(
+        productController,
+        /\$product\['available_stock'\]\s*=\s*\$availableTotal/
+    );
+    assert.match(
+        productController,
+        /'stock_on_hand'\s*=>\s*\$stock/
+    );
+    assert.match(
+        productController,
+        /'in_cart'\s*=>\s*max\(0, \$inCart\)/
+    );
+    assert.match(
+        productController,
+        /'available'\s*=>\s*\$available/
+    );
+
+    assert.match(
+        cartController,
+        /'stock_total'\s*=>\s*\$stockTotal/
+    );
+    assert.match(
+        cartController,
+        /'cart_total'\s*=>\s*/
+    );
+    assert.match(
+        cartController,
+        /'available_total'\s*=>\s*\$availableTotal/
+    );
+    assert.match(
+        cartController,
+        /'stock_sizes'\s*=>\s*\$stockSizes/
+    );
+    assert.match(
+        cartController,
+        /'cart_sizes'\s*=>\s*\$cartSizes/
+    );
+
+    assert.match(
+        productView,
+        /data-stock-label="stock_on_hand"/
+    );
+    assert.match(
+        productView,
+        /data-stock-label="in_your_cart"/
+    );
+    assert.match(
+        productView,
+        /data-stock-label="available_to_add"/
+    );
+
+    assert.match(
+        colorVariants,
+        /stockOnHandMap:\s*new Map\(\)/
+    );
+    assert.match(
+        colorVariants,
+        /cartMap:\s*new Map\(\)/
+    );
+    assert.match(
+        colorVariants,
+        /state\.cartMap\.set\(key, inCart\)/
+    );
+
+    assert.match(
+        productI18n,
+        /window\.AnabelkaProductI18n/
+    );
+    assert.match(
+        productTranslator,
+        /'product\.stock_on_hand'/
+    );
+    assert.match(
+        productTranslator,
+        /'product\.in_your_cart'/
+    );
+    assert.match(
+        productTranslator,
+        /'product\.available_to_add'/
     );
 });
