@@ -326,11 +326,7 @@ class AdminWorkTime
         }
 
         $agreement = self::normalizeCompensationRow($row);
-        $earnings = self::calculateCompensation(
-            $db,
-            $adminUserId,
-            $agreement
-        );
+        $range = self::compensationRange($agreement);
         $activity = [
             'admin_seconds' => 0,
             'public_seconds' => 0,
@@ -343,24 +339,58 @@ class AdminWorkTime
             'last_activity_at' => '',
             'daily' => []
         ];
+        $workError = '';
 
         if (
             class_exists('AdminWorkActivity')
-            && ($earnings['date_from'] ?? '') !== ''
-            && ($earnings['date_to'] ?? '') !== ''
+            && ($range['date_from'] ?? '') !== ''
+            && ($range['date_to'] ?? '') !== ''
         ) {
-            $activity = AdminWorkActivity::rangeSummary(
-                $adminUserId,
-                $earnings['date_from'],
-                $earnings['date_to']
-            );
+            try {
+                $activity = AdminWorkActivity::rangeSummary(
+                    $adminUserId,
+                    $range['date_from'],
+                    $range['date_to']
+                );
+            } catch (Throwable $e) {
+                error_log(
+                    'Admin work contract activity: '
+                    . $e->getMessage()
+                );
+                $workError =
+                    'Статистику робочого часу тимчасово не вдалося завантажити.';
+            }
         }
+
+        $seconds = max(
+            0,
+            (int) ($activity['total_seconds'] ?? 0)
+        );
+        $rateMinor = max(
+            0,
+            (int) ($agreement['hourly_rate_minor'] ?? 0)
+        );
+        $amountMinor = $seconds > 0 && $rateMinor > 0
+            ? intdiv(($seconds * $rateMinor) + 1800, 3600)
+            : 0;
+        $earnings = [
+            'date_from' => (string) ($range['date_from'] ?? ''),
+            'date_to' => (string) ($range['date_to'] ?? ''),
+            'seconds' => $seconds,
+            'amount_minor' => $amountMinor,
+            'currency' => (string) ($agreement['currency'] ?? 'UAH'),
+            'payout_type' => (string) (
+                $agreement['payout_type'] ?? 'monthly'
+            ),
+            'has_rate' => $rateMinor > 0
+        ];
 
         return [
             'has_contract' => true,
             'admin_user_id' => $adminUserId,
             'agreement' => $agreement,
             'earnings' => $earnings,
+            'work_error' => $workError,
             'work' => [
                 'admin_seconds' => max(
                     0,
@@ -378,10 +408,7 @@ class AdminWorkTime
                     0,
                     (int) ($activity['ios_seconds'] ?? 0)
                 ),
-                'total_seconds' => max(
-                    0,
-                    (int) ($activity['total_seconds'] ?? 0)
-                ),
+                'total_seconds' => $seconds,
                 'session_count' => max(
                     0,
                     (int) ($activity['session_count'] ?? 0)
