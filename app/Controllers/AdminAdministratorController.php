@@ -52,8 +52,13 @@ class AdminAdministratorController extends Controller
             try {
                 $workContract = AdminWorkTime::currentAdminContract();
             } catch (Throwable $e) {
+                error_log(
+                    'Admin profile work contract: '
+                    . $e->getMessage()
+                );
                 $workContract = [
-                    'has_contract' => false
+                    'has_contract' => false,
+                    'load_error' => true
                 ];
             }
         }
