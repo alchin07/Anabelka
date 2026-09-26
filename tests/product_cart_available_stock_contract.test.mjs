@@ -8,6 +8,8 @@ function read(path) {
 
 const cartController = read('app/Controllers/CartController.php');
 const productView = read('views/product/show.php');
+const colorVariants = read('js/product-color-variants.js');
+const publicHeader = read('views/partials/header.php');
 
 test('cart add returns authoritative legacy availability after the item is added', () => {
     assert.match(
@@ -56,5 +58,29 @@ test('legacy product page refreshes visible stock from the AJAX response', () =>
     assert.match(
         productView,
         /\[data-product-stock-summary\]/
+    );
+});
+
+
+test('variant cart handler also applies legacy availability response', () => {
+    assert.match(
+        colorVariants,
+        /function applyLegacyAvailability\(availability\)/
+    );
+    assert.match(
+        colorVariants,
+        /applyLegacyAvailability\(data\.availability\)/
+    );
+    assert.match(
+        colorVariants,
+        /const available = stock > 0;/
+    );
+    assert.match(
+        colorVariants,
+        /button\.dataset\.stock = String\(/
+    );
+    assert.match(
+        publicHeader,
+        /product-color-variants\.js\?v=3/
     );
 });
