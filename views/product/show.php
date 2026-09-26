@@ -580,6 +580,142 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
         );
 
 
+    function applyLegacyAvailability(availability) {
+
+        if (
+            !availability
+            || typeof availability !== 'object'
+            || !cartForm
+        ) {
+            return;
+        }
+
+        const sizes =
+            availability.sizes
+            && typeof availability.sizes === 'object'
+                ? availability.sizes
+                : {};
+
+        sizeCheckboxes.forEach(
+            checkbox => {
+
+                const rawStock =
+                    sizes[String(checkbox.value)];
+
+                if (typeof rawStock === 'undefined') {
+                    return;
+                }
+
+                const stock =
+                    Math.max(
+                        0,
+                        Number(rawStock) || 0
+                    );
+
+                const available = stock > 0;
+                const label = checkbox.closest('label');
+                const button = checkbox.nextElementSibling;
+                const stockElement =
+                    button
+                        ? button.querySelector('.size-stock')
+                        : null;
+
+                checkbox.checked = false;
+                checkbox.disabled = !available;
+
+                if (label) {
+                    label.style.cursor =
+                        available
+                            ? 'pointer'
+                            : 'not-allowed';
+                    label.style.opacity =
+                        available ? '1' : '0.45';
+                }
+
+                if (button) {
+                    button.dataset.stock =
+                        String(stock);
+                    button.style.background =
+                        available
+                            ? '#fff'
+                            : '#f3f3f3';
+                    button.style.color =
+                        available
+                            ? 'var(--primary-color)'
+                            : '#888888';
+                    button.style.borderColor =
+                        available
+                            ? 'var(--primary-color)'
+                            : '#aaaaaa';
+                }
+
+                if (stockElement) {
+                    const showQuantity =
+                        stockElement.dataset.showQuantity
+                            === '1';
+
+                    if (!available) {
+                        stockElement.textContent =
+                            'Нет в наличии';
+                        stockElement.style.display =
+                            'inline';
+                    } else if (showQuantity) {
+                        stockElement.textContent =
+                            stock + ' шт.';
+                    }
+                }
+            }
+        );
+
+        const summary =
+            cartForm.querySelector(
+                '[data-product-stock-summary]'
+            );
+
+        if (!summary) {
+            return;
+        }
+
+        const total =
+            Math.max(
+                0,
+                Number(availability.total) || 0
+            );
+
+        const currentText =
+            String(summary.textContent || '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+        const labelMatch =
+            currentText.match(
+                /^(.+?):\s*\d+/u
+            );
+
+        const unitMatch =
+            currentText.match(
+                /\d+\s+(.+)$/u
+            );
+
+        const label =
+            labelMatch
+                ? labelMatch[1].trim()
+                : 'В наличии';
+
+        const unit =
+            unitMatch
+                ? unitMatch[1].trim()
+                : 'шт.';
+
+        summary.textContent =
+            label
+            + ': '
+            + total
+            + ' '
+            + unit;
+    }
+
+
     sizeCheckboxes.forEach((checkbox) => {
         checkbox.addEventListener(
             'change',
@@ -649,22 +785,28 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                     }
 
 
+                    if (data.availability) {
+                        applyLegacyAvailability(
+                            data.availability
+                        );
+                    } else {
+                        sizeCheckboxes.forEach(
+                            checkbox => {
+                                checkbox.checked = false;
+
+                                const button =
+                                    checkbox.nextElementSibling;
+
+                                button.style.background = '#fff';
+                                button.style.color =
+                                    'var(--primary-color)';
+                            }
+                        );
+                    }
+
+
                     showSiteMessage(
                         '✓ Товар добавлен в корзину'
-                    );
-
-
-                    sizeCheckboxes.forEach(
-                        checkbox => {
-                            checkbox.checked = false;
-
-                            const button =
-                                checkbox.nextElementSibling;
-
-                            button.style.background = '#fff';
-                            button.style.color =
-                                'var(--primary-color)';
-                        }
                     );
                 })
                 .catch(() => {
