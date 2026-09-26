@@ -140,9 +140,16 @@
 
             <?php
 
+$availabilityProduct = $product;
+$availabilityProduct['stock'] = (int) (
+    $product['stock_on_hand']
+    ?? $product['stock']
+    ?? 0
+);
+
 $isAvailable =
     Product::isAvailable(
-        $product
+        $availabilityProduct
     );
 
 ?>
@@ -443,8 +450,28 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                 <?php if ($attribute['attribute_slug'] === 'size'): ?>
 
                                     <?php
-                                    $sizeStock = (int) ($attribute['stock'] ?? 0);
-                                    $isAvailable = $sizeStock > 0;
+                                    $sizeStockOnHand = max(
+                                        0,
+                                        (int) (
+                                            $attribute['stock_on_hand']
+                                            ?? $attribute['stock']
+                                            ?? 0
+                                        )
+                                    );
+                                    $sizeInCart = max(
+                                        0,
+                                        (int) ($attribute['cart_quantity'] ?? 0)
+                                    );
+                                    $sizeAvailable = max(
+                                        0,
+                                        (int) (
+                                            $attribute['available_stock']
+                                            ?? $attribute['stock']
+                                            ?? 0
+                                        )
+                                    );
+                                    $sizeStock = $sizeAvailable;
+                                    $isAvailable = $sizeAvailable > 0;
                                     ?>
 
                                     <label
@@ -464,7 +491,9 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
 
                                         <span
                                             class="size-button"
-                                            data-stock="<?= $sizeStock ?>"
+                                            data-stock="<?= $sizeAvailable ?>"
+                                            data-stock-on-hand="<?= $sizeStockOnHand ?>"
+                                            data-cart-quantity="<?= $sizeInCart ?>"
                                             style="
                                                 display:inline-block;
                                                 padding:9px 15px;
@@ -478,22 +507,29 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                         >
                                             <?= htmlspecialchars($attribute['value']) ?>
 
-                                            <?php if (!empty($product['show_stock_quantity'])): ?>
+                                            <?php if (
+                                                !empty($product['show_stock_quantity'])
+                                                || $sizeInCart > 0
+                                                || $sizeAvailable <= 0
+                                            ): ?>
                                                 <small
                                                     class="size-stock"
-                                                    data-show-quantity="1"
+                                                    data-show-quantity="<?= !empty($product['show_stock_quantity']) ? '1' : '0' ?>"
+                                                    data-stock-on-hand="<?= $sizeStockOnHand ?>"
+                                                    data-cart-quantity="<?= $sizeInCart ?>"
+                                                    data-available="<?= $sizeAvailable ?>"
                                                     style="margin-left:5px;font-size:11px;font-weight:normal;"
                                                 >
-                                                    <?= $sizeStock > 0
-                                                        ? $sizeStock . ' шт.'
-                                                        : 'Нет в наличии' ?>
-                                                </small>
-                                            <?php elseif ($sizeStock <= 0): ?>
-                                                <small
-                                                    class="size-stock"
-                                                    style="margin-left:5px;font-size:11px;font-weight:normal;"
-                                                >
-                                                    Нет в наличии
+                                                    <?php if (!empty($product['show_stock_quantity'])): ?>
+                                                        На складе <?= $sizeStockOnHand ?> шт.
+                                                        · В вашей корзине <?= $sizeInCart ?> шт.
+                                                        · Доступно добавить <?= $sizeAvailable ?> шт.
+                                                    <?php elseif ($sizeInCart > 0): ?>
+                                                        В вашей корзине <?= $sizeInCart ?> шт.
+                                                        · Доступно добавить <?= $sizeAvailable ?> шт.
+                                                    <?php else: ?>
+                                                        Нет в наличии
+                                                    <?php endif; ?>
                                                 </small>
                                             <?php endif; ?>
                                         </span>
@@ -507,10 +543,56 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                 <?php endif; ?>
 
 
-                <p data-product-stock-summary style="padding: 0 15px 15px;">
-                    В наличии:
-                    <?= (int) $product['stock'] ?> шт.
-                </p>
+                <?php
+                $stockOnHand = max(
+                    0,
+                    (int) (
+                        $product['stock_on_hand']
+                        ?? $product['stock']
+                        ?? 0
+                    )
+                );
+                $cartQuantity = max(
+                    0,
+                    (int) ($product['cart_quantity'] ?? 0)
+                );
+                $availableToAdd = max(
+                    0,
+                    (int) (
+                        $product['available_stock']
+                        ?? $product['stock']
+                        ?? 0
+                    )
+                );
+                ?>
+
+                <div
+                    data-product-stock-summary
+                    data-stock-on-hand="<?= $stockOnHand ?>"
+                    data-cart-quantity="<?= $cartQuantity ?>"
+                    data-available="<?= $availableToAdd ?>"
+                    style="
+                        padding: 0 15px 15px;
+                        display: grid;
+                        gap: 4px;
+                    "
+                >
+                    <div>
+                        <span data-stock-label="stock_on_hand">На складе</span>:
+                        <strong data-stock-value="stock_on_hand"><?= $stockOnHand ?></strong>
+                        <span data-stock-unit>шт.</span>
+                    </div>
+                    <div>
+                        <span data-stock-label="in_your_cart">В вашей корзине</span>:
+                        <strong data-stock-value="in_your_cart"><?= $cartQuantity ?></strong>
+                        <span data-stock-unit>шт.</span>
+                    </div>
+                    <div>
+                        <span data-stock-label="available_to_add">Доступно добавить</span>:
+                        <strong data-stock-value="available_to_add"><?= $availableToAdd ?></strong>
+                        <span data-stock-unit>шт.</span>
+                    </div>
+                </div>
 
 
                 <div style="padding: 0 15px 20px;">
