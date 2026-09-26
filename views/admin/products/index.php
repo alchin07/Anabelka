@@ -61,35 +61,6 @@ foreach ($categoryForest as $nodes) {
     $appendCategoryOptions($nodes, 0);
 }
 
-$categoryThumbnailData = [];
-foreach ($categories as $category) {
-    $categoryId = (int) ($category['id'] ?? 0);
-
-    if ($categoryId <= 0) {
-        continue;
-    }
-
-    $categoryThumbnailData[(string) $categoryId] = [
-        'name' => (string) ($category['name'] ?? ''),
-        'image' => (string) ($category['image'] ?? ''),
-        'thumbnail_image' =>
-            (string) ($category['thumbnail_image'] ?? ''),
-        'candidates' => is_array(
-            $category['thumbnail_candidates'] ?? null
-        ) ? $category['thumbnail_candidates'] : []
-    ];
-}
-
-$categoryThumbnailJson = json_encode(
-    $categoryThumbnailData,
-    JSON_UNESCAPED_UNICODE
-        | JSON_UNESCAPED_SLASHES
-        | JSON_HEX_TAG
-        | JSON_HEX_AMP
-        | JSON_HEX_APOS
-        | JSON_HEX_QUOT
-);
-$categoryCsrfToken = (string) ($categoryCsrfToken ?? '');
 $productsUrl = function (array $changes = []) use ($filters) {
     $values = array_merge($filters, $changes);
     $query = [];
@@ -390,7 +361,6 @@ require __DIR__ . '/../../partials/header.php';
                                 id="product-edit-category"
                                 required
                                 data-anabelka-select
-                                data-category-thumbnail-select
                             >
                                 <option value="">Оберіть категорію</option>
                                 <?php foreach ($categoryOptions as $category): ?>
@@ -400,7 +370,6 @@ require __DIR__ . '/../../partials/header.php';
                                         data-anabelka-rich="1"
                                         data-anabelka-label="<?= $escape($category['name']) ?>"
                                         data-anabelka-thumbnail="<?= $escape($category['thumbnail_image'] ?? '') ?>"
-                                        data-anabelka-thumbnail-edit="1"
                                         data-anabelka-depth="<?= (int) $depth ?>"
                                     >
                                         <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
@@ -831,16 +800,9 @@ require __DIR__ . '/../../partials/header.php';
 </template>
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
-<script id="category-thumbnail-data" type="application/json"><?= $categoryThumbnailJson ?: '{}' ?></script>
-<input
-    type="hidden"
-    id="category-thumbnail-csrf"
-    value="<?= $escape($categoryCsrfToken) ?>"
->
 <div id="site-message" class="site-message" role="status"></div>
 <script src="/Anabelka/js/admin-products.js?v=10"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
-<script src="/Anabelka/js/admin-product-category-thumbnails.js?v=4"></script>
 </body>
 </html>
