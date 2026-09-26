@@ -307,7 +307,7 @@ require __DIR__ . '/../../partials/header.php';
                                 action="/Anabelka/admin/products/duplicate"
                                 data-product-duplicate-form
                             >
-                                <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                                <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
                                 <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
                                 <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
                                 <input type="hidden" name="filter_category_id" value="<?= (int) $filters['category_id'] ?>">
@@ -321,7 +321,7 @@ require __DIR__ . '/../../partials/header.php';
                                 data-product-toggle-form
                                 data-next-active="<?= $isActive ? '0' : '1' ?>"
                             >
-                                <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+                                <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
                                 <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
                                 <input type="hidden" name="is_active" value="<?= $isActive ? '0' : '1' ?>">
                                 <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
@@ -368,7 +368,7 @@ require __DIR__ . '/../../partials/header.php';
             method="POST"
             enctype="multipart/form-data"
         >
-            <input type="hidden" name="csrf_token" value="<?= $escape($csrfToken) ?>">
+            <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
             <input type="hidden" name="product_id" id="product-edit-id" value="0">
 
             <div class="product-editor-body">
