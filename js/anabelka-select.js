@@ -37,7 +37,7 @@
         );
     }
 
-    function close(instance, restoreFocus, options)
+    function close(instance, restoreFocus)
     {
         if (!instance || instance.list.hidden) {
             return;
@@ -386,9 +386,7 @@
             trigger: trigger,
             triggerLabel: triggerLabel,
             list: list,
-            observer: null,
-            categoryHistoryToken: 0,
-            categoryHistoryArmed: false
+            observer: null
         };
 
         instances.set(select, instance);
