@@ -9,6 +9,7 @@
     const uploadPreview = document.getElementById('product-upload-preview');
     const productIdField = document.getElementById('product-edit-id');
     const stockModeField = document.getElementById('product-edit-stock-mode');
+    const totalStockField = document.getElementById('product-edit-stock');
 
     if (!form || !editor || !sizeList || !imageList || !productIdField) {
         return;
@@ -512,6 +513,15 @@
 
         if (totalLabel.textContent !== grandTotalText) {
             totalLabel.textContent = grandTotalText;
+        }
+
+        if (
+            totalStockField
+            && stockModeField
+            && stockModeField.value === 'by_size'
+            && totalStockField.value !== String(total)
+        ) {
+            totalStockField.value = String(total);
         }
 
         syncLegacySizeTotals(sizeTotals);
