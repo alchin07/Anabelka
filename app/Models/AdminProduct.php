@@ -151,18 +151,7 @@ class AdminProduct
 
     public static function categories()
     {
-        $categories = Category::getAllForAdmin();
-        $categoryIds = array_column($categories, 'id');
-        $candidates = Category::thumbnailCandidatesForAdmin($categoryIds);
-
-        foreach ($categories as &$category) {
-            $categoryId = (int) ($category['id'] ?? 0);
-            $category['thumbnail_candidates'] =
-                $candidates[$categoryId] ?? [];
-        }
-        unset($category);
-
-        return $categories;
+        return Category::getAllForAdmin();
     }
 
 
