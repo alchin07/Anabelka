@@ -182,6 +182,65 @@
         }
 
 
+        function applyLegacyAvailability(availability)
+        {
+            if (
+                state.usesVariantStock
+                || !availability
+                || typeof availability !== 'object'
+            ) {
+                return false;
+            }
+
+            const sizes = availability.sizes
+                && typeof availability.sizes === 'object'
+                ? availability.sizes
+                : {};
+
+            sizeCheckboxes.forEach(function (checkbox) {
+                const rawStock = sizes[String(checkbox.value)];
+
+                if (typeof rawStock === 'undefined') {
+                    return;
+                }
+
+                const button = checkbox.nextElementSibling;
+
+                if (button) {
+                    button.dataset.stock = String(
+                        Math.max(0, Number(rawStock) || 0)
+                    );
+                }
+            });
+
+            const summary = cartForm.querySelector(
+                '[data-product-stock-summary]'
+            );
+
+            if (summary) {
+                const total = Math.max(
+                    0,
+                    Number(availability.total) || 0
+                );
+                const currentText = String(summary.textContent || '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                const labelMatch = currentText.match(/^(.+?):\s*\d+/u);
+                const unitMatch = currentText.match(/\d+\s+(.+)$/u);
+                const label = labelMatch
+                    ? labelMatch[1].trim()
+                    : 'В наличии';
+                const unit = unitMatch
+                    ? unitMatch[1].trim()
+                    : 'шт.';
+
+                summary.textContent = label + ': ' + total + ' ' + unit;
+            }
+
+            return true;
+        }
+
+
         function refreshSizes()
         {
             sizeCheckboxes.forEach(function (checkbox) {
@@ -191,7 +250,7 @@
                     ? button.querySelector('.size-stock')
                     : null;
                 const stock = stockForSize(Number(checkbox.value));
-                const available = !state.usesVariantStock || stock > 0;
+                const available = stock > 0;
 
                 if (button) {
                     button.dataset.stock = String(stock);
@@ -457,7 +516,14 @@
                     return;
                 }
 
-                if (state.usesVariantStock && state.selectedColor) {
+                const appliedLegacyAvailability =
+                    applyLegacyAvailability(data.availability);
+
+                if (
+                    !appliedLegacyAvailability
+                    && state.usesVariantStock
+                    && state.selectedColor
+                ) {
                     selectedSizes.forEach(function (checkbox) {
                         const key = stockKey(
                             checkbox.value,
