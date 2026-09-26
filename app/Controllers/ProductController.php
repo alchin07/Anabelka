@@ -99,6 +99,11 @@ class ProductController extends Controller
             }
         }
 
+        $productStockOnHand = max(
+            0,
+            (int) ($product['stock'] ?? 0)
+        );
+
         if ($stockMode === 'by_size') {
             $availableTotal = 0;
 
@@ -108,28 +113,51 @@ class ProductController extends Controller
                 }
 
                 $sizeId = (int) ($attribute['value_id'] ?? 0);
-                $stock = (int) ($attribute['stock'] ?? 0);
-                $inCart = (int) ($cartSizeQuantities[$sizeId] ?? 0);
-                $available = max(0, $stock - $inCart);
+                $stockOnHand = max(
+                    0,
+                    (int) ($attribute['stock'] ?? 0)
+                );
+                $inCart = max(
+                    0,
+                    (int) ($cartSizeQuantities[$sizeId] ?? 0)
+                );
+                $available = max(0, $stockOnHand - $inCart);
+
+                $attribute['stock_on_hand'] = $stockOnHand;
+                $attribute['cart_quantity'] = $inCart;
+                $attribute['available_stock'] = $available;
                 $attribute['stock'] = $available;
                 $availableTotal += $available;
             }
             unset($attribute);
-            $product['stock'] = $availableTotal;
         } else {
             $availableTotal = max(
                 0,
-                (int) ($product['stock'] ?? 0) - $cartProductQuantity
+                $productStockOnHand - $cartProductQuantity
             );
-            $product['stock'] = $availableTotal;
 
             foreach ($attributes as &$attribute) {
-                if (($attribute['attribute_slug'] ?? '') === 'size') {
-                    $attribute['stock'] = $availableTotal;
+                if (($attribute['attribute_slug'] ?? '') !== 'size') {
+                    continue;
                 }
+
+                $sizeId = (int) ($attribute['value_id'] ?? 0);
+
+                $attribute['stock_on_hand'] = $productStockOnHand;
+                $attribute['cart_quantity'] = max(
+                    0,
+                    (int) ($cartSizeQuantities[$sizeId] ?? 0)
+                );
+                $attribute['available_stock'] = $availableTotal;
+                $attribute['stock'] = $availableTotal;
             }
             unset($attribute);
         }
+
+        $product['stock_on_hand'] = $productStockOnHand;
+        $product['cart_quantity'] = max(0, $cartProductQuantity);
+        $product['available_stock'] = $availableTotal;
+        $product['stock'] = $availableTotal;
 
         $prices = Product::getPricesByRanks($productId);
         $currentRankSlug = Product::getCurrentRankSlug();
@@ -306,13 +334,18 @@ class ProductController extends Controller
                 }
             }
 
+            $available = max(0, $stock - $inCart);
+
             $availableRows[] = [
                 'size_id' => $sizeId,
                 'size_name' => (string) ($row['size_name'] ?? ''),
                 'color_key' => $colorKey,
                 'color_name' => (string) ($row['color_name'] ?? ''),
                 'color_hex' => (string) ($row['color_hex'] ?? ''),
-                'stock' => max(0, $stock - $inCart)
+                'stock_on_hand' => $stock,
+                'in_cart' => max(0, $inCart),
+                'available' => $available,
+                'stock' => $available
             ];
         }
 
