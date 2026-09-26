@@ -122,33 +122,21 @@ document.addEventListener('DOMContentLoaded', function () {
             );
             const showQuantity = element.dataset.showQuantity === '1';
             const unit = t.pcs || 'шт.';
-            let parts = [];
 
             if (showQuantity) {
-                parts = [
-                    labels.stock_on_hand + ' ' + stockOnHand + ' ' + unit,
-                    labels.in_your_cart + ' ' + inCart + ' ' + unit,
-                    labels.available_to_add + ' ' + available + ' ' + unit
-                ];
-            } else if (inCart > 0) {
-                parts = [
-                    labels.in_your_cart + ' ' + inCart + ' ' + unit,
-                    labels.available_to_add + ' ' + available + ' ' + unit
-                ];
-            } else if (available <= 0) {
+                element.textContent = available + ' ' + unit;
+                element.style.display = 'inline';
+                return;
+            }
+
+            if (available <= 0) {
                 element.textContent = t.out_of_stock || 'Нет в наличии';
                 element.style.display = 'inline';
                 return;
             }
 
-            if (parts.length === 0) {
-                element.textContent = '';
-                element.style.display = 'none';
-                return;
-            }
-
-            element.textContent = parts.join(' · ');
-            element.style.display = 'inline';
+            element.textContent = '';
+            element.style.display = 'none';
         });
     }
 
