@@ -449,7 +449,6 @@ require __DIR__ . '/../../partials/header.php';
                     name="parent_id"
                     id="category-move-parent"
                     data-anabelka-select
-                    data-category-thumbnail-select
                 ></select>
             </div>
             <div class="category-form-group">
@@ -493,14 +492,8 @@ require __DIR__ . '/../../partials/header.php';
 
 <div id="site-message" class="site-message anabelka-notify" role="status" aria-live="polite"></div>
 <script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
-<input
-    type="hidden"
-    id="category-thumbnail-csrf"
-    value="<?= $escape($csrfToken) ?>"
->
 <script src="/Anabelka/js/anabelka-notify.js?v=1"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-product-category-thumbnails.js?v=5"></script>
-<script src="/Anabelka/js/admin-categories.js?v=9"></script>
+<script src="/Anabelka/js/admin-categories.js?v=10"></script>
 </body>
 </html>
