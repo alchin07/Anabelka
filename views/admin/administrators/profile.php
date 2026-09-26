@@ -22,6 +22,8 @@ $workSummary = is_array($workContract['work'] ?? null)
 $workDaily = is_array($workContract['daily'] ?? null)
     ? $workContract['daily']
     : [];
+$workError = trim((string) ($workContract['work_error'] ?? ''));
+$workLoadError = !empty($workContract['load_error']);
 
 $formatDuration = static function ($seconds) {
     $seconds = max(0, (int) $seconds);
@@ -80,7 +82,7 @@ $payoutLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адмін-панель · Профіль') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-profile.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-profile.css?v=5">
 </head>
 <body>
 
@@ -256,6 +258,13 @@ $payoutLabels = [
                 </span>
             </div>
 
+            <?php if ($workError !== ''): ?>
+                <div class="admin-profile-contract-warning" role="status">
+                    <?= htmlspecialchars($workError) ?>
+                    Умови контракту вище залишаються чинними та доступними для перегляду.
+                </div>
+            <?php endif; ?>
+
             <?php if (!empty($workDaily)): ?>
                 <details class="admin-profile-contract-days">
                     <summary>
@@ -325,6 +334,24 @@ $payoutLabels = [
                 Умови контракту змінюються лише Розробником або Власником.
                 У цьому профілі вони доступні тільки для перегляду.
             </p>
+        </section>
+    <?php else: ?>
+        <section class="admin-profile-card admin-profile-work-contract">
+            <div class="admin-profile-card-head">
+                <div>
+                    <span class="admin-profile-contract-kicker">Робота</span>
+                    <h3>Мій робочий контракт</h3>
+                    <p>
+                        <?php if ($workLoadError): ?>
+                            Умови контракту тимчасово не вдалося завантажити.
+                            Оновіть сторінку або зверніться до Розробника чи Власника.
+                        <?php else: ?>
+                            Для цього облікового запису умови робочого контракту
+                            ще не задані Розробником або Власником.
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
         </section>
     <?php endif; ?>
 
