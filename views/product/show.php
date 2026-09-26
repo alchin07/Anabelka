@@ -672,35 +672,97 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
             return;
         }
 
-        const sizes =
-            availability.sizes
-            && typeof availability.sizes === 'object'
-                ? availability.sizes
+        const ui =
+            window.AnabelkaProductI18n || {};
+
+        const availableSizes =
+            availability.available_sizes
+            && typeof availability.available_sizes === 'object'
+                ? availability.available_sizes
+                : (availability.sizes || {});
+
+        const stockSizes =
+            availability.stock_sizes
+            && typeof availability.stock_sizes === 'object'
+                ? availability.stock_sizes
+                : {};
+
+        const cartSizes =
+            availability.cart_sizes
+            && typeof availability.cart_sizes === 'object'
+                ? availability.cart_sizes
                 : {};
 
         sizeCheckboxes.forEach(
             checkbox => {
 
-                const rawStock =
-                    sizes[String(checkbox.value)];
+                const key =
+                    String(checkbox.value);
 
-                if (typeof rawStock === 'undefined') {
+                const rawAvailable =
+                    availableSizes[key];
+
+                if (typeof rawAvailable === 'undefined') {
                     return;
                 }
 
-                const stock =
+                const availableStock =
                     Math.max(
                         0,
-                        Number(rawStock) || 0
+                        Number(rawAvailable) || 0
                     );
 
-                const available = stock > 0;
-                const label = checkbox.closest('label');
-                const button = checkbox.nextElementSibling;
-                const stockElement =
+                const stockOnHand =
+                    Math.max(
+                        0,
+                        Number(stockSizes[key]) || 0
+                    );
+
+                const inCart =
+                    Math.max(
+                        0,
+                        Number(cartSizes[key]) || 0
+                    );
+
+                const available =
+                    availableStock > 0;
+
+                const label =
+                    checkbox.closest('label');
+
+                const button =
+                    checkbox.nextElementSibling;
+
+                let stockElement =
                     button
                         ? button.querySelector('.size-stock')
                         : null;
+
+                if (
+                    !stockElement
+                    && button
+                    && (inCart > 0 || !available)
+                ) {
+                    stockElement =
+                        document.createElement('small');
+
+                    stockElement.className =
+                        'size-stock';
+
+                    stockElement.dataset.showQuantity =
+                        '0';
+
+                    stockElement.style.marginLeft =
+                        '5px';
+
+                    stockElement.style.fontSize =
+                        '11px';
+
+                    stockElement.style.fontWeight =
+                        'normal';
+
+                    button.appendChild(stockElement);
+                }
 
                 checkbox.checked = false;
                 checkbox.disabled = !available;
@@ -710,21 +772,31 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                         available
                             ? 'pointer'
                             : 'not-allowed';
+
                     label.style.opacity =
                         available ? '1' : '0.45';
                 }
 
                 if (button) {
                     button.dataset.stock =
-                        String(stock);
+                        String(availableStock);
+
+                    button.dataset.stockOnHand =
+                        String(stockOnHand);
+
+                    button.dataset.cartQuantity =
+                        String(inCart);
+
                     button.style.background =
                         available
                             ? '#fff'
                             : '#f3f3f3';
+
                     button.style.color =
                         available
                             ? 'var(--primary-color)'
                             : '#888888';
+
                     button.style.borderColor =
                         available
                             ? 'var(--primary-color)'
@@ -732,18 +804,70 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                 }
 
                 if (stockElement) {
+                    const unit =
+                        ui.pcs || 'шт.';
+
                     const showQuantity =
                         stockElement.dataset.showQuantity
                             === '1';
 
-                    if (!available) {
+                    stockElement.dataset.stockOnHand =
+                        String(stockOnHand);
+
+                    stockElement.dataset.cartQuantity =
+                        String(inCart);
+
+                    stockElement.dataset.available =
+                        String(availableStock);
+
+                    if (showQuantity) {
                         stockElement.textContent =
-                            'Нет в наличии';
+                            (ui.stock_on_hand || 'На складе')
+                            + ' '
+                            + stockOnHand
+                            + ' '
+                            + unit
+                            + ' · '
+                            + (ui.in_your_cart || 'В вашей корзине')
+                            + ' '
+                            + inCart
+                            + ' '
+                            + unit
+                            + ' · '
+                            + (ui.available_to_add || 'Доступно добавить')
+                            + ' '
+                            + availableStock
+                            + ' '
+                            + unit;
+
                         stockElement.style.display =
                             'inline';
-                    } else if (showQuantity) {
+                    } else if (inCart > 0) {
                         stockElement.textContent =
-                            stock + ' шт.';
+                            (ui.in_your_cart || 'В вашей корзине')
+                            + ' '
+                            + inCart
+                            + ' '
+                            + unit
+                            + ' · '
+                            + (ui.available_to_add || 'Доступно добавить')
+                            + ' '
+                            + availableStock
+                            + ' '
+                            + unit;
+
+                        stockElement.style.display =
+                            'inline';
+                    } else if (!available) {
+                        stockElement.textContent =
+                            ui.out_of_stock
+                            || 'Нет в наличии';
+
+                        stockElement.style.display =
+                            'inline';
+                    } else {
+                        stockElement.textContent = '';
+                        stockElement.style.display = 'none';
                     }
                 }
             }
@@ -758,43 +882,68 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
             return;
         }
 
-        const total =
+        const stockTotal =
             Math.max(
                 0,
-                Number(availability.total) || 0
+                Number(
+                    availability.stock_total
+                    ?? summary.dataset.stockOnHand
+                    ?? 0
+                )
             );
 
-        const currentText =
-            String(summary.textContent || '')
-                .replace(/\s+/g, ' ')
-                .trim();
-
-        const labelMatch =
-            currentText.match(
-                /^(.+?):\s*\d+/u
+        const cartTotal =
+            Math.max(
+                0,
+                Number(
+                    availability.cart_total
+                    ?? summary.dataset.cartQuantity
+                    ?? 0
+                )
             );
 
-        const unitMatch =
-            currentText.match(
-                /\d+\s+(.+)$/u
+        const availableTotal =
+            Math.max(
+                0,
+                Number(
+                    availability.available_total
+                    ?? availability.total
+                    ?? summary.dataset.available
+                    ?? 0
+                )
             );
 
-        const label =
-            labelMatch
-                ? labelMatch[1].trim()
-                : 'В наличии';
+        summary.dataset.stockOnHand =
+            String(stockTotal);
 
-        const unit =
-            unitMatch
-                ? unitMatch[1].trim()
-                : 'шт.';
+        summary.dataset.cartQuantity =
+            String(cartTotal);
 
-        summary.textContent =
-            label
-            + ': '
-            + total
-            + ' '
-            + unit;
+        summary.dataset.available =
+            String(availableTotal);
+
+        const values = {
+            stock_on_hand: stockTotal,
+            in_your_cart: cartTotal,
+            available_to_add: availableTotal
+        };
+
+        Object.entries(values).forEach(
+            function (entry) {
+
+                const element =
+                    summary.querySelector(
+                        '[data-stock-value="'
+                        + entry[0]
+                        + '"]'
+                    );
+
+                if (element) {
+                    element.textContent =
+                        String(entry[1]);
+                }
+            }
+        );
     }
 
 
