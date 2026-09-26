@@ -85,7 +85,7 @@ assert.match(view, /Сесій/);
 assert.match(view, /Активних днів/);
 assert.match(view, /Робочий час по днях/);
 assert.match(view, /Умови контракту змінюються лише Розробником або Власником/);
-assert.match(view, /admin-profile\\.css\\?v=5/);
+assert.match(view, /admin-profile\.css\?v=5/);
 
 const contractStart = view.indexOf(
     'admin-profile-card admin-profile-work-contract'
