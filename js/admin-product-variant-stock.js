@@ -934,7 +934,7 @@
                     productIdField.value = String(productId);
                 }
 
-                const csrf = form.querySelector('input[name="csrf_token"]');
+                const csrf = form.querySelector('input[name="_csrf"]');
                 const rows = matrixRows();
                 const shouldSaveMatrix = hasStoredMatrix || matrixTouched;
 
@@ -945,7 +945,7 @@
                     && shouldSaveMatrix
                 ) {
                     const payload = new FormData();
-                    payload.append('csrf_token', csrf.value);
+                    payload.append('_csrf', csrf.value);
                     payload.append('product_id', String(productId));
                     payload.append('variant_stock_json', JSON.stringify(rows));
 
