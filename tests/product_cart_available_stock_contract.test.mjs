@@ -33,7 +33,7 @@ test('cart add returns authoritative legacy availability after the item is added
     );
     assert.match(
         cartController,
-        /'sizes'\s*=>\s*\$sizeStocks/
+        /'sizes'\s*=>\s*\$availableSizes/
     );
 });
 
@@ -76,7 +76,7 @@ test('variant cart handler also applies legacy availability response', () => {
     );
     assert.match(
         colorVariants,
-        /const available = stock > 0;/
+        /const available = details\.available > 0;/
     );
     assert.match(
         colorVariants,
@@ -84,7 +84,7 @@ test('variant cart handler also applies legacy availability response', () => {
     );
     assert.match(
         publicHeader,
-        /product-color-variants\.js\?v=4/
+        /product-color-variants\.js\?v=5/
     );
 });
 
@@ -177,5 +177,25 @@ test('product card separates warehouse stock, own cart, and addable quantity', (
     assert.match(
         productTranslator,
         /'product\.available_to_add'/
+    );
+});
+
+
+test('size button stays compact while detailed stock remains below', () => {
+    assert.match(
+        productView,
+        /<\?= \$sizeAvailable \?> шт\./
+    );
+    assert.match(
+        colorVariants,
+        /details\.available \+ ' ' \+ unit/
+    );
+    assert.match(
+        productI18n,
+        /element\.textContent = available \+ ' ' \+ unit/
+    );
+    assert.match(
+        productView,
+        /data-stock-label="stock_on_hand"[\s\S]*data-stock-label="in_your_cart"[\s\S]*data-stock-label="available_to_add"/
     );
 });
