@@ -593,21 +593,29 @@ class AdminWorkTime
 
     private static function normalizeCompensationRow(array $row)
     {
+        $currency = strtoupper(
+            trim((string) ($row['currency'] ?? 'UAH'))
+        );
+
+        if (!in_array($currency, ['UAH', 'EUR', 'USD', 'PLN'], true)) {
+            $currency = 'UAH';
+        }
+
+        $payoutType = trim(
+            (string) ($row['payout_type'] ?? 'monthly')
+        );
+
+        if (!in_array($payoutType, ['one_time', 'weekly', 'monthly'], true)) {
+            $payoutType = 'monthly';
+        }
+
         return [
             'hourly_rate_minor' => max(
                 0,
                 (int) ($row['hourly_rate_minor'] ?? 0)
             ),
-            'currency' => in_array(
-                strtoupper((string) ($row['currency'] ?? 'UAH')),
-                ['UAH', 'EUR', 'USD', 'PLN'],
-                true
-            ) ? strtoupper((string) ($row['currency'] ?? 'UAH')) : 'UAH',
-            'payout_type' => in_array(
-                (string) ($row['payout_type'] ?? 'monthly'),
-                ['one_time', 'weekly', 'monthly'],
-                true
-            ) ? (string) $row['payout_type'] : 'monthly',
+            'currency' => $currency,
+            'payout_type' => $payoutType,
             'one_time_from' => trim(
                 (string) ($row['one_time_from'] ?? '')
             ),
