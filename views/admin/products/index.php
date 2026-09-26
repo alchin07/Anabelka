@@ -176,12 +176,20 @@ require __DIR__ . '/../../partials/header.php';
 
         <label>
             <span class="visually-hidden">Категорія</span>
-            <select name="category_id">
+            <select
+                name="category_id"
+                id="product-filter-category"
+                data-anabelka-select
+            >
                 <option value="0">Усі категорії</option>
                 <?php foreach ($categoryOptions as $category): ?>
                     <?php $depth = (int) ($category['_depth'] ?? 0); ?>
                     <option
                         value="<?= (int) $category['id'] ?>"
+                        data-anabelka-rich="1"
+                        data-anabelka-label="<?= $escape($category['name']) ?>"
+                        data-anabelka-thumbnail="<?= $escape($category['thumbnail_image'] ?? '') ?>"
+                        data-anabelka-depth="<?= $depth ?>"
                         <?= $filters['category_id'] === (int) $category['id'] ? 'selected' : '' ?>
                     >
                         <?= str_repeat('— ', $depth) ?><?= $escape($category['name']) ?>
