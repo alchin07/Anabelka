@@ -233,6 +233,42 @@
     }
 
 
+    function validateThumbnailFile(file)
+    {
+        if (!(file instanceof File)) {
+            return 'Фото не вибрано.';
+        }
+
+        if (file.size > 8388608) {
+            return 'Фото має бути не більше 8 МБ.';
+        }
+
+        if (!/^image\/(jpeg|png|webp)$/i.test(file.type || '')) {
+            return 'Підтримуються JPG, PNG та WebP.';
+        }
+
+        return '';
+    }
+
+
+    async function uploadCategoryThumbnail(categoryId, file)
+    {
+        const data = new FormData();
+
+        data.append('_csrf', csrfToken());
+        data.append('category_id', String(categoryId));
+        data.append('image', '');
+        data.append('thumbnail_file', file, file.name);
+
+        const result = await request(
+            '/Anabelka/admin/categories/thumbnail',
+            data
+        );
+
+        return result.thumbnail || {};
+    }
+
+
     function submitAndReload(form, submitButton, returnUrl)
     {
         return async function (event) {
@@ -503,14 +539,8 @@
             }
 
             const categoryId = Number(editId ? editId.value : 0);
-            const api = window.AnabelkaCategoryThumbnail;
 
-            if (
-                categoryId <= 0
-                || !api
-                || typeof api.save !== 'function'
-                || typeof api.validateFile !== 'function'
-            ) {
+            if (categoryId <= 0) {
                 showMessage(
                     'Завантаження мініатюри зараз недоступне.',
                     true
@@ -519,7 +549,7 @@
                 return;
             }
 
-            const validationError = api.validateFile(file);
+            const validationError = validateThumbnailFile(file);
 
             if (validationError !== '') {
                 showMessage(validationError, true);
@@ -530,7 +560,10 @@
             thumbnailUpload.disabled = true;
 
             try {
-                const stored = await api.save(categoryId, '', file);
+                const stored = await uploadCategoryThumbnail(
+                    categoryId,
+                    file
+                );
                 const category = categoryById.get(categoryId);
 
                 if (category) {
@@ -946,7 +979,6 @@
                     categoryPath(candidate);
                 option.dataset.anabelkaThumbnail =
                     String(candidate.thumbnail_image || '');
-                option.dataset.anabelkaThumbnailEdit = '1';
                 option.dataset.anabelkaDepth =
                     String(row.depth || 0);
                 moveParent.appendChild(option);
@@ -983,33 +1015,6 @@
         );
     }
 
-
-    document.addEventListener(
-        'anabelka:category-thumbnail-updated',
-        function (event) {
-            const detail = event.detail || {};
-            const category = categoryById.get(
-                Number(detail.categoryId || 0)
-            );
-
-            if (!category) {
-                return;
-            }
-
-            category.image = String(detail.image || '');
-            category.thumbnail_image = String(
-                detail.thumbnailImage || ''
-            );
-
-            if (
-                editId
-                && Number(editId.value || 0)
-                    === Number(detail.categoryId || 0)
-            ) {
-                renderThumbnailEditor(category);
-            }
-        }
-    );
 
 
     const deleteModal = document.getElementById('category-delete-modal');
