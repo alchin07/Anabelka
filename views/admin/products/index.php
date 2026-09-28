@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=5">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=6">
 </head>
 <body>
 
