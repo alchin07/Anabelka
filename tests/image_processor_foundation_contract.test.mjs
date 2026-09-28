@@ -49,9 +49,9 @@ assert.match(
     client,
     /ANABELKA_IMAGE_PROCESSOR_URL/
 );
-assert.match(
-    client,
-    /127\\\.0\\\.0\\\.1\|localhost/
+assert.equal(
+    client.includes('127\\\\.0\\\\.0\\\\.1|localhost'),
+    true
 );
 
 assert.match(
@@ -73,6 +73,7 @@ assert.match(server, /products/);
 assert.match(server, /\.\." in relative\.parts/);
 assert.match(server, /cv2\.imread/);
 assert.match(server, /ImageOps\.exif_transpose/);
+assert.match(server, /UnidentifiedImageError/);
 assert.match(server, /shutil\.copy2/);
 assert.match(server, /sha256_file/);
 assert.match(server, /master\.webp/);
