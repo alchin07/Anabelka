@@ -12,7 +12,7 @@ from typing import Any
 
 import cv2
 import PIL
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 HOST = "127.0.0.1"
@@ -242,7 +242,7 @@ class Handler(BaseHTTPRequestHandler):
 
             result = process_image(payload.get("source"))
             self.send_json(200, result)
-        except (ValueError, OSError, Image.UnidentifiedImageError) as error:
+        except (ValueError, OSError, UnidentifiedImageError) as error:
             self.send_json(
                 400,
                 {"ok": False, "error": str(error)},
