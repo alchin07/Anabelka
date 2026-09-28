@@ -117,6 +117,7 @@ class App
         require_once __DIR__ . '/../Services/GoogleOAuthProvider.php';
         require_once __DIR__ . '/../Services/FacebookOAuthProvider.php';
         require_once __DIR__ . '/../Services/SocialAuthService.php';
+        require_once __DIR__ . '/../Services/ImageProcessorClient.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
@@ -151,6 +152,7 @@ class App
         require_once __DIR__ . '/../Controllers/AdminUserRankController.php';
         require_once __DIR__ . '/../Controllers/AdminAdministratorController.php';
         require_once __DIR__ . '/../Controllers/AdminWorkTimeController.php';
+        require_once __DIR__ . '/../Controllers/AdminImageProcessorController.php';
         require_once __DIR__ . '/../Controllers/AdminBackupController.php';
         require_once __DIR__ . '/../Controllers/AdminNewsController.php';
         require_once __DIR__ . '/../Controllers/AdminReviewController.php';

@@ -129,6 +129,11 @@ $router->get(
 );
 
 $router->get(
+    '/admin/image-processor/health',
+    'AdminImageProcessorController@health'
+);
+
+$router->get(
     '/admin/system/backup',
     'AdminBackupController@index'
 );
