@@ -350,3 +350,118 @@
         line-height: 1.35;
     }
 }
+
+
+.admin-profile-contract-history {
+    margin-top: 12px;
+    border-top: 1px solid #eadcf7;
+}
+
+.admin-profile-contract-history > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 0 0;
+    cursor: pointer;
+    color: #6519b9;
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+}
+
+.admin-profile-contract-history > summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-profile-contract-history > summary span {
+    min-width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #f4eaff;
+    color: #6519b9;
+}
+
+.admin-profile-contract-history-list {
+    display: grid;
+    gap: 7px;
+    margin-top: 9px;
+}
+
+.admin-profile-contract-history-item {
+    padding: 9px 10px;
+    border: 1px solid #eadcf7;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.admin-profile-contract-history-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.admin-profile-contract-history-head strong {
+    color: #342d39;
+    font-size: 11px;
+}
+
+.admin-profile-contract-history-head b {
+    color: #6519b9;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.admin-profile-contract-history-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 5px;
+    color: #77717e;
+    font-size: 10px;
+}
+
+@media(max-width:650px) {
+    .admin-profile-contract-history {
+        margin-top: 8px;
+    }
+
+    .admin-profile-contract-history > summary {
+        gap: 7px;
+        padding-top: 8px;
+        font-size: 10px;
+    }
+
+    .admin-profile-contract-history > summary span {
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        font-size: 9px;
+    }
+
+    .admin-profile-contract-history-list {
+        gap: 5px;
+        margin-top: 7px;
+    }
+
+    .admin-profile-contract-history-item {
+        padding: 7px 8px;
+        border-radius: 8px;
+    }
+
+    .admin-profile-contract-history-head strong,
+    .admin-profile-contract-history-head b {
+        font-size: 10px;
+    }
+
+    .admin-profile-contract-history-meta {
+        gap: 3px 8px;
+        margin-top: 4px;
+        font-size: 9px;
+    }
+}

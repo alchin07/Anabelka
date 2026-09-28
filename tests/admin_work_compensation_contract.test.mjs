@@ -149,3 +149,21 @@ assert.match(
 process.stdout.write(
     'administrator work compensation contract passed\n'
 );
+
+
+assert.match(
+    model,
+    /strtotime\(\$from \. ' \+6 days'\)/
+);
+assert.match(
+    model,
+    /'date_to' => date\('Y-m-t'\)/
+);
+assert.match(
+    view,
+    /\$restSeconds = \$seconds % 60/
+);
+assert.match(
+    view,
+    /\$formatDate\(\$earningFrom\)/
+);

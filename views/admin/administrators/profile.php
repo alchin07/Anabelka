@@ -22,6 +22,9 @@ $workSummary = is_array($workContract['work'] ?? null)
 $workDaily = is_array($workContract['daily'] ?? null)
     ? $workContract['daily']
     : [];
+$workPreviousPeriods = is_array($workContract['previous_periods'] ?? null)
+    ? $workContract['previous_periods']
+    : [];
 $workError = trim((string) ($workContract['work_error'] ?? ''));
 $workLoadError = !empty($workContract['load_error']);
 
@@ -29,16 +32,22 @@ $formatDuration = static function ($seconds) {
     $seconds = max(0, (int) $seconds);
     $hours = intdiv($seconds, 3600);
     $minutes = intdiv($seconds % 3600, 60);
+    $restSeconds = $seconds % 60;
+    $parts = [];
 
     if ($hours > 0) {
-        return $hours . ' год ' . $minutes . ' хв';
+        $parts[] = $hours . ' год';
     }
 
     if ($minutes > 0) {
-        return $minutes . ' хв';
+        $parts[] = $minutes . ' хв';
     }
 
-    return $seconds > 0 ? $seconds . ' с' : '0 хв';
+    if ($restSeconds > 0) {
+        $parts[] = $restSeconds . ' с';
+    }
+
+    return $parts !== [] ? implode(' ', $parts) : '0 хв';
 };
 
 $currencySymbols = [
@@ -54,6 +63,20 @@ $formatMoney = static function ($minor, $currency) use ($currencySymbols) {
     $symbol = $currencySymbols[$currency] ?? $currency;
 
     return number_format($minor / 100, 2, ',', ' ') . ' ' . $symbol;
+};
+
+$formatDate = static function ($value) {
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return '—';
+    }
+
+    $timestamp = strtotime($value);
+
+    return $timestamp
+        ? date('d.m.Y', $timestamp)
+        : $value;
 };
 
 $formatDateTime = static function ($value) {
@@ -82,7 +105,7 @@ $payoutLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адмін-панель · Профіль') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-profile.css?v=6">
+    <link rel="stylesheet" href="/Anabelka/css/admin-profile.css?v=7">
 </head>
 <body>
 
@@ -175,13 +198,9 @@ $payoutLabels = [
                 <div>
                     <span>Період розрахунку</span>
                     <strong>
-                        <?= $contractFrom !== ''
-                            ? htmlspecialchars($contractFrom)
-                            : '—' ?>
+                        <?= htmlspecialchars($formatDate($contractFrom)) ?>
                         —
-                        <?= $contractTo !== ''
-                            ? htmlspecialchars($contractTo)
-                            : '—' ?>
+                        <?= htmlspecialchars($formatDate($contractTo)) ?>
                     </strong>
                 </div>
                 <div>
@@ -263,6 +282,68 @@ $payoutLabels = [
                     <?= htmlspecialchars($workError) ?>
                     Умови контракту вище залишаються чинними та доступними для перегляду.
                 </div>
+            <?php endif; ?>
+
+            <?php if (!empty($workPreviousPeriods)): ?>
+                <details class="admin-profile-contract-history">
+                    <summary>
+                        Попередні розрахункові періоди
+                        <span><?= count($workPreviousPeriods) ?></span>
+                    </summary>
+
+                    <div class="admin-profile-contract-history-list">
+                        <?php foreach ($workPreviousPeriods as $period): ?>
+                            <article class="admin-profile-contract-history-item">
+                                <div class="admin-profile-contract-history-head">
+                                    <strong>
+                                        <?= htmlspecialchars(
+                                            $formatDate(
+                                                $period['date_from'] ?? ''
+                                            )
+                                        ) ?>
+                                        —
+                                        <?= htmlspecialchars(
+                                            $formatDate(
+                                                $period['date_to'] ?? ''
+                                            )
+                                        ) ?>
+                                    </strong>
+                                    <b>
+                                        <?= htmlspecialchars(
+                                            $formatMoney(
+                                                $period['amount_minor'] ?? 0,
+                                                $period['currency']
+                                                    ?? $contractCurrency
+                                            )
+                                        ) ?>
+                                    </b>
+                                </div>
+                                <div class="admin-profile-contract-history-meta">
+                                    <span>
+                                        Разом:
+                                        <?= htmlspecialchars(
+                                            $formatDuration(
+                                                $period['seconds'] ?? 0
+                                            )
+                                        ) ?>
+                                    </span>
+                                    <span>
+                                        Активних днів:
+                                        <?= (int) (
+                                            $period['active_days'] ?? 0
+                                        ) ?>
+                                    </span>
+                                    <span>
+                                        Сесій:
+                                        <?= (int) (
+                                            $period['session_count'] ?? 0
+                                        ) ?>
+                                    </span>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                </details>
             <?php endif; ?>
 
             <?php if (!empty($workDaily)): ?>

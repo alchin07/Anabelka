@@ -85,7 +85,7 @@ assert.match(view, /Сесій/);
 assert.match(view, /Активних днів/);
 assert.match(view, /Робочий час по днях/);
 assert.match(view, /Умови контракту змінюються лише Розробником або Власником/);
-assert.match(view, /admin-profile\.css\?v=6/);
+assert.match(view, /admin-profile\.css\?v=7/);
 
 const contractStart = view.indexOf(
     'admin-profile-card admin-profile-work-contract'
@@ -156,4 +156,42 @@ assert.match(
 assert.match(
     css,
     /\.admin-profile-contract-hours > div:first-child[\s\S]*?grid-column:\s*1 \/ -1/
+);
+
+
+assert.match(
+    model,
+    /private static function previousCompensationPeriods/
+);
+assert.match(
+    model,
+    /'previous_periods' => \$previousPeriods/
+);
+assert.match(
+    model,
+    /strtotime\(\$from \. ' \+6 days'\)/
+);
+assert.match(
+    model,
+    /date\('Y-m-t'\)/
+);
+assert.match(
+    view,
+    /Попередні розрахункові періоди/
+);
+assert.match(
+    view,
+    /\$workPreviousPeriods/
+);
+assert.match(
+    view,
+    /\$restSeconds = \$seconds % 60/
+);
+assert.match(
+    css,
+    /\.admin-profile-contract-history/
+);
+assert.match(
+    css,
+    /\.admin-profile-contract-history-item/
 );

@@ -21,16 +21,36 @@ $formatDuration = static function ($seconds) {
     $seconds = max(0, (int) $seconds);
     $hours = intdiv($seconds, 3600);
     $minutes = intdiv($seconds % 3600, 60);
+    $restSeconds = $seconds % 60;
+    $parts = [];
 
     if ($hours > 0) {
-        return $hours . ' год ' . $minutes . ' хв';
+        $parts[] = $hours . ' год';
     }
 
     if ($minutes > 0) {
-        return $minutes . ' хв';
+        $parts[] = $minutes . ' хв';
     }
 
-    return $seconds > 0 ? $seconds . ' с' : '0 хв';
+    if ($restSeconds > 0) {
+        $parts[] = $restSeconds . ' с';
+    }
+
+    return $parts !== [] ? implode(' ', $parts) : '0 хв';
+};
+
+$formatDate = static function ($value) {
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return '—';
+    }
+
+    $timestamp = strtotime($value);
+
+    return $timestamp
+        ? date('d.m.Y', $timestamp)
+        : $value;
 };
 
 $formatTime = static function ($value) {
@@ -265,9 +285,9 @@ $payoutLabels = [
                         </span>
                         <span>
                             <b>Період нарахування:</b>
-                            <?= $earningFrom !== '' ? $escape($earningFrom) : '—' ?>
+                            <?= $escape($formatDate($earningFrom)) ?>
                             —
-                            <?= $earningTo !== '' ? $escape($earningTo) : '—' ?>
+                            <?= $escape($formatDate($earningTo)) ?>
                         </span>
                     </div>
                 </section>

@@ -340,6 +340,7 @@ class AdminWorkTime
             'daily' => []
         ];
         $workError = '';
+        $previousPeriods = [];
 
         if (
             class_exists('AdminWorkActivity')
@@ -359,6 +360,22 @@ class AdminWorkTime
                 );
                 $workError =
                     'Статистику робочого часу тимчасово не вдалося завантажити.';
+            }
+        }
+
+        if (class_exists('AdminWorkActivity')) {
+            try {
+                $previousPeriods = self::previousCompensationPeriods(
+                    $db,
+                    $adminUserId,
+                    $agreement,
+                    $range
+                );
+            } catch (Throwable $e) {
+                error_log(
+                    'Admin work contract history: '
+                    . $e->getMessage()
+                );
             }
         }
 
@@ -426,8 +443,168 @@ class AdminWorkTime
             ],
             'daily' => is_array($activity['daily'] ?? null)
                 ? $activity['daily']
-                : []
+                : [],
+            'previous_periods' => $previousPeriods
         ];
+    }
+
+
+    private static function previousCompensationPeriods(
+        PDO $db,
+        $adminUserId,
+        array $agreement,
+        array $currentRange
+    ) {
+        $payoutType = (string) (
+            $agreement['payout_type'] ?? 'monthly'
+        );
+
+        if (
+            !class_exists('AdminWorkActivity')
+            || !in_array($payoutType, ['weekly', 'monthly'], true)
+        ) {
+            return [];
+        }
+
+        $currentFrom = self::normalizeDate(
+            $currentRange['date_from'] ?? ''
+        );
+
+        if ($currentFrom === '') {
+            return [];
+        }
+
+        $currentFromTs = strtotime($currentFrom);
+        if (!$currentFromTs) {
+            return [];
+        }
+
+        $previousTo = date(
+            'Y-m-d',
+            strtotime('-1 day', $currentFromTs)
+        );
+
+        $firstDateStmt = $db->prepare("
+            SELECT MIN(work_date)
+            FROM admin_work_time_source_daily
+            WHERE admin_user_id = :admin_user_id
+              AND work_date <= :previous_to
+              AND active_seconds > 0
+        ");
+        $firstDateStmt->execute([
+            'admin_user_id' => (int) $adminUserId,
+            'previous_to' => $previousTo
+        ]);
+        $firstDate = self::normalizeDate(
+            $firstDateStmt->fetchColumn()
+        );
+
+        if ($firstDate === '') {
+            return [];
+        }
+
+        $activity = AdminWorkActivity::rangeSummary(
+            (int) $adminUserId,
+            $firstDate,
+            $previousTo
+        );
+        $daily = is_array($activity['daily'] ?? null)
+            ? $activity['daily']
+            : [];
+        $periods = [];
+
+        foreach ($daily as $day) {
+            $workDate = self::normalizeDate(
+                $day['work_date'] ?? ''
+            );
+
+            if ($workDate === '' || strcmp($workDate, $currentFrom) >= 0) {
+                continue;
+            }
+
+            $workTs = strtotime($workDate);
+            if (!$workTs) {
+                continue;
+            }
+
+            if ($payoutType === 'weekly') {
+                $weekday = (int) date('N', $workTs);
+                $periodFrom = date(
+                    'Y-m-d',
+                    strtotime('-' . ($weekday - 1) . ' days', $workTs)
+                );
+                $periodTo = date(
+                    'Y-m-d',
+                    strtotime($periodFrom . ' +6 days')
+                );
+            } else {
+                $periodFrom = date('Y-m-01', $workTs);
+                $periodTo = date('Y-m-t', $workTs);
+            }
+
+            $key = $periodFrom . '|' . $periodTo;
+
+            if (!isset($periods[$key])) {
+                $periods[$key] = [
+                    'date_from' => $periodFrom,
+                    'date_to' => $periodTo,
+                    'seconds' => 0,
+                    'amount_minor' => 0,
+                    'currency' => (string) (
+                        $agreement['currency'] ?? 'UAH'
+                    ),
+                    'payout_type' => $payoutType,
+                    'session_count' => 0,
+                    'active_days' => 0
+                ];
+            }
+
+            $daySeconds = max(
+                0,
+                (int) ($day['total_seconds'] ?? 0)
+            );
+            $periods[$key]['seconds'] += $daySeconds;
+            $periods[$key]['session_count'] += max(
+                0,
+                (int) ($day['session_count'] ?? 0)
+            );
+
+            if ($daySeconds > 0) {
+                $periods[$key]['active_days']++;
+            }
+        }
+
+        $rateMinor = max(
+            0,
+            (int) ($agreement['hourly_rate_minor'] ?? 0)
+        );
+
+        foreach ($periods as &$period) {
+            $seconds = max(
+                0,
+                (int) ($period['seconds'] ?? 0)
+            );
+            $period['amount_minor'] =
+                $seconds > 0 && $rateMinor > 0
+                    ? intdiv(
+                        ($seconds * $rateMinor) + 1800,
+                        3600
+                    )
+                    : 0;
+        }
+        unset($period);
+
+        uasort(
+            $periods,
+            static function ($left, $right) {
+                return strcmp(
+                    (string) ($right['date_from'] ?? ''),
+                    (string) ($left['date_from'] ?? '')
+                );
+            }
+        );
+
+        return array_values($periods);
     }
 
 
@@ -681,7 +858,6 @@ class AdminWorkTime
 
     private static function compensationRange(array $agreement)
     {
-        $today = date('Y-m-d');
         $type = (string) ($agreement['payout_type'] ?? 'monthly');
 
         if ($type === 'one_time') {
@@ -703,10 +879,6 @@ class AdminWorkTime
                 [$from, $to] = [$to, $from];
             }
 
-            if (strcmp($to, $today) > 0) {
-                $to = $today;
-            }
-
             return [
                 'date_from' => $from,
                 'date_to' => $to
@@ -714,18 +886,23 @@ class AdminWorkTime
         }
 
         if ($type === 'weekly') {
+            $from = date(
+                'Y-m-d',
+                strtotime('monday this week')
+            );
+
             return [
-                'date_from' => date(
+                'date_from' => $from,
+                'date_to' => date(
                     'Y-m-d',
-                    strtotime('monday this week')
-                ),
-                'date_to' => $today
+                    strtotime($from . ' +6 days')
+                )
             ];
         }
 
         return [
             'date_from' => date('Y-m-01'),
-            'date_to' => $today
+            'date_to' => date('Y-m-t')
         ];
     }
 
