@@ -143,8 +143,7 @@
 }
 
 .admin-product-filters input,
-.admin-product-filters select,
-.admin-product-filters button {
+.admin-product-filters select {
     width: 100%;
     min-height: 42px;
     padding: 8px 11px;
@@ -155,11 +154,19 @@
     font: inherit;
 }
 
-.admin-product-filters button {
+.admin-product-filters > label {
+    min-width: 0;
+}
+
+.admin-product-filters > button[type="submit"] {
     width: auto;
-    border-color: var(--product-admin-purple);
+    min-height: 42px;
+    padding: 8px 11px;
+    border: 1px solid var(--product-admin-purple);
+    border-radius: 10px;
     background: var(--product-admin-purple);
     color: #fff;
+    font: inherit;
     font-weight: 800;
     cursor: pointer;
 }
@@ -1356,21 +1363,29 @@ body.product-color-picker-open {
     }
 
     .admin-product-filters input,
-    .admin-product-filters select,
-    .admin-product-filters button {
+    .admin-product-filters select {
         min-height: 38px;
         padding: 6px 8px;
         border-radius: 8px;
         font-size: 12px;
     }
 
-    .admin-product-filters button {
+    .admin-product-filters .anabelka-select-trigger {
+        min-height: 38px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        font-size: 12px;
+    }
+
+    .admin-product-filters > button[type="submit"] {
+        min-height: 38px;
         overflow: hidden;
         padding: 0;
+        border-radius: 8px;
         font-size: 0;
     }
 
-    .admin-product-filters button::after {
+    .admin-product-filters > button[type="submit"]::after {
         content: "⌕";
         font-size: 21px;
     }
