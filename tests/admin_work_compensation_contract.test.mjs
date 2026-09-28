@@ -130,7 +130,7 @@ assert.match(view, /Щомісячна виплата/);
 assert.match(view, /data-work-payout-type/);
 assert.match(view, /data-work-one-time-fields/);
 assert.match(view, /admin-work-time-compensation\.js\?v=1/);
-assert.match(view, /admin-work-time\\.css\\?v=4/);
+assert.match(view, /admin-work-time\.css\?v=4/);
 
 assert.match(
     script,
@@ -191,7 +191,7 @@ assert.match(
 );
 assert.match(
     view,
-    /Popередні|Попередні/
+    /Попередні розрахункові періоди/
 );
 assert.match(
     view,
