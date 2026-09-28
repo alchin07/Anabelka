@@ -105,7 +105,7 @@ $payoutLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle ?? 'Робочий час') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-work-time.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-work-time.css?v=4">
 </head>
 <body>
 
@@ -175,12 +175,18 @@ $payoutLabels = [
             $dailyRows = is_array($dailyByAdmin[$adminId] ?? null)
                 ? $dailyByAdmin[$adminId]
                 : [];
+            $hasContract = !empty(
+                $admin['compensation_has_contract']
+            );
             $agreement = is_array($admin['compensation'] ?? null)
                 ? $admin['compensation']
                 : [];
             $earnings = is_array($admin['earnings'] ?? null)
                 ? $admin['earnings']
                 : [];
+            $previousPeriods = is_array(
+                $admin['previous_periods'] ?? null
+            ) ? $admin['previous_periods'] : [];
             $currency = strtoupper((string) (
                 $agreement['currency'] ?? 'UAH'
             ));
@@ -212,16 +218,31 @@ $payoutLabels = [
                 $earnings['date_to'] ?? ''
             ));
             ?>
-            <article class="admin-work-time-card">
-                <div class="admin-work-time-card-head">
+            <details
+                class="admin-work-time-card<?= $hasContract ? ' has-contract' : '' ?>"
+                <?= $hasContract ? '' : 'open' ?>
+            >
+                <summary class="admin-work-time-card-head">
                     <div>
                         <strong><?= $escape($admin['admin_name'] ?? '') ?></strong>
                         <span><?= $escape($admin['role_name'] ?? '') ?></span>
                         <small><?= $escape($admin['admin_email'] ?? '') ?></small>
                     </div>
 
-                    <b><?= $escape($formatDuration($totalSeconds)) ?></b>
-                </div>
+                    <div class="admin-work-time-card-summary-values">
+                        <b><?= $escape($formatDuration($totalSeconds)) ?></b>
+                        <?php if ($hasContract): ?>
+                            <span>
+                                <?= $escape(
+                                    $formatMoney(
+                                        $earningAmountMinor,
+                                        $currency
+                                    )
+                                ) ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                </summary>
 
                 <div class="admin-work-time-metrics">
                     <div>
@@ -291,6 +312,80 @@ $payoutLabels = [
                         </span>
                     </div>
                 </section>
+
+                <?php if ($hasContract): ?>
+                    <details class="admin-work-contract-history">
+                        <summary>
+                            Попередні розрахункові періоди
+                            <span><?= count($previousPeriods) ?></span>
+                        </summary>
+
+                        <?php if (!empty($previousPeriods)): ?>
+                            <div class="admin-work-contract-history-list">
+                                <?php foreach ($previousPeriods as $historyPeriod): ?>
+                                    <article class="admin-work-contract-history-item">
+                                        <div class="admin-work-contract-history-head">
+                                            <strong>
+                                                <?= $escape(
+                                                    $formatDate(
+                                                        $historyPeriod['date_from']
+                                                            ?? ''
+                                                    )
+                                                ) ?>
+                                                —
+                                                <?= $escape(
+                                                    $formatDate(
+                                                        $historyPeriod['date_to']
+                                                            ?? ''
+                                                    )
+                                                ) ?>
+                                            </strong>
+                                            <b>
+                                                <?= $escape(
+                                                    $formatMoney(
+                                                        $historyPeriod['amount_minor']
+                                                            ?? 0,
+                                                        $historyPeriod['currency']
+                                                            ?? $currency
+                                                    )
+                                                ) ?>
+                                            </b>
+                                        </div>
+                                        <div class="admin-work-contract-history-meta">
+                                            <span>
+                                                Разом:
+                                                <?= $escape(
+                                                    $formatDuration(
+                                                        $historyPeriod['seconds']
+                                                            ?? 0
+                                                    )
+                                                ) ?>
+                                            </span>
+                                            <span>
+                                                Активних днів:
+                                                <?= (int) (
+                                                    $historyPeriod['active_days']
+                                                        ?? 0
+                                                ) ?>
+                                            </span>
+                                            <span>
+                                                Сесій:
+                                                <?= (int) (
+                                                    $historyPeriod['session_count']
+                                                        ?? 0
+                                                ) ?>
+                                            </span>
+                                        </div>
+                                    </article>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <p class="admin-work-contract-history-empty">
+                                Завершених розрахункових періодів ще немає.
+                            </p>
+                        <?php endif; ?>
+                    </details>
+                <?php endif; ?>
 
                 <details class="admin-work-compensation">
                     <summary>
@@ -449,7 +544,7 @@ $payoutLabels = [
                         </div>
                     </details>
                 <?php endif; ?>
-            </article>
+            </details>
         <?php endforeach; ?>
     </section>
 

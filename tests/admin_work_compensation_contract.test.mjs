@@ -29,6 +29,10 @@ const auditView = fs.readFileSync(
     'views/admin/administrators/audit.php',
     'utf8'
 );
+const workCss = fs.readFileSync(
+    'css/admin-work-time.css',
+    'utf8'
+);
 
 assert.match(
     model,
@@ -126,7 +130,7 @@ assert.match(view, /Щомісячна виплата/);
 assert.match(view, /data-work-payout-type/);
 assert.match(view, /data-work-one-time-fields/);
 assert.match(view, /admin-work-time-compensation\.js\?v=1/);
-assert.match(view, /admin-work-time\\.css\\?v=3/);
+assert.match(view, /admin-work-time\\.css\\?v=4/);
 
 assert.match(
     script,
@@ -166,4 +170,42 @@ assert.match(
 assert.match(
     view,
     /\$formatDate\(\$earningFrom\)/
+);
+
+
+assert.match(
+    model,
+    /'compensation_has_contract'/
+);
+assert.match(
+    model,
+    /'previous_periods'/
+);
+assert.match(
+    model,
+    /self::previousCompensationPeriods\([\s\S]*?\$administrator\['earnings'\]/
+);
+assert.match(
+    view,
+    /\$hasContract/
+);
+assert.match(
+    view,
+    /Popередні|Попередні/
+);
+assert.match(
+    view,
+    /class="admin-work-time-card<\?= \$hasContract/
+);
+assert.match(
+    view,
+    /\$hasContract \? '' : 'open'/
+);
+assert.match(
+    workCss,
+    /\.admin-work-time-card > \.admin-work-time-card-head/
+);
+assert.match(
+    workCss,
+    /\.admin-work-contract-history/
 );

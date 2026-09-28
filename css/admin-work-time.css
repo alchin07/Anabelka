@@ -572,3 +572,185 @@ body {
         grid-column: auto;
     }
 }
+
+
+.admin-work-time-card > .admin-work-time-card-head {
+    list-style: none;
+    cursor: pointer;
+}
+
+.admin-work-time-card > .admin-work-time-card-head::-webkit-details-marker {
+    display: none;
+}
+
+.admin-work-time-card > .admin-work-time-card-head::after {
+    content: '⌄';
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--work-light);
+    color: var(--work-primary-dark);
+    font-size: 18px;
+    font-weight: 800;
+    transition: transform .18s ease;
+}
+
+.admin-work-time-card[open] > .admin-work-time-card-head::after {
+    transform: rotate(180deg);
+}
+
+.admin-work-time-card-summary-values {
+    min-width: 90px;
+    margin-left: auto;
+    text-align: right;
+}
+
+.admin-work-time-card-summary-values b,
+.admin-work-time-card-summary-values span {
+    display: block;
+}
+
+.admin-work-time-card-summary-values b {
+    color: var(--work-text);
+    font-size: 12px;
+}
+
+.admin-work-time-card-summary-values span {
+    margin-top: 3px;
+    color: var(--work-primary-dark);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.admin-work-contract-history {
+    border-top: 1px solid var(--work-border);
+}
+
+.admin-work-contract-history > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 14px;
+    cursor: pointer;
+    color: var(--work-primary-dark);
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+}
+
+.admin-work-contract-history > summary::-webkit-details-marker {
+    display: none;
+}
+
+.admin-work-contract-history > summary span {
+    min-width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--work-light);
+}
+
+.admin-work-contract-history-list {
+    display: grid;
+    gap: 7px;
+    padding: 0 12px 12px;
+}
+
+.admin-work-contract-history-item {
+    padding: 9px 10px;
+    border: 1px solid var(--work-border);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.admin-work-contract-history-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.admin-work-contract-history-head strong {
+    color: var(--work-text);
+    font-size: 11px;
+}
+
+.admin-work-contract-history-head b {
+    color: var(--work-primary-dark);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.admin-work-contract-history-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 5px;
+    color: var(--work-muted);
+    font-size: 10px;
+}
+
+.admin-work-contract-history-empty {
+    margin: 0;
+    padding: 0 14px 12px;
+    color: var(--work-muted);
+    font-size: 11px;
+}
+
+@media (max-width: 560px) {
+    .admin-work-time-card-summary-values {
+        min-width: 74px;
+    }
+
+    .admin-work-time-card-summary-values b,
+    .admin-work-time-card-summary-values span {
+        font-size: 10px;
+    }
+
+    .admin-work-time-card > .admin-work-time-card-head::after {
+        width: 24px;
+        height: 24px;
+        font-size: 15px;
+    }
+
+    .admin-work-contract-history > summary {
+        padding: 10px 12px;
+        font-size: 10px;
+    }
+
+    .admin-work-contract-history > summary span {
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        font-size: 9px;
+    }
+
+    .admin-work-contract-history-list {
+        gap: 5px;
+        padding: 0 10px 10px;
+    }
+
+    .admin-work-contract-history-item {
+        padding: 7px 8px;
+        border-radius: 8px;
+    }
+
+    .admin-work-contract-history-head strong,
+    .admin-work-contract-history-head b {
+        font-size: 10px;
+    }
+
+    .admin-work-contract-history-meta {
+        gap: 3px 8px;
+        margin-top: 4px;
+        font-size: 9px;
+    }
+}

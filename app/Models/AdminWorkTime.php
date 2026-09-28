@@ -252,15 +252,29 @@ class AdminWorkTime
                 $activity['daily'] ?? null
             ) ? $activity['daily'] : [];
 
+            $hasCompensationContract = isset(
+                $compensationMap[$adminId]
+            );
             $agreement = self::normalizeCompensationRow(
                 $compensationMap[$adminId] ?? []
             );
+            $administrator['compensation_has_contract'] =
+                $hasCompensationContract;
             $administrator['compensation'] = $agreement;
             $administrator['earnings'] = self::calculateCompensation(
                 $db,
                 $adminId,
                 $agreement
             );
+            $administrator['previous_periods'] =
+                $hasCompensationContract
+                    ? self::previousCompensationPeriods(
+                        $db,
+                        $adminId,
+                        $agreement,
+                        $administrator['earnings']
+                    )
+                    : [];
         }
         unset($administrator);
 
