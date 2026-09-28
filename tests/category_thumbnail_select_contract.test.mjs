@@ -12,6 +12,10 @@ const productView = fs.readFileSync(
     'views/admin/products/index.php',
     'utf8'
 );
+const productCss = fs.readFileSync(
+    'css/admin-products.css',
+    'utf8'
+);
 const categoryView = fs.readFileSync(
     'views/admin/categories/index.php',
     'utf8'
@@ -123,3 +127,21 @@ assert.doesNotMatch(
     /style\.paddingLeft\s*=/
 );
 process.stdout.write('rich category rows keep one left alignment\n');
+
+
+assert.match(
+    productCss,
+    /\.admin-product-filters > button\[type="submit"\]/
+);
+assert.match(
+    productCss,
+    /\.admin-product-filters \.anabelka-select-trigger/
+);
+assert.doesNotMatch(
+    productCss,
+    /\.admin-product-filters button\s*\{/
+);
+assert.match(
+    productView,
+    /admin-products\.css\?v=6/
+);
