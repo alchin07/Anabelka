@@ -16,6 +16,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 HOST = "127.0.0.1"
+VERSION = "0.2"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -152,6 +153,7 @@ def process_image(source_value: Any) -> dict[str, Any]:
 
         return {
             "ok": True,
+            "processor_version": VERSION,
             "job_id": job_id,
             "source": project_relative(source),
             "original": {
@@ -186,7 +188,7 @@ def process_image(source_value: Any) -> dict[str, Any]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "AnabelkaImageProcessor/0.1"
+    server_version = "AnabelkaImageProcessor/" + VERSION
 
     def do_GET(self) -> None:
         if self.path != "/health":
@@ -201,7 +203,7 @@ class Handler(BaseHTTPRequestHandler):
             {
                 "ok": True,
                 "service": "Anabelka Image Processor",
-                "version": "0.1",
+                "version": VERSION,
                 "opencv": cv2.__version__,
                 "pillow": PIL.__version__,
                 "host": HOST,
