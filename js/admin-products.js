@@ -552,7 +552,7 @@
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.dataset.productImageProcess = '';
+        button.setAttribute('data-product-image-process', '');
         button.setAttribute(
             'aria-label',
             'Обробити фотографію товару'
