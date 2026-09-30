@@ -870,6 +870,42 @@ class AdminProduct
 
         $imageMap = ProductImage::forProducts($ids);
         $colorMap = ProductColor::editorColorsForProducts($ids);
+        $processingMap = [];
+        $imageIds = [];
+
+        foreach ($imageMap as $images) {
+            foreach ($images as $image) {
+                $imageId = (int) ($image['id'] ?? 0);
+
+                if ($imageId > 0) {
+                    $imageIds[] = $imageId;
+                }
+            }
+        }
+
+        if (!empty($imageIds) && class_exists('ProductImageProcessing')) {
+            try {
+                $processingMap =
+                    ProductImageProcessing::forImageIds($imageIds);
+            } catch (Throwable $e) {
+                error_log(
+                    'Admin product image processing state: '
+                    . $e->getMessage()
+                );
+                $processingMap = [];
+            }
+        }
+
+        foreach ($imageMap as &$images) {
+            foreach ($images as &$image) {
+                $imageId = (int) ($image['id'] ?? 0);
+                $image['processing'] =
+                    $processingMap[$imageId] ?? null;
+            }
+            unset($image);
+        }
+        unset($images);
+
         $db = Database::connect();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
