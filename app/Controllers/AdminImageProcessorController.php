@@ -67,12 +67,27 @@ class AdminImageProcessorController extends Controller
                 . $e->getMessage()
             );
 
+            $message = $e instanceof InvalidArgumentException
+                ? $e->getMessage()
+                : 'Не вдалося обробити фотографію товару.';
+
+            $host = strtolower(trim((string) (
+                $_SERVER['HTTP_HOST'] ?? ''
+            )));
+            $isLocal = $host === 'localhost'
+                || strpos($host, 'localhost:') === 0
+                || $host === '127.0.0.1'
+                || strpos($host, '127.0.0.1:') === 0;
+
+            if ($isLocal && !($e instanceof InvalidArgumentException)) {
+                $message .= ' [' . get_class($e)
+                    . ': ' . $e->getMessage() . ']';
+            }
+
             $this->json(
                 [
                     'success' => false,
-                    'message' => $e instanceof InvalidArgumentException
-                        ? $e->getMessage()
-                        : 'Не вдалося обробити фотографію товару.'
+                    'message' => $message
                 ],
                 $status
             );
