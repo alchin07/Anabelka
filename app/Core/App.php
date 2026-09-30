@@ -18,6 +18,7 @@ class App
         require_once __DIR__ . '/../Models/Category.php';
         require_once __DIR__ . '/../Models/CategoryTranslator.php';
         require_once __DIR__ . '/../Models/ProductImage.php';
+        require_once __DIR__ . '/../Models/ProductImageProcessing.php';
         require_once __DIR__ . '/../Models/ProductVariantStock.php';
         require_once __DIR__ . '/../Models/ProductColor.php';
         require_once __DIR__ . '/../Models/Product.php';
@@ -118,6 +119,7 @@ class App
         require_once __DIR__ . '/../Services/FacebookOAuthProvider.php';
         require_once __DIR__ . '/../Services/SocialAuthService.php';
         require_once __DIR__ . '/../Services/ImageProcessorClient.php';
+        require_once __DIR__ . '/../Services/ProductImageProcessingService.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';
