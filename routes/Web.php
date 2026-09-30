@@ -409,6 +409,12 @@ $router->post(
     'AdminProductController@duplicate'
 );
 
+$router->post(
+    '/admin/products/image-process',
+    'AdminImageProcessorController@process',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
 $router->get(
     '/admin/delivery',
     'AdminDeliveryController@index'
