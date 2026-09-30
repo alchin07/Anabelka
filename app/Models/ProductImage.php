@@ -176,6 +176,44 @@ class ProductImage
     }
 
 
+    public static function findById($imageId)
+    {
+        self::ensureTable();
+
+        $imageId = (int) $imageId;
+
+        if ($imageId <= 0) {
+            return null;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT
+                id,
+                product_id,
+                path,
+                is_main,
+                sort_order,
+                created_at
+            FROM product_gallery_images
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $imageId]);
+        $image = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$image) {
+            return null;
+        }
+
+        $image['id'] = (int) $image['id'];
+        $image['product_id'] = (int) $image['product_id'];
+        $image['is_main'] = (int) $image['is_main'];
+        $image['sort_order'] = (int) $image['sort_order'];
+
+        return $image;
+    }
+
+
     public static function addPaths($productId, array $paths)
     {
         self::ensureTable();
