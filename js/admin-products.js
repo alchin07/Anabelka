@@ -482,6 +482,172 @@
     }
 
 
+    function processingStatusText(processing)
+    {
+        processing = processing && typeof processing === 'object'
+            ? processing
+            : {};
+        const status = String(processing.status || '');
+
+        if (status === 'ready') {
+            const width = Number(processing.master_width || 0);
+            const height = Number(processing.master_height || 0);
+
+            return width > 0 && height > 0
+                ? 'Готово · ' + width + '×' + height
+                : 'Готово';
+        }
+
+        if (status === 'error') {
+            return 'Помилка';
+        }
+
+        if (status === 'processing') {
+            return 'Обробка…';
+        }
+
+        return 'Не оброблено';
+    }
+
+
+    function syncProcessingControl(control, image)
+    {
+        const processing = image.processing
+            && typeof image.processing === 'object'
+            ? image.processing
+            : {};
+        const status = String(processing.status || '');
+        const label = control.querySelector(
+            '[data-product-image-processing-status]'
+        );
+        const button = control.querySelector(
+            '[data-product-image-process]'
+        );
+
+        control.dataset.processingStatus = status || 'pending';
+
+        if (label) {
+            label.textContent = processingStatusText(processing);
+            label.title = status === 'error'
+                ? valueOrEmpty(processing.last_error)
+                : valueOrEmpty(processing.processed_at);
+        }
+
+        if (button) {
+            button.textContent = status === 'ready'
+                ? 'Повторити'
+                : 'Обробити';
+        }
+    }
+
+
+    function imageProcessingControl(image, item, remove)
+    {
+        const control = document.createElement('div');
+        control.className = 'product-image-processing';
+
+        const status = document.createElement('span');
+        status.className = 'product-image-processing-status';
+        status.dataset.productImageProcessingStatus = '';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.productImageProcess = '';
+        button.setAttribute(
+            'aria-label',
+            'Обробити фотографію товару'
+        );
+
+        button.addEventListener('click', async function () {
+            const imageId = Number(image.id || 0);
+            const csrf = form.querySelector('input[name="_csrf"]');
+
+            if (
+                imageId <= 0
+                || !csrf
+                || !csrf.value
+                || remove.checked
+            ) {
+                return;
+            }
+
+            const oldText = button.textContent;
+            button.disabled = true;
+            status.textContent = 'Обробка…';
+            control.dataset.processingStatus = 'processing';
+
+            const payload = new FormData();
+            payload.append('_csrf', csrf.value);
+            payload.append('image_id', String(imageId));
+
+            try {
+                const response = await fetch(
+                    '/Anabelka/admin/products/image-process',
+                    {
+                        method: 'POST',
+                        body: payload,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    }
+                );
+                const responseText = await response.text();
+                let data = {};
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error(
+                        'Сервер повернув некоректну відповідь.'
+                    );
+                }
+
+                if (!response.ok || !data.success) {
+                    throw new Error(
+                        data.message
+                        || 'Не вдалося обробити фотографію.'
+                    );
+                }
+
+                image.processing = data.processing || {};
+                syncProcessingControl(control, image);
+                showMessage('Фотографію оброблено.');
+            } catch (error) {
+                image.processing = Object.assign(
+                    {},
+                    image.processing || {},
+                    {
+                        status: 'error',
+                        last_error: error.message
+                            || 'Не вдалося обробити фотографію.'
+                    }
+                );
+                syncProcessingControl(control, image);
+                showMessage(
+                    error.message
+                    || 'Не вдалося обробити фотографію.'
+                );
+            } finally {
+                button.disabled = remove.checked;
+                if (!button.textContent) {
+                    button.textContent = oldText || 'Обробити';
+                }
+            }
+        });
+
+        control.appendChild(status);
+        control.appendChild(button);
+        syncProcessingControl(control, image);
+
+        remove.addEventListener('change', function () {
+            button.disabled = remove.checked;
+        });
+
+        return control;
+    }
+
+
     function imageManageCard(image)
     {
         const item = document.createElement('div');
@@ -556,6 +722,9 @@
                 name: 'image_color_name[' + String(image.id || '') + ']'
             }
         ));
+        item.appendChild(
+            imageProcessingControl(image, item, remove)
+        );
         item.appendChild(tools);
 
         return item;
