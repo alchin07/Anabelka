@@ -389,10 +389,72 @@
 
         meta.textContent = metaParts.join(' · ');
 
+        const diagnostics = document.createElement('div');
+        diagnostics.className = 'product-image-compare-diagnostics';
+
+        const normalization = processing.normalization
+            && typeof processing.normalization === 'object'
+            ? processing.normalization
+            : {};
+        const method = valueOrEmpty(normalization.method);
+        const methodLabels = {
+            'opencv-hog-person': 'OpenCV HOG',
+            'person-detected-no-crop': 'Безпечний crop не застосовано',
+            'standard-canvas-fallback': 'Fallback 2:3'
+        };
+
+        function diagnosticBadge(text, state)
+        {
+            const badge = document.createElement('span');
+            badge.className = 'product-image-compare-diagnostic';
+
+            if (state) {
+                badge.dataset.state = state;
+            }
+
+            badge.textContent = text;
+            diagnostics.appendChild(badge);
+        }
+
+        if (method) {
+            diagnosticBadge(
+                'Модель: '
+                + (
+                    normalization.subject_detected === true
+                        ? 'знайдена'
+                        : 'не знайдена'
+                ),
+                normalization.subject_detected === true
+                    ? 'success'
+                    : 'neutral'
+            );
+            diagnosticBadge(
+                'Кадрування: '
+                + (
+                    normalization.crop_applied === true
+                        ? 'застосовано'
+                        : 'ні'
+                ),
+                normalization.crop_applied === true
+                    ? 'success'
+                    : 'neutral'
+            );
+            diagnosticBadge(
+                'Метод: ' + (methodLabels[method] || method),
+                'info'
+            );
+        } else {
+            diagnosticBadge(
+                'Діагностика недоступна для цього старого результату.',
+                'neutral'
+            );
+        }
+
         dialog.appendChild(header);
         dialog.appendChild(stage);
         dialog.appendChild(sliderWrap);
         dialog.appendChild(meta);
+        dialog.appendChild(diagnostics);
         modal.appendChild(dialog);
         document.body.appendChild(modal);
 
