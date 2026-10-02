@@ -34,6 +34,7 @@ class ProductImageProcessing
                 thumb_width INT UNSIGNED NULL,
                 thumb_height INT UNSIGNED NULL,
                 thumb_bytes BIGINT UNSIGNED NULL,
+                normalization_json TEXT NULL,
                 last_error VARCHAR(500) NULL,
                 processed_at DATETIME NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -50,6 +51,20 @@ class ProductImageProcessing
               DEFAULT CHARSET=utf8mb4
               COLLATE=utf8mb4_unicode_ci
         ");
+
+        $column = $db->query("
+            SHOW COLUMNS
+            FROM product_image_processing
+            LIKE 'normalization_json'
+        ")->fetch(PDO::FETCH_ASSOC);
+
+        if (!$column) {
+            $db->exec("
+                ALTER TABLE product_image_processing
+                ADD COLUMN normalization_json TEXT NULL
+                AFTER thumb_bytes
+            ");
+        }
 
         self::$schemaReady = true;
     }
@@ -164,6 +179,7 @@ class ProductImageProcessing
                 thumb_width = :thumb_width,
                 thumb_height = :thumb_height,
                 thumb_bytes = :thumb_bytes,
+                normalization_json = :normalization_json,
                 last_error = NULL,
                 processed_at = NOW()
             WHERE image_id = :image_id
@@ -185,6 +201,12 @@ class ProductImageProcessing
             'thumb_width' => (int) $data['thumb_width'],
             'thumb_height' => (int) $data['thumb_height'],
             'thumb_bytes' => (int) $data['thumb_bytes'],
+            'normalization_json' => json_encode(
+                is_array($data['normalization'] ?? null)
+                    ? $data['normalization']
+                    : [],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ),
             'image_id' => (int) $imageId
         ]);
     }
@@ -249,6 +271,21 @@ class ProductImageProcessing
                 $row[$key] = max(0, (int) $row[$key]);
             }
         }
+
+        $normalization = [];
+
+        if (!empty($row['normalization_json'])) {
+            $decoded = json_decode(
+                (string) $row['normalization_json'],
+                true
+            );
+
+            if (is_array($decoded)) {
+                $normalization = $decoded;
+            }
+        }
+
+        $row['normalization'] = $normalization;
 
         return $row;
     }
