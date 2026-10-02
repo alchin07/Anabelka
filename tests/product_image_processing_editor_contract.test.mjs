@@ -18,7 +18,7 @@ assert.match(
 );
 
 assert.match(view, /admin-products\.css\?v=10/);
-assert.match(view, /admin-products\.js\?v=14/);
+assert.match(view, /admin-products\.js\?v=15/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(
@@ -49,6 +49,7 @@ assert.match(script, /product-image-compare-diagnostics/);
 assert.match(script, /Модель:/);
 assert.match(script, /Кадрування:/);
 assert.match(script, /Метод:/);
+assert.match(script, /opencv-haar-face-subject/);
 
 
 
