@@ -11,13 +11,14 @@ from pathlib import Path
 from typing import Any
 
 import cv2
+import numpy as np
 import PIL
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 HOST = "127.0.0.1"
-VERSION = "0.3"
-PROFILE = "standard-v1"
+VERSION = "0.4"
+PROFILE = "model-normalize-v1"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -31,6 +32,12 @@ PROCESSED_ROOT = (SOURCE_ROOT / "processed").resolve()
 MASTER_SIZE = (1200, 1800)
 THUMB_SIZE = (320, 480)
 CANVAS_BACKGROUND = (250, 250, 250)
+PERSON_DETECT_MAX_EDGE = 900
+PERSON_MIN_AREA_RATIO = 0.06
+PERSON_MAX_CROP_AREA_RATIO = 0.92
+PERSON_SIDE_MARGIN = 0.18
+PERSON_TOP_MARGIN = 0.08
+PERSON_BOTTOM_MARGIN = 0.10
 
 
 def json_bytes(payload: dict[str, Any]) -> bytes:
@@ -104,6 +111,214 @@ def normalized_image(source: Path) -> Image.Image:
             return image.convert("RGBA")
 
         return image.convert("RGB")
+
+
+def flattened_rgb(image: Image.Image) -> Image.Image:
+    if image.mode == "RGBA":
+        flattened = Image.new(
+            "RGB",
+            image.size,
+            CANVAS_BACKGROUND,
+        )
+        flattened.paste(
+            image,
+            (0, 0),
+            image,
+        )
+        return flattened
+
+    return image.convert("RGB")
+
+
+def detect_person_bbox(
+    image: Image.Image,
+) -> tuple[int, int, int, int] | None:
+    rgb = flattened_rgb(image)
+    source_width, source_height = rgb.size
+    max_edge = max(source_width, source_height)
+
+    if max_edge <= 0:
+        return None
+
+    scale = min(1.0, PERSON_DETECT_MAX_EDGE / max_edge)
+    detect_width = max(1, round(source_width * scale))
+    detect_height = max(1, round(source_height * scale))
+
+    if scale < 1.0:
+        detect_image = rgb.resize(
+            (detect_width, detect_height),
+            Image.Resampling.BILINEAR,
+        )
+    else:
+        detect_image = rgb
+
+    frame = cv2.cvtColor(
+        np.asarray(detect_image),
+        cv2.COLOR_RGB2BGR,
+    )
+    hog = cv2.HOGDescriptor()
+    hog.setSVMDetector(
+        cv2.HOGDescriptor_getDefaultPeopleDetector()
+    )
+    rects, weights = hog.detectMultiScale(
+        frame,
+        winStride=(8, 8),
+        padding=(8, 8),
+        scale=1.05,
+    )
+
+    if len(rects) == 0:
+        return None
+
+    frame_area = detect_width * detect_height
+    candidates = []
+
+    for index, rect in enumerate(rects):
+        x, y, width, height = [int(value) for value in rect]
+        area = width * height
+
+        if area <= 0 or area / frame_area < PERSON_MIN_AREA_RATIO:
+            continue
+
+        aspect = width / max(1, height)
+
+        if aspect < 0.18 or aspect > 1.05:
+            continue
+
+        weight = float(weights[index]) if index < len(weights) else 0.0
+        candidates.append((
+            weight,
+            area,
+            x,
+            y,
+            width,
+            height,
+        ))
+
+    if not candidates:
+        return None
+
+    candidates.sort(
+        key=lambda item: (item[0], item[1]),
+        reverse=True,
+    )
+    _, _, x, y, width, height = candidates[0]
+    inverse_scale = 1.0 / scale
+
+    return (
+        max(0, round(x * inverse_scale)),
+        max(0, round(y * inverse_scale)),
+        min(source_width, round(width * inverse_scale)),
+        min(source_height, round(height * inverse_scale)),
+    )
+
+
+def subject_crop_box(
+    image: Image.Image,
+    bbox: tuple[int, int, int, int],
+) -> tuple[int, int, int, int] | None:
+    source_width, source_height = image.size
+    x, y, width, height = bbox
+
+    if width <= 0 or height <= 0:
+        return None
+
+    left = x - round(width * PERSON_SIDE_MARGIN)
+    right = x + width + round(width * PERSON_SIDE_MARGIN)
+    top = y - round(height * PERSON_TOP_MARGIN)
+    bottom = y + height + round(height * PERSON_BOTTOM_MARGIN)
+
+    required_width = max(1, right - left)
+    required_height = max(1, bottom - top)
+    target_ratio = MASTER_SIZE[0] / MASTER_SIZE[1]
+
+    if required_width / required_height < target_ratio:
+        crop_height = required_height
+        crop_width = round(crop_height * target_ratio)
+    else:
+        crop_width = required_width
+        crop_height = round(crop_width / target_ratio)
+
+    if crop_width > source_width or crop_height > source_height:
+        return None
+
+    center_x = x + width / 2
+    center_y = y + height / 2
+
+    crop_left = round(center_x - crop_width / 2)
+    crop_top = round(center_y - crop_height / 2)
+    crop_left = min(
+        max(0, crop_left),
+        source_width - crop_width,
+    )
+    crop_top = min(
+        max(0, crop_top),
+        source_height - crop_height,
+    )
+    crop_right = crop_left + crop_width
+    crop_bottom = crop_top + crop_height
+
+    crop_area_ratio = (
+        crop_width * crop_height
+        / max(1, source_width * source_height)
+    )
+
+    if crop_area_ratio >= PERSON_MAX_CROP_AREA_RATIO:
+        return None
+
+    if (
+        crop_left > left
+        or crop_top > top
+        or crop_right < right
+        or crop_bottom < bottom
+    ):
+        return None
+
+    return (
+        crop_left,
+        crop_top,
+        crop_right,
+        crop_bottom,
+    )
+
+
+def normalized_master(
+    image: Image.Image,
+) -> tuple[Image.Image, dict[str, Any]]:
+    bbox = detect_person_bbox(image)
+
+    if bbox is None:
+        return (
+            standard_canvas(image, MASTER_SIZE),
+            {
+                "subject_detected": False,
+                "method": "standard-canvas-fallback",
+            },
+        )
+
+    crop_box = subject_crop_box(image, bbox)
+
+    if crop_box is None:
+        return (
+            standard_canvas(image, MASTER_SIZE),
+            {
+                "subject_detected": True,
+                "method": "person-detected-no-crop",
+                "person_bbox": list(bbox),
+            },
+        )
+
+    cropped = image.crop(crop_box)
+
+    return (
+        standard_canvas(cropped, MASTER_SIZE),
+        {
+            "subject_detected": True,
+            "method": "opencv-hog-person",
+            "person_bbox": list(bbox),
+            "crop_box": list(crop_box),
+        },
+    )
 
 
 def standard_canvas(
@@ -186,7 +401,7 @@ def process_image(source_value: Any) -> dict[str, Any]:
         image = normalized_image(original)
         width, height = image.size
 
-        master = standard_canvas(image, MASTER_SIZE)
+        master, normalization = normalized_master(image)
         thumb = master.resize(
             THUMB_SIZE,
             Image.Resampling.LANCZOS,
@@ -214,6 +429,7 @@ def process_image(source_value: Any) -> dict[str, Any]:
                 "width": width,
                 "height": height,
             },
+            "normalization": normalization,
             "master": {
                 "path": project_relative(master_path),
                 "width": master.width,
@@ -261,6 +477,7 @@ class Handler(BaseHTTPRequestHandler):
                     "width": THUMB_SIZE[0],
                     "height": THUMB_SIZE[1],
                 },
+                "subject_detector": "opencv-hog-person",
                 "opencv": cv2.__version__,
                 "pillow": PIL.__version__,
                 "host": HOST,
