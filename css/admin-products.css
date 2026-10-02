@@ -1767,13 +1767,14 @@ body.product-color-picker-open {
 
 .product-image-processing {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: center;
     gap: 5px;
     min-height: 31px;
 }
 
 .product-image-processing-status {
+    grid-column: 1 / -1;
     min-width: 0;
     overflow: hidden;
     padding: 5px 7px;
@@ -1807,6 +1808,7 @@ body.product-color-picker-open {
 
 .product-image-processing > button {
     min-height: 31px;
+    width: 100%;
     padding: 5px 7px;
     border: 1px solid var(--product-admin-purple);
     border-radius: 8px;
@@ -1816,6 +1818,11 @@ body.product-color-picker-open {
     font-size: 9px;
     font-weight: 850;
     cursor: pointer;
+}
+
+.product-image-processing:not(.has-comparison)
+> [data-product-image-process] {
+    grid-column: 1 / -1;
 }
 
 .product-image-processing > button:disabled {
@@ -1828,12 +1835,162 @@ body.product-color-picker-open {
     pointer-events: none;
 }
 
+.product-image-compare-button {
+    background: var(--product-admin-soft);
+}
+
+html.product-image-compare-open,
+body.product-image-compare-open {
+    overflow: hidden;
+}
+
+.product-image-compare-modal {
+    position: fixed;
+    z-index: 5000;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    background: rgba(25, 18, 29, 0.72);
+}
+
+.product-image-compare-dialog {
+    width: min(100%, 620px);
+    max-height: calc(100dvh - 28px);
+    display: grid;
+    gap: 12px;
+    overflow: auto;
+    padding: 14px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 18px 50px rgba(24, 16, 30, 0.28);
+}
+
+.product-image-compare-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.product-image-compare-header strong {
+    color: #443b49;
+    font-size: 16px;
+}
+
+.product-image-compare-close {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border: 1px solid var(--product-admin-border);
+    border-radius: 10px;
+    background: #fff;
+    color: #655b6b;
+    font: inherit;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.product-image-compare-stage {
+    --compare-split: 50%;
+    position: relative;
+    width: min(100%, 520px);
+    aspect-ratio: 2 / 3;
+    justify-self: center;
+    overflow: hidden;
+    border: 1px solid var(--product-admin-border);
+    border-radius: 13px;
+    background: #fafafa;
+    touch-action: pan-y;
+}
+
+.product-image-compare-stage img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0;
+    background: #fafafa;
+}
+
+.product-image-compare-processed {
+    clip-path: inset(
+        0
+        calc(100% - var(--compare-split))
+        0
+        0
+    );
+}
+
+.product-image-compare-divider {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    bottom: 0;
+    left: var(--compare-split);
+    width: 2px;
+    transform: translateX(-1px);
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(45, 36, 49, 0.22);
+    pointer-events: none;
+}
+
+.product-image-compare-label {
+    position: absolute;
+    z-index: 4;
+    top: 10px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: rgba(35, 27, 39, 0.72);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 850;
+    pointer-events: none;
+}
+
+.product-image-compare-label.is-original {
+    left: 10px;
+}
+
+.product-image-compare-label.is-processed {
+    right: 10px;
+}
+
+.product-image-compare-slider {
+    display: grid;
+    gap: 7px;
+    color: #675e6c;
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.product-image-compare-slider input {
+    width: 100%;
+    accent-color: var(--product-admin-purple);
+}
+
+.product-image-compare-meta {
+    min-height: 17px;
+    color: var(--product-admin-muted);
+    font-size: 10px;
+    line-height: 1.45;
+    text-align: center;
+}
+
 @media (max-width: 650px) {
-    .product-image-processing {
-        grid-template-columns: 1fr;
+    .product-image-compare-modal {
+        padding: 8px;
     }
 
-    .product-image-processing > button {
-        width: 100%;
+    .product-image-compare-dialog {
+        max-height: calc(100dvh - 16px);
+        padding: 10px;
+        border-radius: 13px;
+    }
+
+    .product-image-compare-stage {
+        width: min(100%, 430px);
     }
 }
