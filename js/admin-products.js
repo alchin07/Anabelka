@@ -479,6 +479,8 @@
             : {};
         const method = valueOrEmpty(normalization.method);
         const methodLabels = {
+            'mediapipe-persondet': 'MediaPipe Person',
+            'mediapipe-persondet-no-crop': 'MediaPipe знайдено · crop не застосовано',
             'opencv-haar-face-subject': 'OpenCV Face + subject',
             'opencv-haar-face-subject-no-crop': 'Face знайдено · crop не застосовано',
             'opencv-hog-person': 'OpenCV HOG',
@@ -527,6 +529,19 @@
                 'Метод: ' + (methodLabels[method] || method),
                 'info'
             );
+
+            const personScore = Number(
+                normalization.person_score
+            );
+
+            if (Number.isFinite(personScore) && personScore > 0) {
+                diagnosticBadge(
+                    'Впевненість: '
+                    + Math.round(personScore * 100)
+                    + '%',
+                    'info'
+                );
+            }
         } else {
             diagnosticBadge(
                 'Діагностика недоступна для цього старого результату.',
