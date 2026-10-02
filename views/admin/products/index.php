@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=9">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=10">
 </head>
 <body>
 
@@ -809,7 +809,7 @@ require __DIR__ . '/../../partials/header.php';
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=13"></script>
+<script src="/Anabelka/js/admin-products.js?v=14"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>
