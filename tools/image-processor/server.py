@@ -37,6 +37,7 @@ CANVAS_BACKGROUND = (250, 250, 250)
 PERSON_DETECT_MAX_EDGE = 900
 FACE_DETECT_MAX_EDGE = 1000
 FACE_MIN_AREA_RATIO = 0.0015
+FACE_CASCADE_FILENAME = "haarcascade_frontalface_default.xml"
 PERSON_MIN_AREA_RATIO = 0.06
 PERSON_MAX_CROP_AREA_RATIO = 0.92
 PERSON_SIDE_MARGIN = 0.18
@@ -274,6 +275,58 @@ def detect_mediapipe_person_bbox(
     )
 
 
+def find_face_cascade_path() -> Path | None:
+    candidates: list[Path] = []
+
+    cv2_data = getattr(cv2, "data", None)
+    haarcascades = (
+        getattr(cv2_data, "haarcascades", "")
+        if cv2_data is not None
+        else ""
+    )
+
+    if haarcascades:
+        candidates.append(
+            Path(haarcascades) / FACE_CASCADE_FILENAME
+        )
+
+    cv2_file = str(getattr(cv2, "__file__", "") or "").strip()
+
+    if cv2_file:
+        cv2_dir = Path(cv2_file).resolve().parent
+        candidates.append(
+            cv2_dir / "data" / FACE_CASCADE_FILENAME
+        )
+
+    for directory in [
+        "/data/data/com.termux/files/usr/share/opencv4/haarcascades",
+        "/data/data/com.termux/files/usr/share/opencv/haarcascades",
+        "/usr/share/opencv4/haarcascades",
+        "/usr/share/opencv/haarcascades",
+    ]:
+        candidates.append(
+            Path(directory) / FACE_CASCADE_FILENAME
+        )
+
+    seen = set()
+
+    for candidate in candidates:
+        key = str(candidate)
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        try:
+            if candidate.is_file():
+                return candidate
+        except OSError:
+            continue
+
+    return None
+
+
 def detect_face_subject_bbox(
     image: Image.Image,
 ) -> tuple[int, int, int, int] | None:
@@ -300,10 +353,11 @@ def detect_face_subject_bbox(
         np.asarray(detect_image),
         cv2.COLOR_RGB2GRAY,
     )
-    cascade_path = (
-        Path(cv2.data.haarcascades)
-        / "haarcascade_frontalface_default.xml"
-    )
+    cascade_path = find_face_cascade_path()
+
+    if cascade_path is None:
+        return None
+
     cascade = cv2.CascadeClassifier(str(cascade_path))
 
     if cascade.empty():
@@ -756,11 +810,21 @@ class Handler(BaseHTTPRequestHandler):
                     "height": THUMB_SIZE[1],
                 },
                 "subject_detector": (
-                    "mediapipe-persondet+haar-face+hog-fallback"
-                    if person_model_ready()
-                    else "haar-face+hog-person-fallback"
+                    (
+                        "mediapipe-persondet+"
+                        if person_model_ready()
+                        else ""
+                    )
+                    + (
+                        "haar-face+"
+                        if find_face_cascade_path() is not None
+                        else ""
+                    )
+                    + "hog-person-fallback"
                 ),
                 "person_model_ready": person_model_ready(),
+                "face_cascade_ready":
+                    find_face_cascade_path() is not None,
                 "person_model_path": project_relative(
                     PERSON_MODEL_PATH
                 ),
