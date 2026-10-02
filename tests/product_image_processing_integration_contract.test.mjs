@@ -36,6 +36,9 @@ assert.match(processingModel, /status = 'error'/);
 assert.match(processingModel, /source_sha256/);
 assert.match(processingModel, /master_path/);
 assert.match(processingModel, /thumb_path/);
+assert.match(processingModel, /normalization_json/);
+assert.match(processingModel, /SHOW COLUMNS[\s\S]*?normalization_json/);
+
 assert.match(processingModel, /processed_at = NOW\(\)/);
 
 assert.match(
@@ -83,15 +86,24 @@ assert.match(pythonServer, /cv2\.HOGDescriptor_getDefaultPeopleDetector/);
 assert.match(pythonServer, /def subject_crop_box\(/);
 assert.match(pythonServer, /def normalized_master\(/);
 assert.match(pythonServer, /"normalization": normalization/);
+assert.match(pythonServer, /"crop_applied": True/);
+assert.match(pythonServer, /"crop_applied": False/);
+
 assert.match(pythonServer, /"processor_version": VERSION/);
 assert.match(pythonServer, /"profile": PROFILE/);
 assert.match(processingService, /uploads\/products\/processed\//);
 assert.match(processingService, /processingProfile/);
+assert.match(processingService, /normalizedDiagnostics/);
+assert.match(processingService, /crop_applied/);
+assert.match(processingService, /subject_detected/);
+
 assert.match(
     migration,
     /CREATE TABLE IF NOT EXISTS product_image_processing/
 );
 assert.match(migration, /ON DELETE CASCADE/);
+assert.match(migration, /normalization_json TEXT NULL/);
+
 
 process.stdout.write(
     'product image processing integration contract passed\n'
