@@ -25,7 +25,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = (PROJECT_ROOT / "uploads" / "products").resolve()
 WORK_ROOT = (PROJECT_ROOT / "storage" / "image-processor").resolve()
 ORIGINAL_ROOT = WORK_ROOT / "originals"
-PROCESSED_ROOT = WORK_ROOT / "processed"
+PROCESSED_ROOT = (SOURCE_ROOT / "processed").resolve()
 
 MASTER_MAX_EDGE = 2400
 THUMB_MAX_EDGE = 480
