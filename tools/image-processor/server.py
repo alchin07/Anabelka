@@ -292,6 +292,7 @@ def normalized_master(
             standard_canvas(image, MASTER_SIZE),
             {
                 "subject_detected": False,
+                "crop_applied": False,
                 "method": "standard-canvas-fallback",
             },
         )
@@ -303,6 +304,7 @@ def normalized_master(
             standard_canvas(image, MASTER_SIZE),
             {
                 "subject_detected": True,
+                "crop_applied": False,
                 "method": "person-detected-no-crop",
                 "person_bbox": list(bbox),
             },
@@ -314,6 +316,7 @@ def normalized_master(
         standard_canvas(cropped, MASTER_SIZE),
         {
             "subject_detected": True,
+            "crop_applied": True,
             "method": "opencv-hog-person",
             "person_bbox": list(bbox),
             "crop_box": list(crop_box),
