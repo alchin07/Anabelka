@@ -86,6 +86,9 @@ class ProductImageProcessingService
         $processorVersion = trim((string) (
             $response['processor_version'] ?? ''
         ));
+        $processingProfile = strtolower(trim((string) (
+            $response['profile'] ?? ''
+        )));
 
         if (
             preg_match('/^[a-f0-9]{32}$/', $jobId) !== 1
@@ -93,6 +96,31 @@ class ProductImageProcessingService
         ) {
             throw new RuntimeException(
                 'Обробник повернув неповні службові дані.'
+            );
+        }
+
+        if (
+            $processingProfile !== ''
+            && preg_match(
+                '/^[a-z0-9][a-z0-9._-]{0,31}$/',
+                $processingProfile
+            ) !== 1
+        ) {
+            throw new RuntimeException(
+                'Обробник повернув некоректний профіль обробки.'
+            );
+        }
+
+        $storedProcessorVersion = $processorVersion
+            . (
+                $processingProfile !== ''
+                    ? ':' . $processingProfile
+                    : ''
+            );
+
+        if (strlen($storedProcessorVersion) > 40) {
+            throw new RuntimeException(
+                'Версія обробника перевищує допустиму довжину.'
             );
         }
 
@@ -133,7 +161,7 @@ class ProductImageProcessingService
         return [
             'source_path' => $expectedSource,
             'job_id' => $jobId,
-            'processor_version' => $processorVersion,
+            'processor_version' => $storedProcessorVersion,
             'source_sha256' => $sha256,
             'source_bytes' => self::positiveInt(
                 $original['bytes'] ?? 0,
