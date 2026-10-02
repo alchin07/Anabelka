@@ -309,7 +309,15 @@
 
         const divider = document.createElement('span');
         divider.className = 'product-image-compare-divider';
-        divider.setAttribute('aria-hidden', 'true');
+        divider.setAttribute('role', 'slider');
+        divider.setAttribute('tabindex', '0');
+        divider.setAttribute(
+            'aria-label',
+            'Межа порівняння оригіналу та обробленої фотографії'
+        );
+        divider.setAttribute('aria-valuemin', '0');
+        divider.setAttribute('aria-valuemax', '100');
+        divider.setAttribute('aria-valuenow', '50');
 
         stage.appendChild(original);
         stage.appendChild(processed);
@@ -335,21 +343,94 @@
             'Положення межі порівняння'
         );
 
-        slider.addEventListener('input', function () {
-            const value = Math.max(
+        function setCompareSplit(value)
+        {
+            const normalized = Math.max(
                 0,
-                Math.min(100, Number(slider.value || 0))
+                Math.min(100, Number(value || 0))
             );
 
             stage.style.setProperty(
                 '--compare-split',
-                value + '%'
+                normalized + '%'
             );
+            slider.value = String(Math.round(normalized));
             slider.setAttribute(
                 'aria-valuetext',
-                value + '% ширини оригіналу'
+                Math.round(normalized)
+                + '% ширини оригіналу'
             );
+            divider.setAttribute(
+                'aria-valuenow',
+                String(Math.round(normalized))
+            );
+        }
+
+        function compareSplitFromPointer(event)
+        {
+            const rect = stage.getBoundingClientRect();
+
+            if (!rect.width) {
+                return Number(slider.value || 50);
+            }
+
+            return (
+                (event.clientX - rect.left)
+                / rect.width
+                * 100
+            );
+        }
+
+        slider.addEventListener('input', function () {
+            setCompareSplit(slider.value);
         });
+
+        divider.addEventListener('pointerdown', function (event) {
+            event.preventDefault();
+            divider.setPointerCapture(event.pointerId);
+            setCompareSplit(compareSplitFromPointer(event));
+        });
+
+        divider.addEventListener('pointermove', function (event) {
+            if (!divider.hasPointerCapture(event.pointerId)) {
+                return;
+            }
+
+            event.preventDefault();
+            setCompareSplit(compareSplitFromPointer(event));
+        });
+
+        function finishDividerDrag(event)
+        {
+            if (divider.hasPointerCapture(event.pointerId)) {
+                divider.releasePointerCapture(event.pointerId);
+            }
+        }
+
+        divider.addEventListener('pointerup', finishDividerDrag);
+        divider.addEventListener('pointercancel', finishDividerDrag);
+
+        divider.addEventListener('keydown', function (event) {
+            const current = Number(slider.value || 50);
+            let next = current;
+
+            if (event.key === 'ArrowLeft') {
+                next = current - 2;
+            } else if (event.key === 'ArrowRight') {
+                next = current + 2;
+            } else if (event.key === 'Home') {
+                next = 0;
+            } else if (event.key === 'End') {
+                next = 100;
+            } else {
+                return;
+            }
+
+            event.preventDefault();
+            setCompareSplit(next);
+        });
+
+        setCompareSplit(50);
 
         sliderWrap.appendChild(sliderText);
         sliderWrap.appendChild(slider);
