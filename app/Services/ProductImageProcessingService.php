@@ -154,6 +154,8 @@ class ProductImageProcessingService
             $normalization['method'] ?? ''
         )));
         $allowedNormalizationMethods = [
+            'mediapipe-persondet',
+            'mediapipe-persondet-no-crop',
             'opencv-haar-face-subject',
             'opencv-haar-face-subject-no-crop',
             'opencv-hog-person',
@@ -211,6 +213,17 @@ class ProductImageProcessingService
                 }
 
                 $normalizedDiagnostics[$boxKey] = $values;
+            }
+
+            if (isset($normalization['person_score'])) {
+                $score = (float) $normalization['person_score'];
+
+                if (is_finite($score)) {
+                    $normalizedDiagnostics['person_score'] = max(
+                        0.0,
+                        min(1.0, $score)
+                    );
+                }
             }
         }
 
