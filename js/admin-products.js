@@ -479,7 +479,10 @@
             : {};
         const method = valueOrEmpty(normalization.method);
         const methodLabels = {
+            'opencv-haar-face-subject': 'OpenCV Face + subject',
+            'opencv-haar-face-subject-no-crop': 'Face знайдено · crop не застосовано',
             'opencv-hog-person': 'OpenCV HOG',
+            'opencv-hog-person-no-crop': 'HOG знайдено · crop не застосовано',
             'person-detected-no-crop': 'Безпечний crop не застосовано',
             'standard-canvas-fallback': 'Fallback 2:3'
         };
