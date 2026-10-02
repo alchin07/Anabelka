@@ -37,6 +37,10 @@ assert.match(processingModel, /source_sha256/);
 assert.match(processingModel, /master_path/);
 assert.match(processingModel, /thumb_path/);
 assert.match(processingModel, /normalization_json/);
+assert.match(
+    processingModel,
+    /\$db\s*=\s*Database::connect\(\);[\s\S]*?\$db->exec\(/
+);
 assert.match(processingModel, /SHOW COLUMNS[\s\S]*?normalization_json/);
 
 assert.match(processingModel, /processed_at = NOW\(\)/);
