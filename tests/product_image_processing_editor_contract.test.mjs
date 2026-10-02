@@ -17,8 +17,8 @@ assert.match(
     /\$image\['processing'\]\s*=/
 );
 
-assert.match(view, /admin-products\.css\?v=9/);
-assert.match(view, /admin-products\.js\?v=13/);
+assert.match(view, /admin-products\.css\?v=10/);
+assert.match(view, /admin-products\.js\?v=14/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(
@@ -39,6 +39,12 @@ assert.match(script, /processedMasterUrl/);
 assert.match(script, /imageCompareHistoryKey/);
 assert.match(script, /closeImageComparison/);
 assert.match(script, /openImageComparison/);
+assert.match(script, /setPointerCapture/);
+assert.match(script, /hasPointerCapture/);
+assert.match(script, /setCompareSplit/);
+assert.match(script, /ArrowLeft/);
+assert.match(script, /ArrowRight/);
+
 assert.match(script, /product-image-compare-diagnostics/);
 assert.match(script, /Модель:/);
 assert.match(script, /Кадрування:/);
@@ -62,6 +68,10 @@ assert.match(
 assert.match(css, /\.product-image-compare-modal/);
 assert.match(css, /\.product-image-compare-stage/);
 assert.match(css, /\.product-image-compare-divider/);
+assert.match(css, /touch-action: none/);
+assert.match(css, /::-webkit-slider-thumb/);
+assert.match(css, /width: 32px/);
+
 assert.match(css, /\.product-image-compare-slider/);
 assert.match(css, /\.product-image-compare-diagnostics/);
 assert.match(css, /\.product-image-compare-diagnostic/);
