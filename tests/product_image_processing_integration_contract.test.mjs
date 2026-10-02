@@ -84,7 +84,7 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.4"/);
+assert.match(pythonServer, /VERSION = "0\.5"/);
 assert.match(pythonServer, /PROFILE = "model-normalize-v2"/);
 assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
 assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
@@ -92,6 +92,8 @@ assert.match(pythonServer, /def standard_canvas\(/);
 assert.match(pythonServer, /def detect_person_bbox\(/);
 assert.match(pythonServer, /def detect_face_subject_bbox\(/);
 assert.match(pythonServer, /haarcascade_frontalface_default\.xml/);
+assert.match(pythonServer, /def find_face_cascade_path\(/);
+assert.match(pythonServer, /face_cascade_ready/);
 assert.match(pythonServer, /opencv-haar-face-subject/);
 assert.match(pythonServer, /from mp_persondet import MPPersonDet/);
 assert.match(pythonServer, /person_detection_mediapipe_2023mar\.onnx/);
