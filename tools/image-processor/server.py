@@ -16,7 +16,8 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 HOST = "127.0.0.1"
-VERSION = "0.2"
+VERSION = "0.3"
+PROFILE = "standard-v1"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -27,8 +28,9 @@ WORK_ROOT = (PROJECT_ROOT / "storage" / "image-processor").resolve()
 ORIGINAL_ROOT = WORK_ROOT / "originals"
 PROCESSED_ROOT = (SOURCE_ROOT / "processed").resolve()
 
-MASTER_MAX_EDGE = 2400
-THUMB_MAX_EDGE = 480
+MASTER_SIZE = (1200, 1800)
+THUMB_SIZE = (320, 480)
+CANVAS_BACKGROUND = (250, 250, 250)
 
 
 def json_bytes(payload: dict[str, Any]) -> bytes:
@@ -104,13 +106,55 @@ def normalized_image(source: Path) -> Image.Image:
         return image.convert("RGB")
 
 
-def resized_copy(image: Image.Image, max_edge: int) -> Image.Image:
-    result = image.copy()
-    result.thumbnail(
-        (max_edge, max_edge),
+def standard_canvas(
+    image: Image.Image,
+    size: tuple[int, int],
+) -> Image.Image:
+    target_width, target_height = size
+    source_width, source_height = image.size
+
+    if source_width <= 0 or source_height <= 0:
+        raise ValueError("Некоректний розмір фотографії.")
+
+    scale = min(
+        target_width / source_width,
+        target_height / source_height,
+    )
+    resized_width = max(1, round(source_width * scale))
+    resized_height = max(1, round(source_height * scale))
+    resized = image.resize(
+        (resized_width, resized_height),
         Image.Resampling.LANCZOS,
     )
-    return result
+
+    if resized.mode == "RGBA":
+        flattened = Image.new(
+            "RGB",
+            resized.size,
+            CANVAS_BACKGROUND,
+        )
+        flattened.paste(
+            resized,
+            (0, 0),
+            resized,
+        )
+        resized = flattened
+    else:
+        resized = resized.convert("RGB")
+
+    canvas = Image.new(
+        "RGB",
+        (target_width, target_height),
+        CANVAS_BACKGROUND,
+    )
+    left = (target_width - resized_width) // 2
+    top = (target_height - resized_height) // 2
+    canvas.paste(
+        resized,
+        (left, top),
+    )
+
+    return canvas
 
 
 def save_webp(image: Image.Image, target: Path, quality: int) -> None:
@@ -142,8 +186,11 @@ def process_image(source_value: Any) -> dict[str, Any]:
         image = normalized_image(original)
         width, height = image.size
 
-        master = resized_copy(image, MASTER_MAX_EDGE)
-        thumb = resized_copy(image, THUMB_MAX_EDGE)
+        master = standard_canvas(image, MASTER_SIZE)
+        thumb = master.resize(
+            THUMB_SIZE,
+            Image.Resampling.LANCZOS,
+        )
 
         master_path = processed_dir / "master.webp"
         thumb_path = processed_dir / "thumb.webp"
@@ -154,6 +201,7 @@ def process_image(source_value: Any) -> dict[str, Any]:
         return {
             "ok": True,
             "processor_version": VERSION,
+            "profile": PROFILE,
             "job_id": job_id,
             "source": project_relative(source),
             "original": {
@@ -204,6 +252,15 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True,
                 "service": "Anabelka Image Processor",
                 "version": VERSION,
+                "profile": PROFILE,
+                "master_size": {
+                    "width": MASTER_SIZE[0],
+                    "height": MASTER_SIZE[1],
+                },
+                "thumb_size": {
+                    "width": THUMB_SIZE[0],
+                    "height": THUMB_SIZE[1],
+                },
                 "opencv": cv2.__version__,
                 "pillow": PIL.__version__,
                 "host": HOST,
