@@ -15,6 +15,8 @@ import numpy as np
 import PIL
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from mp_persondet import MPPersonDet
+
 
 HOST = "127.0.0.1"
 VERSION = "0.5"
@@ -40,6 +42,20 @@ PERSON_MAX_CROP_AREA_RATIO = 0.92
 PERSON_SIDE_MARGIN = 0.18
 PERSON_TOP_MARGIN = 0.08
 PERSON_BOTTOM_MARGIN = 0.10
+
+PERSON_MODEL_PATH = (
+    WORK_ROOT
+    / "models"
+    / "person_detection_mediapipe_2023mar.onnx"
+)
+PERSON_MODEL_BYTES = 11990159
+PERSON_MODEL_SHA256 = (
+    "47fd5599d6fa17608f03e0eb0ae230baa6e597d7e8a2c8199fe00abea55a701f"
+)
+PERSON_MODEL_SCORE_THRESHOLD = 0.45
+
+_person_detector = None
+_person_detector_error = ""
 
 
 def json_bytes(payload: dict[str, Any]) -> bytes:
@@ -130,6 +146,132 @@ def flattened_rgb(image: Image.Image) -> Image.Image:
         return flattened
 
     return image.convert("RGB")
+
+
+def person_model_ready() -> bool:
+    try:
+        return (
+            PERSON_MODEL_PATH.is_file()
+            and PERSON_MODEL_PATH.stat().st_size == PERSON_MODEL_BYTES
+        )
+    except OSError:
+        return False
+
+
+def get_person_detector() -> MPPersonDet | None:
+    global _person_detector
+    global _person_detector_error
+
+    if _person_detector is not None:
+        return _person_detector
+
+    if not person_model_ready():
+        _person_detector_error = "model-missing"
+        return None
+
+    try:
+        if sha256_file(PERSON_MODEL_PATH) != PERSON_MODEL_SHA256:
+            _person_detector_error = "model-sha256-mismatch"
+            return None
+
+        _person_detector = MPPersonDet(
+            str(PERSON_MODEL_PATH),
+            scoreThreshold=PERSON_MODEL_SCORE_THRESHOLD,
+            nmsThreshold=0.3,
+            topK=1000,
+            backendId=cv2.dnn.DNN_BACKEND_OPENCV,
+            targetId=cv2.dnn.DNN_TARGET_CPU,
+        )
+        _person_detector_error = ""
+        return _person_detector
+    except Exception as error:
+        _person_detector_error = (
+            type(error).__name__
+            + ":"
+            + str(error)
+        )[:240]
+        return None
+
+
+def detect_mediapipe_person_bbox(
+    image: Image.Image,
+) -> tuple[tuple[int, int, int, int], float] | None:
+    detector = get_person_detector()
+
+    if detector is None:
+        return None
+
+    rgb = flattened_rgb(image)
+    frame = cv2.cvtColor(
+        np.asarray(rgb),
+        cv2.COLOR_RGB2BGR,
+    )
+
+    try:
+        results = detector.infer(frame)
+    except Exception as error:
+        global _person_detector_error
+        _person_detector_error = (
+            type(error).__name__
+            + ":"
+            + str(error)
+        )[:240]
+        return None
+
+    if results is None or len(results) == 0:
+        return None
+
+    best = max(
+        results,
+        key=lambda result: float(result[-1]),
+    )
+    score = float(best[-1])
+    landmarks = np.asarray(
+        best[4:-1],
+        dtype=np.float64,
+    ).reshape(4, 2)
+
+    hip_center = landmarks[0]
+    full_body_point = landmarks[1]
+    radius = float(
+        np.linalg.norm(
+            hip_center - full_body_point
+        )
+    )
+
+    if not np.isfinite(radius) or radius <= 1.0:
+        return None
+
+    source_width, source_height = rgb.size
+    left = max(
+        0,
+        int(round(hip_center[0] - radius)),
+    )
+    top = max(
+        0,
+        int(round(hip_center[1] - radius)),
+    )
+    right = min(
+        source_width,
+        int(round(hip_center[0] + radius)),
+    )
+    bottom = min(
+        source_height,
+        int(round(hip_center[1] + radius)),
+    )
+
+    if right <= left or bottom <= top:
+        return None
+
+    return (
+        (
+            left,
+            top,
+            right - left,
+            bottom - top,
+        ),
+        score,
+    )
 
 
 def detect_face_subject_bbox(
@@ -396,8 +538,19 @@ def subject_crop_box(
 def normalized_master(
     image: Image.Image,
 ) -> tuple[Image.Image, dict[str, Any]]:
-    bbox = detect_face_subject_bbox(image)
-    method = "opencv-haar-face-subject"
+    bbox = None
+    method = ""
+    person_score = None
+
+    mediapipe_result = detect_mediapipe_person_bbox(image)
+
+    if mediapipe_result is not None:
+        bbox, person_score = mediapipe_result
+        method = "mediapipe-persondet"
+
+    if bbox is None:
+        bbox = detect_face_subject_bbox(image)
+        method = "opencv-haar-face-subject"
 
     if bbox is None:
         bbox = detect_person_bbox(image)
@@ -414,29 +567,35 @@ def normalized_master(
         )
 
     crop_box = subject_crop_box(image, bbox)
+    diagnostics = {
+        "subject_detected": True,
+        "crop_applied": crop_box is not None,
+        "method": (
+            method
+            if crop_box is not None
+            else method + "-no-crop"
+        ),
+        "person_bbox": list(bbox),
+    }
+
+    if person_score is not None:
+        diagnostics["person_score"] = round(
+            max(0.0, min(1.0, person_score)),
+            4,
+        )
 
     if crop_box is None:
         return (
             standard_canvas(image, MASTER_SIZE),
-            {
-                "subject_detected": True,
-                "crop_applied": False,
-                "method": method + "-no-crop",
-                "person_bbox": list(bbox),
-            },
+            diagnostics,
         )
 
+    diagnostics["crop_box"] = list(crop_box)
     cropped = image.crop(crop_box)
 
     return (
         standard_canvas(cropped, MASTER_SIZE),
-        {
-            "subject_detected": True,
-            "crop_applied": True,
-            "method": method,
-            "person_bbox": list(bbox),
-            "crop_box": list(crop_box),
-        },
+        diagnostics,
     )
 
 
@@ -596,7 +755,16 @@ class Handler(BaseHTTPRequestHandler):
                     "width": THUMB_SIZE[0],
                     "height": THUMB_SIZE[1],
                 },
-                "subject_detector": "opencv-haar-face+hog-person",
+                "subject_detector": (
+                    "mediapipe-persondet+haar-face+hog-fallback"
+                    if person_model_ready()
+                    else "haar-face+hog-person-fallback"
+                ),
+                "person_model_ready": person_model_ready(),
+                "person_model_path": project_relative(
+                    PERSON_MODEL_PATH
+                ),
+                "person_model_error": _person_detector_error,
                 "opencv": cv2.__version__,
                 "pillow": PIL.__version__,
                 "host": HOST,
