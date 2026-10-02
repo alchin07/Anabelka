@@ -332,7 +332,7 @@
         slider.step = '1';
         slider.setAttribute(
             'aria-label',
-            'Частка обробленої фотографії'
+            'Положення межі порівняння'
         );
 
         slider.addEventListener('input', function () {
@@ -347,7 +347,7 @@
             );
             slider.setAttribute(
                 'aria-valuetext',
-                value + '% обробленої фотографії'
+                value + '% ширини оригіналу'
             );
         });
 
