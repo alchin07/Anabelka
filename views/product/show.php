@@ -99,8 +99,9 @@
                 ];
             }
 
-            $mainGalleryImage = $galleryImages[0]['path']
-                ?? ($product['main_image'] ?? '');
+            $mainGalleryImage = !empty($galleryImages[0]['master_path'])
+                ? $galleryImages[0]['master_path']
+                : ($galleryImages[0]['path'] ?? ($product['main_image'] ?? ''));
             ?>
 
             <div class="product-gallery" data-product-gallery>
@@ -119,16 +120,25 @@
                 <?php if (count($galleryImages) > 1): ?>
                     <div class="product-gallery-thumbs" aria-label="Фотографії товару">
                         <?php foreach ($galleryImages as $index => $image): ?>
+                            <?php
+                            $imageMaster = !empty($image['master_path'])
+                                ? $image['master_path']
+                                : ($image['path'] ?? '');
+
+                            $imageThumb = !empty($image['thumb_path'])
+                                ? $image['thumb_path']
+                                : $imageMaster;
+                            ?>
                             <button
                                 type="button"
                                 class="product-gallery-thumb<?= $index === 0 ? ' is-active' : '' ?>"
                                 data-product-gallery-thumb
-                                data-image-src="<?= htmlspecialchars($image['path'], ENT_QUOTES, 'UTF-8') ?>"
+                                data-image-src="<?= htmlspecialchars($imageMaster, ENT_QUOTES, 'UTF-8') ?>"
                                 aria-label="Фотографія <?= $index + 1 ?>"
                                 aria-pressed="<?= $index === 0 ? 'true' : 'false' ?>"
                             >
                                 <img
-                                    src="<?= htmlspecialchars($image['path']) ?>"
+                                    src="<?= htmlspecialchars($imageThumb) ?>"
                                     alt=""
                                     loading="lazy"
                                 >
