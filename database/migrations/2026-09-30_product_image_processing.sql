@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS product_image_processing
     thumb_width INT UNSIGNED NULL,
     thumb_height INT UNSIGNED NULL,
     thumb_bytes BIGINT UNSIGNED NULL,
+    normalization_json TEXT NULL,
     last_error VARCHAR(500) NULL,
     processed_at DATETIME NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
