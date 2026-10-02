@@ -13,7 +13,9 @@ class ProductImageProcessing
 
         ProductImage::ensureTable();
 
-        Database::connect()->exec("
+        $db = Database::connect();
+
+        $db->exec("
             CREATE TABLE IF NOT EXISTS product_image_processing
             (
                 image_id BIGINT UNSIGNED NOT NULL,
