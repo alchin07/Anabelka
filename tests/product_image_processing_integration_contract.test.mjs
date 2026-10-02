@@ -73,8 +73,15 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.2"/);
+assert.match(pythonServer, /VERSION = "0\.3"/);
+assert.match(pythonServer, /PROFILE = "standard-v1"/);
+assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
+assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
+assert.match(pythonServer, /def standard_canvas\(/);
 assert.match(pythonServer, /"processor_version": VERSION/);
+assert.match(pythonServer, /"profile": PROFILE/);
+assert.match(processingService, /uploads\/products\/processed\//);
+assert.match(processingService, /processingProfile/);
 assert.match(
     migration,
     /CREATE TABLE IF NOT EXISTS product_image_processing/
