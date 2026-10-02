@@ -159,6 +159,300 @@
     }
 
 
+    const imageCompareHistoryKey = '__anabelkaProductImageCompare';
+    let activeImageCompareModal = null;
+
+
+    function publicProductImageUrl(path)
+    {
+        const normalized = valueOrEmpty(path)
+            .trim()
+            .replace(/\\/g, '/');
+
+        if (normalized.indexOf('/Anabelka/uploads/products/') === 0) {
+            return normalized;
+        }
+
+        if (normalized.indexOf('uploads/products/') === 0) {
+            return '/Anabelka/' + normalized;
+        }
+
+        return '';
+    }
+
+
+    function processedMasterUrl(image)
+    {
+        const processing = image
+            && image.processing
+            && typeof image.processing === 'object'
+            ? image.processing
+            : {};
+
+        if (String(processing.status || '') !== 'ready') {
+            return '';
+        }
+
+        const path = valueOrEmpty(processing.master_path)
+            .trim()
+            .replace(/\\/g, '/');
+
+        if (
+            path.indexOf('uploads/products/processed/') !== 0
+            && path.indexOf('/Anabelka/uploads/products/processed/') !== 0
+        ) {
+            return '';
+        }
+
+        return publicProductImageUrl(path);
+    }
+
+
+    function closeImageComparison(options)
+    {
+        options = options && typeof options === 'object'
+            ? options
+            : {};
+
+        if (!activeImageCompareModal) {
+            return;
+        }
+
+        activeImageCompareModal.remove();
+        activeImageCompareModal = null;
+        document.documentElement.classList.remove(
+            'product-image-compare-open'
+        );
+        document.body.classList.remove(
+            'product-image-compare-open'
+        );
+
+        if (
+            options.syncHistory !== false
+            && history.state
+            && typeof history.state === 'object'
+            && history.state[imageCompareHistoryKey]
+        ) {
+            history.back();
+        }
+    }
+
+
+    function openImageComparison(image)
+    {
+        const originalUrl = publicProductImageUrl(
+            image ? image.path : ''
+        );
+        const processedUrl = processedMasterUrl(image);
+
+        if (!originalUrl || !processedUrl) {
+            showMessage(
+                'Для порівняння потрібна готова оброблена фотографія.'
+            );
+            return;
+        }
+
+        closeImageComparison({ syncHistory: false });
+
+        const processing = image.processing || {};
+        const modal = document.createElement('div');
+        modal.className = 'product-image-compare-modal';
+        modal.dataset.productImageCompareModal = '';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'product-image-compare-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute(
+            'aria-label',
+            'Порівняння оригіналу та обробленої фотографії'
+        );
+
+        const header = document.createElement('div');
+        header.className = 'product-image-compare-header';
+
+        const title = document.createElement('strong');
+        title.textContent = 'Порівняння фотографії';
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'product-image-compare-close';
+        close.textContent = '×';
+        close.setAttribute('aria-label', 'Закрити порівняння');
+
+        header.appendChild(title);
+        header.appendChild(close);
+
+        const stage = document.createElement('div');
+        stage.className = 'product-image-compare-stage';
+        stage.style.setProperty('--compare-split', '50%');
+
+        const original = document.createElement('img');
+        original.className = 'product-image-compare-original';
+        original.src = originalUrl;
+        original.alt = 'Оригінальна фотографія';
+
+        const processed = document.createElement('img');
+        processed.className = 'product-image-compare-processed';
+        processed.src = processedUrl;
+        processed.alt = 'Оброблена фотографія';
+
+        const originalLabel = document.createElement('span');
+        originalLabel.className =
+            'product-image-compare-label is-original';
+        originalLabel.textContent = 'Оригінал';
+
+        const processedLabel = document.createElement('span');
+        processedLabel.className =
+            'product-image-compare-label is-processed';
+        processedLabel.textContent = 'Оброблене';
+
+        const divider = document.createElement('span');
+        divider.className = 'product-image-compare-divider';
+        divider.setAttribute('aria-hidden', 'true');
+
+        stage.appendChild(original);
+        stage.appendChild(processed);
+        stage.appendChild(originalLabel);
+        stage.appendChild(processedLabel);
+        stage.appendChild(divider);
+
+        const sliderWrap = document.createElement('label');
+        sliderWrap.className = 'product-image-compare-slider';
+
+        const sliderText = document.createElement('span');
+        sliderText.textContent =
+            'Перетягніть повзунок для порівняння';
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = '100';
+        slider.value = '50';
+        slider.step = '1';
+        slider.setAttribute(
+            'aria-label',
+            'Частка обробленої фотографії'
+        );
+
+        slider.addEventListener('input', function () {
+            const value = Math.max(
+                0,
+                Math.min(100, Number(slider.value || 0))
+            );
+
+            stage.style.setProperty(
+                '--compare-split',
+                value + '%'
+            );
+            slider.setAttribute(
+                'aria-valuetext',
+                value + '% обробленої фотографії'
+            );
+        });
+
+        sliderWrap.appendChild(sliderText);
+        sliderWrap.appendChild(slider);
+
+        const meta = document.createElement('div');
+        meta.className = 'product-image-compare-meta';
+
+        const sourceWidth = Number(processing.source_width || 0);
+        const sourceHeight = Number(processing.source_height || 0);
+        const masterWidth = Number(processing.master_width || 0);
+        const masterHeight = Number(processing.master_height || 0);
+        const version = valueOrEmpty(processing.processor_version);
+
+        const metaParts = [];
+
+        if (sourceWidth > 0 && sourceHeight > 0) {
+            metaParts.push(
+                'Оригінал '
+                + sourceWidth
+                + '×'
+                + sourceHeight
+            );
+        }
+
+        if (masterWidth > 0 && masterHeight > 0) {
+            metaParts.push(
+                'Оброблене '
+                + masterWidth
+                + '×'
+                + masterHeight
+            );
+        }
+
+        if (version) {
+            metaParts.push(version);
+        }
+
+        meta.textContent = metaParts.join(' · ');
+
+        dialog.appendChild(header);
+        dialog.appendChild(stage);
+        dialog.appendChild(sliderWrap);
+        dialog.appendChild(meta);
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        activeImageCompareModal = modal;
+        document.documentElement.classList.add(
+            'product-image-compare-open'
+        );
+        document.body.classList.add(
+            'product-image-compare-open'
+        );
+
+        const historyState = Object.assign(
+            {},
+            history.state && typeof history.state === 'object'
+                ? history.state
+                : {}
+        );
+        historyState[imageCompareHistoryKey] = true;
+        history.pushState(
+            historyState,
+            '',
+            currentProductEditorUrl()
+        );
+
+        close.addEventListener('click', function () {
+            closeImageComparison();
+        });
+
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                closeImageComparison();
+            }
+        });
+
+        close.focus();
+    }
+
+
+    window.addEventListener('popstate', function (event) {
+        const state = event.state
+            && typeof event.state === 'object'
+            ? event.state
+            : {};
+
+        if (
+            activeImageCompareModal
+            && !state[imageCompareHistoryKey]
+        ) {
+            closeImageComparison({ syncHistory: false });
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && activeImageCompareModal) {
+            event.preventDefault();
+            closeImageComparison();
+        }
+    });
+
+
     function colorPickerValue(value)
     {
         const normalized = valueOrEmpty(value).trim().toLowerCase();
@@ -523,8 +817,17 @@
         const button = control.querySelector(
             '[data-product-image-process]'
         );
+        const compareButton = control.querySelector(
+            '[data-product-image-compare]'
+        );
+        const canCompare = status === 'ready'
+            && processedMasterUrl(image) !== '';
 
         control.dataset.processingStatus = status || 'pending';
+        control.classList.toggle(
+            'has-comparison',
+            canCompare
+        );
 
         if (label) {
             label.textContent = processingStatusText(processing);
@@ -537,6 +840,10 @@
             button.textContent = status === 'ready'
                 ? 'Повторити'
                 : 'Обробити';
+        }
+
+        if (compareButton) {
+            compareButton.hidden = !canCompare;
         }
     }
 
@@ -557,6 +864,23 @@
             'aria-label',
             'Обробити фотографію товару'
         );
+
+        const compareButton = document.createElement('button');
+        compareButton.type = 'button';
+        compareButton.className = 'product-image-compare-button';
+        compareButton.setAttribute(
+            'data-product-image-compare',
+            ''
+        );
+        compareButton.setAttribute(
+            'aria-label',
+            'Порівняти оригінал і оброблену фотографію'
+        );
+        compareButton.textContent = 'Порівняти';
+        compareButton.hidden = true;
+        compareButton.addEventListener('click', function () {
+            openImageComparison(image);
+        });
 
         button.addEventListener('click', async function () {
             const imageId = Number(image.id || 0);
@@ -638,10 +962,12 @@
 
         control.appendChild(status);
         control.appendChild(button);
+        control.appendChild(compareButton);
         syncProcessingControl(control, image);
 
         remove.addEventListener('change', function () {
             button.disabled = remove.checked;
+            compareButton.disabled = remove.checked;
         });
 
         return control;
