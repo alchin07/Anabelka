@@ -17,8 +17,8 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 HOST = "127.0.0.1"
-VERSION = "0.4"
-PROFILE = "model-normalize-v1"
+VERSION = "0.5"
+PROFILE = "model-normalize-v2"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -33,6 +33,8 @@ MASTER_SIZE = (1200, 1800)
 THUMB_SIZE = (320, 480)
 CANVAS_BACKGROUND = (250, 250, 250)
 PERSON_DETECT_MAX_EDGE = 900
+FACE_DETECT_MAX_EDGE = 1000
+FACE_MIN_AREA_RATIO = 0.0015
 PERSON_MIN_AREA_RATIO = 0.06
 PERSON_MAX_CROP_AREA_RATIO = 0.92
 PERSON_SIDE_MARGIN = 0.18
@@ -128,6 +130,115 @@ def flattened_rgb(image: Image.Image) -> Image.Image:
         return flattened
 
     return image.convert("RGB")
+
+
+def detect_face_subject_bbox(
+    image: Image.Image,
+) -> tuple[int, int, int, int] | None:
+    rgb = flattened_rgb(image)
+    source_width, source_height = rgb.size
+    max_edge = max(source_width, source_height)
+
+    if max_edge <= 0:
+        return None
+
+    scale = min(1.0, FACE_DETECT_MAX_EDGE / max_edge)
+    detect_width = max(1, round(source_width * scale))
+    detect_height = max(1, round(source_height * scale))
+
+    if scale < 1.0:
+        detect_image = rgb.resize(
+            (detect_width, detect_height),
+            Image.Resampling.BILINEAR,
+        )
+    else:
+        detect_image = rgb
+
+    gray = cv2.cvtColor(
+        np.asarray(detect_image),
+        cv2.COLOR_RGB2GRAY,
+    )
+    cascade_path = (
+        Path(cv2.data.haarcascades)
+        / "haarcascade_frontalface_default.xml"
+    )
+    cascade = cv2.CascadeClassifier(str(cascade_path))
+
+    if cascade.empty():
+        return None
+
+    faces = cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.08,
+        minNeighbors=5,
+        minSize=(36, 36),
+    )
+
+    if len(faces) == 0:
+        return None
+
+    frame_area = detect_width * detect_height
+    candidates = []
+
+    for rect in faces:
+        x, y, width, height = [int(value) for value in rect]
+        area = width * height
+
+        if (
+            area <= 0
+            or area / max(1, frame_area) < FACE_MIN_AREA_RATIO
+        ):
+            continue
+
+        center_x = x + width / 2
+        center_distance = abs(
+            center_x - detect_width / 2
+        ) / max(1, detect_width)
+        score = area * (1.0 - min(0.65, center_distance))
+
+        candidates.append((
+            score,
+            area,
+            x,
+            y,
+            width,
+            height,
+        ))
+
+    if not candidates:
+        return None
+
+    candidates.sort(
+        key=lambda item: (item[0], item[1]),
+        reverse=True,
+    )
+    _, _, x, y, width, height = candidates[0]
+    inverse_scale = 1.0 / scale
+
+    face_x = max(0, round(x * inverse_scale))
+    face_y = max(0, round(y * inverse_scale))
+    face_width = max(1, round(width * inverse_scale))
+    face_height = max(1, round(height * inverse_scale))
+
+    subject_left = face_x - round(face_width * 1.65)
+    subject_right = face_x + face_width + round(face_width * 1.65)
+    subject_top = face_y - round(face_height * 0.75)
+    subject_bottom = face_y + round(face_height * 6.7)
+
+    left = max(0, subject_left)
+    top = max(0, subject_top)
+    right = min(source_width, subject_right)
+    bottom = min(source_height, subject_bottom)
+
+    if right <= left or bottom <= top:
+        return None
+
+    return (
+        left,
+        top,
+        right - left,
+        bottom - top,
+    )
 
 
 def detect_person_bbox(
@@ -285,7 +396,12 @@ def subject_crop_box(
 def normalized_master(
     image: Image.Image,
 ) -> tuple[Image.Image, dict[str, Any]]:
-    bbox = detect_person_bbox(image)
+    bbox = detect_face_subject_bbox(image)
+    method = "opencv-haar-face-subject"
+
+    if bbox is None:
+        bbox = detect_person_bbox(image)
+        method = "opencv-hog-person"
 
     if bbox is None:
         return (
@@ -305,7 +421,7 @@ def normalized_master(
             {
                 "subject_detected": True,
                 "crop_applied": False,
-                "method": "person-detected-no-crop",
+                "method": method + "-no-crop",
                 "person_bbox": list(bbox),
             },
         )
@@ -317,7 +433,7 @@ def normalized_master(
         {
             "subject_detected": True,
             "crop_applied": True,
-            "method": "opencv-hog-person",
+            "method": method,
             "person_bbox": list(bbox),
             "crop_box": list(crop_box),
         },
@@ -480,7 +596,7 @@ class Handler(BaseHTTPRequestHandler):
                     "width": THUMB_SIZE[0],
                     "height": THUMB_SIZE[1],
                 },
-                "subject_detector": "opencv-hog-person",
+                "subject_detector": "opencv-haar-face+hog-person",
                 "opencv": cv2.__version__,
                 "pillow": PIL.__version__,
                 "host": HOST,
