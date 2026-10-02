@@ -73,11 +73,16 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.3"/);
-assert.match(pythonServer, /PROFILE = "standard-v1"/);
+assert.match(pythonServer, /VERSION = "0\.4"/);
+assert.match(pythonServer, /PROFILE = "model-normalize-v1"/);
 assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
 assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
 assert.match(pythonServer, /def standard_canvas\(/);
+assert.match(pythonServer, /def detect_person_bbox\(/);
+assert.match(pythonServer, /cv2\.HOGDescriptor_getDefaultPeopleDetector/);
+assert.match(pythonServer, /def subject_crop_box\(/);
+assert.match(pythonServer, /def normalized_master\(/);
+assert.match(pythonServer, /"normalization": normalization/);
 assert.match(pythonServer, /"processor_version": VERSION/);
 assert.match(pythonServer, /"profile": PROFILE/);
 assert.match(processingService, /uploads\/products\/processed\//);
