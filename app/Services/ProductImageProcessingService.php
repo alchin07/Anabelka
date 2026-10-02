@@ -154,7 +154,10 @@ class ProductImageProcessingService
             $normalization['method'] ?? ''
         )));
         $allowedNormalizationMethods = [
+            'opencv-haar-face-subject',
+            'opencv-haar-face-subject-no-crop',
             'opencv-hog-person',
+            'opencv-hog-person-no-crop',
             'person-detected-no-crop',
             'standard-canvas-fallback'
         ];
