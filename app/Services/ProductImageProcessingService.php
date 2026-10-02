@@ -213,9 +213,12 @@ class ProductImageProcessingService
     ) {
         $path = trim(str_replace('\\', '/', (string) $path));
         $path = ltrim($path, '/');
-        $prefix = 'storage/image-processor/'
-            . $bucket
-            . '/'
+
+        $root = $bucket === 'processed'
+            ? 'uploads/products/processed/'
+            : 'storage/image-processor/' . $bucket . '/';
+
+        $prefix = $root
             . $jobId
             . '/';
 
