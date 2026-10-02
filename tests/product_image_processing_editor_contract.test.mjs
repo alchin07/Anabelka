@@ -17,8 +17,8 @@ assert.match(
     /\$image\['processing'\]\s*=/
 );
 
-assert.match(view, /admin-products\.css\?v=7/);
-assert.match(view, /admin-products\.js\?v=11/);
+assert.match(view, /admin-products\.css\?v=8/);
+assert.match(view, /admin-products\.js\?v=12/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(
@@ -31,6 +31,15 @@ assert.match(script, /Готово ·/);
 assert.match(script, /Не оброблено/);
 assert.match(script, /Повторити/);
 assert.match(script, /image\.processing\s*=\s*data\.processing/);
+assert.match(script, /data-product-image-compare/);
+assert.match(script, /Порівняти/);
+assert.match(script, /product-image-compare-modal/);
+assert.match(script, /type = 'range'/);
+assert.match(script, /processedMasterUrl/);
+assert.match(script, /imageCompareHistoryKey/);
+assert.match(script, /closeImageComparison/);
+assert.match(script, /openImageComparison/);
+
 
 assert.match(css, /\.product-image-processing/);
 assert.match(
@@ -45,6 +54,11 @@ assert.match(
     css,
     /data-processing-status="processing"/
 );
+assert.match(css, /\.product-image-compare-modal/);
+assert.match(css, /\.product-image-compare-stage/);
+assert.match(css, /\.product-image-compare-divider/);
+assert.match(css, /\.product-image-compare-slider/);
+
 
 process.stdout.write(
     'product image processing editor contract passed\n'
