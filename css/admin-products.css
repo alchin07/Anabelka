@@ -1918,9 +1918,9 @@ body.product-image-compare-open {
 .product-image-compare-processed {
     clip-path: inset(
         0
-        calc(100% - var(--compare-split))
         0
         0
+        var(--compare-split)
     );
 }
 
