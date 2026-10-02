@@ -147,6 +147,69 @@ class ProductImageProcessingService
         $thumb = is_array($response['thumb'] ?? null)
             ? $response['thumb']
             : [];
+        $normalization = is_array(
+            $response['normalization'] ?? null
+        ) ? $response['normalization'] : [];
+        $normalizationMethod = strtolower(trim((string) (
+            $normalization['method'] ?? ''
+        )));
+        $allowedNormalizationMethods = [
+            'opencv-hog-person',
+            'person-detected-no-crop',
+            'standard-canvas-fallback'
+        ];
+
+        if (
+            $normalizationMethod !== ''
+            && !in_array(
+                $normalizationMethod,
+                $allowedNormalizationMethods,
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'Обробник повернув невідомий метод нормалізації.'
+            );
+        }
+
+        $subjectDetected = (
+            $normalization['subject_detected'] ?? false
+        ) === true;
+        $cropApplied = (
+            $normalization['crop_applied'] ?? false
+        ) === true;
+
+        if ($cropApplied && !$subjectDetected) {
+            throw new RuntimeException(
+                'Обробник повернув суперечливу діагностику нормалізації.'
+            );
+        }
+
+        $normalizedDiagnostics = [];
+
+        if ($normalizationMethod !== '') {
+            $normalizedDiagnostics = [
+                'method' => $normalizationMethod,
+                'subject_detected' => $subjectDetected,
+                'crop_applied' => $cropApplied
+            ];
+
+            foreach (['person_bbox', 'crop_box'] as $boxKey) {
+                $box = $normalization[$boxKey] ?? null;
+
+                if (!is_array($box) || count($box) !== 4) {
+                    continue;
+                }
+
+                $values = array_map('intval', array_values($box));
+
+                if (min($values) < 0) {
+                    continue;
+                }
+
+                $normalizedDiagnostics[$boxKey] = $values;
+            }
+        }
 
         $sha256 = strtolower(trim((string) (
             $original['sha256'] ?? ''
@@ -216,7 +279,8 @@ class ProductImageProcessingService
             'thumb_bytes' => self::positiveInt(
                 $thumb['bytes'] ?? 0,
                 'Некоректний розмір thumb.'
-            )
+            ),
+            'normalization' => $normalizedDiagnostics
         ];
     }
 
