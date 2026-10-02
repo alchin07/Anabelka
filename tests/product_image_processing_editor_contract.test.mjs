@@ -18,7 +18,7 @@ assert.match(
 );
 
 assert.match(view, /admin-products\.css\?v=10/);
-assert.match(view, /admin-products\.js\?v=15/);
+assert.match(view, /admin-products\.js\?v=16/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(
@@ -50,6 +50,9 @@ assert.match(script, /Модель:/);
 assert.match(script, /Кадрування:/);
 assert.match(script, /Метод:/);
 assert.match(script, /opencv-haar-face-subject/);
+assert.match(script, /mediapipe-persondet/);
+assert.match(script, /Впевненість:/);
+
 
 
 
