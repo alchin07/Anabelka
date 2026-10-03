@@ -1806,6 +1806,24 @@ body.product-color-picker-open {
     color: #6519b9;
 }
 
+.product-image-background-profile {
+    grid-column: 1 / -1;
+    min-height: 31px;
+    width: 100%;
+    padding: 5px 7px;
+    border: 1px solid #d8cedf;
+    border-radius: 8px;
+    background: #fff;
+    color: #514a57;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.product-image-background-profile:disabled {
+    opacity: .55;
+}
+
 .product-image-processing > button {
     min-height: 31px;
     width: 100%;
