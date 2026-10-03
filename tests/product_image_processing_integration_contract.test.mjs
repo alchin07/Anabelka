@@ -85,8 +85,8 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.9"/);
-assert.match(pythonServer, /PROFILE = "model-normalize-v6"/);
+assert.match(pythonServer, /VERSION = "0\.10"/);
+assert.match(pythonServer, /PROFILE = "model-normalize-v7"/);
 assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
 assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
 assert.match(pythonServer, /def standard_canvas\(/);
@@ -108,6 +108,9 @@ assert.match(pythonServer, /BACKGROUND_PROFILE_STUDIO = "studio-light"/);
 assert.match(pythonServer, /BACKGROUND_PROFILE_BRAND = "anabelka-brand"/);
 assert.match(pythonServer, /def build_subject_rgba\(/);
 assert.match(pythonServer, /def suppress_uniform_border_background\(/);
+assert.match(pythonServer, /border_connected_background/);
+assert.match(pythonServer, /labels\[0, :\]/);
+assert.match(pythonServer, /labels\[-1, :\]/);
 assert.match(pythonServer, /def keep_primary_foreground_component\(/);
 assert.match(pythonServer, /cv2\.connectedComponentsWithStats/);
 assert.match(pythonServer, /cv2\.grabCut/);
