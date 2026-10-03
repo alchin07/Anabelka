@@ -525,6 +525,14 @@
                     ? 'success'
                     : 'neutral'
             );
+
+            if (normalization.zoom_out_applied === true) {
+                diagnosticBadge(
+                    'Масштаб: зменшено',
+                    'success'
+                );
+            }
+
             diagnosticBadge(
                 'Метод: ' + (methodLabels[method] || method),
                 'info'
@@ -557,6 +565,49 @@
                     'Стратегія: межі моделі',
                     'info'
                 );
+            } else if (cropStrategy === 'torso-zoom-out') {
+                diagnosticBadge(
+                    'Стратегія: віддалення моделі',
+                    'success'
+                );
+
+                const torsoBefore = Number(
+                    normalization.torso_ratio_before
+                );
+                const torsoAfter = Number(
+                    normalization.torso_ratio_after
+                );
+                const zoomScale = Number(
+                    normalization.zoom_scale
+                );
+
+                if (
+                    Number.isFinite(torsoBefore)
+                    && torsoBefore > 0
+                    && Number.isFinite(torsoAfter)
+                    && torsoAfter > 0
+                ) {
+                    diagnosticBadge(
+                        'Торс: '
+                        + Math.round(torsoBefore * 100)
+                        + '% → '
+                        + Math.round(torsoAfter * 100)
+                        + '%',
+                        'info'
+                    );
+                }
+
+                if (
+                    Number.isFinite(zoomScale)
+                    && zoomScale > 0
+                ) {
+                    diagnosticBadge(
+                        'Масштаб фото: '
+                        + Math.round(zoomScale * 100)
+                        + '%',
+                        'info'
+                    );
+                }
             } else if (cropStrategy === 'torso-normalize') {
                 diagnosticBadge(
                     'Стратегія: масштаб по торсу',

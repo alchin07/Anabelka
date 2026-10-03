@@ -19,8 +19,8 @@ from mp_persondet import MPPersonDet
 
 
 HOST = "127.0.0.1"
-VERSION = "0.5"
-PROFILE = "model-normalize-v2"
+VERSION = "0.6"
+PROFILE = "model-normalize-v3"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -45,6 +45,8 @@ PERSON_TOP_MARGIN = 0.08
 PERSON_BOTTOM_MARGIN = 0.10
 TORSO_TARGET_RATIO = 0.31
 TORSO_TRIGGER_RATIO = 0.285
+TORSO_ZOOM_OUT_TRIGGER_RATIO = 0.34
+TORSO_ZOOM_OUT_MIN_SCALE = 0.68
 TORSO_MIN_RETAINED_HEIGHT_RATIO = 0.72
 TORSO_SHOULDER_Y_RATIO = 0.28
 TORSO_LOWER_MARGIN_RATIO = 1.35
@@ -466,6 +468,151 @@ def mediapipe_torso_crop_box(
     )
 
 
+def estimated_canvas_background(
+    image: Image.Image,
+) -> tuple[int, int, int]:
+    probe = flattened_rgb(image).copy()
+    probe.thumbnail(
+        (256, 256),
+        Image.Resampling.BILINEAR,
+    )
+    pixels = np.asarray(probe)
+
+    if (
+        pixels.ndim != 3
+        or pixels.shape[0] <= 0
+        or pixels.shape[1] <= 0
+        or pixels.shape[2] < 3
+    ):
+        return CANVAS_BACKGROUND
+
+    height, width = pixels.shape[:2]
+    band_y = max(1, round(height * 0.08))
+    band_x = max(1, round(width * 0.08))
+    border = np.concatenate(
+        [
+            pixels[:band_y, :, :3].reshape(-1, 3),
+            pixels[-band_y:, :, :3].reshape(-1, 3),
+            pixels[:, :band_x, :3].reshape(-1, 3),
+            pixels[:, -band_x:, :3].reshape(-1, 3),
+        ],
+        axis=0,
+    )
+
+    if border.size == 0:
+        return CANVAS_BACKGROUND
+
+    median = np.median(border, axis=0)
+
+    return tuple(
+        int(round(float(channel)))
+        for channel in median[:3]
+    )
+
+
+def mediapipe_torso_zoom_out_canvas(
+    image: Image.Image,
+    torso_center: tuple[float, float],
+    shoulder_center: tuple[float, float],
+    torso_length: float,
+) -> tuple[
+    Image.Image,
+    float,
+    float,
+    float,
+] | None:
+    source_width, source_height = image.size
+    target_width, target_height = MASTER_SIZE
+
+    if (
+        source_width <= 0
+        or source_height <= 0
+        or not np.isfinite(torso_length)
+        or torso_length <= 1.0
+        or not np.isfinite(torso_center[0])
+        or not np.isfinite(shoulder_center[1])
+    ):
+        return None
+
+    standard_scale = min(
+        target_width / source_width,
+        target_height / source_height,
+    )
+    ratio_before = (
+        torso_length
+        * standard_scale
+        / target_height
+    )
+
+    if ratio_before <= TORSO_ZOOM_OUT_TRIGGER_RATIO:
+        return None
+
+    zoom_scale = min(
+        1.0,
+        TORSO_TARGET_RATIO / ratio_before,
+    )
+    zoom_scale = max(
+        TORSO_ZOOM_OUT_MIN_SCALE,
+        zoom_scale,
+    )
+    final_scale = standard_scale * zoom_scale
+    resized_width = max(
+        1,
+        round(source_width * final_scale),
+    )
+    resized_height = max(
+        1,
+        round(source_height * final_scale),
+    )
+
+    if (
+        resized_width > target_width
+        or resized_height > target_height
+    ):
+        return None
+
+    rgb = flattened_rgb(image)
+    resized = rgb.resize(
+        (resized_width, resized_height),
+        Image.Resampling.LANCZOS,
+    )
+    canvas = Image.new(
+        "RGB",
+        MASTER_SIZE,
+        estimated_canvas_background(rgb),
+    )
+
+    requested_left = (
+        target_width / 2
+        - torso_center[0] * final_scale
+    )
+    requested_top = (
+        target_height * TORSO_SHOULDER_Y_RATIO
+        - shoulder_center[1] * final_scale
+    )
+    left = min(
+        max(0, round(requested_left)),
+        target_width - resized_width,
+    )
+    top = min(
+        max(0, round(requested_top)),
+        target_height - resized_height,
+    )
+    canvas.paste(
+        resized,
+        (left, top),
+    )
+
+    ratio_after = ratio_before * zoom_scale
+
+    return (
+        canvas,
+        ratio_before,
+        ratio_after,
+        zoom_scale,
+    )
+
+
 def mediapipe_aspect_fill_crop_box(
     image: Image.Image,
     torso_center: tuple[float, float],
@@ -875,8 +1022,11 @@ def normalized_master(
 
     crop_strategy = "subject-bbox"
     crop_box = subject_crop_box(image, bbox)
+    zoomed_master = None
 
     torso_ratio_before = None
+    torso_ratio_after = None
+    zoom_scale = None
 
     if (
         method == "mediapipe-persondet"
@@ -896,9 +1046,29 @@ def normalized_master(
         if torso_crop is not None:
             crop_box, torso_ratio_before = torso_crop
             crop_strategy = "torso-normalize"
+        elif mediapipe_torso_center is not None:
+            torso_zoom_out = mediapipe_torso_zoom_out_canvas(
+                image,
+                mediapipe_torso_center,
+                mediapipe_shoulder_center,
+                mediapipe_torso_length,
+            )
+
+            if torso_zoom_out is not None:
+                (
+                    zoomed_master,
+                    torso_ratio_before,
+                    torso_ratio_after,
+                    zoom_scale,
+                ) = torso_zoom_out
+                crop_box = None
+                crop_strategy = "torso-zoom-out"
 
     if (
-        crop_strategy != "torso-normalize"
+        crop_strategy not in (
+            "torso-normalize",
+            "torso-zoom-out",
+        )
         and method == "mediapipe-persondet"
         and mediapipe_torso_center is not None
     ):
@@ -916,13 +1086,19 @@ def normalized_master(
         "crop_applied": crop_box is not None,
         "method": (
             method
-            if crop_box is not None
+            if (
+                crop_box is not None
+                or crop_strategy == "torso-zoom-out"
+            )
             else method + "-no-crop"
         ),
         "person_bbox": list(bbox),
     }
 
-    if crop_box is not None:
+    if (
+        crop_box is not None
+        or crop_strategy == "torso-zoom-out"
+    ):
         diagnostics["crop_strategy"] = crop_strategy
 
     if torso_ratio_before is not None:
@@ -934,10 +1110,29 @@ def normalized_master(
             TORSO_TARGET_RATIO
         )
 
+    if torso_ratio_after is not None:
+        diagnostics["torso_ratio_after"] = round(
+            max(0.0, min(1.0, torso_ratio_after)),
+            4,
+        )
+
+    if zoom_scale is not None:
+        diagnostics["zoom_scale"] = round(
+            max(0.0, min(1.0, zoom_scale)),
+            4,
+        )
+        diagnostics["zoom_out_applied"] = True
+
     if person_score is not None:
         diagnostics["person_score"] = round(
             max(0.0, min(1.0, person_score)),
             4,
+        )
+
+    if zoomed_master is not None:
+        return (
+            zoomed_master,
+            diagnostics,
         )
 
     if crop_box is None:

@@ -84,8 +84,8 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.5"/);
-assert.match(pythonServer, /PROFILE = "model-normalize-v2"/);
+assert.match(pythonServer, /VERSION = "0\.6"/);
+assert.match(pythonServer, /PROFILE = "model-normalize-v3"/);
 assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
 assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
 assert.match(pythonServer, /def standard_canvas\(/);
@@ -100,12 +100,20 @@ assert.match(pythonServer, /person_detection_mediapipe_2023mar\.onnx/);
 assert.match(pythonServer, /def detect_mediapipe_person_bbox\(/);
 assert.match(pythonServer, /def mediapipe_aspect_fill_crop_box\(/);
 assert.match(pythonServer, /def mediapipe_torso_crop_box\(/);
+assert.match(pythonServer, /def mediapipe_torso_zoom_out_canvas\(/);
+assert.match(pythonServer, /def estimated_canvas_background\(/);
 assert.match(pythonServer, /TORSO_TARGET_RATIO = 0\.31/);
 assert.match(pythonServer, /TORSO_TRIGGER_RATIO = 0\.285/);
+assert.match(pythonServer, /TORSO_ZOOM_OUT_TRIGGER_RATIO = 0\.34/);
+assert.match(pythonServer, /TORSO_ZOOM_OUT_MIN_SCALE = 0\.68/);
 assert.match(pythonServer, /TORSO_MIN_RETAINED_HEIGHT_RATIO = 0\.72/);
 assert.match(pythonServer, /torso-normalize/);
+assert.match(pythonServer, /torso-zoom-out/);
+assert.match(pythonServer, /zoom_out_applied/);
 assert.match(pythonServer, /torso_ratio_before/);
+assert.match(pythonServer, /torso_ratio_after/);
 assert.match(pythonServer, /torso_target_ratio/);
+assert.match(pythonServer, /zoom_scale/);
 
 assert.match(pythonServer, /retained_area_ratio < 0\.80/);
 assert.match(pythonServer, /crop_strategy/);
@@ -133,12 +141,14 @@ assert.match(processingService, /uploads\/products\/processed\//);
 assert.match(processingService, /processingProfile/);
 assert.match(processingService, /normalizedDiagnostics/);
 assert.match(processingService, /crop_applied/);
+assert.match(processingService, /zoom_out_applied/);
 assert.match(processingService, /subject_detected/);
 assert.match(processingService, /mediapipe-persondet/);
 assert.match(processingService, /person_score/);
 assert.match(processingService, /cropStrategy/);
 assert.match(processingService, /aspect-fill/);
 assert.match(processingService, /subject-bbox/);
+assert.match(processingService, /torso-zoom-out/);
 
 
 

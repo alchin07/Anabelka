@@ -183,10 +183,22 @@ class ProductImageProcessingService
         $cropApplied = (
             $normalization['crop_applied'] ?? false
         ) === true;
+        $zoomOutApplied = (
+            $normalization['zoom_out_applied'] ?? false
+        ) === true;
 
-        if ($cropApplied && !$subjectDetected) {
+        if (
+            ($cropApplied || $zoomOutApplied)
+            && !$subjectDetected
+        ) {
             throw new RuntimeException(
                 'Обробник повернув суперечливу діагностику нормалізації.'
+            );
+        }
+
+        if ($cropApplied && $zoomOutApplied) {
+            throw new RuntimeException(
+                'Обробник одночасно повернув crop і zoom-out.'
             );
         }
 
@@ -196,7 +208,8 @@ class ProductImageProcessingService
             $normalizedDiagnostics = [
                 'method' => $normalizationMethod,
                 'subject_detected' => $subjectDetected,
-                'crop_applied' => $cropApplied
+                'crop_applied' => $cropApplied,
+                'zoom_out_applied' => $zoomOutApplied
             ];
 
             foreach (['person_bbox', 'crop_box'] as $boxKey) {
@@ -236,7 +249,8 @@ class ProductImageProcessingService
                     [
                         'subject-bbox',
                         'aspect-fill',
-                        'torso-normalize'
+                        'torso-normalize',
+                        'torso-zoom-out'
                     ],
                     true
                 )
@@ -248,7 +262,9 @@ class ProductImageProcessingService
             foreach (
                 [
                     'torso_ratio_before',
-                    'torso_target_ratio'
+                    'torso_target_ratio',
+                    'torso_ratio_after',
+                    'zoom_scale'
                 ] as $ratioKey
             ) {
                 if (!isset($normalization[$ratioKey])) {
