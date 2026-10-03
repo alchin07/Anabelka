@@ -40,14 +40,39 @@ class AdminImageProcessorController extends Controller
                 );
             }
 
-            $result = ProductImageProcessingService::process($imageId);
+            $backgroundProfile = strtolower(trim((string) (
+                $_POST['background_profile'] ?? 'original-canvas'
+            )));
+            $allowedBackgroundProfiles = [
+                'original-canvas',
+                'studio-light',
+                'anabelka-brand'
+            ];
+
+            if (
+                !in_array(
+                    $backgroundProfile,
+                    $allowedBackgroundProfiles,
+                    true
+                )
+            ) {
+                throw new InvalidArgumentException(
+                    'Невідомий профіль фону фотографії.'
+                );
+            }
+
+            $result = ProductImageProcessingService::process(
+                $imageId,
+                $backgroundProfile
+            );
 
             AdminAccess::audit(
                 'product.image_processed',
                 [
                     'product_id' => (int) ($result['product_id'] ?? 0),
                     'image_id' => $imageId,
-                    'job_id' => (string) ($result['job_id'] ?? '')
+                    'job_id' => (string) ($result['job_id'] ?? ''),
+                    'background_profile' => $backgroundProfile
                 ],
                 AdminAccess::currentId()
             );
