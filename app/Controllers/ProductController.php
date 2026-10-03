@@ -256,6 +256,23 @@ class ProductController extends Controller
             $productId
         ]);
         $imageColors = $variantsByProduct[$productId] ?? [];
+        $galleryImages = Product::images($productId);
+        $publicImageById = [];
+
+        foreach ($galleryImages as $galleryImage) {
+            $imageId = (int) ($galleryImage['id'] ?? 0);
+
+            if ($imageId <= 0) {
+                continue;
+            }
+
+            $publicImageById[$imageId] = (string) (
+                $galleryImage['master_path']
+                ?? $galleryImage['path']
+                ?? ''
+            );
+        }
+
         $rows = ProductVariantStock::forProduct($productId);
         $usesVariantStock = !empty($rows);
         $normalizeColorName = static function ($name) {
@@ -297,13 +314,22 @@ class ProductController extends Controller
                 ? strtolower(trim((string) ($matrixColor['color_hex'] ?? '')))
                 : '';
 
+            $imageId = (int) ($variant['image_id'] ?? 0);
+            $publicImage = $imageId > 0
+                ? ($publicImageById[$imageId] ?? '')
+                : '';
+
+            if ($publicImage === '') {
+                $publicImage = (string) ($variant['path'] ?? '');
+            }
+
             $seenColors[$normalizedName] = true;
             $colors[] = [
                 'key' => $key,
                 'name' => $name,
                 'hex' => $matrixHex !== '' ? $matrixHex : $hex,
-                'image' => (string) ($variant['path'] ?? ''),
-                'image_id' => (int) ($variant['image_id'] ?? 0)
+                'image' => $publicImage,
+                'image_id' => $imageId
             ];
         }
 

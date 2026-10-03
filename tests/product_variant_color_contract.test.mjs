@@ -27,6 +27,10 @@ test('public variant colors prefer matrix key and dedupe by normalized name', ()
     assert.match(controller, /\$normalizedName/);
     assert.match(controller, /\$matrixColor\s*=\s*\$matrixColorsByName\[/);
     assert.match(controller, /\$seenColors\[\$normalizedName\]/);
+    assert.match(controller, /\$galleryImages\s*=\s*Product::images\(\$productId\)/);
+    assert.match(controller, /\$galleryImage\['master_path'\]/);
+    assert.match(controller, /\$publicImageById\[\$imageId\]/);
+    assert.match(controller, /'image'\s*=>\s*\$publicImage/);
 });
 
 
