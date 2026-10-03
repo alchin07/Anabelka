@@ -150,6 +150,7 @@ assert.match(pythonServer, /cv2\.HOGDescriptor_getDefaultPeopleDetector/);
 assert.match(pythonServer, /def subject_crop_box\(/);
 assert.match(pythonServer, /def normalized_master\(/);
 assert.match(pythonServer, /"normalization": normalization/);
+assert.match(pythonServer, /"crop_applied": crop_box is not None/);
 assert.match(pythonServer, /"crop_applied": False/);
 
 assert.match(pythonServer, /"processor_version": VERSION/);
