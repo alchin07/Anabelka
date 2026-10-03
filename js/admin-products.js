@@ -557,6 +557,34 @@
                     'Стратегія: межі моделі',
                     'info'
                 );
+            } else if (cropStrategy === 'torso-normalize') {
+                diagnosticBadge(
+                    'Стратегія: масштаб по торсу',
+                    'success'
+                );
+
+                const torsoBefore = Number(
+                    normalization.torso_ratio_before
+                );
+                const torsoTarget = Number(
+                    normalization.torso_target_ratio
+                );
+
+                if (
+                    Number.isFinite(torsoBefore)
+                    && torsoBefore > 0
+                    && Number.isFinite(torsoTarget)
+                    && torsoTarget > 0
+                ) {
+                    diagnosticBadge(
+                        'Торс: '
+                        + Math.round(torsoBefore * 100)
+                        + '% → '
+                        + Math.round(torsoTarget * 100)
+                        + '%',
+                        'info'
+                    );
+                }
             }
         } else {
             diagnosticBadge(
