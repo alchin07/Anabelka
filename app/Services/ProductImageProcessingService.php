@@ -225,6 +225,21 @@ class ProductImageProcessingService
                     );
                 }
             }
+
+            $cropStrategy = strtolower(trim((string) (
+                $normalization['crop_strategy'] ?? ''
+            )));
+
+            if (
+                in_array(
+                    $cropStrategy,
+                    ['subject-bbox', 'aspect-fill'],
+                    true
+                )
+            ) {
+                $normalizedDiagnostics['crop_strategy'] =
+                    $cropStrategy;
+            }
         }
 
         $sha256 = strtolower(trim((string) (
