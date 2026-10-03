@@ -19,8 +19,8 @@ from mp_persondet import MPPersonDet
 
 
 HOST = "127.0.0.1"
-VERSION = "0.8"
-PROFILE = "model-normalize-v5"
+VERSION = "0.9"
+PROFILE = "model-normalize-v6"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -749,6 +749,118 @@ def background_profile_canvas(
     )
 
 
+def suppress_uniform_border_background(
+    image: Image.Image,
+    foreground: np.ndarray,
+) -> np.ndarray:
+    pixels = np.asarray(image.convert("RGB"), dtype=np.float32)
+    height, width = foreground.shape[:2]
+
+    if (
+        height <= 4
+        or width <= 4
+        or pixels.shape[0] != height
+        or pixels.shape[1] != width
+    ):
+        return foreground
+
+    band_y = max(1, round(height * 0.035))
+    band_x = max(1, round(width * 0.035))
+    border = np.concatenate(
+        [
+            pixels[:band_y, :, :].reshape(-1, 3),
+            pixels[-band_y:, :, :].reshape(-1, 3),
+            pixels[:, :band_x, :].reshape(-1, 3),
+            pixels[:, -band_x:, :].reshape(-1, 3),
+        ],
+        axis=0,
+    )
+
+    if border.size == 0:
+        return foreground
+
+    background_color = np.median(
+        border,
+        axis=0,
+    )
+    border_distance = np.linalg.norm(
+        border - background_color,
+        axis=1,
+    )
+    border_spread = float(
+        np.median(border_distance)
+    )
+
+    # Apply colour cleanup only when the supplier background
+    # is genuinely close to a flat studio colour.
+    if (
+        not np.isfinite(border_spread)
+        or border_spread > 12.0
+    ):
+        return foreground
+
+    threshold = max(
+        12.0,
+        min(
+            22.0,
+            12.0 + border_spread * 1.5,
+        ),
+    )
+    distance = np.linalg.norm(
+        pixels - background_color,
+        axis=2,
+    )
+    cleaned = foreground.copy()
+    cleaned[
+        (cleaned >= 128)
+        & (distance <= threshold)
+    ] = 0
+
+    return cleaned
+
+
+def keep_primary_foreground_component(
+    foreground: np.ndarray,
+) -> np.ndarray:
+    binary = (
+        foreground >= 128
+    ).astype(np.uint8)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        binary,
+        connectivity=8,
+    )
+
+    if count <= 2:
+        return foreground
+
+    areas = stats[
+        1:,
+        cv2.CC_STAT_AREA,
+    ]
+
+    if areas.size == 0:
+        return foreground
+
+    primary_label = 1 + int(
+        np.argmax(areas)
+    )
+    primary_area = int(
+        stats[
+            primary_label,
+            cv2.CC_STAT_AREA,
+        ]
+    )
+
+    if primary_area <= 0:
+        return foreground
+
+    return np.where(
+        labels == primary_label,
+        255,
+        0,
+    ).astype(np.uint8)
+
+
 def build_subject_rgba(
     image: Image.Image,
     bbox: tuple[int, int, int, int],
@@ -840,6 +952,13 @@ def build_subject_rgba(
         255,
         0,
     ).astype(np.uint8)
+    foreground = suppress_uniform_border_background(
+        work,
+        foreground,
+    )
+    foreground = keep_primary_foreground_component(
+        foreground,
+    )
 
     kernel = np.ones((3, 3), dtype=np.uint8)
     foreground = cv2.morphologyEx(
