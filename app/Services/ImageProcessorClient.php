@@ -4,6 +4,11 @@ class ImageProcessorClient
 {
     private const DEFAULT_ENDPOINT = 'http://127.0.0.1:8765';
     private const PRODUCT_PREFIX = 'uploads/products/';
+    private const BACKGROUND_PROFILES = [
+        'original-canvas',
+        'studio-light',
+        'anabelka-brand'
+    ];
 
 
     public static function health()
@@ -12,9 +17,14 @@ class ImageProcessorClient
     }
 
 
-    public static function processProductImage($path)
-    {
+    public static function processProductImage(
+        $path,
+        $backgroundProfile = 'original-canvas'
+    ) {
         $relativePath = self::normalizeProductImagePath($path);
+        $backgroundProfile = self::normalizeBackgroundProfile(
+            $backgroundProfile
+        );
         $absolutePath = self::projectRoot() . '/' . $relativePath;
 
         if (!is_file($absolutePath)) {
@@ -27,9 +37,10 @@ class ImageProcessorClient
             'POST',
             '/process',
             [
-                'source' => $relativePath
+                'source' => $relativePath,
+                'background_profile' => $backgroundProfile
             ],
-            45
+            60
         );
     }
 
@@ -113,6 +124,24 @@ class ImageProcessorClient
         }
 
         return $data;
+    }
+
+
+    private static function normalizeBackgroundProfile($profile)
+    {
+        $profile = strtolower(trim((string) $profile));
+
+        if ($profile === '') {
+            $profile = 'original-canvas';
+        }
+
+        if (!in_array($profile, self::BACKGROUND_PROFILES, true)) {
+            throw new InvalidArgumentException(
+                'Невідомий профіль фону фотографії.'
+            );
+        }
+
+        return $profile;
     }
 
 
