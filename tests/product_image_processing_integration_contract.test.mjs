@@ -85,8 +85,8 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.10"/);
-assert.match(pythonServer, /PROFILE = "model-normalize-v7"/);
+assert.match(pythonServer, /VERSION = "0\.11"/);
+assert.match(pythonServer, /PROFILE = "model-normalize-v8"/);
 assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
 assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
 assert.match(pythonServer, /def standard_canvas\(/);
@@ -112,6 +112,10 @@ assert.match(pythonServer, /border_connected_background/);
 assert.match(pythonServer, /labels\[0, :\]/);
 assert.match(pythonServer, /labels\[-1, :\]/);
 assert.match(pythonServer, /def keep_primary_foreground_component\(/);
+assert.match(pythonServer, /def refine_subject_edge\(/);
+assert.match(pythonServer, /cv2\.medianBlur/);
+assert.match(pythonServer, /cv2\.distanceTransform/);
+assert.match(pythonServer, /feather_radius = 1\.8/);
 assert.match(pythonServer, /cv2\.connectedComponentsWithStats/);
 assert.match(pythonServer, /cv2\.grabCut/);
 assert.match(pythonServer, /def background_profile_canvas\(/);
