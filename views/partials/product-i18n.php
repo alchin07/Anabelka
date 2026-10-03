@@ -17,6 +17,9 @@ $productUi = [
     'description' => Translator::t('product.description', 'Опис'),
     'choose_size' => Translator::t('product.choose_size', 'Оберіть розмір'),
     'in_stock' => Translator::t('product.in_stock', 'В наявності'),
+    'stock_on_hand' => Translator::t('product.stock_on_hand', 'На складі'),
+    'in_your_cart' => Translator::t('product.in_your_cart', 'У вашому кошику'),
+    'available_to_add' => Translator::t('product.available_to_add', 'Можна додати'),
     'out_of_stock' => Translator::t('product.out_of_stock', 'Немає в наявності'),
     'pcs' => Translator::t('product.pcs', 'шт.'),
     'add_to_cart' => Translator::t('product.add_to_cart', 'Додати вибране до кошика'),
@@ -31,11 +34,13 @@ $productUi = [
 ];
 ?>
 <script>
+window.AnabelkaProductI18n = <?= json_encode(
+    $productUi,
+    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+) ?>;
+
 document.addEventListener('DOMContentLoaded', function () {
-    const t = <?= json_encode(
-        $productUi,
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-    ) ?>;
+    const t = window.AnabelkaProductI18n || {};
 
     function textNodes(root) {
         const walker = document.createTreeWalker(
@@ -82,7 +87,63 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function renderStructuredStock()
+    {
+        const labels = {
+            stock_on_hand: t.stock_on_hand || 'На складе',
+            in_your_cart: t.in_your_cart || 'В вашей корзине',
+            available_to_add: t.available_to_add || 'Доступно добавить'
+        };
+
+        Object.entries(labels).forEach(function (entry) {
+            document
+                .querySelectorAll('[data-stock-label="' + entry[0] + '"]')
+                .forEach(function (element) {
+                    element.textContent = entry[1];
+                });
+        });
+
+        document.querySelectorAll('[data-stock-unit]').forEach(function (element) {
+            element.textContent = t.pcs || 'шт.';
+        });
+
+        document.querySelectorAll('.size-stock[data-available]').forEach(function (element) {
+            const stockOnHand = Math.max(
+                0,
+                Number(element.dataset.stockOnHand || 0)
+            );
+            const inCart = Math.max(
+                0,
+                Number(element.dataset.cartQuantity || 0)
+            );
+            const available = Math.max(
+                0,
+                Number(element.dataset.available || 0)
+            );
+            const showQuantity = element.dataset.showQuantity === '1';
+            const unit = t.pcs || 'шт.';
+
+            if (showQuantity) {
+                element.textContent = available + ' ' + unit;
+                element.style.display = 'inline';
+                return;
+            }
+
+            if (available <= 0) {
+                element.textContent = t.out_of_stock || 'Нет в наличии';
+                element.style.display = 'inline';
+                return;
+            }
+
+            element.textContent = '';
+            element.style.display = 'none';
+        });
+    }
+
+
     function normalizeStockTexts() {
+        renderStructuredStock();
+
         document.querySelectorAll('.size-stock').forEach(function (element) {
             const text = element.textContent.replace(/\s+/g, ' ').trim();
 

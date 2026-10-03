@@ -141,10 +141,15 @@ class ProductImage
                 gallery.is_main,
                 gallery.sort_order,
                 colors.color_name,
-                colors.color_hex
+                colors.color_hex,
+                processing.master_path,
+                processing.thumb_path
             FROM product_gallery_images AS gallery
             LEFT JOIN product_image_colors AS colors
                 ON colors.image_id = gallery.id
+            LEFT JOIN product_image_processing AS processing
+                ON processing.image_id = gallery.id
+               AND processing.status = 'ready'
             WHERE gallery.product_id IN ({$placeholders})
             ORDER BY
                 gallery.product_id ASC,
@@ -169,10 +174,56 @@ class ProductImage
                     $row['color_name'],
                     $row['color_hex'] ?? ''
                 );
+            $row['master_path'] = self::publicProcessedPath(
+                $row['master_path'] ?? '',
+                $row['path'] ?? ''
+            );
+            $row['thumb_path'] = self::publicProcessedPath(
+                $row['thumb_path'] ?? '',
+                $row['path'] ?? ''
+            );
             $result[$productId][] = $row;
         }
 
         return $result;
+    }
+
+
+    public static function findById($imageId)
+    {
+        self::ensureTable();
+
+        $imageId = (int) $imageId;
+
+        if ($imageId <= 0) {
+            return null;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT
+                id,
+                product_id,
+                path,
+                is_main,
+                sort_order,
+                created_at
+            FROM product_gallery_images
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $imageId]);
+        $image = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$image) {
+            return null;
+        }
+
+        $image['id'] = (int) $image['id'];
+        $image['product_id'] = (int) $image['product_id'];
+        $image['is_main'] = (int) $image['is_main'];
+        $image['sort_order'] = (int) $image['sort_order'];
+
+        return $image;
     }
 
 
@@ -542,7 +593,7 @@ class ProductImage
             WHERE product_id = :product_id
         ")->execute(['product_id' => $productId]);
 
-        $path = null;
+        $path = '';
 
         if ($selected) {
             $db->prepare("
@@ -664,6 +715,32 @@ class ProductImage
         ]);
 
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+
+    private static function publicProcessedPath($processedPath, $galleryPath)
+    {
+        $processedPath = trim(str_replace('\\', '/', (string) $processedPath));
+
+        if (
+            $processedPath === ''
+            || strpos($processedPath, '../') !== false
+            || strpos($processedPath, 'uploads/products/processed/') !== 0
+        ) {
+            return '';
+        }
+
+        $galleryPath = trim(str_replace('\\', '/', (string) $galleryPath));
+        $marker = 'uploads/products/';
+        $position = strpos($galleryPath, $marker);
+
+        if ($position === false) {
+            return '';
+        }
+
+        $base = substr($galleryPath, 0, $position);
+
+        return rtrim($base, '/') . '/' . ltrim($processedPath, '/');
     }
 
 

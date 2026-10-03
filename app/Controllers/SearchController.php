@@ -14,19 +14,37 @@ class SearchController extends Controller
         $query = CatalogSearch::normalizeQuery($_GET['q'] ?? '');
         $products = [];
         $categories = [];
+        $searchPagination = [
+            'page' => 1,
+            'per_page' => 24,
+            'total_products' => 0,
+            'total_categories' => 0,
+            'total' => 0,
+            'total_pages' => 1,
+            'has_previous' => false,
+            'has_next' => false
+        ];
 
         if ($query !== '') {
-            $results = CatalogSearch::run($query, $languageCode);
+            $results = CatalogSearch::page(
+                $query,
+                $languageCode,
+                $_GET['page'] ?? 1,
+                24
+            );
             $products = $results['products'] ?? [];
             $categories = $results['categories'] ?? [];
+            $searchPagination = $results;
 
-            SearchQueryLog::record(
-                $query,
-                $_SESSION['user_id'] ?? 0,
-                $languageCode,
-                count($products),
-                count($categories)
-            );
+            if ((int) ($results['page'] ?? 1) === 1) {
+                SearchQueryLog::record(
+                    $query,
+                    $_SESSION['user_id'] ?? 0,
+                    $languageCode,
+                    (int) ($results['total_products'] ?? 0),
+                    (int) ($results['total_categories'] ?? 0)
+                );
+            }
         }
 
         $this->view('search/index', [
@@ -34,7 +52,8 @@ class SearchController extends Controller
             'currentLanguage' => $currentLanguage,
             'query' => $query,
             'products' => $products,
-            'categories' => $categories
+            'categories' => $categories,
+            'searchPagination' => $searchPagination
         ]);
     }
 
@@ -109,8 +128,7 @@ class SearchController extends Controller
             $categoryItems[] = [
                 'id' => (int) ($category['id'] ?? 0),
                 'name' => (string) ($category['name'] ?? ''),
-                'url' => '/Anabelka/catalog/'
-                    . rawurlencode((string) ($category['slug'] ?? ''))
+                'url' => Category::catalogUrl($category)
             ];
         }
 

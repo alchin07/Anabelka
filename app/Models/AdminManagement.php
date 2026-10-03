@@ -6,6 +6,10 @@ class AdminManagement
     {
         AdminAccess::ensureSchema();
 
+        if (class_exists('AdminInvitation')) {
+            AdminInvitation::ensureSchema();
+        }
+
         return Database::connect()->query("
             SELECT
                 au.id,
@@ -17,9 +21,20 @@ class AdminManagement
                 au.created_at,
                 ar.name AS role_name,
                 ar.slug AS role_slug,
-                ar.is_system AS role_is_system
+                ar.is_system AS role_is_system,
+                CASE
+                    WHEN ai.status IN ('created', 'sent')
+                         AND ai.expires_at <= NOW()
+                    THEN 'expired'
+                    ELSE ai.status
+                END AS invitation_status,
+                ai.channel AS invitation_channel,
+                ai.contact AS invitation_contact,
+                ai.expires_at AS invitation_expires_at
             FROM admin_users au
             INNER JOIN admin_roles ar ON ar.id = au.role_id
+            LEFT JOIN admin_invitations ai
+                ON ai.admin_user_id = au.id
             ORDER BY
                 CASE WHEN ar.slug = 'owner' THEN 0 ELSE 1 END,
                 au.is_active DESC,
@@ -236,6 +251,8 @@ class AdminManagement
             throw new RuntimeException('Доступ розробника вимкнути не можна.');
         }
 
+        self::assertInvitationActivatedForAccountActions($adminId);
+
         $newState = empty($admin['is_active']) ? 1 : 0;
         $stmt = Database::connect()->prepare("
             UPDATE admin_users
@@ -272,6 +289,8 @@ class AdminManagement
             );
         }
 
+        self::assertInvitationActivatedForAccountActions($adminId);
+
         $stmt = Database::connect()->prepare("
             UPDATE admin_users
             SET password_hash = :password_hash
@@ -289,11 +308,224 @@ class AdminManagement
     }
 
 
+    public static function deleteAdministrator($adminId)
+    {
+        AdminAccess::ensureSchema();
+        $adminId = (int) $adminId;
+
+        if ($adminId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректний адміністратор.'
+            );
+        }
+
+        if ($adminId === AdminAccess::currentId()) {
+            throw new RuntimeException(
+                'Не можна видалити власний активний обліковий запис.'
+            );
+        }
+
+        // Any helper that may CREATE TABLE must run before the transaction.
+        if (class_exists('AdminInvitation')) {
+            AdminInvitation::ensureSchema();
+        }
+        if (class_exists('AdminNotificationCenter')) {
+            AdminNotificationCenter::ensureSchema();
+        }
+        if (class_exists('AdminWorkTime')) {
+            AdminWorkTime::ensureSchema();
+        }
+        if (class_exists('SystemErrorNotification')) {
+            SystemErrorNotification::ensureSchema();
+        }
+        if (class_exists('SystemErrorNote')) {
+            SystemErrorNote::ensureSchema();
+        }
+        if (class_exists('SystemErrorStatus')) {
+            SystemErrorStatus::ensureSchema();
+        }
+        if (class_exists('CustomerRankRequest')) {
+            CustomerRankRequest::ensureSchema();
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT
+                    au.id,
+                    au.name,
+                    au.email,
+                    au.role_id,
+                    au.is_active,
+                    ar.name AS role_name,
+                    ar.slug AS role_slug
+                FROM admin_users au
+                INNER JOIN admin_roles ar ON ar.id = au.role_id
+                WHERE au.id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute(['id' => $adminId]);
+            $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$admin) {
+                throw new RuntimeException(
+                    'Адміністратора не знайдено.'
+                );
+            }
+
+            if (($admin['role_slug'] ?? '') === 'owner') {
+                throw new RuntimeException(
+                    'Обліковий запис Розробника видалити не можна.'
+                );
+            }
+
+            if (class_exists('CustomerRankRequest')) {
+                $clearRankRequests = $db->prepare("
+                    UPDATE customer_rank_requests
+                    SET admin_user_id = NULL
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $clearRankRequests->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('SystemErrorNote')) {
+                $clearErrorNotes = $db->prepare("
+                    UPDATE admin_system_error_notes
+                    SET updated_by_admin_id = NULL
+                    WHERE updated_by_admin_id = :admin_user_id
+                ");
+                $clearErrorNotes->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('SystemErrorStatus')) {
+                $clearErrorStatus = $db->prepare("
+                    UPDATE admin_system_error_status
+                    SET updated_by_admin_id = NULL
+                    WHERE updated_by_admin_id = :admin_user_id
+                ");
+                $clearErrorStatus->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('SystemErrorNotification')) {
+                $deleteErrorState = $db->prepare("
+                    DELETE FROM admin_system_error_notification_state
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteErrorState->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('AdminNotificationCenter')) {
+                $deleteNotificationState = $db->prepare("
+                    DELETE FROM admin_notification_state
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteNotificationState->execute([
+                    'admin_user_id' => $adminId
+                ]);
+
+                $deleteNotificationPreferences = $db->prepare("
+                    DELETE FROM admin_notification_preferences
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteNotificationPreferences->execute([
+                    'admin_user_id' => $adminId
+                ]);
+
+                $deleteAuditReadState = $db->prepare("
+                    DELETE FROM admin_audit_read_state
+                    WHERE viewer_admin_user_id = :admin_user_id
+                ");
+                $deleteAuditReadState->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            if (class_exists('AdminWorkTime')) {
+                $deleteWorkPresence = $db->prepare("
+                    DELETE FROM admin_work_time_presence
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteWorkPresence->execute([
+                    'admin_user_id' => $adminId
+                ]);
+
+                $deleteWorkSessions = $db->prepare("
+                    DELETE FROM admin_work_activity_sessions
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteWorkSessions->execute([
+                    'admin_user_id' => $adminId
+                ]);
+
+                $deleteCompensation = $db->prepare("
+                    DELETE FROM admin_work_compensation
+                    WHERE admin_user_id = :admin_user_id
+                ");
+                $deleteCompensation->execute([
+                    'admin_user_id' => $adminId
+                ]);
+            }
+
+            // admin_invitations is ON DELETE CASCADE, while admin_audit_log
+            // keeps history through ON DELETE SET NULL.
+            $delete = $db->prepare("
+                DELETE FROM admin_users
+                WHERE id = :id
+            ");
+            $delete->execute(['id' => $adminId]);
+
+            if ($delete->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Не вдалося видалити адміністратора.'
+                );
+            }
+
+            $db->commit();
+
+            return $admin;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
     public static function createCustomRole($name, array $permissionKeys)
     {
         AdminAccess::ensureSchema();
         $name = self::normalizeRoleName($name);
         $db = Database::connect();
+
+        $duplicate = $db->prepare("
+            SELECT id
+            FROM admin_roles
+            WHERE name = :name
+            LIMIT 1
+        ");
+        $duplicate->execute([
+            'name' => $name
+        ]);
+
+        if ($duplicate->fetchColumn()) {
+            throw new RuntimeException(
+                'Роль із такою назвою вже існує.'
+            );
+        }
+
         $slug = 'custom-' . substr(
             hash('sha256', $name . '|' . microtime(true) . '|' . random_int(1, PHP_INT_MAX)),
             0,
@@ -335,6 +567,199 @@ class AdminManagement
     }
 
 
+    public static function renameCustomRole($roleId, $name)
+    {
+        AdminAccess::ensureSchema();
+        $roleId = (int) $roleId;
+        $name = self::normalizeRoleName($name);
+
+        if ($roleId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректна роль адміністратора.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT id, name, slug, is_system
+                FROM admin_roles
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute(['id' => $roleId]);
+            $role = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$role) {
+                throw new RuntimeException(
+                    'Роль адміністратора не знайдено.'
+                );
+            }
+
+            if (!empty($role['is_system'])) {
+                throw new RuntimeException(
+                    'Назву системної ролі змінювати не можна.'
+                );
+            }
+
+            $duplicate = $db->prepare("
+                SELECT id
+                FROM admin_roles
+                WHERE name = :name
+                  AND id <> :id
+                LIMIT 1
+            ");
+            $duplicate->execute([
+                'name' => $name,
+                'id' => $roleId
+            ]);
+
+            if ($duplicate->fetchColumn()) {
+                throw new RuntimeException(
+                    'Роль із такою назвою вже існує.'
+                );
+            }
+
+            $update = $db->prepare("
+                UPDATE admin_roles
+                SET name = :name
+                WHERE id = :id
+            ");
+            $update->execute([
+                'name' => $name,
+                'id' => $roleId
+            ]);
+
+            $db->commit();
+
+            $role['old_name'] = (string) ($role['name'] ?? '');
+            $role['name'] = $name;
+
+            return $role;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    public static function deleteCustomRole($roleId)
+    {
+        AdminAccess::ensureSchema();
+        $roleId = (int) $roleId;
+
+        if ($roleId <= 0) {
+            throw new InvalidArgumentException(
+                'Некоректна роль адміністратора.'
+            );
+        }
+
+        $db = Database::connect();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("
+                SELECT id, name, slug, is_system
+                FROM admin_roles
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $stmt->execute(['id' => $roleId]);
+            $role = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$role) {
+                throw new RuntimeException(
+                    'Роль адміністратора не знайдено.'
+                );
+            }
+
+            if (!empty($role['is_system'])) {
+                throw new RuntimeException(
+                    'Системну роль видалити не можна.'
+                );
+            }
+
+            $assigned = $db->prepare("
+                SELECT COUNT(*)
+                FROM admin_users
+                WHERE role_id = :role_id
+                FOR UPDATE
+            ");
+            $assigned->execute([
+                'role_id' => $roleId
+            ]);
+            $assignedCount = max(
+                0,
+                (int) $assigned->fetchColumn()
+            );
+
+            if ($assignedCount > 0) {
+                throw new RuntimeException(
+                    'Спочатку призначте адміністраторам іншу роль.'
+                );
+            }
+
+            // The NOT EXISTS condition is the final database-level guard.
+            // It protects existing installations even when an old
+            // admin_users table does not have the expected foreign key,
+            // and it also closes the gap between the check and DELETE.
+            $delete = $db->prepare("
+                DELETE FROM admin_roles
+                WHERE id = :id
+                  AND is_system = 0
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM admin_users
+                      WHERE role_id = :assigned_role_id
+                  )
+            ");
+            $delete->execute([
+                'id' => $roleId,
+                'assigned_role_id' => $roleId
+            ]);
+
+            if ($delete->rowCount() !== 1) {
+                $recheck = $db->prepare("
+                    SELECT COUNT(*)
+                    FROM admin_users
+                    WHERE role_id = :role_id
+                ");
+                $recheck->execute([
+                    'role_id' => $roleId
+                ]);
+
+                if ((int) $recheck->fetchColumn() > 0) {
+                    throw new RuntimeException(
+                        'Спочатку призначте адміністраторам іншу роль.'
+                    );
+                }
+
+                throw new RuntimeException(
+                    'Не вдалося видалити роль.'
+                );
+            }
+
+            // Role permissions and saved overrides are removed by FK CASCADE.
+            $db->commit();
+
+            return $role;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
     public static function updateCustomRolePermissions($roleId, array $permissionKeys)
     {
         AdminAccess::ensureSchema();
@@ -365,12 +790,76 @@ class AdminManagement
     }
 
 
-    public static function auditLog($limit = 200)
+    public static function normalizeAuditFilters(array $filters)
+    {
+        $adminId = max(0, (int) ($filters['admin_id'] ?? 0));
+        $action = trim((string) ($filters['action'] ?? ''));
+
+        if (
+            $action !== ''
+            && preg_match('/^[a-z0-9_.-]{1,120}$/i', $action) !== 1
+        ) {
+            $action = '';
+        }
+
+        $dateFrom = self::normalizeAuditDate(
+            $filters['date_from'] ?? ''
+        );
+        $dateTo = self::normalizeAuditDate(
+            $filters['date_to'] ?? ''
+        );
+
+        if (
+            $dateFrom !== ''
+            && $dateTo !== ''
+            && strcmp($dateFrom, $dateTo) > 0
+        ) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+
+        return [
+            'admin_id' => $adminId,
+            'action' => $action,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo
+        ];
+    }
+
+
+    public static function auditLog(array $filters = [], $limit = 200)
     {
         AdminAccess::ensureSchema();
+        $filters = self::normalizeAuditFilters($filters);
         $limit = max(1, min(500, (int) $limit));
+        $where = [];
+        $params = [];
 
-        return Database::connect()->query("
+        if ($filters['admin_id'] > 0) {
+            $where[] = 'l.admin_user_id = :admin_id';
+            $params['admin_id'] = $filters['admin_id'];
+        }
+
+        if ($filters['action'] !== '') {
+            $where[] = 'l.action = :action';
+            $params['action'] = $filters['action'];
+        }
+
+        if ($filters['date_from'] !== '') {
+            $where[] = 'l.created_at >= :date_from';
+            $params['date_from'] = $filters['date_from'] . ' 00:00:00';
+        }
+
+        if ($filters['date_to'] !== '') {
+            $dateToExclusive = date(
+                'Y-m-d',
+                strtotime($filters['date_to'] . ' +1 day')
+            );
+            $where[] = 'l.created_at < :date_to_exclusive';
+            $params['date_to_exclusive'] =
+                $dateToExclusive . ' 00:00:00';
+        }
+
+        $sql = "
             SELECT
                 l.id,
                 l.admin_user_id,
@@ -381,9 +870,138 @@ class AdminManagement
                 au.email AS admin_email
             FROM admin_audit_log l
             LEFT JOIN admin_users au ON au.id = l.admin_user_id
-            ORDER BY l.id DESC
-            LIMIT {$limit}
+        ";
+
+        if (!empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $sql .= " ORDER BY l.id DESC LIMIT {$limit}";
+
+        $stmt = Database::connect()->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+    public static function groupAuditEntriesByAdministrator(array $entries)
+    {
+        $groups = [];
+        $order = [];
+
+        foreach ($entries as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $adminId = (int) ($entry['admin_user_id'] ?? 0);
+            $key = $adminId > 0
+                ? 'admin-' . $adminId
+                : 'system';
+
+            if (!isset($groups[$key])) {
+                $name = trim((string) ($entry['admin_name'] ?? ''));
+                $email = trim((string) ($entry['admin_email'] ?? ''));
+
+                $groups[$key] = [
+                    'key' => $key,
+                    'admin_id' => $adminId,
+                    'name' => $name !== ''
+                        ? $name
+                        : 'Система / невідомий адміністратор',
+                    'email' => $email,
+                    'entries' => []
+                ];
+                $order[] = $key;
+            }
+
+            $groups[$key]['entries'][] = $entry;
+        }
+
+        $result = [];
+
+        foreach ($order as $key) {
+            $group = $groups[$key];
+            $group['count'] = count($group['entries']);
+            $result[] = $group;
+        }
+
+        return $result;
+    }
+
+
+    public static function auditAdministrators()
+    {
+        AdminAccess::ensureSchema();
+
+        return Database::connect()->query("
+            SELECT id, name, email, is_active
+            FROM admin_users
+            ORDER BY name ASC, email ASC, id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+    public static function auditActions()
+    {
+        AdminAccess::ensureSchema();
+
+        return Database::connect()->query("
+            SELECT DISTINCT action
+            FROM admin_audit_log
+            WHERE TRIM(action) <> ''
+            ORDER BY action ASC
+        ")->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+
+    private static function assertInvitationActivatedForAccountActions($adminId)
+    {
+        if (!class_exists('AdminInvitation')) {
+            return;
+        }
+
+        AdminInvitation::ensureSchema();
+
+        $stmt = Database::connect()->prepare("
+            SELECT status
+            FROM admin_invitations
+            WHERE admin_user_id = :admin_user_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'admin_user_id' => (int) $adminId
+        ]);
+        $status = trim((string) ($stmt->fetchColumn() ?: ''));
+
+        if ($status !== '' && $status !== 'accepted') {
+            throw new RuntimeException(
+                'Спочатку адміністратор має прийняти запрошення та встановити власний пароль.'
+            );
+        }
+    }
+
+
+    private static function normalizeAuditDate($value)
+    {
+        $value = trim((string) $value);
+
+        if (
+            $value === ''
+            || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1
+        ) {
+            return '';
+        }
+
+        [$year, $month, $day] = array_map(
+            'intval',
+            explode('-', $value)
+        );
+
+        return checkdate($month, $day, $year)
+            ? $value
+            : '';
     }
 
 
@@ -467,10 +1085,22 @@ class AdminManagement
         $valid = array_column(self::permissions(), 'permission_key');
         $validMap = array_fill_keys($valid, true);
 
+        foreach (array_keys($requested) as $key) {
+            if (substr($key, -7) !== '.manage') {
+                continue;
+            }
+
+            $viewKey = substr($key, 0, -7) . '.view';
+
+            if (isset($validMap[$viewKey])) {
+                $requested[$viewKey] = true;
+            }
+        }
+
         return array_values(array_filter(
-            array_keys($requested),
-            function ($key) use ($validMap) {
-                return isset($validMap[$key]);
+            $valid,
+            function ($key) use ($requested) {
+                return isset($requested[$key]);
             }
         ));
     }

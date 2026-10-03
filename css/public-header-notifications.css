@@ -1,17 +1,44 @@
-.public-header-count[hidden] {
+.public-header-count[hidden],
+.public-header-admin-badge[hidden] {
     display: none !important;
 }
 
-.public-header-profile-count,
-.public-header-admin-count {
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
+.public-header-admin-action {
+    position: relative;
+    overflow: visible;
 }
 
-.public-header-admin-count.is-system-error {
-    background: #b63e48;
+.public-header-admin-badges {
+    display: contents;
+    pointer-events: none;
+}
+
+.public-header-admin-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0 4px;
+    border: 2px solid #fff;
+    border-radius: 999px;
     color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.public-header-admin-message-badge {
+    background: var(--primary-color, #8A2BE2);
+}
+
+.public-header-admin-system-badge {
+    background: #b63e48;
 }
 
 .public-header-popover a {
@@ -42,14 +69,7 @@
 @media (max-width: 350px) {
     .public-header .catalog-logo,
     .public-header-logo {
-        font-size: 22px;
-    }
-
-    .public-header-action,
-    .public-header-language-code {
-        width: 34px;
-        min-width: 34px;
-        height: 37px;
+        font-size: 23px;
     }
 
     .public-header-action-icon {

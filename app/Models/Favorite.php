@@ -53,15 +53,29 @@ class Favorite
         $db = Database::connect();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $db->prepare("
-            SELECT id, slug
+            SELECT id, slug, category_id
             FROM products
             WHERE is_active = 1
               AND id IN ({$placeholders})
         ");
         $stmt->execute($ids);
         $items = [];
+        $adultConfirmed = AdultAccess::isConfirmed();
 
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $categoryId = (int) ($row['category_id'] ?? 0);
+
+            if (!Category::isEffectivelyActive($categoryId)) {
+                continue;
+            }
+
+            if (
+                Category::isEffectivelyAdult($categoryId)
+                && !$adultConfirmed
+            ) {
+                continue;
+            }
+
             $items[] = [
                 'id' => (int) ($row['id'] ?? 0),
                 'slug' => (string) ($row['slug'] ?? '')
@@ -74,7 +88,7 @@ class Favorite
 
     public static function countCurrent()
     {
-        return count(self::currentIds());
+        return count(self::currentStateItems());
     }
 
 
@@ -202,16 +216,20 @@ class Favorite
         $stmt->execute($ids);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if (!AdultAccess::isConfirmed()) {
-            $products = array_values(array_filter(
-                $products,
-                function ($product) {
-                    return !HomePage::isAdultCategoryId(
-                        (int) ($product['category_id'] ?? 0)
-                    );
+        $adultConfirmed = AdultAccess::isConfirmed();
+        $products = array_values(array_filter(
+            $products,
+            function ($product) use ($adultConfirmed) {
+                $categoryId = (int) ($product['category_id'] ?? 0);
+
+                if (!Category::isEffectivelyActive($categoryId)) {
+                    return false;
                 }
-            ));
-        }
+
+                return $adultConfirmed
+                    || !Category::isEffectivelyAdult($categoryId);
+            }
+        ));
 
         $products = ProductTranslator::localizeList(
             $products,

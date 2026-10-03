@@ -1,0 +1,55 @@
+.anabelka-floating-drag-handle {
+    flex: 0 0 auto;
+    width: 30px;
+    min-width: 30px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #756b79;
+    font: inherit;
+    font-size: 18px;
+    line-height: 1;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.anabelka-floating-drag-handle:hover,
+.anabelka-floating-drag-handle:focus-visible {
+    background: #f4eaff;
+    color: #6519b9;
+}
+
+.anabelka-floating-drag-handle:focus-visible {
+    outline: 3px solid rgba(138, 43, 226, 0.22);
+    outline-offset: 1px;
+}
+
+.is-anabelka-floating-dragging .anabelka-floating-drag-handle {
+    cursor: grabbing;
+}
+
+.is-anabelka-floating-dragging {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+[data-theme="dark"] .anabelka-floating-drag-handle,
+.theme-dark .anabelka-floating-drag-handle {
+    color: #c9b8d2;
+}
+
+[data-theme="dark"] .anabelka-floating-drag-handle:hover,
+[data-theme="dark"] .anabelka-floating-drag-handle:focus-visible,
+.theme-dark .anabelka-floating-drag-handle:hover,
+.theme-dark .anabelka-floating-drag-handle:focus-visible {
+    background: #34253e;
+    color: #e4c5ff;
+}

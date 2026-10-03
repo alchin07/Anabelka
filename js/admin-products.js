@@ -51,6 +51,86 @@
     };
 
     let uploadPreviewUrls = [];
+    let productEditorHistoryArmed = false;
+    let productEditorHistoryToken = 0;
+    const productEditorHistoryKey = '__anabelkaProductEditor';
+
+
+    function currentProductEditorUrl()
+    {
+        return window.location.pathname
+            + window.location.search
+            + window.location.hash;
+    }
+
+
+    function cleanProductEditorState(source)
+    {
+        const state = source && typeof source === 'object'
+            ? Object.assign({}, source)
+            : {};
+
+        delete state[productEditorHistoryKey];
+
+        return state;
+    }
+
+
+    function armProductEditorHistory()
+    {
+        /*
+         * Each opening owns a fresh history entry. Do not trust a boolean
+         * left from an earlier Back cycle: Android may restore history state
+         * independently from JavaScript variables.
+         */
+        productEditorHistoryToken += 1;
+
+        const baseState = cleanProductEditorState(history.state);
+
+        history.replaceState(
+            baseState,
+            '',
+            currentProductEditorUrl()
+        );
+
+        const editorState = Object.assign({}, baseState);
+
+        editorState[productEditorHistoryKey] =
+            productEditorHistoryToken;
+
+        history.pushState(
+            editorState,
+            '',
+            currentProductEditorUrl()
+        );
+        productEditorHistoryArmed = true;
+    }
+
+
+    function disarmProductEditorHistory()
+    {
+        if (!productEditorHistoryArmed) {
+            return;
+        }
+
+        productEditorHistoryArmed = false;
+        history.back();
+    }
+
+
+    if (
+        editor.hidden
+        && history.state
+        && typeof history.state === 'object'
+        && history.state[productEditorHistoryKey]
+    ) {
+        history.replaceState(
+            cleanProductEditorState(history.state),
+            '',
+            currentProductEditorUrl()
+        );
+    }
+
 
     function showMessage(text)
     {
@@ -77,6 +157,602 @@
             ? ''
             : String(value);
     }
+
+
+    const imageCompareHistoryKey = '__anabelkaProductImageCompare';
+    let activeImageCompareModal = null;
+
+
+    function publicProductImageUrl(path)
+    {
+        const normalized = valueOrEmpty(path)
+            .trim()
+            .replace(/\\/g, '/');
+
+        if (normalized.indexOf('/Anabelka/uploads/products/') === 0) {
+            return normalized;
+        }
+
+        if (normalized.indexOf('uploads/products/') === 0) {
+            return '/Anabelka/' + normalized;
+        }
+
+        return '';
+    }
+
+
+    function processedMasterUrl(image)
+    {
+        const processing = image
+            && image.processing
+            && typeof image.processing === 'object'
+            ? image.processing
+            : {};
+
+        if (String(processing.status || '') !== 'ready') {
+            return '';
+        }
+
+        const path = valueOrEmpty(processing.master_path)
+            .trim()
+            .replace(/\\/g, '/');
+
+        if (
+            path.indexOf('uploads/products/processed/') !== 0
+            && path.indexOf('/Anabelka/uploads/products/processed/') !== 0
+        ) {
+            return '';
+        }
+
+        return publicProductImageUrl(path);
+    }
+
+
+    function closeImageComparison(options)
+    {
+        options = options && typeof options === 'object'
+            ? options
+            : {};
+
+        if (!activeImageCompareModal) {
+            return;
+        }
+
+        activeImageCompareModal.remove();
+        activeImageCompareModal = null;
+        document.documentElement.classList.remove(
+            'product-image-compare-open'
+        );
+        document.body.classList.remove(
+            'product-image-compare-open'
+        );
+
+        if (
+            options.syncHistory !== false
+            && history.state
+            && typeof history.state === 'object'
+            && history.state[imageCompareHistoryKey]
+        ) {
+            history.back();
+        }
+    }
+
+
+    function openImageComparison(image)
+    {
+        const originalUrl = publicProductImageUrl(
+            image ? image.path : ''
+        );
+        const processedUrl = processedMasterUrl(image);
+
+        if (!originalUrl || !processedUrl) {
+            showMessage(
+                'Для порівняння потрібна готова оброблена фотографія.'
+            );
+            return;
+        }
+
+        closeImageComparison({ syncHistory: false });
+
+        const processing = image.processing || {};
+        const modal = document.createElement('div');
+        modal.className = 'product-image-compare-modal';
+        modal.dataset.productImageCompareModal = '';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'product-image-compare-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute(
+            'aria-label',
+            'Порівняння оригіналу та обробленої фотографії'
+        );
+
+        const header = document.createElement('div');
+        header.className = 'product-image-compare-header';
+
+        const title = document.createElement('strong');
+        title.textContent = 'Порівняння фотографії';
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'product-image-compare-close';
+        close.textContent = '×';
+        close.setAttribute('aria-label', 'Закрити порівняння');
+
+        header.appendChild(title);
+        header.appendChild(close);
+
+        const stage = document.createElement('div');
+        stage.className = 'product-image-compare-stage';
+        stage.style.setProperty('--compare-split', '50%');
+
+        const original = document.createElement('img');
+        original.className = 'product-image-compare-original';
+        original.src = originalUrl;
+        original.alt = 'Оригінальна фотографія';
+
+        const processed = document.createElement('img');
+        processed.className = 'product-image-compare-processed';
+        processed.src = processedUrl;
+        processed.alt = 'Оброблена фотографія';
+
+        const originalLabel = document.createElement('span');
+        originalLabel.className =
+            'product-image-compare-label is-original';
+        originalLabel.textContent = 'Оригінал';
+
+        const processedLabel = document.createElement('span');
+        processedLabel.className =
+            'product-image-compare-label is-processed';
+        processedLabel.textContent = 'Оброблене';
+
+        const divider = document.createElement('span');
+        divider.className = 'product-image-compare-divider';
+        divider.setAttribute('role', 'slider');
+        divider.setAttribute('tabindex', '0');
+        divider.setAttribute(
+            'aria-label',
+            'Межа порівняння оригіналу та обробленої фотографії'
+        );
+        divider.setAttribute('aria-valuemin', '0');
+        divider.setAttribute('aria-valuemax', '100');
+        divider.setAttribute('aria-valuenow', '50');
+
+        stage.appendChild(original);
+        stage.appendChild(processed);
+        stage.appendChild(originalLabel);
+        stage.appendChild(processedLabel);
+        stage.appendChild(divider);
+
+        const sliderWrap = document.createElement('label');
+        sliderWrap.className = 'product-image-compare-slider';
+
+        const sliderText = document.createElement('span');
+        sliderText.textContent =
+            'Перетягніть повзунок для порівняння';
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = '100';
+        slider.value = '50';
+        slider.step = '1';
+        slider.setAttribute(
+            'aria-label',
+            'Положення межі порівняння'
+        );
+
+        function setCompareSplit(value)
+        {
+            const normalized = Math.max(
+                0,
+                Math.min(100, Number(value || 0))
+            );
+
+            stage.style.setProperty(
+                '--compare-split',
+                normalized + '%'
+            );
+            slider.value = String(Math.round(normalized));
+            slider.setAttribute(
+                'aria-valuetext',
+                Math.round(normalized)
+                + '% ширини оригіналу'
+            );
+            divider.setAttribute(
+                'aria-valuenow',
+                String(Math.round(normalized))
+            );
+        }
+
+        function compareSplitFromPointer(event)
+        {
+            const rect = stage.getBoundingClientRect();
+
+            if (!rect.width) {
+                return Number(slider.value || 50);
+            }
+
+            return (
+                (event.clientX - rect.left)
+                / rect.width
+                * 100
+            );
+        }
+
+        slider.addEventListener('input', function () {
+            setCompareSplit(slider.value);
+        });
+
+        divider.addEventListener('pointerdown', function (event) {
+            event.preventDefault();
+            divider.setPointerCapture(event.pointerId);
+            setCompareSplit(compareSplitFromPointer(event));
+        });
+
+        divider.addEventListener('pointermove', function (event) {
+            if (!divider.hasPointerCapture(event.pointerId)) {
+                return;
+            }
+
+            event.preventDefault();
+            setCompareSplit(compareSplitFromPointer(event));
+        });
+
+        function finishDividerDrag(event)
+        {
+            if (divider.hasPointerCapture(event.pointerId)) {
+                divider.releasePointerCapture(event.pointerId);
+            }
+        }
+
+        divider.addEventListener('pointerup', finishDividerDrag);
+        divider.addEventListener('pointercancel', finishDividerDrag);
+
+        divider.addEventListener('keydown', function (event) {
+            const current = Number(slider.value || 50);
+            let next = current;
+
+            if (event.key === 'ArrowLeft') {
+                next = current - 2;
+            } else if (event.key === 'ArrowRight') {
+                next = current + 2;
+            } else if (event.key === 'Home') {
+                next = 0;
+            } else if (event.key === 'End') {
+                next = 100;
+            } else {
+                return;
+            }
+
+            event.preventDefault();
+            setCompareSplit(next);
+        });
+
+        setCompareSplit(50);
+
+        sliderWrap.appendChild(sliderText);
+        sliderWrap.appendChild(slider);
+
+        const meta = document.createElement('div');
+        meta.className = 'product-image-compare-meta';
+
+        const sourceWidth = Number(processing.source_width || 0);
+        const sourceHeight = Number(processing.source_height || 0);
+        const masterWidth = Number(processing.master_width || 0);
+        const masterHeight = Number(processing.master_height || 0);
+        const version = valueOrEmpty(processing.processor_version);
+
+        const metaParts = [];
+
+        if (sourceWidth > 0 && sourceHeight > 0) {
+            metaParts.push(
+                'Оригінал '
+                + sourceWidth
+                + '×'
+                + sourceHeight
+            );
+        }
+
+        if (masterWidth > 0 && masterHeight > 0) {
+            metaParts.push(
+                'Оброблене '
+                + masterWidth
+                + '×'
+                + masterHeight
+            );
+        }
+
+        if (version) {
+            metaParts.push(version);
+        }
+
+        meta.textContent = metaParts.join(' · ');
+
+        const diagnostics = document.createElement('div');
+        diagnostics.className = 'product-image-compare-diagnostics';
+
+        const normalization = processing.normalization
+            && typeof processing.normalization === 'object'
+            ? processing.normalization
+            : {};
+        const method = valueOrEmpty(normalization.method);
+        const methodLabels = {
+            'mediapipe-persondet': 'MediaPipe Person',
+            'mediapipe-persondet-no-crop': 'MediaPipe знайдено · crop не застосовано',
+            'opencv-haar-face-subject': 'OpenCV Face + subject',
+            'opencv-haar-face-subject-no-crop': 'Face знайдено · crop не застосовано',
+            'opencv-hog-person': 'OpenCV HOG',
+            'opencv-hog-person-no-crop': 'HOG знайдено · crop не застосовано',
+            'person-detected-no-crop': 'Безпечний crop не застосовано',
+            'standard-canvas-fallback': 'Fallback 2:3'
+        };
+
+        function diagnosticBadge(text, state)
+        {
+            const badge = document.createElement('span');
+            badge.className = 'product-image-compare-diagnostic';
+
+            if (state) {
+                badge.dataset.state = state;
+            }
+
+            badge.textContent = text;
+            diagnostics.appendChild(badge);
+        }
+
+        if (method) {
+            diagnosticBadge(
+                'Модель: '
+                + (
+                    normalization.subject_detected === true
+                        ? 'знайдена'
+                        : 'не знайдена'
+                ),
+                normalization.subject_detected === true
+                    ? 'success'
+                    : 'neutral'
+            );
+            diagnosticBadge(
+                'Кадрування: '
+                + (
+                    normalization.crop_applied === true
+                        ? 'застосовано'
+                        : 'ні'
+                ),
+                normalization.crop_applied === true
+                    ? 'success'
+                    : 'neutral'
+            );
+
+            if (normalization.zoom_out_applied === true) {
+                diagnosticBadge(
+                    'Масштаб: зменшено',
+                    'success'
+                );
+            }
+
+            diagnosticBadge(
+                'Метод: ' + (methodLabels[method] || method),
+                'info'
+            );
+
+            const backgroundProfile = valueOrEmpty(
+                normalization.background_profile
+            );
+            const requestedBackgroundProfile = valueOrEmpty(
+                normalization.background_profile_requested
+            );
+            const backgroundLabels = {
+                'original-canvas': 'Original+Canvas',
+                'studio-light': 'Studio Light',
+                'anabelka-brand': 'Anabelka Brand'
+            };
+
+            if (backgroundProfile) {
+                diagnosticBadge(
+                    'Фон: '
+                    + (
+                        backgroundLabels[backgroundProfile]
+                        || backgroundProfile
+                    ),
+                    normalization.background_fallback === true
+                        ? 'neutral'
+                        : 'success'
+                );
+            }
+
+            if (
+                normalization.background_fallback === true
+                && requestedBackgroundProfile
+            ) {
+                diagnosticBadge(
+                    'Fallback з '
+                    + (
+                        backgroundLabels[requestedBackgroundProfile]
+                        || requestedBackgroundProfile
+                    ),
+                    'neutral'
+                );
+            }
+
+            if (normalization.subject_mask_applied === true) {
+                diagnosticBadge(
+                    'Маска: GrabCut',
+                    'info'
+                );
+            }
+
+            const personScore = Number(
+                normalization.person_score
+            );
+
+            if (Number.isFinite(personScore) && personScore > 0) {
+                diagnosticBadge(
+                    'Впевненість: '
+                    + Math.round(personScore * 100)
+                    + '%',
+                    'info'
+                );
+            }
+
+            const cropStrategy = valueOrEmpty(
+                normalization.crop_strategy
+            );
+
+            if (cropStrategy === 'aspect-fill') {
+                diagnosticBadge(
+                    'Стратегія: 2:3 без полів',
+                    'info'
+                );
+            } else if (cropStrategy === 'subject-bbox') {
+                diagnosticBadge(
+                    'Стратегія: межі моделі',
+                    'info'
+                );
+            } else if (cropStrategy === 'torso-zoom-out') {
+                diagnosticBadge(
+                    'Стратегія: віддалення моделі',
+                    'success'
+                );
+
+                const torsoBefore = Number(
+                    normalization.torso_ratio_before
+                );
+                const torsoAfter = Number(
+                    normalization.torso_ratio_after
+                );
+                const zoomScale = Number(
+                    normalization.zoom_scale
+                );
+
+                if (
+                    Number.isFinite(torsoBefore)
+                    && torsoBefore > 0
+                    && Number.isFinite(torsoAfter)
+                    && torsoAfter > 0
+                ) {
+                    diagnosticBadge(
+                        'Торс: '
+                        + Math.round(torsoBefore * 100)
+                        + '% → '
+                        + Math.round(torsoAfter * 100)
+                        + '%',
+                        'info'
+                    );
+                }
+
+                if (
+                    Number.isFinite(zoomScale)
+                    && zoomScale > 0
+                ) {
+                    diagnosticBadge(
+                        'Масштаб фото: '
+                        + Math.round(zoomScale * 100)
+                        + '%',
+                        'info'
+                    );
+                }
+            } else if (cropStrategy === 'torso-normalize') {
+                diagnosticBadge(
+                    'Стратегія: масштаб по торсу',
+                    'success'
+                );
+
+                const torsoBefore = Number(
+                    normalization.torso_ratio_before
+                );
+                const torsoTarget = Number(
+                    normalization.torso_target_ratio
+                );
+
+                if (
+                    Number.isFinite(torsoBefore)
+                    && torsoBefore > 0
+                    && Number.isFinite(torsoTarget)
+                    && torsoTarget > 0
+                ) {
+                    diagnosticBadge(
+                        'Торс: '
+                        + Math.round(torsoBefore * 100)
+                        + '% → '
+                        + Math.round(torsoTarget * 100)
+                        + '%',
+                        'info'
+                    );
+                }
+            }
+        } else {
+            diagnosticBadge(
+                'Діагностика недоступна для цього старого результату.',
+                'neutral'
+            );
+        }
+
+        dialog.appendChild(header);
+        dialog.appendChild(stage);
+        dialog.appendChild(sliderWrap);
+        dialog.appendChild(meta);
+        dialog.appendChild(diagnostics);
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        activeImageCompareModal = modal;
+        document.documentElement.classList.add(
+            'product-image-compare-open'
+        );
+        document.body.classList.add(
+            'product-image-compare-open'
+        );
+
+        const historyState = Object.assign(
+            {},
+            history.state && typeof history.state === 'object'
+                ? history.state
+                : {}
+        );
+        historyState[imageCompareHistoryKey] = true;
+        history.pushState(
+            historyState,
+            '',
+            currentProductEditorUrl()
+        );
+
+        close.addEventListener('click', function () {
+            closeImageComparison();
+        });
+
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                closeImageComparison();
+            }
+        });
+
+        close.focus();
+    }
+
+
+    window.addEventListener('popstate', function (event) {
+        const state = event.state
+            && typeof event.state === 'object'
+            ? event.state
+            : {};
+
+        if (
+            activeImageCompareModal
+            && !state[imageCompareHistoryKey]
+        ) {
+            closeImageComparison({ syncHistory: false });
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && activeImageCompareModal) {
+            event.preventDefault();
+            closeImageComparison();
+        }
+    });
 
 
     function colorPickerValue(value)
@@ -164,6 +840,8 @@
             .querySelector('[data-size-remove]')
             .addEventListener('click', function () {
                 row.remove();
+                validateSizeUniqueness();
+                syncBySizeTotalFromRows();
             });
 
         fields.sizeList.appendChild(fragment);
@@ -192,6 +870,125 @@
         ).some(function (input) {
             return input.value.trim() !== '';
         });
+    }
+
+
+    function normalizeSizeName(value)
+    {
+        return String(value || '')
+            .trim()
+            .toLocaleLowerCase();
+    }
+
+
+    function validateSizeUniqueness()
+    {
+        const seen = new Map();
+        let duplicate = null;
+
+        fields.sizeList
+            .querySelectorAll('[data-size-name]')
+            .forEach(function (input) {
+                input.setCustomValidity('');
+
+                const name = String(input.value || '').trim();
+                const key = normalizeSizeName(name);
+
+                if (key === '' || duplicate) {
+                    return;
+                }
+
+                if (seen.has(key)) {
+                    input.setCustomValidity(
+                        'Цей розмір уже додано.'
+                    );
+                    duplicate = {
+                        input: input,
+                        name: name
+                    };
+                    return;
+                }
+
+                seen.set(key, input);
+            });
+
+        return duplicate;
+    }
+
+
+    function focusDuplicateSize(duplicate)
+    {
+        if (!duplicate || !duplicate.input) {
+            return;
+        }
+
+        const details = duplicate.input.closest(
+            'details.product-form-section'
+        );
+
+        if (details) {
+            details.open = true;
+        }
+
+        showMessage(
+            'Розмір «'
+            + duplicate.name
+            + '» додано двічі. Видаліть дублікат або вкажіть інший розмір.'
+        );
+
+        window.setTimeout(function () {
+            duplicate.input.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            duplicate.input.focus();
+            duplicate.input.select();
+        }, 30);
+    }
+
+
+    function syncBySizeTotalFromRows()
+    {
+        if (
+            !fields.stock
+            || !fields.stockMode
+            || fields.stockMode.value !== 'by_size'
+        ) {
+            return;
+        }
+
+        if (
+            form.querySelector(
+                '[data-variant-stock-input]'
+            )
+        ) {
+            return;
+        }
+
+        const seen = new Set();
+        let total = 0;
+
+        fields.sizeList
+            .querySelectorAll('.product-size-row')
+            .forEach(function (row) {
+                const name = row.querySelector('[data-size-name]');
+                const stock = row.querySelector('[data-size-stock]');
+                const key = normalizeSizeName(
+                    name ? name.value : ''
+                );
+
+                if (!stock || key === '' || seen.has(key)) {
+                    return;
+                }
+
+                seen.add(key);
+                total += Math.max(
+                    0,
+                    parseInt(stock.value || '0', 10) || 0
+                );
+            });
+
+        fields.stock.value = String(total);
     }
 
 
@@ -281,6 +1078,252 @@
     }
 
 
+    function processingStatusText(processing)
+    {
+        processing = processing && typeof processing === 'object'
+            ? processing
+            : {};
+        const status = String(processing.status || '');
+
+        if (status === 'ready') {
+            const width = Number(processing.master_width || 0);
+            const height = Number(processing.master_height || 0);
+
+            return width > 0 && height > 0
+                ? 'Готово · ' + width + '×' + height
+                : 'Готово';
+        }
+
+        if (status === 'error') {
+            return 'Помилка';
+        }
+
+        if (status === 'processing') {
+            return 'Обробка…';
+        }
+
+        return 'Не оброблено';
+    }
+
+
+    function syncProcessingControl(control, image)
+    {
+        const processing = image.processing
+            && typeof image.processing === 'object'
+            ? image.processing
+            : {};
+        const status = String(processing.status || '');
+        const label = control.querySelector(
+            '[data-product-image-processing-status]'
+        );
+        const button = control.querySelector(
+            '[data-product-image-process]'
+        );
+        const compareButton = control.querySelector(
+            '[data-product-image-compare]'
+        );
+        const profileSelect = control.querySelector(
+            '[data-product-image-background-profile]'
+        );
+        const normalization = processing.normalization
+            && typeof processing.normalization === 'object'
+            ? processing.normalization
+            : {};
+        const storedBackgroundProfile = valueOrEmpty(
+            normalization.background_profile_requested
+            || normalization.background_profile
+            || 'original-canvas'
+        );
+        const canCompare = status === 'ready'
+            && processedMasterUrl(image) !== '';
+
+        control.dataset.processingStatus = status || 'pending';
+        control.classList.toggle(
+            'has-comparison',
+            canCompare
+        );
+
+        if (label) {
+            label.textContent = processingStatusText(processing);
+            label.title = status === 'error'
+                ? valueOrEmpty(processing.last_error)
+                : valueOrEmpty(processing.processed_at);
+        }
+
+        if (button) {
+            button.textContent = status === 'ready'
+                ? 'Повторити'
+                : 'Обробити';
+        }
+
+        if (
+            profileSelect
+            && Array.from(profileSelect.options).some(function (option) {
+                return option.value === storedBackgroundProfile;
+            })
+        ) {
+            profileSelect.value = storedBackgroundProfile;
+        }
+
+        if (compareButton) {
+            compareButton.hidden = !canCompare;
+        }
+    }
+
+
+    function imageProcessingControl(image, item, remove)
+    {
+        const control = document.createElement('div');
+        control.className = 'product-image-processing';
+
+        const status = document.createElement('span');
+        status.className = 'product-image-processing-status';
+        status.dataset.productImageProcessingStatus = '';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.setAttribute('data-product-image-process', '');
+        button.setAttribute(
+            'aria-label',
+            'Обробити фотографію товару'
+        );
+
+        const profileSelect = document.createElement('select');
+        profileSelect.className = 'product-image-background-profile';
+        profileSelect.dataset.productImageBackgroundProfile = '';
+        profileSelect.setAttribute(
+            'aria-label',
+            'Профіль фону фотографії'
+        );
+
+        [
+            ['original-canvas', 'Original+Canvas'],
+            ['studio-light', 'Studio Light'],
+            ['anabelka-brand', 'Anabelka Brand']
+        ].forEach(function (entry) {
+            const option = document.createElement('option');
+            option.value = entry[0];
+            option.textContent = entry[1];
+            profileSelect.appendChild(option);
+        });
+
+        const compareButton = document.createElement('button');
+        compareButton.type = 'button';
+        compareButton.className = 'product-image-compare-button';
+        compareButton.setAttribute(
+            'data-product-image-compare',
+            ''
+        );
+        compareButton.setAttribute(
+            'aria-label',
+            'Порівняти оригінал і оброблену фотографію'
+        );
+        compareButton.textContent = 'Порівняти';
+        compareButton.hidden = true;
+        compareButton.addEventListener('click', function () {
+            openImageComparison(image);
+        });
+
+        button.addEventListener('click', async function () {
+            const imageId = Number(image.id || 0);
+            const csrf = form.querySelector('input[name="_csrf"]');
+
+            if (
+                imageId <= 0
+                || !csrf
+                || !csrf.value
+                || remove.checked
+            ) {
+                return;
+            }
+
+            const oldText = button.textContent;
+            button.disabled = true;
+            profileSelect.disabled = true;
+            status.textContent = 'Обробка…';
+            control.dataset.processingStatus = 'processing';
+
+            const payload = new FormData();
+            payload.append('_csrf', csrf.value);
+            payload.append('image_id', String(imageId));
+            payload.append(
+                'background_profile',
+                String(profileSelect.value || 'original-canvas')
+            );
+
+            try {
+                const response = await fetch(
+                    '/Anabelka/admin/products/image-process',
+                    {
+                        method: 'POST',
+                        body: payload,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    }
+                );
+                const responseText = await response.text();
+                let data = {};
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error(
+                        'Сервер повернув некоректну відповідь.'
+                    );
+                }
+
+                if (!response.ok || !data.success) {
+                    throw new Error(
+                        data.message
+                        || 'Не вдалося обробити фотографію.'
+                    );
+                }
+
+                image.processing = data.processing || {};
+                syncProcessingControl(control, image);
+                showMessage('Фотографію оброблено.');
+            } catch (error) {
+                image.processing = Object.assign(
+                    {},
+                    image.processing || {},
+                    {
+                        status: 'error',
+                        last_error: error.message
+                            || 'Не вдалося обробити фотографію.'
+                    }
+                );
+                syncProcessingControl(control, image);
+                showMessage(
+                    error.message
+                    || 'Не вдалося обробити фотографію.'
+                );
+            } finally {
+                button.disabled = remove.checked;
+                profileSelect.disabled = remove.checked;
+                if (!button.textContent) {
+                    button.textContent = oldText || 'Обробити';
+                }
+            }
+        });
+
+        control.appendChild(status);
+        control.appendChild(profileSelect);
+        control.appendChild(button);
+        control.appendChild(compareButton);
+        syncProcessingControl(control, image);
+
+        remove.addEventListener('change', function () {
+            button.disabled = remove.checked;
+            compareButton.disabled = remove.checked;
+            profileSelect.disabled = remove.checked;
+        });
+
+        return control;
+    }
+
+
     function imageManageCard(image)
     {
         const item = document.createElement('div');
@@ -355,6 +1398,9 @@
                 name: 'image_color_name[' + String(image.id || '') + ']'
             }
         ));
+        item.appendChild(
+            imageProcessingControl(image, item, remove)
+        );
         item.appendChild(tools);
 
         return item;
@@ -486,11 +1532,26 @@
         const hint = form.querySelector('[data-size-stock-hint]');
 
         if (totalField) {
-            totalField.hidden = bySize;
+            totalField.hidden = false;
+
+            const totalLabel = totalField.querySelector('span');
+
+            if (totalLabel) {
+                totalLabel.textContent = bySize
+                    ? 'Загальний залишок, шт. (автоматично)'
+                    : 'Загальний залишок, шт.';
+            }
         }
 
         if (fields.stock) {
             fields.stock.required = !bySize;
+            fields.stock.readOnly = bySize;
+
+            if (bySize) {
+                fields.stock.setAttribute('aria-readonly', 'true');
+            } else {
+                fields.stock.removeAttribute('aria-readonly');
+            }
         }
 
         form.querySelectorAll('[data-size-stock]').forEach(function (stock) {
@@ -499,15 +1560,55 @@
 
         if (hint) {
             hint.textContent = bySize
-                ? 'Вкажіть окрему кількість для кожного розміру.'
+                ? 'Залишки задаються за розмірами. Загальний залишок рахується автоматично.'
                 : 'Для загального залишку кількість задається вище.';
+        }
+
+        if (bySize) {
+            syncBySizeTotalFromRows();
         }
     }
 
 
     function requestedTranslationFocus(productId)
     {
-        const params = new URLSearchParams(window.location.search);
+        window.addEventListener('popstate', function (event) {
+        const state = event.state
+            && typeof event.state === 'object'
+            ? event.state
+            : {};
+        const stateToken = Number(
+            state[productEditorHistoryKey] || 0
+        );
+
+        /*
+         * Forward navigation can land on the editor-owned entry again.
+         * In that case keep the editor state armed. Back from the editor
+         * lands on the clean base entry and closes it.
+         */
+        if (
+            !editor.hidden
+            && stateToken === productEditorHistoryToken
+            && stateToken > 0
+        ) {
+            productEditorHistoryArmed = true;
+            return;
+        }
+
+        if (!editor.hidden) {
+            productEditorHistoryArmed = false;
+            closeEditor({ syncHistory: false });
+            return;
+        }
+
+        productEditorHistoryArmed = Boolean(
+            stateToken === productEditorHistoryToken
+            && stateToken > 0
+        );
+    });
+
+
+    const params = new URLSearchParams(window.location.search);
         const requestedId = String(params.get('highlight') || '').trim();
         const language = String(params.get('focus_language') || '')
             .trim()
@@ -630,16 +1731,56 @@
 
         editor.hidden = false;
         document.body.classList.add('product-editor-open');
+        armProductEditorHistory();
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         window.setTimeout(function () {
             focusEditor(isEdit ? product.id : 0);
         }, 30);
     }
 
 
-    function closeEditor()
+    function closeEditor(options)
     {
+        const settings = options && typeof options === 'object'
+            ? options
+            : {};
+        const syncHistory = settings.syncHistory !== false;
+
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
+
+        if (syncHistory) {
+            disarmProductEditorHistory();
+        }
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
+
+        if (window.AnabelkaAIEditingContext === 'product-translations') {
+            window.AnabelkaAIEditingContext = '';
+        }
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:ai-context-change'
+        ));
         clearUploadPreviews();
     }
 
@@ -705,7 +1846,75 @@
     });
 
     fields.stockMode.addEventListener('change', updateStockMode);
+
+    fields.sizeList.addEventListener('input', function (event) {
+        if (event.target.matches('[data-size-name]')) {
+            validateSizeUniqueness();
+            syncBySizeTotalFromRows();
+            return;
+        }
+
+        if (event.target.matches('[data-size-stock]')) {
+            syncBySizeTotalFromRows();
+        }
+    });
+
     fields.imageInput.addEventListener('change', renderUploadPreviews);
+
+    const translationDetails = form.querySelector(
+        '[data-translation-details]'
+    );
+
+    if (translationDetails) {
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.register === 'function'
+        ) {
+            window.AnabelkaAdminBack.register({
+                key: 'product-translations',
+                priority: 60,
+                isActive: function () {
+                    return !editor.hidden && translationDetails.open;
+                },
+                close: function () {
+                    translationDetails.open = false;
+
+                    if (
+                        window.AnabelkaAdminBack
+                        && typeof window.AnabelkaAdminBack.syncNow
+                            === 'function'
+                    ) {
+                        window.AnabelkaAdminBack.syncNow();
+                    }
+                }
+            });
+        }
+
+        translationDetails.addEventListener('toggle', function () {
+            if (
+                window.AnabelkaAdminBack
+                && typeof window.AnabelkaAdminBack.syncNow === 'function'
+            ) {
+                window.AnabelkaAdminBack.syncNow();
+            }
+
+            window.AnabelkaAIEditingContext = translationDetails.open
+                ? 'product-translations'
+                : '';
+
+            document.dispatchEvent(new CustomEvent(
+                'anabelka:ai-context-change'
+            ));
+
+            if (
+                window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.refreshVisibility
+                    === 'function'
+            ) {
+                window.AnabelkaAITranslation.refreshVisibility();
+            }
+        });
+    }
 
     form.addEventListener('input', function (event) {
         const field = event.target;
@@ -814,6 +2023,13 @@
 
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
+
+        const duplicateSize = validateSizeUniqueness();
+
+        if (duplicateSize) {
+            focusDuplicateSize(duplicateSize);
+            return;
+        }
 
         if (!form.reportValidity()) {
             return;

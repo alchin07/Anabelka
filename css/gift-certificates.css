@@ -1,0 +1,119 @@
+.gift-certificate-page {
+    padding: 30px 0 55px;
+}
+
+.gift-certificate-card {
+    width: min(900px, calc(100% - 30px));
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(260px, .85fr) minmax(0, 1.15fr);
+    overflow: hidden;
+    border: 1px solid var(--border-color, #eadcf7);
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 14px 36px rgba(74, 44, 92, .08);
+}
+
+.gift-certificate-art {
+    position: relative;
+    min-height: 360px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background:
+        radial-gradient(circle at 25% 18%, rgba(255,255,255,.8), transparent 24%),
+        linear-gradient(135deg, #f8ecff 0%, #d9b7f5 48%, #8A2BE2 100%);
+}
+
+.gift-certificate-art::before,
+.gift-certificate-art::after {
+    content: '';
+    position: absolute;
+    inset: auto -10% -28% -10%;
+    height: 55%;
+    border-radius: 50% 50% 0 0;
+    background: rgba(255,255,255,.18);
+    transform: rotate(-5deg);
+}
+
+.gift-certificate-art::after {
+    inset: -25% -10% auto -10%;
+    transform: rotate(7deg);
+}
+
+.gift-certificate-ribbon {
+    position: relative;
+    z-index: 2;
+    padding: 18px 24px;
+    border: 1px solid rgba(255,255,255,.6);
+    border-radius: 18px;
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 34px;
+    font-style: italic;
+    font-weight: 700;
+    backdrop-filter: blur(5px);
+}
+
+.gift-certificate-lace {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 24px;
+    height: 42px;
+    opacity: .55;
+    background-image: radial-gradient(circle at 12px 20px, transparent 7px, rgba(255,255,255,.7) 8px, rgba(255,255,255,.7) 10px, transparent 11px);
+    background-size: 24px 40px;
+}
+
+.gift-certificate-copy {
+    padding: 34px;
+}
+
+.gift-certificate-kicker {
+    color: #8A2BE2;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.gift-certificate-copy h2 {
+    margin: 8px 0 14px;
+    font-size: clamp(26px, 3vw, 38px);
+}
+
+.gift-certificate-copy p {
+    margin: 0;
+    color: #625a66;
+    line-height: 1.65;
+}
+
+.gift-certificate-note {
+    margin: 20px 0;
+    padding: 13px 15px;
+    border-radius: 13px;
+    background: #faf7ff;
+    color: #6519b9;
+    font-weight: 700;
+}
+
+.gift-certificate-back {
+    color: #8A2BE2;
+    font-weight: 800;
+}
+
+@media (max-width: 700px) {
+    .gift-certificate-card {
+        grid-template-columns: 1fr;
+    }
+
+    .gift-certificate-art {
+        min-height: 230px;
+    }
+
+    .gift-certificate-copy {
+        padding: 22px;
+    }
+}
