@@ -18,7 +18,7 @@ assert.match(
 );
 
 assert.match(view, /admin-products\.css\?v=10/);
-assert.match(view, /admin-products\.js\?v=17/);
+assert.match(view, /admin-products\.js\?v=18/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(
@@ -55,6 +55,10 @@ assert.match(script, /Впевненість:/);
 assert.match(script, /Стратегія:/);
 assert.match(script, /aspect-fill/);
 assert.match(script, /subject-bbox/);
+assert.match(script, /torso-normalize/);
+assert.match(script, /масштаб по торсу/);
+assert.match(script, /Торс:/);
+
 
 
 
