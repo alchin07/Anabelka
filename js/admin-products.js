@@ -538,6 +538,52 @@
                 'info'
             );
 
+            const backgroundProfile = valueOrEmpty(
+                normalization.background_profile
+            );
+            const requestedBackgroundProfile = valueOrEmpty(
+                normalization.background_profile_requested
+            );
+            const backgroundLabels = {
+                'original-canvas': 'Original+Canvas',
+                'studio-light': 'Studio Light',
+                'anabelka-brand': 'Anabelka Brand'
+            };
+
+            if (backgroundProfile) {
+                diagnosticBadge(
+                    'Фон: '
+                    + (
+                        backgroundLabels[backgroundProfile]
+                        || backgroundProfile
+                    ),
+                    normalization.background_fallback === true
+                        ? 'neutral'
+                        : 'success'
+                );
+            }
+
+            if (
+                normalization.background_fallback === true
+                && requestedBackgroundProfile
+            ) {
+                diagnosticBadge(
+                    'Fallback з '
+                    + (
+                        backgroundLabels[requestedBackgroundProfile]
+                        || requestedBackgroundProfile
+                    ),
+                    'neutral'
+                );
+            }
+
+            if (normalization.subject_mask_applied === true) {
+                diagnosticBadge(
+                    'Маска: GrabCut',
+                    'info'
+                );
+            }
+
             const personScore = Number(
                 normalization.person_score
             );
@@ -1076,6 +1122,18 @@
         const compareButton = control.querySelector(
             '[data-product-image-compare]'
         );
+        const profileSelect = control.querySelector(
+            '[data-product-image-background-profile]'
+        );
+        const normalization = processing.normalization
+            && typeof processing.normalization === 'object'
+            ? processing.normalization
+            : {};
+        const storedBackgroundProfile = valueOrEmpty(
+            normalization.background_profile_requested
+            || normalization.background_profile
+            || 'original-canvas'
+        );
         const canCompare = status === 'ready'
             && processedMasterUrl(image) !== '';
 
@@ -1096,6 +1154,15 @@
             button.textContent = status === 'ready'
                 ? 'Повторити'
                 : 'Обробити';
+        }
+
+        if (
+            profileSelect
+            && Array.from(profileSelect.options).some(function (option) {
+                return option.value === storedBackgroundProfile;
+            })
+        ) {
+            profileSelect.value = storedBackgroundProfile;
         }
 
         if (compareButton) {
@@ -1120,6 +1187,25 @@
             'aria-label',
             'Обробити фотографію товару'
         );
+
+        const profileSelect = document.createElement('select');
+        profileSelect.className = 'product-image-background-profile';
+        profileSelect.dataset.productImageBackgroundProfile = '';
+        profileSelect.setAttribute(
+            'aria-label',
+            'Профіль фону фотографії'
+        );
+
+        [
+            ['original-canvas', 'Original+Canvas'],
+            ['studio-light', 'Studio Light'],
+            ['anabelka-brand', 'Anabelka Brand']
+        ].forEach(function (entry) {
+            const option = document.createElement('option');
+            option.value = entry[0];
+            option.textContent = entry[1];
+            profileSelect.appendChild(option);
+        });
 
         const compareButton = document.createElement('button');
         compareButton.type = 'button';
@@ -1153,12 +1239,17 @@
 
             const oldText = button.textContent;
             button.disabled = true;
+            profileSelect.disabled = true;
             status.textContent = 'Обробка…';
             control.dataset.processingStatus = 'processing';
 
             const payload = new FormData();
             payload.append('_csrf', csrf.value);
             payload.append('image_id', String(imageId));
+            payload.append(
+                'background_profile',
+                String(profileSelect.value || 'original-canvas')
+            );
 
             try {
                 const response = await fetch(
@@ -1210,6 +1301,7 @@
                 );
             } finally {
                 button.disabled = remove.checked;
+                profileSelect.disabled = remove.checked;
                 if (!button.textContent) {
                     button.textContent = oldText || 'Обробити';
                 }
@@ -1217,6 +1309,7 @@
         });
 
         control.appendChild(status);
+        control.appendChild(profileSelect);
         control.appendChild(button);
         control.appendChild(compareButton);
         syncProcessingControl(control, image);
@@ -1224,6 +1317,7 @@
         remove.addEventListener('change', function () {
             button.disabled = remove.checked;
             compareButton.disabled = remove.checked;
+            profileSelect.disabled = remove.checked;
         });
 
         return control;
