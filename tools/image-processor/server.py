@@ -13,14 +13,14 @@ from typing import Any
 import cv2
 import numpy as np
 import PIL
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 
 from mp_persondet import MPPersonDet
 
 
 HOST = "127.0.0.1"
-VERSION = "0.7"
-PROFILE = "model-normalize-v4"
+VERSION = "0.8"
+PROFILE = "model-normalize-v5"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -34,6 +34,18 @@ PROCESSED_ROOT = (SOURCE_ROOT / "processed").resolve()
 MASTER_SIZE = (1200, 1800)
 THUMB_SIZE = (320, 480)
 CANVAS_BACKGROUND = (250, 250, 250)
+BACKGROUND_PROFILE_ORIGINAL = "original-canvas"
+BACKGROUND_PROFILE_STUDIO = "studio-light"
+BACKGROUND_PROFILE_BRAND = "anabelka-brand"
+BACKGROUND_PROFILES = (
+    BACKGROUND_PROFILE_ORIGINAL,
+    BACKGROUND_PROFILE_STUDIO,
+    BACKGROUND_PROFILE_BRAND,
+)
+DEFAULT_BACKGROUND_PROFILE = BACKGROUND_PROFILE_ORIGINAL
+SUBJECT_MASK_MAX_EDGE = 1200
+SUBJECT_MASK_MIN_RATIO = 0.02
+SUBJECT_MASK_MAX_RATIO = 0.90
 PERSON_DETECT_MAX_EDGE = 900
 FACE_DETECT_MAX_EDGE = 1000
 FACE_MIN_AREA_RATIO = 0.0015
@@ -663,6 +675,405 @@ def mediapipe_aspect_fill_crop_box(
     )
 
 
+def normalize_background_profile(value: Any) -> str:
+    profile = str(value or DEFAULT_BACKGROUND_PROFILE).strip().lower()
+
+    if profile not in BACKGROUND_PROFILES:
+        raise ValueError("Невідомий профіль фону фотографії.")
+
+    return profile
+
+
+def gradient_background(
+    size: tuple[int, int],
+    top_color: tuple[int, int, int],
+    bottom_color: tuple[int, int, int],
+) -> Image.Image:
+    width, height = size
+
+    if width <= 0 or height <= 0:
+        raise ValueError("Некоректний розмір фону.")
+
+    if height == 1:
+        colors = [top_color]
+    else:
+        colors = []
+
+        for y in range(height):
+            ratio = y / (height - 1)
+            colors.append(
+                tuple(
+                    round(
+                        top_color[channel]
+                        + (
+                            bottom_color[channel]
+                            - top_color[channel]
+                        )
+                        * ratio
+                    )
+                    for channel in range(3)
+                )
+            )
+
+    strip = Image.new("RGB", (1, height))
+    strip.putdata(colors)
+
+    return strip.resize(
+        (width, height),
+        Image.Resampling.BILINEAR,
+    )
+
+
+def background_profile_canvas(
+    size: tuple[int, int],
+    profile: str,
+) -> Image.Image:
+    if profile == BACKGROUND_PROFILE_STUDIO:
+        return gradient_background(
+            size,
+            (252, 251, 249),
+            (244, 241, 246),
+        )
+
+    if profile == BACKGROUND_PROFILE_BRAND:
+        return gradient_background(
+            size,
+            (252, 249, 255),
+            (239, 228, 249),
+        )
+
+    return Image.new(
+        "RGB",
+        size,
+        CANVAS_BACKGROUND,
+    )
+
+
+def build_subject_rgba(
+    image: Image.Image,
+    bbox: tuple[int, int, int, int],
+) -> tuple[Image.Image, float] | None:
+    rgb = flattened_rgb(image)
+    source_width, source_height = rgb.size
+    x, y, width, height = bbox
+
+    if (
+        source_width <= 2
+        or source_height <= 2
+        or width <= 2
+        or height <= 2
+    ):
+        return None
+
+    max_edge = max(source_width, source_height)
+    scale = min(1.0, SUBJECT_MASK_MAX_EDGE / max_edge)
+    work_width = max(2, round(source_width * scale))
+    work_height = max(2, round(source_height * scale))
+
+    if scale < 1.0:
+        work = rgb.resize(
+            (work_width, work_height),
+            Image.Resampling.BILINEAR,
+        )
+    else:
+        work = rgb
+
+    work_x = round(x * scale)
+    work_y = round(y * scale)
+    work_box_width = max(2, round(width * scale))
+    work_box_height = max(2, round(height * scale))
+    pad_x = max(2, round(work_box_width * 0.08))
+    pad_y = max(2, round(work_box_height * 0.05))
+
+    left = max(1, work_x - pad_x)
+    top = max(1, work_y - pad_y)
+    right = min(
+        work_width - 1,
+        work_x + work_box_width + pad_x,
+    )
+    bottom = min(
+        work_height - 1,
+        work_y + work_box_height + pad_y,
+    )
+
+    if right - left < 3 or bottom - top < 3:
+        return None
+
+    frame = cv2.cvtColor(
+        np.asarray(work),
+        cv2.COLOR_RGB2BGR,
+    )
+    mask = np.zeros(
+        (work_height, work_width),
+        dtype=np.uint8,
+    )
+    background_model = np.zeros(
+        (1, 65),
+        dtype=np.float64,
+    )
+    foreground_model = np.zeros(
+        (1, 65),
+        dtype=np.float64,
+    )
+
+    try:
+        cv2.grabCut(
+            frame,
+            mask,
+            (
+                left,
+                top,
+                right - left,
+                bottom - top,
+            ),
+            background_model,
+            foreground_model,
+            5,
+            cv2.GC_INIT_WITH_RECT,
+        )
+    except cv2.error:
+        return None
+
+    foreground = np.where(
+        (mask == cv2.GC_FGD)
+        | (mask == cv2.GC_PR_FGD),
+        255,
+        0,
+    ).astype(np.uint8)
+
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    foreground = cv2.morphologyEx(
+        foreground,
+        cv2.MORPH_CLOSE,
+        kernel,
+        iterations=1,
+    )
+    foreground = cv2.GaussianBlur(
+        foreground,
+        (5, 5),
+        0,
+    )
+
+    foreground_ratio = float(
+        np.count_nonzero(foreground >= 128)
+        / max(1, work_width * work_height)
+    )
+
+    if (
+        foreground_ratio < SUBJECT_MASK_MIN_RATIO
+        or foreground_ratio > SUBJECT_MASK_MAX_RATIO
+    ):
+        return None
+
+    alpha = Image.fromarray(
+        foreground,
+        mode="L",
+    )
+
+    if scale < 1.0:
+        alpha = alpha.resize(
+            (source_width, source_height),
+            Image.Resampling.LANCZOS,
+        )
+
+    rgba = rgb.convert("RGBA")
+    rgba.putalpha(alpha)
+
+    return (
+        rgba,
+        foreground_ratio,
+    )
+
+
+def transparent_standard_canvas(
+    image: Image.Image,
+    size: tuple[int, int],
+) -> Image.Image:
+    target_width, target_height = size
+    source_width, source_height = image.size
+
+    if source_width <= 0 or source_height <= 0:
+        raise ValueError("Некоректний розмір фотографії.")
+
+    scale = min(
+        target_width / source_width,
+        target_height / source_height,
+    )
+    resized_width = max(1, round(source_width * scale))
+    resized_height = max(1, round(source_height * scale))
+    resized = image.convert("RGBA").resize(
+        (resized_width, resized_height),
+        Image.Resampling.LANCZOS,
+    )
+    canvas = Image.new(
+        "RGBA",
+        size,
+        (0, 0, 0, 0),
+    )
+    left = (target_width - resized_width) // 2
+    top = (target_height - resized_height) // 2
+    canvas.alpha_composite(
+        resized,
+        (left, top),
+    )
+
+    return canvas
+
+
+def transparent_zoom_out_canvas(
+    image: Image.Image,
+    torso_center: tuple[float, float],
+    shoulder_center: tuple[float, float],
+    zoom_scale: float,
+) -> Image.Image | None:
+    target_width, target_height = MASTER_SIZE
+    source_width, source_height = image.size
+    standard_scale = min(
+        target_width / source_width,
+        target_height / source_height,
+    )
+    final_scale = standard_scale * zoom_scale
+    resized_width = max(1, round(source_width * final_scale))
+    resized_height = max(1, round(source_height * final_scale))
+
+    if (
+        resized_width > target_width
+        or resized_height > target_height
+    ):
+        return None
+
+    resized = image.convert("RGBA").resize(
+        (resized_width, resized_height),
+        Image.Resampling.LANCZOS,
+    )
+    requested_left = (
+        target_width / 2
+        - torso_center[0] * final_scale
+    )
+    requested_top = (
+        target_height * TORSO_SHOULDER_Y_RATIO
+        - shoulder_center[1] * final_scale
+    )
+    left = min(
+        max(0, round(requested_left)),
+        target_width - resized_width,
+    )
+    top = min(
+        max(0, round(requested_top)),
+        target_height - resized_height,
+    )
+    canvas = Image.new(
+        "RGBA",
+        MASTER_SIZE,
+        (0, 0, 0, 0),
+    )
+    canvas.alpha_composite(
+        resized,
+        (left, top),
+    )
+
+    return canvas
+
+
+def compose_subject_on_background(
+    subject_canvas: Image.Image,
+    profile: str,
+) -> Image.Image:
+    background = background_profile_canvas(
+        subject_canvas.size,
+        profile,
+    ).convert("RGBA")
+    alpha = subject_canvas.getchannel("A")
+    shadow_alpha = alpha.filter(
+        ImageFilter.GaussianBlur(radius=24),
+    ).point(
+        lambda value: round(value * 0.16)
+    )
+    shifted_shadow = Image.new(
+        "L",
+        subject_canvas.size,
+        0,
+    )
+    shifted_shadow.paste(
+        shadow_alpha,
+        (0, 18),
+    )
+    shadow = Image.new(
+        "RGBA",
+        subject_canvas.size,
+        (55, 43, 62, 0),
+    )
+    shadow.putalpha(shifted_shadow)
+    background = Image.alpha_composite(
+        background,
+        shadow,
+    )
+    background = Image.alpha_composite(
+        background,
+        subject_canvas,
+    )
+
+    return background.convert("RGB")
+
+
+def custom_background_master(
+    image: Image.Image,
+    bbox: tuple[int, int, int, int],
+    crop_box: tuple[int, int, int, int] | None,
+    crop_strategy: str,
+    zoom_scale: float | None,
+    torso_center: tuple[float, float] | None,
+    shoulder_center: tuple[float, float] | None,
+    background_profile: str,
+) -> tuple[Image.Image, float] | None:
+    if background_profile == BACKGROUND_PROFILE_ORIGINAL:
+        return None
+
+    subject_result = build_subject_rgba(
+        image,
+        bbox,
+    )
+
+    if subject_result is None:
+        return None
+
+    subject, foreground_ratio = subject_result
+
+    if (
+        crop_strategy == "torso-zoom-out"
+        and zoom_scale is not None
+        and torso_center is not None
+        and shoulder_center is not None
+    ):
+        subject_canvas = transparent_zoom_out_canvas(
+            subject,
+            torso_center,
+            shoulder_center,
+            zoom_scale,
+        )
+
+        if subject_canvas is None:
+            return None
+    elif crop_box is not None:
+        subject_canvas = transparent_standard_canvas(
+            subject.crop(crop_box),
+            MASTER_SIZE,
+        )
+    else:
+        subject_canvas = transparent_standard_canvas(
+            subject,
+            MASTER_SIZE,
+        )
+
+    return (
+        compose_subject_on_background(
+            subject_canvas,
+            background_profile,
+        ),
+        foreground_ratio,
+    )
+
+
 def find_face_cascade_path() -> Path | None:
     candidates: list[Path] = []
 
@@ -979,7 +1390,11 @@ def subject_crop_box(
 
 def normalized_master(
     image: Image.Image,
+    background_profile: str = DEFAULT_BACKGROUND_PROFILE,
 ) -> tuple[Image.Image, dict[str, Any]]:
+    background_profile = normalize_background_profile(
+        background_profile
+    )
     bbox = None
     method = ""
     person_score = None
@@ -1018,6 +1433,14 @@ def normalized_master(
                 "subject_detected": False,
                 "crop_applied": False,
                 "method": "standard-canvas-fallback",
+                "background_profile_requested": background_profile,
+                "background_profile": BACKGROUND_PROFILE_ORIGINAL,
+                "background_fallback": (
+                    background_profile
+                    != BACKGROUND_PROFILE_ORIGINAL
+                ),
+                "subject_mask_applied": False,
+                "shadow_applied": False,
             },
         )
 
@@ -1094,6 +1517,11 @@ def normalized_master(
             else method + "-no-crop"
         ),
         "person_bbox": list(bbox),
+        "background_profile_requested": background_profile,
+        "background_profile": BACKGROUND_PROFILE_ORIGINAL,
+        "background_fallback": False,
+        "subject_mask_applied": False,
+        "shadow_applied": False,
     }
 
     if (
@@ -1131,6 +1559,47 @@ def normalized_master(
             max(0.0, min(1.0, person_score)),
             4,
         )
+
+    if background_profile != BACKGROUND_PROFILE_ORIGINAL:
+        custom_background = custom_background_master(
+            image,
+            bbox,
+            crop_box,
+            crop_strategy,
+            zoom_scale,
+            mediapipe_torso_center,
+            mediapipe_shoulder_center,
+            background_profile,
+        )
+
+        if custom_background is not None:
+            background_master, mask_foreground_ratio = (
+                custom_background
+            )
+            diagnostics["background_profile"] = (
+                background_profile
+            )
+            diagnostics["background_fallback"] = False
+            diagnostics["subject_mask_applied"] = True
+            diagnostics["mask_method"] = "opencv-grabcut"
+            diagnostics["mask_foreground_ratio"] = round(
+                max(
+                    0.0,
+                    min(1.0, mask_foreground_ratio),
+                ),
+                4,
+            )
+            diagnostics["shadow_applied"] = True
+
+            if crop_box is not None:
+                diagnostics["crop_box"] = list(crop_box)
+
+            return (
+                background_master,
+                diagnostics,
+            )
+
+        diagnostics["background_fallback"] = True
 
     if zoomed_master is not None:
         return (
@@ -1215,8 +1684,14 @@ def save_webp(image: Image.Image, target: Path, quality: int) -> None:
     )
 
 
-def process_image(source_value: Any) -> dict[str, Any]:
+def process_image(
+    source_value: Any,
+    background_profile_value: Any = None,
+) -> dict[str, Any]:
     source = safe_source_path(source_value)
+    background_profile = normalize_background_profile(
+        background_profile_value
+    )
     job_id = uuid.uuid4().hex
 
     original_dir = ORIGINAL_ROOT / job_id
@@ -1233,7 +1708,10 @@ def process_image(source_value: Any) -> dict[str, Any]:
         image = normalized_image(original)
         width, height = image.size
 
-        master, normalization = normalized_master(image)
+        master, normalization = normalized_master(
+            image,
+            background_profile,
+        )
         thumb = master.resize(
             THUMB_SIZE,
             Image.Resampling.LANCZOS,
@@ -1249,6 +1727,12 @@ def process_image(source_value: Any) -> dict[str, Any]:
             "ok": True,
             "processor_version": VERSION,
             "profile": PROFILE,
+            "background_profile": (
+                normalization.get(
+                    "background_profile",
+                    BACKGROUND_PROFILE_ORIGINAL,
+                )
+            ),
             "job_id": job_id,
             "source": project_relative(source),
             "original": {
@@ -1301,6 +1785,12 @@ class Handler(BaseHTTPRequestHandler):
                 "service": "Anabelka Image Processor",
                 "version": VERSION,
                 "profile": PROFILE,
+                "default_background_profile": (
+                    DEFAULT_BACKGROUND_PROFILE
+                ),
+                "background_profiles": list(
+                    BACKGROUND_PROFILES
+                ),
                 "master_size": {
                     "width": MASTER_SIZE[0],
                     "height": MASTER_SIZE[1],
@@ -1367,7 +1857,10 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 raise ValueError("Некоректний JSON.")
 
-            result = process_image(payload.get("source"))
+            result = process_image(
+                payload.get("source"),
+                payload.get("background_profile"),
+            )
             self.send_json(200, result)
         except (ValueError, OSError, UnidentifiedImageError) as error:
             self.send_json(
