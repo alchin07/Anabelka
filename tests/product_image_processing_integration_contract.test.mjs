@@ -55,7 +55,7 @@ assert.match(
 );
 assert.match(
     processingService,
-    /ImageProcessorClient::processProductImage\(\s*\$sourcePath\s*\)/
+    /ImageProcessorClient::processProductImage\(\s*\$sourcePath,\s*\$backgroundProfile\s*\)/
 );
 assert.match(processingService, /ProductImageProcessing::markProcessing/);
 assert.match(processingService, /ProductImageProcessing::markReady/);
@@ -64,6 +64,7 @@ assert.match(processingService, /\^\[a-f0-9\]\{64\}\$/);
 assert.match(processingService, /storage\/image-processor/);
 
 assert.match(processorController, /\$_POST\['image_id'\]/);
+assert.match(processorController, /\$_POST\['background_profile'\]/);
 assert.doesNotMatch(
     processorController,
     /\$_POST\[['"](?:path|source)['"]\]/
@@ -84,8 +85,8 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.7"/);
-assert.match(pythonServer, /PROFILE = "model-normalize-v4"/);
+assert.match(pythonServer, /VERSION = "0\.8"/);
+assert.match(pythonServer, /PROFILE = "model-normalize-v5"/);
 assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
 assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
 assert.match(pythonServer, /def standard_canvas\(/);
@@ -102,6 +103,14 @@ assert.match(pythonServer, /def mediapipe_aspect_fill_crop_box\(/);
 assert.match(pythonServer, /def mediapipe_torso_crop_box\(/);
 assert.match(pythonServer, /def mediapipe_torso_zoom_out_canvas\(/);
 assert.match(pythonServer, /def estimated_canvas_background\(/);
+assert.match(pythonServer, /BACKGROUND_PROFILE_ORIGINAL = "original-canvas"/);
+assert.match(pythonServer, /BACKGROUND_PROFILE_STUDIO = "studio-light"/);
+assert.match(pythonServer, /BACKGROUND_PROFILE_BRAND = "anabelka-brand"/);
+assert.match(pythonServer, /def build_subject_rgba\(/);
+assert.match(pythonServer, /cv2\.grabCut/);
+assert.match(pythonServer, /def background_profile_canvas\(/);
+assert.match(pythonServer, /def custom_background_master\(/);
+assert.match(pythonServer, /opencv-grabcut/);
 assert.match(pythonServer, /TORSO_TARGET_RATIO = 0\.31/);
 assert.match(pythonServer, /TORSO_TRIGGER_RATIO = 0\.285/);
 assert.match(pythonServer, /TORSO_ZOOM_OUT_TARGET_RATIO = 0\.40/);
@@ -143,6 +152,9 @@ assert.match(processingService, /processingProfile/);
 assert.match(processingService, /normalizedDiagnostics/);
 assert.match(processingService, /crop_applied/);
 assert.match(processingService, /zoom_out_applied/);
+assert.match(processingService, /background_profile/);
+assert.match(processingService, /subject_mask_applied/);
+assert.match(processingService, /opencv-grabcut/);
 assert.match(processingService, /subject_detected/);
 assert.match(processingService, /mediapipe-persondet/);
 assert.match(processingService, /person_score/);
