@@ -19,8 +19,8 @@ from mp_persondet import MPPersonDet
 
 
 HOST = "127.0.0.1"
-VERSION = "0.10"
-PROFILE = "model-normalize-v7"
+VERSION = "0.11"
+PROFILE = "model-normalize-v8"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -896,6 +896,60 @@ def keep_primary_foreground_component(
     ).astype(np.uint8)
 
 
+def refine_subject_edge(
+    foreground: np.ndarray,
+) -> np.ndarray:
+    binary = np.where(
+        foreground >= 128,
+        255,
+        0,
+    ).astype(np.uint8)
+
+    # A tiny median pass removes one-pixel hooks and stair-steps
+    # without aggressively eroding hair or underwear edges.
+    binary = cv2.medianBlur(
+        binary,
+        3,
+    )
+
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE,
+        (3, 3),
+    )
+    binary = cv2.morphologyEx(
+        binary,
+        cv2.MORPH_CLOSE,
+        kernel,
+        iterations=1,
+    )
+
+    inside = cv2.distanceTransform(
+        (binary > 0).astype(np.uint8),
+        cv2.DIST_L2,
+        3,
+    )
+    outside = cv2.distanceTransform(
+        (binary == 0).astype(np.uint8),
+        cv2.DIST_L2,
+        3,
+    )
+    signed_distance = inside - outside
+    feather_radius = 1.8
+    alpha = np.clip(
+        (
+            signed_distance
+            + feather_radius
+        )
+        / (2.0 * feather_radius),
+        0.0,
+        1.0,
+    )
+
+    return np.rint(
+        alpha * 255.0
+    ).astype(np.uint8)
+
+
 def build_subject_rgba(
     image: Image.Image,
     bbox: tuple[int, int, int, int],
@@ -995,17 +1049,8 @@ def build_subject_rgba(
         foreground,
     )
 
-    kernel = np.ones((3, 3), dtype=np.uint8)
-    foreground = cv2.morphologyEx(
+    foreground = refine_subject_edge(
         foreground,
-        cv2.MORPH_CLOSE,
-        kernel,
-        iterations=1,
-    )
-    foreground = cv2.GaussianBlur(
-        foreground,
-        (5, 5),
-        0,
     )
 
     foreground_ratio = float(
