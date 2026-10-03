@@ -98,6 +98,11 @@ assert.match(pythonServer, /opencv-haar-face-subject/);
 assert.match(pythonServer, /from mp_persondet import MPPersonDet/);
 assert.match(pythonServer, /person_detection_mediapipe_2023mar\.onnx/);
 assert.match(pythonServer, /def detect_mediapipe_person_bbox\(/);
+assert.match(pythonServer, /def mediapipe_aspect_fill_crop_box\(/);
+assert.match(pythonServer, /retained_area_ratio < 0\.80/);
+assert.match(pythonServer, /crop_strategy/);
+assert.match(pythonServer, /aspect-fill/);
+
 assert.match(pythonServer, /mediapipe-persondet/);
 assert.match(pythonServer, /person_model_ready/);
 assert.match(pythonServer, /PERSON_MODEL_SHA256/);
@@ -123,6 +128,10 @@ assert.match(processingService, /crop_applied/);
 assert.match(processingService, /subject_detected/);
 assert.match(processingService, /mediapipe-persondet/);
 assert.match(processingService, /person_score/);
+assert.match(processingService, /cropStrategy/);
+assert.match(processingService, /aspect-fill/);
+assert.match(processingService, /subject-bbox/);
+
 
 
 assert.match(
