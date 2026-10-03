@@ -19,8 +19,8 @@ from mp_persondet import MPPersonDet
 
 
 HOST = "127.0.0.1"
-VERSION = "0.9"
-PROFILE = "model-normalize-v6"
+VERSION = "0.10"
+PROFILE = "model-normalize-v7"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -810,10 +810,45 @@ def suppress_uniform_border_background(
         pixels - background_color,
         axis=2,
     )
+    candidate_background = (
+        distance <= threshold
+    ).astype(np.uint8)
+
+    component_count, labels, _, _ = (
+        cv2.connectedComponentsWithStats(
+            candidate_background,
+            connectivity=8,
+        )
+    )
+
+    if component_count <= 1:
+        return foreground
+
+    border_labels = np.unique(
+        np.concatenate(
+            [
+                labels[0, :],
+                labels[-1, :],
+                labels[:, 0],
+                labels[:, -1],
+            ]
+        )
+    )
+    border_labels = border_labels[
+        border_labels != 0
+    ]
+
+    if border_labels.size == 0:
+        return foreground
+
+    border_connected_background = np.isin(
+        labels,
+        border_labels,
+    )
     cleaned = foreground.copy()
     cleaned[
         (cleaned >= 128)
-        & (distance <= threshold)
+        & border_connected_background
     ] = 0
 
     return cleaned
