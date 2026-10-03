@@ -43,6 +43,13 @@ PERSON_MAX_CROP_AREA_RATIO = 0.92
 PERSON_SIDE_MARGIN = 0.18
 PERSON_TOP_MARGIN = 0.08
 PERSON_BOTTOM_MARGIN = 0.10
+TORSO_TARGET_RATIO = 0.31
+TORSO_TRIGGER_RATIO = 0.285
+TORSO_MIN_RETAINED_HEIGHT_RATIO = 0.72
+TORSO_SHOULDER_Y_RATIO = 0.28
+TORSO_LOWER_MARGIN_RATIO = 1.35
+TORSO_UPPER_RADIUS_MARGIN = 1.08
+TORSO_SIDE_RADIUS_MARGIN = 1.12
 
 PERSON_MODEL_PATH = (
     WORK_ROOT
@@ -200,6 +207,10 @@ def detect_mediapipe_person_bbox(
     tuple[int, int, int, int],
     float,
     tuple[float, float],
+    tuple[float, float],
+    tuple[float, float],
+    float,
+    float,
 ] | None:
     detector = get_person_detector()
 
@@ -268,9 +279,30 @@ def detect_mediapipe_person_bbox(
     if right <= left or bottom <= top:
         return None
 
+    shoulder_center = landmarks[2]
+    upper_body_point = landmarks[3]
+    torso_length = float(
+        np.linalg.norm(
+            shoulder_center - hip_center
+        )
+    )
+    upper_radius = float(
+        np.linalg.norm(
+            shoulder_center - upper_body_point
+        )
+    )
+
+    if (
+        not np.isfinite(torso_length)
+        or torso_length <= 1.0
+        or not np.isfinite(upper_radius)
+        or upper_radius <= 1.0
+    ):
+        return None
+
     torso_center = (
-        float((hip_center[0] + landmarks[2][0]) / 2.0),
-        float((hip_center[1] + landmarks[2][1]) / 2.0),
+        float((hip_center[0] + shoulder_center[0]) / 2.0),
+        float((hip_center[1] + shoulder_center[1]) / 2.0),
     )
 
     return (
@@ -282,6 +314,155 @@ def detect_mediapipe_person_bbox(
         ),
         score,
         torso_center,
+        (float(shoulder_center[0]), float(shoulder_center[1])),
+        (float(hip_center[0]), float(hip_center[1])),
+        torso_length,
+        upper_radius,
+    )
+
+
+def mediapipe_torso_crop_box(
+    image: Image.Image,
+    shoulder_center: tuple[float, float],
+    hip_center: tuple[float, float],
+    torso_length: float,
+    upper_radius: float,
+) -> tuple[
+    tuple[int, int, int, int],
+    float,
+] | None:
+    source_width, source_height = image.size
+
+    if (
+        source_width <= 0
+        or source_height <= 0
+        or not np.isfinite(torso_length)
+        or torso_length <= 1.0
+    ):
+        return None
+
+    ratio_before = torso_length / source_height
+
+    if ratio_before >= TORSO_TRIGGER_RATIO:
+        return None
+
+    desired_height = round(
+        torso_length / TORSO_TARGET_RATIO
+    )
+    minimum_height = round(
+        source_height * TORSO_MIN_RETAINED_HEIGHT_RATIO
+    )
+    crop_height = max(
+        desired_height,
+        minimum_height,
+    )
+    crop_height = min(
+        crop_height,
+        source_height,
+    )
+    crop_width = round(
+        crop_height
+        * MASTER_SIZE[0]
+        / MASTER_SIZE[1]
+    )
+
+    if (
+        crop_width <= 0
+        or crop_height <= 0
+        or crop_width > source_width
+        or crop_height >= source_height
+    ):
+        return None
+
+    shoulder_x, shoulder_y = shoulder_center
+    hip_x, hip_y = hip_center
+
+    safe_top = max(
+        0.0,
+        shoulder_y
+        - upper_radius * TORSO_UPPER_RADIUS_MARGIN,
+    )
+    safe_bottom = min(
+        float(source_height),
+        hip_y
+        + torso_length * TORSO_LOWER_MARGIN_RATIO,
+    )
+
+    if safe_bottom - safe_top > crop_height:
+        return None
+
+    requested_top = (
+        shoulder_y
+        - crop_height * TORSO_SHOULDER_Y_RATIO
+    )
+    top_min = max(
+        0.0,
+        safe_bottom - crop_height,
+    )
+    top_max = min(
+        float(source_height - crop_height),
+        safe_top,
+    )
+
+    if top_min > top_max:
+        return None
+
+    crop_top = round(
+        min(
+            max(requested_top, top_min),
+            top_max,
+        )
+    )
+    crop_bottom = crop_top + crop_height
+
+    side_radius = max(
+        upper_radius * TORSO_SIDE_RADIUS_MARGIN,
+        torso_length * 0.72,
+    )
+    safe_left = max(
+        0.0,
+        min(shoulder_x, hip_x) - side_radius,
+    )
+    safe_right = min(
+        float(source_width),
+        max(shoulder_x, hip_x) + side_radius,
+    )
+
+    if safe_right - safe_left > crop_width:
+        return None
+
+    torso_center_x = (
+        shoulder_x + hip_x
+    ) / 2.0
+    requested_left = torso_center_x - crop_width / 2
+    left_min = max(
+        0.0,
+        safe_right - crop_width,
+    )
+    left_max = min(
+        float(source_width - crop_width),
+        safe_left,
+    )
+
+    if left_min > left_max:
+        return None
+
+    crop_left = round(
+        min(
+            max(requested_left, left_min),
+            left_max,
+        )
+    )
+    crop_right = crop_left + crop_width
+
+    return (
+        (
+            crop_left,
+            crop_top,
+            crop_right,
+            crop_bottom,
+        ),
+        ratio_before,
     )
 
 
@@ -657,9 +838,21 @@ def normalized_master(
 
     mediapipe_result = detect_mediapipe_person_bbox(image)
     mediapipe_torso_center = None
+    mediapipe_shoulder_center = None
+    mediapipe_hip_center = None
+    mediapipe_torso_length = None
+    mediapipe_upper_radius = None
 
     if mediapipe_result is not None:
-        bbox, person_score, mediapipe_torso_center = mediapipe_result
+        (
+            bbox,
+            person_score,
+            mediapipe_torso_center,
+            mediapipe_shoulder_center,
+            mediapipe_hip_center,
+            mediapipe_torso_length,
+            mediapipe_upper_radius,
+        ) = mediapipe_result
         method = "mediapipe-persondet"
 
     if bbox is None:
@@ -683,8 +876,30 @@ def normalized_master(
     crop_strategy = "subject-bbox"
     crop_box = subject_crop_box(image, bbox)
 
+    torso_ratio_before = None
+
     if (
         method == "mediapipe-persondet"
+        and mediapipe_shoulder_center is not None
+        and mediapipe_hip_center is not None
+        and mediapipe_torso_length is not None
+        and mediapipe_upper_radius is not None
+    ):
+        torso_crop = mediapipe_torso_crop_box(
+            image,
+            mediapipe_shoulder_center,
+            mediapipe_hip_center,
+            mediapipe_torso_length,
+            mediapipe_upper_radius,
+        )
+
+        if torso_crop is not None:
+            crop_box, torso_ratio_before = torso_crop
+            crop_strategy = "torso-normalize"
+
+    if (
+        crop_strategy != "torso-normalize"
+        and method == "mediapipe-persondet"
         and mediapipe_torso_center is not None
     ):
         aspect_fill_crop = mediapipe_aspect_fill_crop_box(
@@ -709,6 +924,15 @@ def normalized_master(
 
     if crop_box is not None:
         diagnostics["crop_strategy"] = crop_strategy
+
+    if torso_ratio_before is not None:
+        diagnostics["torso_ratio_before"] = round(
+            max(0.0, min(1.0, torso_ratio_before)),
+            4,
+        )
+        diagnostics["torso_target_ratio"] = (
+            TORSO_TARGET_RATIO
+        )
 
     if person_score is not None:
         diagnostics["person_score"] = round(
