@@ -19,8 +19,8 @@ from mp_persondet import MPPersonDet
 
 
 HOST = "127.0.0.1"
-VERSION = "0.6"
-PROFILE = "model-normalize-v3"
+VERSION = "0.7"
+PROFILE = "model-normalize-v4"
 PORT = int(os.environ.get("ANABELKA_IMAGE_PROCESSOR_PORT", "8765"))
 MAX_JSON_BYTES = 64 * 1024
 MAX_SOURCE_BYTES = 40 * 1024 * 1024
@@ -45,8 +45,9 @@ PERSON_TOP_MARGIN = 0.08
 PERSON_BOTTOM_MARGIN = 0.10
 TORSO_TARGET_RATIO = 0.31
 TORSO_TRIGGER_RATIO = 0.285
-TORSO_ZOOM_OUT_TRIGGER_RATIO = 0.34
-TORSO_ZOOM_OUT_MIN_SCALE = 0.68
+TORSO_ZOOM_OUT_TARGET_RATIO = 0.40
+TORSO_ZOOM_OUT_TRIGGER_RATIO = 0.46
+TORSO_ZOOM_OUT_MIN_SCALE = 0.75
 TORSO_MIN_RETAINED_HEIGHT_RATIO = 0.72
 TORSO_SHOULDER_Y_RATIO = 0.28
 TORSO_LOWER_MARGIN_RATIO = 1.35
@@ -549,7 +550,7 @@ def mediapipe_torso_zoom_out_canvas(
 
     zoom_scale = min(
         1.0,
-        TORSO_TARGET_RATIO / ratio_before,
+        TORSO_ZOOM_OUT_TARGET_RATIO / ratio_before,
     )
     zoom_scale = max(
         TORSO_ZOOM_OUT_MIN_SCALE,
@@ -1107,7 +1108,9 @@ def normalized_master(
             4,
         )
         diagnostics["torso_target_ratio"] = (
-            TORSO_TARGET_RATIO
+            TORSO_ZOOM_OUT_TARGET_RATIO
+            if crop_strategy == "torso-zoom-out"
+            else TORSO_TARGET_RATIO
         )
 
     if torso_ratio_after is not None:

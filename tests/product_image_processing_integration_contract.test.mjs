@@ -84,8 +84,8 @@ assert.match(
     /'\/admin\/products'\s*=>\s*\['products\.view',\s*'products\.manage'\]/
 );
 
-assert.match(pythonServer, /VERSION = "0\.6"/);
-assert.match(pythonServer, /PROFILE = "model-normalize-v3"/);
+assert.match(pythonServer, /VERSION = "0\.7"/);
+assert.match(pythonServer, /PROFILE = "model-normalize-v4"/);
 assert.match(pythonServer, /MASTER_SIZE = \(1200, 1800\)/);
 assert.match(pythonServer, /THUMB_SIZE = \(320, 480\)/);
 assert.match(pythonServer, /def standard_canvas\(/);
@@ -104,8 +104,9 @@ assert.match(pythonServer, /def mediapipe_torso_zoom_out_canvas\(/);
 assert.match(pythonServer, /def estimated_canvas_background\(/);
 assert.match(pythonServer, /TORSO_TARGET_RATIO = 0\.31/);
 assert.match(pythonServer, /TORSO_TRIGGER_RATIO = 0\.285/);
-assert.match(pythonServer, /TORSO_ZOOM_OUT_TRIGGER_RATIO = 0\.34/);
-assert.match(pythonServer, /TORSO_ZOOM_OUT_MIN_SCALE = 0\.68/);
+assert.match(pythonServer, /TORSO_ZOOM_OUT_TARGET_RATIO = 0\.40/);
+assert.match(pythonServer, /TORSO_ZOOM_OUT_TRIGGER_RATIO = 0\.46/);
+assert.match(pythonServer, /TORSO_ZOOM_OUT_MIN_SCALE = 0\.75/);
 assert.match(pythonServer, /TORSO_MIN_RETAINED_HEIGHT_RATIO = 0\.72/);
 assert.match(pythonServer, /torso-normalize/);
 assert.match(pythonServer, /torso-zoom-out/);
