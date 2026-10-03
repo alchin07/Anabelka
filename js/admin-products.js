@@ -542,6 +542,22 @@
                     'info'
                 );
             }
+
+            const cropStrategy = valueOrEmpty(
+                normalization.crop_strategy
+            );
+
+            if (cropStrategy === 'aspect-fill') {
+                diagnosticBadge(
+                    'Стратегія: 2:3 без полів',
+                    'info'
+                );
+            } else if (cropStrategy === 'subject-bbox') {
+                diagnosticBadge(
+                    'Стратегія: межі моделі',
+                    'info'
+                );
+            }
         } else {
             diagnosticBadge(
                 'Діагностика недоступна для цього старого результату.',
