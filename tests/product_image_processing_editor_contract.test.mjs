@@ -17,8 +17,8 @@ assert.match(
     /\$image\['processing'\]\s*=/
 );
 
-assert.match(view, /admin-products\.css\?v=10/);
-assert.match(view, /admin-products\.js\?v=19/);
+assert.match(view, /admin-products\.css\?v=11/);
+assert.match(view, /admin-products\.js\?v=20/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(
@@ -62,6 +62,14 @@ assert.match(script, /масштаб по торсу/);
 assert.match(script, /віддалення моделі/);
 assert.match(script, /Масштаб фото:/);
 assert.match(script, /Торс:/);
+assert.match(script, /data-product-image-background-profile/);
+assert.match(script, /Original\+Canvas/);
+assert.match(script, /Studio Light/);
+assert.match(script, /Anabelka Brand/);
+assert.match(script, /background_profile/);
+assert.match(script, /Фон:/);
+assert.match(script, /Маска: GrabCut/);
+assert.match(css, /\.product-image-background-profile/);
 
 
 
