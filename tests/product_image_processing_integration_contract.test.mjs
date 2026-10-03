@@ -99,6 +99,14 @@ assert.match(pythonServer, /from mp_persondet import MPPersonDet/);
 assert.match(pythonServer, /person_detection_mediapipe_2023mar\.onnx/);
 assert.match(pythonServer, /def detect_mediapipe_person_bbox\(/);
 assert.match(pythonServer, /def mediapipe_aspect_fill_crop_box\(/);
+assert.match(pythonServer, /def mediapipe_torso_crop_box\(/);
+assert.match(pythonServer, /TORSO_TARGET_RATIO = 0\.31/);
+assert.match(pythonServer, /TORSO_TRIGGER_RATIO = 0\.285/);
+assert.match(pythonServer, /TORSO_MIN_RETAINED_HEIGHT_RATIO = 0\.72/);
+assert.match(pythonServer, /torso-normalize/);
+assert.match(pythonServer, /torso_ratio_before/);
+assert.match(pythonServer, /torso_target_ratio/);
+
 assert.match(pythonServer, /retained_area_ratio < 0\.80/);
 assert.match(pythonServer, /crop_strategy/);
 assert.match(pythonServer, /aspect-fill/);
