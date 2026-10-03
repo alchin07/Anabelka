@@ -233,12 +233,36 @@ class ProductImageProcessingService
             if (
                 in_array(
                     $cropStrategy,
-                    ['subject-bbox', 'aspect-fill'],
+                    [
+                        'subject-bbox',
+                        'aspect-fill',
+                        'torso-normalize'
+                    ],
                     true
                 )
             ) {
                 $normalizedDiagnostics['crop_strategy'] =
                     $cropStrategy;
+            }
+
+            foreach (
+                [
+                    'torso_ratio_before',
+                    'torso_target_ratio'
+                ] as $ratioKey
+            ) {
+                if (!isset($normalization[$ratioKey])) {
+                    continue;
+                }
+
+                $ratio = (float) $normalization[$ratioKey];
+
+                if (is_finite($ratio)) {
+                    $normalizedDiagnostics[$ratioKey] = max(
+                        0.0,
+                        min(1.0, $ratio)
+                    );
+                }
             }
         }
 
