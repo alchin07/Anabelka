@@ -2,8 +2,10 @@
 
 class ProductImageProcessingService
 {
-    public static function process($imageId)
-    {
+    public static function process(
+        $imageId,
+        $backgroundProfile = 'original-canvas'
+    ) {
         $imageId = (int) $imageId;
 
         if ($imageId <= 0) {
@@ -36,7 +38,8 @@ class ProductImageProcessingService
 
         try {
             $response = ImageProcessorClient::processProductImage(
-                $sourcePath
+                $sourcePath,
+                $backgroundProfile
             );
             $data = self::normalizeResult(
                 $sourcePath,
@@ -153,6 +156,36 @@ class ProductImageProcessingService
         $normalizationMethod = strtolower(trim((string) (
             $normalization['method'] ?? ''
         )));
+        $allowedBackgroundProfiles = [
+            'original-canvas',
+            'studio-light',
+            'anabelka-brand'
+        ];
+        $backgroundProfile = strtolower(trim((string) (
+            $normalization['background_profile'] ?? 'original-canvas'
+        )));
+        $backgroundProfileRequested = strtolower(trim((string) (
+            $normalization['background_profile_requested']
+            ?? $backgroundProfile
+        )));
+
+        if (
+            !in_array(
+                $backgroundProfile,
+                $allowedBackgroundProfiles,
+                true
+            )
+            || !in_array(
+                $backgroundProfileRequested,
+                $allowedBackgroundProfiles,
+                true
+            )
+        ) {
+            throw new RuntimeException(
+                'Обробник повернув невідомий профіль фону.'
+            );
+        }
+
         $allowedNormalizationMethods = [
             'mediapipe-persondet',
             'mediapipe-persondet-no-crop',
@@ -209,7 +242,19 @@ class ProductImageProcessingService
                 'method' => $normalizationMethod,
                 'subject_detected' => $subjectDetected,
                 'crop_applied' => $cropApplied,
-                'zoom_out_applied' => $zoomOutApplied
+                'zoom_out_applied' => $zoomOutApplied,
+                'background_profile' => $backgroundProfile,
+                'background_profile_requested' =>
+                    $backgroundProfileRequested,
+                'background_fallback' => (
+                    $normalization['background_fallback'] ?? false
+                ) === true,
+                'subject_mask_applied' => (
+                    $normalization['subject_mask_applied'] ?? false
+                ) === true,
+                'shadow_applied' => (
+                    $normalization['shadow_applied'] ?? false
+                ) === true
             ];
 
             foreach (['person_bbox', 'crop_box'] as $boxKey) {
@@ -226,6 +271,14 @@ class ProductImageProcessingService
                 }
 
                 $normalizedDiagnostics[$boxKey] = $values;
+            }
+
+            $maskMethod = strtolower(trim((string) (
+                $normalization['mask_method'] ?? ''
+            )));
+
+            if ($maskMethod === 'opencv-grabcut') {
+                $normalizedDiagnostics['mask_method'] = $maskMethod;
             }
 
             if (isset($normalization['person_score'])) {
@@ -264,7 +317,8 @@ class ProductImageProcessingService
                     'torso_ratio_before',
                     'torso_target_ratio',
                     'torso_ratio_after',
-                    'zoom_scale'
+                    'zoom_scale',
+                    'mask_foreground_ratio'
                 ] as $ratioKey
             ) {
                 if (!isset($normalization[$ratioKey])) {
