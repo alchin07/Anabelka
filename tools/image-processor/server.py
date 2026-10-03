@@ -196,7 +196,11 @@ def get_person_detector() -> MPPersonDet | None:
 
 def detect_mediapipe_person_bbox(
     image: Image.Image,
-) -> tuple[tuple[int, int, int, int], float] | None:
+) -> tuple[
+    tuple[int, int, int, int],
+    float,
+    tuple[float, float],
+] | None:
     detector = get_person_detector()
 
     if detector is None:
@@ -264,6 +268,11 @@ def detect_mediapipe_person_bbox(
     if right <= left or bottom <= top:
         return None
 
+    torso_center = (
+        float((hip_center[0] + landmarks[2][0]) / 2.0),
+        float((hip_center[1] + landmarks[2][1]) / 2.0),
+    )
+
     return (
         (
             left,
@@ -272,6 +281,56 @@ def detect_mediapipe_person_bbox(
             bottom - top,
         ),
         score,
+        torso_center,
+    )
+
+
+def mediapipe_aspect_fill_crop_box(
+    image: Image.Image,
+    torso_center: tuple[float, float],
+) -> tuple[int, int, int, int] | None:
+    source_width, source_height = image.size
+
+    if source_width <= 0 or source_height <= 0:
+        return None
+
+    target_ratio = MASTER_SIZE[0] / MASTER_SIZE[1]
+    source_ratio = source_width / source_height
+
+    # For the first conservative v0.5 correction, only remove
+    # moderate horizontal surplus. This avoids cutting head/legs while
+    # eliminating letterbox bars on common supplier portraits.
+    if source_ratio <= target_ratio * 1.01:
+        return None
+
+    crop_width = round(source_height * target_ratio)
+    crop_height = source_height
+
+    if crop_width <= 0 or crop_width >= source_width:
+        return None
+
+    retained_area_ratio = crop_width / source_width
+
+    if retained_area_ratio < 0.80:
+        return None
+
+    center_x = float(torso_center[0])
+
+    if not np.isfinite(center_x):
+        center_x = source_width / 2
+
+    crop_left = round(center_x - crop_width / 2)
+    crop_left = min(
+        max(0, crop_left),
+        source_width - crop_width,
+    )
+    crop_right = crop_left + crop_width
+
+    return (
+        crop_left,
+        0,
+        crop_right,
+        crop_height,
     )
 
 
@@ -597,9 +656,10 @@ def normalized_master(
     person_score = None
 
     mediapipe_result = detect_mediapipe_person_bbox(image)
+    mediapipe_torso_center = None
 
     if mediapipe_result is not None:
-        bbox, person_score = mediapipe_result
+        bbox, person_score, mediapipe_torso_center = mediapipe_result
         method = "mediapipe-persondet"
 
     if bbox is None:
@@ -620,7 +680,22 @@ def normalized_master(
             },
         )
 
+    crop_strategy = "subject-bbox"
     crop_box = subject_crop_box(image, bbox)
+
+    if (
+        method == "mediapipe-persondet"
+        and mediapipe_torso_center is not None
+    ):
+        aspect_fill_crop = mediapipe_aspect_fill_crop_box(
+            image,
+            mediapipe_torso_center,
+        )
+
+        if aspect_fill_crop is not None:
+            crop_box = aspect_fill_crop
+            crop_strategy = "aspect-fill"
+
     diagnostics = {
         "subject_detected": True,
         "crop_applied": crop_box is not None,
@@ -631,6 +706,9 @@ def normalized_master(
         ),
         "person_bbox": list(bbox),
     }
+
+    if crop_box is not None:
+        diagnostics["crop_strategy"] = crop_strategy
 
     if person_score is not None:
         diagnostics["person_score"] = round(
