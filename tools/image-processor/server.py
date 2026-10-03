@@ -994,9 +994,18 @@ def compose_subject_on_background(
         subject_canvas.size,
         0,
     )
+    shadow_width, shadow_height = subject_canvas.size
+    shadow_offset_y = min(18, max(0, shadow_height - 1))
     shifted_shadow.paste(
-        shadow_alpha,
-        (0, 18),
+        shadow_alpha.crop(
+            (
+                0,
+                0,
+                shadow_width,
+                shadow_height - shadow_offset_y,
+            )
+        ),
+        (0, shadow_offset_y),
     )
     shadow = Image.new(
         "RGBA",
