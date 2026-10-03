@@ -753,14 +753,13 @@ def suppress_uniform_border_background(
     image: Image.Image,
     foreground: np.ndarray,
 ) -> np.ndarray:
-    pixels = np.asarray(image.convert("RGB"), dtype=np.float32)
+    rgb = image if image.mode == "RGB" else image.convert("RGB")
     height, width = foreground.shape[:2]
 
     if (
         height <= 4
         or width <= 4
-        or pixels.shape[0] != height
-        or pixels.shape[1] != width
+        or rgb.size != (width, height)
     ):
         return foreground
 
@@ -768,10 +767,10 @@ def suppress_uniform_border_background(
     band_x = max(1, round(width * 0.035))
     border = np.concatenate(
         [
-            pixels[:band_y, :, :].reshape(-1, 3),
-            pixels[-band_y:, :, :].reshape(-1, 3),
-            pixels[:, :band_x, :].reshape(-1, 3),
-            pixels[:, -band_x:, :].reshape(-1, 3),
+            np.asarray(rgb.crop((0, 0, width, band_y))).reshape(-1, 3),
+            np.asarray(rgb.crop((0, height - band_y, width, height))).reshape(-1, 3),
+            np.asarray(rgb.crop((0, 0, band_x, height))).reshape(-1, 3),
+            np.asarray(rgb.crop((width - band_x, 0, width, height))).reshape(-1, 3),
         ],
         axis=0,
     )
@@ -782,11 +781,17 @@ def suppress_uniform_border_background(
     background_color = np.median(
         border,
         axis=0,
-    )
-    border_distance = np.linalg.norm(
-        border - background_color,
-        axis=1,
-    )
+    ).astype(np.float32)
+    tile_edge = 256
+    tile_pixels = tile_edge * tile_edge
+    border_distance = np.empty(len(border), dtype=np.float32)
+
+    for start in range(0, len(border), tile_pixels):
+        end = start + tile_pixels
+        border_distance[start:end] = np.linalg.norm(
+            border[start:end].astype(np.float32) - background_color,
+            axis=1,
+        )
     border_spread = float(
         np.median(border_distance)
     )
@@ -806,48 +811,32 @@ def suppress_uniform_border_background(
             12.0 + border_spread * 1.5,
         ),
     )
-    distance = np.linalg.norm(
-        pixels - background_color,
-        axis=2,
-    )
-    candidate_background = (
-        distance <= threshold
-    ).astype(np.uint8)
+    # Keep float buffers bounded even when cleaning a source-size alpha.
+    candidate_background = np.ones((height + 2, width + 2), dtype=np.uint8)
+    candidates = candidate_background[1:-1, 1:-1]
 
-    component_count, labels, _, _ = (
-        cv2.connectedComponentsWithStats(
-            candidate_background,
-            connectivity=8,
-        )
-    )
+    for top in range(0, height, tile_edge):
+        bottom = min(height, top + tile_edge)
 
-    if component_count <= 1:
-        return foreground
+        for left in range(0, width, tile_edge):
+            right = min(width, left + tile_edge)
+            tile = np.asarray(
+                rgb.crop((left, top, right, bottom)),
+                dtype=np.float32,
+            )
+            distance = np.linalg.norm(
+                tile - background_color,
+                axis=2,
+            )
+            candidates[top:bottom, left:right] = distance <= threshold
 
-    border_labels = np.unique(
-        np.concatenate(
-            [
-                labels[0, :],
-                labels[-1, :],
-                labels[:, 0],
-                labels[:, -1],
-            ]
-        )
-    )
-    border_labels = border_labels[
-        border_labels != 0
-    ]
-
-    if border_labels.size == 0:
-        return foreground
-
-    border_connected_background = np.isin(
-        labels,
-        border_labels,
-    )
+    # The added border joins all four image edges for one 8-connected
+    # flood fill. Enclosed light garment regions remain unfilled.
+    cv2.floodFill(candidate_background, None, (0, 0), 2, flags=8)
+    border_connected_background = candidates == 2
     cleaned = foreground.copy()
     cleaned[
-        (cleaned >= 128)
+        (cleaned > 0)
         & border_connected_background
     ] = 0
 
@@ -944,6 +933,9 @@ def refine_subject_edge(
         0.0,
         1.0,
     )
+    # Smoothing and feathering must not restore supplier-background
+    # pixels already removed from the mask, including narrow gaps.
+    alpha[foreground < 128] = 0.0
 
     return np.rint(
         alpha * 255.0
@@ -1073,6 +1065,21 @@ def build_subject_rgba(
         alpha = alpha.resize(
             (source_width, source_height),
             Image.Resampling.LANCZOS,
+        )
+        # Upsampling can reintroduce a faint fringe. Clean only soft
+        # pixels, preserving the opaque foreground and its coverage.
+        resized_alpha = np.asarray(alpha)
+        cleaned_alpha = suppress_uniform_border_background(
+            rgb,
+            resized_alpha,
+        )
+        alpha = Image.fromarray(
+            np.where(
+                resized_alpha < 128,
+                cleaned_alpha,
+                resized_alpha,
+            ),
+            mode="L",
         )
 
     rgba = rgb.convert("RGBA")

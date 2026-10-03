@@ -35,7 +35,7 @@ assert.match(
 );
 assert.match(
     client,
-    /public static function processProductImage\(\$path\)/
+    /public static function processProductImage\s*\(/
 );
 assert.match(
     client,

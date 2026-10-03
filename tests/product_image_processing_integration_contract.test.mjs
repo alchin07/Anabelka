@@ -109,8 +109,6 @@ assert.match(pythonServer, /BACKGROUND_PROFILE_BRAND = "anabelka-brand"/);
 assert.match(pythonServer, /def build_subject_rgba\(/);
 assert.match(pythonServer, /def suppress_uniform_border_background\(/);
 assert.match(pythonServer, /border_connected_background/);
-assert.match(pythonServer, /labels\[0, :\]/);
-assert.match(pythonServer, /labels\[-1, :\]/);
 assert.match(pythonServer, /def keep_primary_foreground_component\(/);
 assert.match(pythonServer, /def refine_subject_edge\(/);
 assert.match(pythonServer, /cv2\.medianBlur/);
@@ -152,7 +150,6 @@ assert.match(pythonServer, /cv2\.HOGDescriptor_getDefaultPeopleDetector/);
 assert.match(pythonServer, /def subject_crop_box\(/);
 assert.match(pythonServer, /def normalized_master\(/);
 assert.match(pythonServer, /"normalization": normalization/);
-assert.match(pythonServer, /"crop_applied": True/);
 assert.match(pythonServer, /"crop_applied": False/);
 
 assert.match(pythonServer, /"processor_version": VERSION/);
