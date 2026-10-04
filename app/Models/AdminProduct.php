@@ -968,7 +968,21 @@ class AdminProduct
 
         foreach ($products as &$product) {
             $productId = (int) $product['id'];
-            $product['images'] = $imageMap[$productId] ?? [];
+            $images = $imageMap[$productId] ?? [];
+            $product['images'] = $images;
+
+            $mainImage = $images[0] ?? null;
+
+            if (is_array($mainImage)) {
+                if (!empty($mainImage['thumb_path'])) {
+                    $product['main_image'] = $mainImage['thumb_path'];
+                } elseif (!empty($mainImage['master_path'])) {
+                    $product['main_image'] = $mainImage['master_path'];
+                } elseif (!empty($mainImage['path'])) {
+                    $product['main_image'] = $mainImage['path'];
+                }
+            }
+
             $product['colors'] = $colorMap[$productId] ?? [];
             $product['rank_prices'] = $priceMap[$productId] ?? [];
             $product['sizes'] = $sizeMap[$productId] ?? [];

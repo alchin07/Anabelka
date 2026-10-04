@@ -749,19 +749,17 @@ def background_profile_canvas(
     )
 
 
-def suppress_uniform_border_background(
+def uniform_border_background_mask(
     image: Image.Image,
-    foreground: np.ndarray,
-) -> np.ndarray:
+) -> np.ndarray | None:
     rgb = image if image.mode == "RGB" else image.convert("RGB")
-    height, width = foreground.shape[:2]
+    width, height = rgb.size
 
     if (
         height <= 4
         or width <= 4
-        or rgb.size != (width, height)
     ):
-        return foreground
+        return None
 
     band_y = max(1, round(height * 0.035))
     band_x = max(1, round(width * 0.035))
@@ -776,7 +774,7 @@ def suppress_uniform_border_background(
     )
 
     if border.size == 0:
-        return foreground
+        return None
 
     background_color = np.median(
         border,
@@ -802,7 +800,7 @@ def suppress_uniform_border_background(
         not np.isfinite(border_spread)
         or border_spread > 12.0
     ):
-        return foreground
+        return None
 
     threshold = max(
         12.0,
@@ -810,6 +808,28 @@ def suppress_uniform_border_background(
             22.0,
             12.0 + border_spread * 1.5,
         ),
+    )
+    # Similar brightness does not make pale skin or blonde hair background.
+    # Channel differences retain colour information under lighting changes.
+    border_chroma = np.column_stack(
+        (
+            border[:, 0].astype(np.int16) - border[:, 1],
+            border[:, 1].astype(np.int16) - border[:, 2],
+        )
+    )
+    background_chroma = np.median(border_chroma, axis=0)
+
+    for start in range(0, len(border), tile_pixels):
+        end = start + tile_pixels
+        border_distance[start:end] = np.linalg.norm(
+            border_chroma[start:end].astype(np.float32)
+            - background_chroma,
+            axis=1,
+        )
+
+    chroma_threshold = max(
+        4.0,
+        min(8.0, 4.0 + float(np.median(border_distance)) * 1.5),
     )
     # Keep float buffers bounded even when cleaning a source-size alpha.
     candidate_background = np.ones((height + 2, width + 2), dtype=np.uint8)
@@ -828,16 +848,72 @@ def suppress_uniform_border_background(
                 tile - background_color,
                 axis=2,
             )
-            candidates[top:bottom, left:right] = distance <= threshold
+            chroma_distance = np.hypot(
+                tile[:, :, 0] - tile[:, :, 1] - background_chroma[0],
+                tile[:, :, 1] - tile[:, :, 2] - background_chroma[1],
+            )
+            candidates[top:bottom, left:right] = (
+                (distance <= threshold)
+                & (chroma_distance <= chroma_threshold)
+            )
 
     # The added border joins all four image edges for one 8-connected
     # flood fill. Enclosed light garment regions remain unfilled.
     cv2.floodFill(candidate_background, None, (0, 0), 2, flags=8)
-    border_connected_background = candidates == 2
+    return candidates == 2
+
+
+def suppress_uniform_border_background(
+    image: Image.Image,
+    foreground: np.ndarray,
+) -> np.ndarray:
+    height, width = foreground.shape[:2]
+
+    if image.size != (width, height):
+        return foreground
+
+    border_connected_background = uniform_border_background_mask(image)
+
+    if border_connected_background is None:
+        return foreground
+
+    # Colour similarity may also match real subject pixels, especially
+    # blonde hair against a warm/light supplier background. Protect narrow
+    # matching details; clean their outer shell and broad background spills.
+    foreground_distance = cv2.distanceTransform(
+        (foreground >= 128).astype(np.uint8),
+        cv2.DIST_L2,
+        3,
+    )
+    edge_cleanup_band = foreground_distance <= 1.25
+
+    # Narrow background-coloured details can be real subject pixels
+    # (for example blonde hair). Large, wide regions are much more
+    # likely to be supplier-background spill captured by GrabCut.
+    suspect_foreground = (
+        border_connected_background
+        & (foreground > 0)
+    ).astype(np.uint8)
+
+    suspect_distance = cv2.distanceTransform(
+        suspect_foreground,
+        cv2.DIST_L2,
+        3,
+    )
+    # Remove a wide spill together with its narrow attached tails.
+    # A fixed-radius dilation left those tails beside arms and fingers.
+    # Separate narrow details without a thick core remain protected.
+    count, labels = cv2.connectedComponents(suspect_foreground, connectivity=8)
+    thick_labels = np.zeros(count, dtype=bool)
+    thick_labels[labels[suspect_distance >= 3.0]] = True
+    thick_labels[0] = False
+    thick_background = thick_labels[labels]
+
     cleaned = foreground.copy()
     cleaned[
         (cleaned > 0)
         & border_connected_background
+        & (edge_cleanup_band | thick_background)
     ] = 0
 
     return cleaned
@@ -935,7 +1011,7 @@ def refine_subject_edge(
     )
     # Smoothing and feathering must not restore supplier-background
     # pixels already removed from the mask, including narrow gaps.
-    alpha[foreground < 128] = 0.0
+    alpha[foreground == 0] = 0.0
 
     return np.rint(
         alpha * 255.0
@@ -1008,6 +1084,36 @@ def build_subject_rgba(
         (1, 65),
         dtype=np.float64,
     )
+    grabcut_mode = cv2.GC_INIT_WITH_RECT
+    background_hint = uniform_border_background_mask(work)
+
+    if background_hint is not None:
+        # A cropped body can reach the photo edge. Do not train GrabCut's
+        # certain-background model on that skin or hair. Extend only frame
+        # edges that contain non-background pixels; keep the other edges
+        # as background samples, without hard-labelling a wider band.
+        seed_left = (
+            0 if left == 1 and not background_hint[top:bottom, 0].all()
+            else left
+        )
+        seed_top = (
+            0 if top == 1 and not background_hint[0, left:right].all()
+            else top
+        )
+        seed_right = (
+            work_width
+            if right == work_width - 1 and not background_hint[top:bottom, -1].all()
+            else right
+        )
+        seed_bottom = (
+            work_height
+            if bottom == work_height - 1 and not background_hint[-1, left:right].all()
+            else bottom
+        )
+        mask[seed_top:seed_bottom, seed_left:seed_right] = cv2.GC_PR_FGD
+
+        if np.any(mask == cv2.GC_BGD) and np.any(mask == cv2.GC_PR_FGD):
+            grabcut_mode = cv2.GC_INIT_WITH_MASK
 
     try:
         cv2.grabCut(
@@ -1022,7 +1128,7 @@ def build_subject_rgba(
             background_model,
             foreground_model,
             5,
-            cv2.GC_INIT_WITH_RECT,
+            grabcut_mode,
         )
     except cv2.error:
         return None
@@ -1066,8 +1172,8 @@ def build_subject_rgba(
             (source_width, source_height),
             Image.Resampling.LANCZOS,
         )
-        # Upsampling can reintroduce a faint fringe. Clean only soft
-        # pixels, preserving the opaque foreground and its coverage.
+        # Upsampling can reintroduce a fringe above half opacity too.
+        # Clean nonopaque pixels while preserving fully opaque foreground.
         resized_alpha = np.asarray(alpha)
         cleaned_alpha = suppress_uniform_border_background(
             rgb,
@@ -1075,7 +1181,7 @@ def build_subject_rgba(
         )
         alpha = Image.fromarray(
             np.where(
-                resized_alpha < 128,
+                resized_alpha < 255,
                 cleaned_alpha,
                 resized_alpha,
             ),

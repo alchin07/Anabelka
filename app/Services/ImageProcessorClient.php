@@ -40,7 +40,7 @@ class ImageProcessorClient
                 'source' => $relativePath,
                 'background_profile' => $backgroundProfile
             ],
-            60
+            180
         );
     }
 

@@ -49,12 +49,25 @@ class Product
             },
             $products
         );
+        $imageMap = ProductImage::forProducts($productIds);
         $colorVariants = ProductColor::variantsForProducts(
             $productIds
         );
 
         foreach ($products as &$product) {
             $productId = (int) ($product['id'] ?? 0);
+            $mainImage = $imageMap[$productId][0] ?? null;
+
+            if (is_array($mainImage)) {
+                if (!empty($mainImage['thumb_path'])) {
+                    $product['main_image'] = $mainImage['thumb_path'];
+                } elseif (!empty($mainImage['master_path'])) {
+                    $product['main_image'] = $mainImage['master_path'];
+                } elseif (!empty($mainImage['path'])) {
+                    $product['main_image'] = $mainImage['path'];
+                }
+            }
+
             $product['color_variants'] =
                 $colorVariants[$productId] ?? [];
         }
@@ -142,12 +155,25 @@ class Product
             },
             $products
         );
+        $imageMap = ProductImage::forProducts($productIds);
         $colorVariants = ProductColor::variantsForProducts(
             $productIds
         );
 
         foreach ($products as &$product) {
             $productId = (int) ($product['id'] ?? 0);
+            $mainImage = $imageMap[$productId][0] ?? null;
+
+            if (is_array($mainImage)) {
+                if (!empty($mainImage['thumb_path'])) {
+                    $product['main_image'] = $mainImage['thumb_path'];
+                } elseif (!empty($mainImage['master_path'])) {
+                    $product['main_image'] = $mainImage['master_path'];
+                } elseif (!empty($mainImage['path'])) {
+                    $product['main_image'] = $mainImage['path'];
+                }
+            }
+
             $product['color_variants'] =
                 $colorVariants[$productId] ?? [];
         }

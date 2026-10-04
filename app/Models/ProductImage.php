@@ -394,7 +394,15 @@ class ProductImage
 
             foreach ($images as $image) {
                 $name = trim((string) ($image['color_name'] ?? ''));
-                $path = trim((string) ($image['path'] ?? ''));
+                $path = trim((string) ($image['thumb_path'] ?? ''));
+
+                if ($path === '') {
+                    $path = trim((string) ($image['master_path'] ?? ''));
+                }
+
+                if ($path === '') {
+                    $path = trim((string) ($image['path'] ?? ''));
+                }
 
                 if ($name === '' || $path === '') {
                     continue;

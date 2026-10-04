@@ -73,6 +73,35 @@ class SubjectMaskTests(unittest.TestCase):
         self.assertEqual(int(cleaned[16, 30]), 255)
         np.testing.assert_array_equal(foreground, original)
 
+    def test_uniform_border_cleanup_keeps_narrow_detail_and_removes_wide_spill(self):
+        pixels = np.full((64, 80, 3), 180, dtype=np.uint8)
+        foreground = np.zeros((64, 80), dtype=np.uint8)
+
+        # Real subject core.
+        pixels[8:56, 24:52] = (210, 150, 120)
+        foreground[8:56, 24:52] = 255
+
+        # Narrow blonde-hair-like detail whose colour matches the background.
+        foreground[10:40, 19:24] = 255
+
+        # Wide false GrabCut foreground containing supplier background.
+        foreground[28:52, 52:72] = 255
+
+        cleaned = processor.suppress_uniform_border_background(
+            Image.fromarray(pixels), foreground
+        )
+
+        # Outer fringe may be cleaned, but the interior of the narrow
+        # subject detail must survive.
+        self.assertEqual(int(cleaned[20, 19]), 0)
+        self.assertEqual(int(cleaned[20, 22]), 255)
+
+        # Wide background spill must be removed.
+        self.assertEqual(int(cleaned[40, 60]), 0)
+
+        # Genuine subject stays intact.
+        self.assertEqual(int(cleaned[20, 30]), 255)
+
     def test_textured_background_does_not_trigger_colour_cleanup(self):
         rows, columns = np.indices((48, 64))
         pixels = np.empty((48, 64, 3), dtype=np.uint8)
