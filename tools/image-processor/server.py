@@ -1074,6 +1074,646 @@ def cosmetic_cleanup_subject_fringes(
     return cleaned
 
 
+
+def refine_upper_enclosed_background_gaps(
+    image: Image.Image,
+    subject: Image.Image,
+    bbox: tuple[int, int, int, int],
+) -> Image.Image:
+    """Remove only small validated upper-body enclosed background gaps."""
+    if (
+        subject.mode != "RGBA"
+        or subject.size != image.size
+    ):
+        return subject
+
+    rgb = image if image.mode == "RGB" else image.convert("RGB")
+    width, height = rgb.size
+
+    if width <= 8 or height <= 8:
+        return subject
+
+    alpha = np.asarray(
+        subject.getchannel("A")
+    ).copy()
+
+    x, y, bbox_width, bbox_height = bbox
+
+    if bbox_width <= 0 or bbox_height <= 0:
+        return subject
+
+    pixels = np.asarray(rgb)
+
+    band_y = max(1, round(height * 0.035))
+    band_x = max(1, round(width * 0.035))
+
+    border = np.concatenate(
+        (
+            pixels[:band_y, :, :3].reshape(-1, 3),
+            pixels[-band_y:, :, :3].reshape(-1, 3),
+            pixels[:, :band_x, :3].reshape(-1, 3),
+            pixels[:, -band_x:, :3].reshape(-1, 3),
+        ),
+        axis=0,
+    )
+
+    if border.size == 0:
+        return subject
+
+    background_color = np.median(
+        border,
+        axis=0,
+    ).astype(np.float32)
+
+    border_distance = np.linalg.norm(
+        border.astype(np.float32) - background_color,
+        axis=1,
+    )
+    border_spread = float(
+        np.median(border_distance)
+    )
+
+    # Keep the same conservative studio-background requirement
+    # used by the normal colour cleanup.
+    if (
+        not np.isfinite(border_spread)
+        or border_spread > 12.0
+    ):
+        return subject
+
+    threshold = max(
+        12.0,
+        min(
+            22.0,
+            12.0 + border_spread * 1.5,
+        ),
+    )
+
+    border_chroma = np.column_stack(
+        (
+            border[:, 0].astype(np.int16) - border[:, 1],
+            border[:, 1].astype(np.int16) - border[:, 2],
+        )
+    )
+    background_chroma = np.median(
+        border_chroma,
+        axis=0,
+    )
+
+    chroma_spread = np.linalg.norm(
+        border_chroma.astype(np.float32)
+        - background_chroma,
+        axis=1,
+    )
+    chroma_threshold = max(
+        4.0,
+        min(
+            8.0,
+            4.0
+            + float(np.median(chroma_spread)) * 1.5,
+        ),
+    )
+
+    # Unlike uniform_border_background_mask(), keep ALL colour
+    # candidates here. The enclosed ones are exactly what we need
+    # to validate locally.
+    candidates = np.zeros(
+        (height, width),
+        dtype=np.uint8,
+    )
+
+    tile_edge = 256
+
+    for top in range(0, height, tile_edge):
+        bottom = min(
+            height,
+            top + tile_edge,
+        )
+
+        for left in range(0, width, tile_edge):
+            right = min(
+                width,
+                left + tile_edge,
+            )
+
+            tile = np.asarray(
+                rgb.crop(
+                    (
+                        left,
+                        top,
+                        right,
+                        bottom,
+                    )
+                ),
+                dtype=np.float32,
+            )
+
+            distance = np.linalg.norm(
+                tile - background_color,
+                axis=2,
+            )
+
+            chroma_distance = np.hypot(
+                tile[:, :, 0]
+                - tile[:, :, 1]
+                - background_chroma[0],
+                tile[:, :, 1]
+                - tile[:, :, 2]
+                - background_chroma[1],
+            )
+
+            candidates[
+                top:bottom,
+                left:right,
+            ] = (
+                (distance <= threshold)
+                & (
+                    chroma_distance
+                    <= chroma_threshold
+                )
+            )
+
+    count, labels, stats, _ = (
+        cv2.connectedComponentsWithStats(
+            candidates,
+            connectivity=8,
+        )
+    )
+
+    if count <= 1:
+        return subject
+
+    # Hair/neck-type openings live above the garment area.
+    zone_left = max(
+        0,
+        round(
+            x
+            + bbox_width * 0.25
+        ),
+    )
+    zone_right = min(
+        width,
+        round(
+            x
+            + bbox_width * 0.75
+        ),
+    )
+    zone_top = max(
+        0,
+        round(
+            y
+            + bbox_height * 0.14
+        ),
+    )
+    zone_bottom = min(
+        height,
+        round(
+            y
+            + bbox_height * 0.45
+        ),
+    )
+
+    bbox_area = max(
+        1,
+        bbox_width * bbox_height,
+    )
+
+    min_area = max(
+        64,
+        round(
+            bbox_area * 0.00015
+        ),
+    )
+    max_area = max(
+        1000,
+        round(
+            bbox_area * 0.01
+        ),
+    )
+
+    min_long_side = max(
+        6,
+        round(
+            min(
+                bbox_width,
+                bbox_height,
+            )
+            * 0.025
+        ),
+    )
+    max_short_side = max(
+        8,
+        round(
+            min(
+                bbox_width,
+                bbox_height,
+            )
+            * 0.08
+        ),
+    )
+
+    cleaned_alpha = alpha.copy()
+
+    for label in range(1, count):
+        component_left = int(
+            stats[
+                label,
+                cv2.CC_STAT_LEFT,
+            ]
+        )
+        component_top = int(
+            stats[
+                label,
+                cv2.CC_STAT_TOP,
+            ]
+        )
+        component_width = int(
+            stats[
+                label,
+                cv2.CC_STAT_WIDTH,
+            ]
+        )
+        component_height = int(
+            stats[
+                label,
+                cv2.CC_STAT_HEIGHT,
+            ]
+        )
+        component_area = int(
+            stats[
+                label,
+                cv2.CC_STAT_AREA,
+            ]
+        )
+
+        component_right = (
+            component_left
+            + component_width
+        )
+        component_bottom = (
+            component_top
+            + component_height
+        )
+
+        # A candidate connected to the real outer background is
+        # not an enclosed gap.
+        if (
+            component_left <= 0
+            or component_top <= 0
+            or component_right >= width
+            or component_bottom >= height
+        ):
+            continue
+
+        if (
+            component_left < zone_left
+            or component_top < zone_top
+            or component_right > zone_right
+            or component_bottom > zone_bottom
+        ):
+            continue
+
+        long_side = max(
+            component_width,
+            component_height,
+        )
+        short_side = min(
+            component_width,
+            component_height,
+        )
+
+        if (
+            component_area < min_area
+            or component_area > max_area
+            or long_side < min_long_side
+            or short_side > max_short_side
+            or long_side < short_side * 1.5
+        ):
+            continue
+
+        component = labels == label
+
+        # Do not process regions which the main mask already
+        # mostly considers background.
+        if (
+            float(
+                np.mean(
+                    alpha[component] > 0
+                )
+            )
+            < 0.90
+        ):
+            continue
+
+        pad_x = max(
+            8,
+            round(
+                component_width * 1.8
+            ),
+        )
+        pad_y = max(
+            8,
+            round(
+                component_height * 0.35
+            ),
+        )
+
+        local_left = max(
+            0,
+            component_left - pad_x,
+        )
+        local_top = max(
+            0,
+            component_top - pad_y,
+        )
+        local_right = min(
+            width,
+            component_right + pad_x,
+        )
+        local_bottom = min(
+            height,
+            component_bottom + pad_y,
+        )
+
+        roi = np.asarray(
+            rgb.crop(
+                (
+                    local_left,
+                    local_top,
+                    local_right,
+                    local_bottom,
+                )
+            )
+        )
+
+        component_roi = component[
+            local_top:local_bottom,
+            local_left:local_right,
+        ]
+
+        seed = np.full(
+            component_roi.shape,
+            cv2.GC_PR_FGD,
+            dtype=np.uint8,
+        )
+        seed[
+            component_roi
+        ] = cv2.GC_PR_BGD
+
+        inside_component = (
+            cv2.distanceTransform(
+                component_roi.astype(
+                    np.uint8
+                ),
+                cv2.DIST_L2,
+                3,
+            )
+        )
+
+        roi_float = roi.astype(
+            np.float32
+        )
+        roi_distance = np.linalg.norm(
+            roi_float
+            - background_color,
+            axis=2,
+        )
+        roi_chroma_distance = np.hypot(
+            roi_float[:, :, 0]
+            - roi_float[:, :, 1]
+            - background_chroma[0],
+            roi_float[:, :, 1]
+            - roi_float[:, :, 2]
+            - background_chroma[1],
+        )
+
+        # Strongly protect pixels that do not resemble the
+        # supplier background. These are typically skin/hair.
+        protected = (
+            (
+                roi_distance
+                > threshold * 1.8
+            )
+            | (
+                roi_chroma_distance
+                > chroma_threshold * 1.8
+            )
+        )
+
+        edge = max(
+            2,
+            round(
+                min(
+                    component_roi.shape
+                )
+                * 0.03
+            ),
+        )
+
+        seed[:edge, :] = cv2.GC_FGD
+        seed[-edge:, :] = cv2.GC_FGD
+        seed[:, :edge] = cv2.GC_FGD
+        seed[:, -edge:] = cv2.GC_FGD
+
+        seed[protected] = cv2.GC_FGD
+
+        hard_background = (
+            (inside_component >= 2.0)
+            & (~protected)
+        )
+
+        if not np.any(
+            hard_background
+        ):
+            continue
+
+        seed[
+            hard_background
+        ] = cv2.GC_BGD
+
+        try:
+            cv2.grabCut(
+                cv2.cvtColor(
+                    roi,
+                    cv2.COLOR_RGB2BGR,
+                ),
+                seed,
+                None,
+                np.zeros(
+                    (1, 65),
+                    dtype=np.float64,
+                ),
+                np.zeros(
+                    (1, 65),
+                    dtype=np.float64,
+                ),
+                5,
+                cv2.GC_INIT_WITH_MASK,
+            )
+        except cv2.error:
+            continue
+
+        local_background = np.isin(
+            seed,
+            (
+                cv2.GC_BGD,
+                cv2.GC_PR_BGD,
+            ),
+        ).astype(np.uint8)
+
+        _, local_labels = (
+            cv2.connectedComponents(
+                local_background,
+                connectivity=8,
+            )
+        )
+
+        hard_labels = local_labels[
+            hard_background
+        ]
+        hard_labels = hard_labels[
+            hard_labels > 0
+        ]
+
+        if hard_labels.size == 0:
+            continue
+
+        target_label = int(
+            np.bincount(
+                hard_labels
+            ).argmax()
+        )
+
+        remove = (
+            local_labels
+            == target_label
+        )
+
+        # A valid enclosed hole cannot escape the local ROI.
+        if (
+            remove[0, :].any()
+            or remove[-1, :].any()
+            or remove[:, 0].any()
+            or remove[:, -1].any()
+        ):
+            continue
+
+        remove_area = int(
+            np.count_nonzero(
+                remove
+            )
+        )
+
+        if (
+            remove_area
+            < max(
+                16,
+                round(
+                    component_area
+                    * 0.45
+                ),
+            )
+            or remove_area
+            > max(
+                round(
+                    component_area
+                    * 3.5
+                ),
+                component_area + 500,
+            )
+        ):
+            continue
+
+        candidate_fraction = float(
+            np.mean(
+                component_roi[
+                    remove
+                ]
+            )
+        )
+
+        # Reject a result that expanded mostly into non-background
+        # pixels instead of merely cleaning antialiasing around the gap.
+        if candidate_fraction < 0.65:
+            continue
+
+        remove &= (
+            cleaned_alpha[
+                local_top:local_bottom,
+                local_left:local_right,
+            ]
+            > 0
+        )
+
+        if not np.any(remove):
+            continue
+
+        # Feather inward only. Never enlarge the removal outside
+        # the locally confirmed background region.
+        inside_remove = (
+            cv2.distanceTransform(
+                remove.astype(
+                    np.uint8
+                ),
+                cv2.DIST_L2,
+                3,
+            )
+        )
+
+        feather_radius = max(
+            1.8,
+            min(
+                width,
+                height,
+            )
+            * 0.0015,
+        )
+
+        keep = (
+            1.0
+            - np.clip(
+                inside_remove
+                / feather_radius,
+                0.0,
+                1.0,
+            )
+        )
+
+        local_alpha = (
+            cleaned_alpha[
+                local_top:local_bottom,
+                local_left:local_right,
+            ].astype(
+                np.float32
+            )
+        )
+
+        cleaned_alpha[
+            local_top:local_bottom,
+            local_left:local_right,
+        ] = np.rint(
+            local_alpha * keep
+        ).astype(
+            np.uint8
+        )
+
+    if np.array_equal(
+        cleaned_alpha,
+        alpha,
+    ):
+        return subject
+
+    cleaned = subject.copy()
+    cleaned.putalpha(
+        Image.fromarray(
+            cleaned_alpha,
+            mode="L",
+        )
+    )
+
+    return cleaned
+
+
 def keep_primary_foreground_component(
     foreground: np.ndarray,
 ) -> np.ndarray:
@@ -1617,6 +2257,11 @@ def custom_background_master(
             subject,
             bbox,
         )
+        subject = refine_upper_enclosed_background_gaps(
+            image,
+            subject,
+            bbox,
+        )
 
     if (
         crop_strategy == "torso-zoom-out"
@@ -1967,6 +2612,33 @@ def subject_crop_box(
     )
 
 
+
+def source_has_cropped_closeup_edges(image: Image.Image) -> bool:
+    """Conservative framing hint, not a mask and not an intent classifier."""
+    probe = flattened_rgb(image).copy()
+    probe.thumbnail((320, 320), Image.Resampling.BILINEAR)
+    width, height = probe.size
+    if width < 20 or height < 20:
+        return False
+    background = uniform_border_background_mask(probe)
+    if background is None:
+        seeds = build_corner_background_seed_mask(probe)
+        if seeds is None:
+            return False
+        foreground = seeds == cv2.GC_PR_FGD
+    else:
+        foreground = ~background
+    count, labels = cv2.connectedComponents(
+        foreground.astype(np.uint8), connectivity=8
+    )
+    left, right = width // 4, width - width // 4
+    top = np.bincount(labels[0, left:right], minlength=count)
+    bottom = np.bincount(labels[-1, left:right], minlength=count)
+    minimum = max(3, round((right - left) * 0.15))
+    # The same sizeable component must reach both central frame edges.
+    return bool(np.any((top[1:] >= minimum) & (bottom[1:] >= minimum)))
+
+
 def normalized_master(
     image: Image.Image,
     background_profile: str = DEFAULT_BACKGROUND_PROFILE,
@@ -2102,6 +2774,20 @@ def normalized_master(
                     crop_box = None
                     crop_strategy = "subject-bbox"
 
+
+    # ANABELKA_PRESERVE_CLOSEUP_V1
+    # Keep an already frame-cropped close-up instead of zooming it out.
+    if (
+        crop_strategy == "torso-zoom-out"
+        and source_has_cropped_closeup_edges(image)
+    ):
+        crop_strategy = "preserve-closeup"
+        crop_box = None
+        zoomed_master = None
+        torso_ratio_before = None
+        torso_ratio_after = None
+        zoom_scale = None
+
     diagnostics = {
         "subject_detected": True,
         "crop_applied": crop_box is not None,
@@ -2126,6 +2812,12 @@ def normalized_master(
         or crop_strategy == "torso-zoom-out"
     ):
         diagnostics["crop_strategy"] = crop_strategy
+
+
+    if crop_strategy == "preserve-closeup":
+        diagnostics["crop_strategy"] = crop_strategy
+        diagnostics["zoom_out_applied"] = False
+        diagnostics["zoom_scale"] = 1.0
 
     if torso_ratio_before is not None:
         diagnostics["torso_ratio_before"] = round(

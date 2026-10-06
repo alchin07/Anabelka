@@ -601,7 +601,9 @@
                 normalization.crop_strategy
             );
 
-            if (cropStrategy === 'aspect-fill') {
+            if (cropStrategy === 'preserve-closeup') {
+                diagnosticBadge('Стратегія: збереження крупного плану', 'success');
+            } else if (cropStrategy === 'aspect-fill') {
                 diagnosticBadge(
                     'Стратегія: 2:3 без полів',
                     'info'
