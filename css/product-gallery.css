@@ -7,21 +7,15 @@
 
 .product-gallery-stage {
     width: 100%;
-    aspect-ratio: 4 / 5;
-    max-height: 600px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-light-color, #f4eaff);
+    background: transparent;
     border-radius: 12px;
 }
 
 .product-gallery-stage img {
     display: block;
     width: 100%;
-    height: 100%;
-    object-fit: contain;
+    height: auto;
 }
 
 .product-gallery-thumbs {
@@ -62,8 +56,6 @@
     }
 
     .product-gallery-stage {
-        aspect-ratio: 1 / 1;
-        max-height: none;
         border-radius: 10px;
     }
 

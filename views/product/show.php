@@ -26,7 +26,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/product-gallery.css?v=1"
+        href="/Anabelka/css/product-gallery.css?v=2"
     >
 
     <link

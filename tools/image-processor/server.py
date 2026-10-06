@@ -858,8 +858,9 @@ def uniform_border_background_mask(
             )
 
     # The added border joins all four image edges for one 8-connected
-    # flood fill. Enclosed light garment regions remain unfilled.
+    # flood fill. All enclosed colour matches remain ambiguous.
     cv2.floodFill(candidate_background, None, (0, 0), 2, flags=8)
+    # Do not classify enclosed garment details as gaps by shape alone.
     return candidates == 2
 
 
@@ -915,6 +916,160 @@ def suppress_uniform_border_background(
         & border_connected_background
         & (edge_cleanup_band | thick_background)
     ] = 0
+
+    return cleaned
+
+
+def cosmetic_cleanup_subject_fringes(
+    image: Image.Image,
+    subject: Image.Image,
+    bbox: tuple[int, int, int, int],
+) -> Image.Image:
+    if (
+        subject.mode != "RGBA"
+        or subject.size != image.size
+    ):
+        return subject
+
+    background_like = uniform_border_background_mask(image)
+
+    if background_like is None:
+        return subject
+
+    alpha = np.asarray(
+        subject.getchannel("A"),
+    ).copy()
+    height, width = alpha.shape[:2]
+    x, y, bbox_width, bbox_height = bbox
+
+    if bbox_width <= 0 or bbox_height <= 0:
+        return subject
+
+    left = max(0, int(x))
+    right = min(width, int(x + bbox_width))
+    top = max(
+        0,
+        round(y + bbox_height * 0.34),
+    )
+    bottom = min(
+        height,
+        round(y + bbox_height * 0.64),
+    )
+
+    if (
+        right <= left
+        or bottom <= top
+    ):
+        return subject
+
+    # Cosmetic pass for catalogue backgrounds:
+    # find background-coloured foreground fragments only in the
+    # shoulder/chest/waist band. This is deliberately separate from
+    # GrabCut so the primary segmentation remains conservative.
+    suspect = (
+        background_like
+        & (alpha > 0)
+    ).astype(np.uint8)
+
+    # Label whole components before limiting the cosmetic zone.
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        suspect,
+        connectivity=8,
+    )
+
+    if count <= 1:
+        return subject
+
+    bbox_area = max(1, bbox_width * bbox_height)
+    min_area = max(
+        10,
+        round(bbox_area * 0.00008),
+    )
+    max_area = max(
+        160,
+        round(bbox_area * 0.004),
+    )
+    min_long_side = max(
+        8,
+        round(max(bbox_width, bbox_height) * 0.025),
+    )
+    max_short_side = max(
+        6,
+        round(min(bbox_width, bbox_height) * 0.04),
+    )
+    bbox_center_x = x + bbox_width / 2
+
+    remove_mask = np.zeros_like(suspect)
+
+    for label in range(1, count):
+        area = int(
+            stats[label, cv2.CC_STAT_AREA]
+        )
+        component_left = int(
+            stats[label, cv2.CC_STAT_LEFT]
+        )
+        component_width = int(
+            stats[label, cv2.CC_STAT_WIDTH]
+        )
+        component_height = int(
+            stats[label, cv2.CC_STAT_HEIGHT]
+        )
+        long_side = max(
+            component_width,
+            component_height,
+        )
+        short_side = min(
+            component_width,
+            component_height,
+        )
+        component_center_x = (
+            component_left
+            + component_width / 2
+        )
+
+        component_top = int(stats[label, cv2.CC_STAT_TOP])
+        # Keep components touching/crossing any boundary of the zone.
+        if (
+            component_left <= left
+            or component_top <= top
+            or component_left + component_width >= right
+            or component_top + component_height >= bottom
+        ):
+            continue
+
+        # Keep central garment details. A cosmetic fringe should live
+        # toward either side of the detected body and be narrow/elongated.
+        if (
+            area < min_area
+            or area > max_area
+            or long_side < min_long_side
+            or short_side > max_short_side
+            or long_side < short_side * 1.8
+            or abs(component_center_x - bbox_center_x)
+            < bbox_width * 0.12
+        ):
+            continue
+
+        remove_mask[labels == label] = 1
+
+    if not np.any(remove_mask):
+        return subject
+
+    # Remove selected pixels only; never expand into neighbouring skin/fabric.
+    cleaned_alpha = alpha.copy()
+    cleaned_alpha[
+        (remove_mask > 0)
+        & background_like
+        & (alpha > 0)
+    ] = 0
+
+    cleaned = subject.copy()
+    cleaned.putalpha(
+        Image.fromarray(
+            cleaned_alpha,
+            mode="L",
+        )
+    )
 
     return cleaned
 
@@ -1018,6 +1173,56 @@ def refine_subject_edge(
     ).astype(np.uint8)
 
 
+
+def build_corner_background_seed_mask(image: Image.Image) -> np.ndarray | None:
+    """Fallback INITIAL labels only. Never use this as a removal/alpha mask."""
+    rgb = image.convert("RGB")
+    width, height = rgb.size
+    if width < 40 or height < 40:
+        return None
+    dx = max(2, round(width * 0.05))
+    dy = max(2, round(height * 0.05))
+    patches = [np.asarray(rgb.crop(box), dtype=np.float32).reshape(-1, 3)
+               for box in ((0, 0, dx, dy), (width - dx, 0, width, dy))]
+    centers = [np.median(patch, axis=0) for patch in patches]
+    if any(float(np.percentile(np.linalg.norm(patch - center, axis=1), 90)) > 4.0
+           for patch, center in zip(patches, centers)):
+        return None
+    if float(np.linalg.norm(centers[0] - centers[1])) > 8.0:
+        return None
+    color = (centers[0] + centers[1]) * 0.5
+    chroma = (color[0] - color[1], color[1] - color[2])
+    candidates = np.zeros((height, width), dtype=np.uint8)
+    for top in range(0, height, 128):
+        bottom = min(height, top + 128)
+        tile = np.asarray(rgb.crop((0, top, width, bottom)), dtype=np.float32)
+        distance = np.linalg.norm(tile - color, axis=2)
+        chroma_distance = np.hypot(
+            tile[:, :, 0] - tile[:, :, 1] - chroma[0],
+            tile[:, :, 1] - tile[:, :, 2] - chroma[1],
+        )
+        candidates[top:bottom] = (distance <= 12.0) & (chroma_distance <= 4.0)
+    if (float(candidates[:dy, :dx].mean()) < 0.98
+            or float(candidates[:dy, -dx:].mean()) < 0.98):
+        return None
+    count, labels = cv2.connectedComponents(candidates, connectivity=8)
+    selected = np.zeros(count, dtype=bool)
+    selected[labels[:dy, :dx]] = True
+    selected[labels[:dy, -dx:]] = True
+    selected[0] = False
+    probable = selected[labels]
+    if np.count_nonzero(probable) < max(64, round(width * height * 0.02)):
+        return None
+    if np.count_nonzero(~probable) < 5:
+        return None
+    seed = np.full((height, width), cv2.GC_PR_FGD, dtype=np.uint8)
+    seed[probable] = cv2.GC_PR_BGD
+    # Hard background labels are confined to matching upper-corner samples.
+    seed[:dy, :dx][candidates[:dy, :dx] > 0] = cv2.GC_BGD
+    seed[:dy, -dx:][candidates[:dy, -dx:] > 0] = cv2.GC_BGD
+    return seed
+
+
 def build_subject_rgba(
     image: Image.Image,
     bbox: tuple[int, int, int, int],
@@ -1112,7 +1317,50 @@ def build_subject_rgba(
         )
         mask[seed_top:seed_bottom, seed_left:seed_right] = cv2.GC_PR_FGD
 
+        # ANABELKA_CONNECTED_TOP_SEEDS_V1
+        # A detector box can miss the crown. Rescue only non-background
+        # components crossing its upper seed boundary; keep them probable.
+        if seed_top > 0:
+            upper_candidates = (~background_hint[:seed_top + 1, :]).astype(np.uint8)
+            count, labels = cv2.connectedComponents(upper_candidates, connectivity=8)
+            connected = np.zeros(count, dtype=bool)
+            connected[labels[seed_top, seed_left:seed_right]] = True
+            connected[0] = False
+            upper_mask = mask[:seed_top, :]
+            upper_mask[connected[labels[:seed_top, :]]] = cv2.GC_PR_FGD
+
+        # ANABELKA_EXTERNAL_BG_SEEDS_V1
+        # Border-connected colour matches are probable background, not
+        # initial subject samples. Leave enclosed matches undecided.
+        external_bg = background_hint & (mask == cv2.GC_PR_FGD)
+        mask[external_bg] = cv2.GC_PR_BGD
+
+        # ANABELKA_FRAME_BG_SEEDS_V1
+        # If the subject touches all four edges, the expanded seed region
+        # has no background labels. Do not fall back to a rectangle that
+        # trains the background model on cropped skin and hair.
+        if not np.any(mask == cv2.GC_BGD):
+            mask[background_hint] = cv2.GC_PR_BGD
+            mask[0, background_hint[0, :]] = cv2.GC_BGD
+            mask[-1, background_hint[-1, :]] = cv2.GC_BGD
+            mask[background_hint[:, 0], 0] = cv2.GC_BGD
+            mask[background_hint[:, -1], -1] = cv2.GC_BGD
+
         if np.any(mask == cv2.GC_BGD) and np.any(mask == cv2.GC_PR_FGD):
+            grabcut_mode = cv2.GC_INIT_WITH_MASK
+
+
+    # ANABELKA_CORNER_BG_FALLBACK_V2
+    # Only the full-frame path without a reliable border hint uses this fallback.
+    if (
+        background_hint is None
+        and grabcut_mode == cv2.GC_INIT_WITH_RECT
+        and (left, top, right, bottom)
+        == (1, 1, work_width - 1, work_height - 1)
+    ):
+        corner_seed_mask = build_corner_background_seed_mask(work)
+        if corner_seed_mask is not None:
+            mask[:] = corner_seed_mask
             grabcut_mode = cv2.GC_INIT_WITH_MASK
 
     try:
@@ -1359,6 +1607,16 @@ def custom_background_master(
         return None
 
     subject, foreground_ratio = subject_result
+
+    if background_profile in (
+        BACKGROUND_PROFILE_STUDIO,
+        BACKGROUND_PROFILE_BRAND,
+    ):
+        subject = cosmetic_cleanup_subject_fringes(
+            image,
+            subject,
+            bbox,
+        )
 
     if (
         crop_strategy == "torso-zoom-out"
@@ -1826,6 +2084,24 @@ def normalized_master(
             crop_box = aspect_fill_crop
             crop_strategy = "aspect-fill"
 
+            # Check the size AFTER the proposed crop, not only before it.
+            if (
+                mediapipe_torso_length is not None
+                and np.isfinite(mediapipe_torso_length)
+                and mediapipe_torso_length > 1.0
+            ):
+                crop_scale = min(
+                    MASTER_SIZE[0] / (crop_box[2] - crop_box[0]),
+                    MASTER_SIZE[1] / (crop_box[3] - crop_box[1]),
+                )
+                cropped_torso_ratio = (
+                    mediapipe_torso_length * crop_scale / MASTER_SIZE[1]
+                )
+                if cropped_torso_ratio > TORSO_ZOOM_OUT_TRIGGER_RATIO:
+                    # Keep the whole source instead of magnifying it.
+                    crop_box = None
+                    crop_strategy = "subject-bbox"
+
     diagnostics = {
         "subject_detected": True,
         "crop_applied": crop_box is not None,
@@ -2209,15 +2485,25 @@ class Handler(BaseHTTPRequestHandler):
         payload: dict[str, Any],
     ) -> None:
         body = json_bytes(payload)
-        self.send_response(status)
-        self.send_header(
-            "Content-Type",
-            "application/json; charset=utf-8",
-        )
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+
+        try:
+            self.send_response(status)
+            self.send_header(
+                "Content-Type",
+                "application/json; charset=utf-8",
+            )
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        except (
+            BrokenPipeError,
+            ConnectionResetError,
+            ConnectionAbortedError,
+        ):
+            # The client stopped waiting for the response.
+            # Processing itself may still have completed successfully.
+            return
 
     def log_message(self, format: str, *args: Any) -> None:
         print(
