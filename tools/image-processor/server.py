@@ -2501,6 +2501,164 @@ def complex_background_prefers_modnet(
     )
 
 
+def grabcut_fallback_evidence(
+    image: Image.Image,
+    subject: Image.Image,
+    bbox: tuple[int, int, int, int],
+) -> dict[str, Any] | None:
+    """Find broad backdrop spills, without changing the source or its alpha.
+
+    Colour is only evidence for a second opinion, never permission to erase
+    pixels. Use transparent border patches, source-edge connectivity and
+    thickness to avoid treating enclosed fabric or thin hair as a backdrop.
+    All NumPy analysis buffers have a 512-pixel maximum edge.
+    """
+    if subject.mode != "RGBA" or subject.size != image.size:
+        return None
+    width, height = image.size
+    if min(width, height) < 24:
+        return None
+    scale = min(1.0, 512 / max(width, height))
+    size = (round(width * scale), round(height * scale))
+    # Too few pixels across an extreme panorama cannot support this probe.
+    if min(size) < 8:
+        return None
+    rgb = (image if image.mode == "RGB" else flattened_rgb(image)).resize(
+        size, Image.Resampling.BILINEAR)
+    alpha = np.asarray(subject.getchannel("A").resize(size, Image.Resampling.BILINEAR))
+    foreground = alpha >= 128
+    area = alpha.size
+    foreground_area = int(np.count_nonzero(foreground))
+    if not SUBJECT_MASK_MIN_RATIO <= foreground_area / area <= SUBJECT_MASK_MAX_RATIO:
+        return None
+
+    lab = cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2LAB).astype(np.float32)
+    work_width, work_height = size
+    band = max(2, round(min(size) * 0.035))
+    palette = []
+    # Only nearly transparent, locally uniform patches can train the probe.
+    for edge_lab, edge_alpha in (
+        (lab[:band], alpha[:band]), (lab[-band:], alpha[-band:]),
+        (lab[:, :band], alpha[:, :band]), (lab[:, -band:], alpha[:, -band:]),
+    ):
+        axis = 1 if edge_alpha.shape[0] == band else 0
+        for patch_lab, patch_alpha in zip(
+            np.array_split(edge_lab, 8, axis=axis),
+            np.array_split(edge_alpha, 8, axis=axis),
+        ):
+            clear = patch_alpha <= 16
+            if np.count_nonzero(clear) < 8 or float(clear.mean()) < 0.85:
+                continue
+            samples = patch_lab[clear]
+            color = np.median(samples, axis=0)
+            if (float(np.percentile(np.linalg.norm(samples - color, axis=1), 90)) <= 10
+                    and not any(float(np.linalg.norm(color - known)) <= 2 for known in palette)):
+                palette.append(color)
+    if not palette:
+        return None
+
+    candidates = np.zeros(alpha.shape, dtype=np.uint8)
+    for color in palette:
+        # Bounded luminance variation accommodates shadows. Keep chroma tight
+        # so similarly bright pale skin is not automatically background.
+        candidates |= ((np.abs(lab[:, :, 0] - color[0]) <= 30)
+                       & (np.linalg.norm(lab[:, :, 1:] - color[1:], axis=2) < 5))
+    count, labels = cv2.connectedComponents(candidates, connectivity=8)
+    connected = np.zeros(count, dtype=bool)
+    for edge_labels, edge_alpha in (
+        (labels[0], alpha[0]), (labels[-1], alpha[-1]),
+        (labels[:, 0], alpha[:, 0]), (labels[:, -1], alpha[:, -1]),
+    ):
+        connected[edge_labels[edge_alpha <= 16]] = True
+    connected[0] = False
+    background_like = connected[labels]
+    overlap = (background_like & foreground).astype(np.uint8)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(overlap, connectivity=8)
+    distance = cv2.distanceTransform(overlap, cv2.DIST_L2, 3)
+    thick = np.zeros(count, dtype=bool)
+    thick[labels[distance >= max(3, min(size) * 0.015)]] = True
+    thick[0] = False
+    substantial = stats[:, cv2.CC_STAT_AREA] >= max(32, area * 0.01)
+    residual = (thick & substantial)[labels]
+    residual_area = int(np.count_nonzero(residual))
+    if residual_area < area * 0.02 or residual_area < foreground_area * 0.08:
+        return None
+
+    # Protect every confident foreground region outside the diagnosed spill,
+    # including narrow arms/hair and enclosed fabric of the backdrop's colour.
+    protected = (alpha >= 192) & ~residual
+    x, y, bbox_width, bbox_height = bbox
+    if bbox_width <= 0 or bbox_height <= 0:
+        return None
+    # Coarse head, upper-body/arm and lower-body zones are conservative guards,
+    # not a new detector or crop. Matching colour inside them remains ambiguous:
+    # prefer GrabCut over erasing a broad sleeve, hair section or pale skin.
+    for left_fraction, right_fraction, top_fraction, bottom_fraction in (
+        (0.20, 0.80, 0.00, 0.28),
+        (0.12, 0.88, 0.28, 0.70),
+        (0.25, 0.75, 0.70, 1.00),
+    ):
+        left = min(work_width, max(0, round((x + bbox_width * left_fraction) * scale)))
+        right = min(work_width, max(0, round((x + bbox_width * right_fraction) * scale)))
+        top = min(work_height, max(0, round((y + bbox_height * top_fraction) * scale)))
+        bottom = min(work_height, max(0, round((y + bbox_height * bottom_fraction) * scale)))
+        protected[top:bottom, left:right] |= alpha[top:bottom, left:right] >= 192
+    if np.count_nonzero(protected) < 32:
+        return None
+    return {"source_size": image.size, "alpha": alpha, "residual": residual,
+            "background_like": background_like, "protected": protected}
+
+
+def modnet_fallback_is_better(
+    candidate: Image.Image,
+    foreground_ratio: float,
+    evidence: dict[str, Any],
+) -> bool:
+    """Require backdrop removal AND global/local foreground preservation."""
+    if (candidate.mode != "RGBA" or candidate.size != evidence["source_size"]
+            or not np.isfinite(foreground_ratio)
+            or not SUBJECT_MASK_MIN_RATIO <= foreground_ratio <= SUBJECT_MASK_MAX_RATIO):
+        return False
+    original = evidence["alpha"]
+    height, width = original.shape
+    alpha = np.asarray(candidate.getchannel("A").resize((width, height), Image.Resampling.BILINEAR))
+    actual_ratio = float(np.mean(alpha >= 128))
+    if not SUBJECT_MASK_MIN_RATIO <= actual_ratio <= SUBJECT_MASK_MAX_RATIO:
+        return False
+    residual = evidence["residual"]
+    before = float(original[residual].sum(dtype=np.float64)) / 255
+    after = float(alpha[residual].sum(dtype=np.float64)) / 255
+    if after > before * 0.5 or before - after < original.size * 0.01:
+        return False
+    # Do not exchange one spill for another outside GrabCut's foreground.
+    added_background = evidence["background_like"] & (original <= 16)
+    added = float(alpha[added_background].sum(dtype=np.float64)) / 255
+    if added > max(original.size * 0.002, before * 0.05):
+        return False
+    # A different-coloured backdrop/object is still background if GrabCut
+    # excluded it. Allow only a narrow contour extension, not a new large island.
+    near_foreground = cv2.dilate((original > 16).astype(np.uint8),
+                                np.ones((5, 5), dtype=np.uint8)).astype(bool)
+    unexplained = float(alpha[~near_foreground].sum(dtype=np.float64)) / 255
+    if unexplained > original.size * 0.002:
+        return False
+    protected = evidence["protected"]
+    if (float(np.mean(alpha[protected] >= 128)) < 0.98
+            or float(alpha[protected].mean()) < float(original[protected].mean()) * 0.90):
+        return False
+    # A good whole-image score can hide a lost hand, head or garment detail.
+    for rows in np.array_split(np.arange(height), 6):
+        for columns in np.array_split(np.arange(width), 4):
+            region = np.ix_(rows, columns)
+            core = protected[region]
+            if np.count_nonzero(core) < 12:
+                continue
+            if (float(np.mean(alpha[region][core] >= 128)) < 0.90
+                    or float(alpha[region][core].mean()) < float(original[region][core].mean()) * 0.85):
+                return False
+    return True
+
+
 def custom_background_master(
     image: Image.Image,
     bbox: tuple[int, int, int, int],
@@ -2518,6 +2676,7 @@ def custom_background_master(
     subject = None
     foreground_ratio = None
     modnet_applied = False
+    modnet_attempted = False
 
     if (
         source_path is not None
@@ -2530,6 +2689,7 @@ def custom_background_master(
             image
         )
     ):
+        modnet_attempted = True
         modnet_result = run_modnet_worker(
             source_path,
             image,
@@ -2580,6 +2740,23 @@ def custom_background_master(
             subject,
             bbox,
         )
+
+        # Recheck the mask that would actually be rendered. Preserve the
+        # primary route, and never retry a failed complex-background worker.
+        if source_path is not None and not modnet_attempted:
+            try:
+                evidence = grabcut_fallback_evidence(image, subject, bbox)
+                if evidence is not None:
+                    modnet_result = run_modnet_worker(source_path, image)
+                    if (modnet_result is not None
+                            and modnet_fallback_is_better(
+                                modnet_result[0], modnet_result[1], evidence)):
+                        subject, foreground_ratio, _modnet_metadata = modnet_result
+                        modnet_applied = True
+            except Exception as error:
+                # Optional analysis/inference must never discard a usable mask.
+                global _modnet_worker_error
+                _modnet_worker_error = ("fallback-check:" + type(error).__name__ + ":" + str(error))[:200]
 
     if (
         crop_strategy == "torso-zoom-out"

@@ -1,6 +1,6 @@
 # Anabelka Image Processor
 
-Локальний сервіс обробки фотографій товарів без ШІ.
+Локальний сервіс обробки фотографій товарів.
 
 ## Призначення
 
@@ -144,3 +144,131 @@ SHA-256 оригіналу, розміри й вагу source/master/thumb, шл
 - `opencv-hog-person` — резервний HOG знайшов людину й виконано безпечне кадрування;
 - `opencv-hog-person-no-crop` — HOG знайшов людину, але crop не застосовано;
 - `standard-canvas-fallback` — модель не знайдена, використано стандартний холст 2:3.
+
+## MODNet і повторна перевірка GrabCut
+
+Для `studio-light` та `anabelka-brand` початкова маршрутизація залишається
+незмінною: складний фон може одразу використовувати MODNet, однорідний —
+GrabCut. Після штатного очищення GrabCut виконується додаткова перевірка
+маски на зменшеному зображенні з максимальною стороною 512 px.
+
+Повторна перевірка шукає великі широкі області, схожі на прозорі однорідні
+зразки фону на краях фото і з'єднані з краєм вихідного кадру. Допускається
+обмежена зміна яскравості через тіні, але близькість кольору сама по собі
+не дозволяє видаляти пікселі. Залишок повинен займати щонайменше 2% кадру
+і 8% переднього плану GrabCut, мати товсте ядро та значну площу компонента.
+Тільки за таких ознак допускається додатковий виклик MODNet.
+
+MODNet приймається, якщо площа його маски допустима, виявлений залишок
+фону зменшується щонайменше вдвічі та на 1% площі кадру, а захищений
+передній план зберігається як загалом, так і в окремих просторових зонах.
+Додатково перевіряється, що маска не повертає раніше виключені області
+фону іншого кольору. Неоднозначні області голови, рук і тіла всередині
+детекторної рамки захищаються навіть при схожому кольорі. Менший
+`mask_foreground_ratio` сам по собі не є підставою для заміни.
+
+При помилці перевірки, помилці/тайм-ауті MODNet або недостатньому покращенні
+використовується вже очищений GrabCut. Після невдалого початкового виклику
+MODNet повторної спроби немає. На одне фото викликається максимум один
+worker. MODNet працює в окремому процесі з попереднім тайм-аутом 45 s
+і обмеженнями ORT для Android; м'яка alpha MODNet не проходить очищення GrabCut.
+
+`original-canvas`, детектор, геометрія та всі чотири стратегії кадрування
+не змінені. Перевірка навмисно консервативна: при неоднозначності вона може
+залишити GrabCut навіть тоді, коли MODNet візуально кращий. Синтетичні тести
+не замінюють перевірку реальних фото на Android.
+
+### Контроль на Android / Termux
+
+Спочатку переконайтеся, що поточна гілка — `feature/category-manager`,
+і перегляньте незакомічені зміни. Оновлюйте її без merge в `main`:
+
+```bash
+cd /storage/emulated/0/htdocs/Anabelka
+git status --short
+git branch --show-current
+git pull --ff-only origin feature/category-manager
+python -B tools/image-processor/check_modnet_fallback.py
+```
+
+За замовчуванням перевіряються обидва контрольні джерела:
+
+- `20260904-111401-94806794d9042bb1.jpg` — проблемний коричневий фон;
+- `20260904-082048-f82e27bc5a56b2b1.jpg` — контрольний крупний план.
+
+Для другого фонового профілю:
+
+```bash
+python -B tools/image-processor/check_modnet_fallback.py --background-profile anabelka-brand
+```
+
+Скрипт послідовно порівнює Original+Canvas, примусовий GrabCut, примусовий
+MODNet і автоматичний вибір. Зберігає окремі `master`-прев'ю, `comparison.jpg`
+та `diagnostics.json` у новій папці
+`storage/image-processor/modnet-fallback-check/<timestamp>/<source-stem>/`.
+У діагностиці є фактичний `mask_method`, площа маски, crop/zoom, час виконання
+(разом із записом WebP), кількість викликів worker, його помилки та SHA-256
+джерела до/після. Примусовий MODNet при помилці може фактично стати GrabCut —
+дивіться застосований метод, а не заголовок колонки.
+
+Скрипт не записує дані товарів чи БД і не перезаписує вихідні фото або попередні
+порівняння. Для штатного сервісу після оновлення потрібен звичайний перезапуск
+Image Processor, щоб він завантажив новий код.
+
+Залишаються ручні перевірки: великі коричневі залишки на проблемному фото;
+якість контрольної блондинки; контури волосся, рук, тіла, мережива та білизни;
+незмінність crop/zoom і пропорцій; фактичний метод; час і стабільність Android.
+Оригінальні контрольні фото та ONNX-модель недоступні в середовищі автоматичних
+перевірок цієї правки, тому візуальна прийнятність і продуктивність не підтверджені.
+
+### Автоматичні перевірки правки (2026-10-08)
+
+Команди з кореня проєкту:
+
+```bash
+python -B -m unittest discover -s tests -p 'test_*.py'
+node --test tests/*.test.mjs
+git diff --check
+```
+
+Python: 78 тестів, 77 пройшли, один тест реального фото пропущений
+(`ANABELKA_MASK_REFERENCE` не задано). Окремо перевірено синтаксис змінених
+Python-файлів і worker, CLI на тимчасовому джерелі з підміненою обробкою,
+SHA джерела та незмінність існуючих функцій геометрії. Реальне виконання
+ONNX/MODNet не перевірялося.
+
+Node: 141 тест, 112 пройшли, 29 попередніх помилок. Той самий набір помилок
+відтворений у чистому архіві вихідного коміту `461abb5`; нових помилок немає.
+Їх не виправляли в межах зміни сегментації. Повний перелік невдалих перевірок:
+
+```text
+duplicate product sizes are rejected instead of silently merged
+editor scripts explicitly signal AI context changes
+header system badge keeps a safe 99+ fallback without the shared module
+header system badge uses AnabelkaNotify.formatCount when available
+legacy activity migration qualifies duplicate-key target columns
+legacy product page refreshes visible stock from the AJAX response
+removed product colors do not return from photos or matrix
+stock consistency scripts are cache-busted
+tests/admin_android_back_contract.test.mjs
+tests/admin_audit_compact_groups_contract.test.mjs
+tests/admin_audit_human_labels_contract.test.mjs
+tests/admin_audit_notification_badges_contract.test.mjs
+tests/admin_dashboard_builder_contract.test.mjs
+tests/admin_dashboard_service_registry_contract.test.mjs
+tests/admin_mobile_navigation_contract.test.mjs
+tests/admin_view_manage_ui_contract.test.mjs
+tests/admin_work_time_contract.test.mjs
+tests/catalog_pagination_contract.test.mjs
+tests/category_manager_contract.test.mjs
+tests/category_thumbnail_select_contract.test.mjs
+tests/category_translation_status_select_contract.test.mjs
+tests/final_review_category_depth_palette_contract.test.mjs
+tests/final_review_home_mobile_polish_contract.test.mjs
+tests/home_page_builder_contract.test.mjs
+tests/home_right_rail_contract.test.mjs
+tests/mobile_navigation_runtime.test.mjs
+tests/product_image_processing_editor_contract.test.mjs
+tests/public_admin_badge_permissions_contract.test.mjs
+tests/public_catalog_sidebar_contract.test.mjs
+```
