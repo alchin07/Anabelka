@@ -221,9 +221,13 @@ class GrabcutFallbackTests(unittest.TestCase):
 
     def test_good_grabcut_does_not_run_modnet(self):
         image, grabcut, good, bbox = self.fixture(spill=False)
-        result, calls = self.render(image, grabcut, self.candidate(good), bbox)
-        self.assertEqual(result[2], "opencv-grabcut")
-        self.assertEqual(calls, 0)
+        for profile in ("studio-light", "anabelka-brand"):
+            with self.subTest(profile=profile):
+                baseline, _ = self.render(image, grabcut, None, bbox, profile, source=None)
+                result, calls = self.render(image, grabcut, self.candidate(good), bbox, profile)
+                self.assertEqual(result[2], "opencv-grabcut")
+                self.assertEqual(calls, 0)
+                np.testing.assert_array_equal(np.asarray(result[0]), np.asarray(baseline[0]))
 
     def test_existing_cleanup_resolves_spill_without_modnet(self):
         image, _, good, bbox = self.fixture()
@@ -353,11 +357,150 @@ class GrabcutFallbackTests(unittest.TestCase):
         result, _ = self.render(image, grabcut, self.candidate(good), bbox)
         self.assertEqual(result[2], "opencv-grabcut")
 
-    def test_broad_matching_region_in_detector_body_is_ambiguous(self):
+    def test_confirmed_spill_inside_detector_zones_accepts_good_modnet(self):
         image, grabcut, good, _ = self.fixture()
-        # If detection includes this lobe as body/arm, colour alone cannot
-        # decide whether it is brown fabric/skin or backdrop. Keep GrabCut.
-        result, _ = self.render(image, grabcut, self.candidate(good), (20, 10, 90, 140))
+        # Widening a detector box does not turn this unchanged smooth backdrop
+        # into body/arm. This reproduces the real Android protection overlap.
+        result, calls = self.render(image, grabcut, self.candidate(good), (20, 10, 90, 140))
+        self.assertEqual(result[2], "modnet")
+        self.assertEqual(calls, 1)
+
+    def test_confirmed_residual_is_not_reprotected_by_detector_zones(self):
+        image, grabcut, _, _ = self.fixture()
+        before_image, before_alpha = np.asarray(image).copy(), np.asarray(grabcut).copy()
+        for bbox in ((30, 10, 50, 140), (20, 10, 90, 140), (0, 0, 120, 160)):
+            with self.subTest(bbox=bbox):
+                evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox)
+                self.assertIsNotNone(evidence)
+                self.assertTrue(evidence["residual"][90, 95])
+                self.assertFalse(np.any(evidence["protected"] & evidence["residual"]))
+                self.assertTrue(evidence["protected"][60, 60])
+        np.testing.assert_array_equal(np.asarray(image), before_image)
+        np.testing.assert_array_equal(np.asarray(grabcut), before_alpha)
+
+    def test_large_source_keeps_bounded_probe_and_preserves_selection(self):
+        image, grabcut, good, bbox = self.fixture()
+        size = (3000, 4000)
+        scale = size[0] // image.width
+        image = image.resize(size, Image.Resampling.NEAREST)
+        grabcut = grabcut.resize(size, Image.Resampling.NEAREST)
+        good = good.resize(size, Image.Resampling.NEAREST)
+        bbox = tuple(value * scale for value in bbox)
+        evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox)
+        self.assertIsNotNone(evidence)
+        self.assertEqual(evidence["alpha"].shape, (512, 384))
+        self.assertFalse(np.any(evidence["protected"] & evidence["residual"]))
+        self.assertTrue(processor.modnet_fallback_is_better(good, self.candidate(good)[1], evidence))
+        damaged = good.copy()
+        alpha = np.asarray(damaged.getchannel("A")).copy()
+        alpha[10 * scale:30 * scale, 45 * scale:75 * scale] = 0
+        damaged.putalpha(Image.fromarray(alpha))
+        self.assertFalse(processor.modnet_fallback_is_better(
+            damaged, self.candidate(damaged)[1], evidence))
+
+    def test_similar_colour_hair_or_arm_contour_stays_protected(self):
+        for name, region, point, colour in (
+            ("hair", (10, 30, 45, 75), (20, 60), (160, 120, 90)),
+            ("low-contrast hair", (10, 30, 45, 75), (20, 60), (149, 109, 80)),
+            ("arm", (50, 110, 30, 40), (80, 35), (160, 120, 90)),
+            ("low-contrast arm", (50, 110, 30, 40), (80, 35), (149, 109, 80)),
+        ):
+            with self.subTest(part=name):
+                image, grabcut, good, bbox = self.fixture()
+                top, bottom, left, right = region
+                pixels = np.asarray(image).copy()
+                # This colour still matches the backdrop palette, but its
+                # visible source contour is evidence of a real body detail.
+                pixels[top:bottom, left:right] = colour
+                image = Image.fromarray(pixels)
+                evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox)
+                self.assertIsNotNone(evidence)
+                self.assertTrue(evidence["background_like"][point])
+                self.assertFalse(evidence["residual"][point])
+                self.assertTrue(evidence["protected"][point])
+                preserved, _ = self.render(image, grabcut, self.candidate(good), bbox)
+                self.assertEqual(preserved[2], "modnet")
+                alpha = np.asarray(good.getchannel("A")).copy()
+                alpha[top:bottom, left:right] = 0
+                damaged = image.convert("RGBA")
+                damaged.putalpha(Image.fromarray(alpha))
+                result, _ = self.render(image, grabcut, self.candidate(damaged), bbox)
+                self.assertEqual(result[2], "opencv-grabcut")
+
+    def test_similar_foreground_without_backdrop_spill_does_not_run_worker(self):
+        image, grabcut, good, bbox = self.fixture(spill=False)
+        pixels = np.asarray(image).copy()
+        pixels[10:30, 45:75] = (160, 120, 90)
+        pixels[50:110, 30:40] = (160, 120, 90)
+        image = Image.fromarray(pixels)
+        result, calls = self.render(image, grabcut, self.candidate(good), bbox)
+        self.assertEqual(result[2], "opencv-grabcut")
+        self.assertEqual(calls, 0)
+
+    def test_unconfirmed_source_continuity_keeps_grabcut_without_worker(self):
+        image, grabcut, good, bbox = self.fixture()
+        pixels = np.asarray(image).copy()
+        backdrop = np.asarray(good.getchannel("A")) == 0
+        checker = np.indices(backdrop.shape).sum(axis=0) % 2 == 0
+        pixels[backdrop & checker] += 4
+        image = Image.fromarray(pixels)
+        self.assertFalse(processor.complex_background_prefers_modnet(image))
+        self.assertIsNone(processor.grabcut_fallback_evidence(image, grabcut, bbox))
+        baseline, _ = self.render(image, grabcut, None, bbox, source=None)
+        result, calls = self.render(image, grabcut, self.candidate(good), bbox)
+        self.assertEqual(result[2], "opencv-grabcut")
+        self.assertEqual(calls, 0)
+        np.testing.assert_array_equal(np.asarray(result[0]), np.asarray(baseline[0]))
+
+    def test_textured_lingerie_matching_backdrop_is_not_confirmed_residual(self):
+        for spacing in (3, 5, 8, 12, 15, 25):
+            for colour in ((145, 107, 78), (119, 85, 62)):
+                with self.subTest(stitch_spacing=spacing, stitch_colour=colour):
+                    self.check_textured_lingerie(spacing, colour)
+
+    def check_textured_lingerie(self, spacing, colour):
+        image, grabcut, good, bbox = self.fixture()
+        pixels = np.asarray(image).copy()
+        # The fabric meets the backdrop and has its colour; contrast stitches
+        # are the observable subject evidence, rather than bbox membership.
+        pixels[70:100, 65:80] = (115, 83, 60)
+        pixels[72:98:spacing, 65:80:spacing] = colour
+        image = Image.fromarray(pixels)
+        evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox)
+        self.assertIsNotNone(evidence)
+        matching_fabric = np.zeros((160, 120), dtype=bool)
+        matching_fabric[70:100, 65:80] = True
+        matching_fabric &= np.all(pixels == (115, 83, 60), axis=2)
+        self.assertTrue(np.all(evidence["background_like"][matching_fabric]))
+        self.assertTrue(np.any(evidence["protected"] & matching_fabric))
+        preserved, _ = self.render(image, grabcut, self.candidate(good), bbox)
+        self.assertEqual(preserved[2], "modnet")
+        alpha = np.asarray(good.getchannel("A")).copy()
+        alpha[matching_fabric] = 0  # Keep stitches, lose background-coloured fabric.
+        damaged = image.convert("RGBA")
+        damaged.putalpha(Image.fromarray(alpha))
+        result, _ = self.render(image, grabcut, self.candidate(damaged), bbox)
+        self.assertEqual(result[2], "opencv-grabcut")
+
+    def test_thin_matching_hair_joined_to_thick_spill_remains_ambiguous(self):
+        image, grabcut, good, bbox = self.fixture()
+        pixels = np.asarray(image).copy()
+        pixels[25:50, 80:83] = (115, 83, 60)
+        image = Image.fromarray(pixels)
+        for subject in (grabcut, good):
+            alpha = np.asarray(subject.getchannel("A")).copy()
+            alpha[25:50, 80:83] = 255
+            subject.putalpha(Image.fromarray(alpha))
+        evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox)
+        self.assertIsNotNone(evidence)
+        self.assertTrue(evidence["background_like"][35, 81])
+        self.assertFalse(evidence["residual"][35, 81])
+        self.assertTrue(evidence["protected"][35, 81])
+        alpha = np.asarray(good.getchannel("A")).copy()
+        alpha[25:50, 80:83] = 0
+        damaged = image.convert("RGBA")
+        damaged.putalpha(Image.fromarray(alpha))
+        result, _ = self.render(image, grabcut, self.candidate(damaged), bbox)
         self.assertEqual(result[2], "opencv-grabcut")
 
     def test_extreme_aspect_ratio_cannot_break_optional_probe(self):

@@ -2533,27 +2533,33 @@ def grabcut_fallback_evidence(
         return None
 
     lab = cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2LAB).astype(np.float32)
-    work_width, work_height = size
+    source_variation = np.linalg.norm(cv2.morphologyEx(
+        lab, cv2.MORPH_GRADIENT, np.ones((3, 3), dtype=np.uint8)), axis=2)
     band = max(2, round(min(size) * 0.035))
     palette = []
+    clear_variation = []
     # Only nearly transparent, locally uniform patches can train the probe.
-    for edge_lab, edge_alpha in (
-        (lab[:band], alpha[:band]), (lab[-band:], alpha[-band:]),
-        (lab[:, :band], alpha[:, :band]), (lab[:, -band:], alpha[:, -band:]),
+    for edge_lab, edge_alpha, edge_variation in (
+        (lab[:band], alpha[:band], source_variation[:band]),
+        (lab[-band:], alpha[-band:], source_variation[-band:]),
+        (lab[:, :band], alpha[:, :band], source_variation[:, :band]),
+        (lab[:, -band:], alpha[:, -band:], source_variation[:, -band:]),
     ):
         axis = 1 if edge_alpha.shape[0] == band else 0
-        for patch_lab, patch_alpha in zip(
+        for patch_lab, patch_alpha, patch_variation in zip(
             np.array_split(edge_lab, 8, axis=axis),
             np.array_split(edge_alpha, 8, axis=axis),
+            np.array_split(edge_variation, 8, axis=axis),
         ):
             clear = patch_alpha <= 16
             if np.count_nonzero(clear) < 8 or float(clear.mean()) < 0.85:
                 continue
             samples = patch_lab[clear]
             color = np.median(samples, axis=0)
-            if (float(np.percentile(np.linalg.norm(samples - color, axis=1), 90)) <= 10
-                    and not any(float(np.linalg.norm(color - known)) <= 2 for known in palette)):
-                palette.append(color)
+            if float(np.percentile(np.linalg.norm(samples - color, axis=1), 90)) <= 10:
+                clear_variation.append(float(np.percentile(patch_variation[clear], 90)))
+                if not any(float(np.linalg.norm(color - known)) <= 2 for known in palette):
+                    palette.append(color)
     if not palette:
         return None
 
@@ -2580,29 +2586,81 @@ def grabcut_fallback_evidence(
     thick[0] = False
     substantial = stats[:, cv2.CC_STAT_AREA] >= max(32, area * 0.01)
     residual = (thick & substantial)[labels]
+
+    # Colour/thickness alone can also match skin, hair or fabric. Confirm
+    # backdrop continuation from clear SOURCE edges without crossing a visible
+    # source contour or texture. This is independent of the detector's bbox:
+    # a loose body box often contains genuine backdrop, as well as the model.
+    # Calibrate against clear backdrop noise, but never widen confirmation past
+    # two Lab units: the permissive shadow palette must not license crossing a
+    # subtle source contour.
+    # Noisy/ambiguous sources may therefore keep GrabCut rather than weaken
+    # preservation. This does not change any candidate acceptance threshold.
+    continuity_limit = min(2.0, max(1.0, float(np.median(clear_variation)) + 1.0))
+    continuous = ((candidates > 0) & (source_variation <= continuity_limit)).astype(np.uint8)
+    count, continuity_labels = cv2.connectedComponents(continuous, connectivity=8)
+    clear_connected = np.zeros(count, dtype=bool)
+    for edge_labels, edge_alpha in (
+        (continuity_labels[0], alpha[0]), (continuity_labels[-1], alpha[-1]),
+        (continuity_labels[:, 0], alpha[:, 0]), (continuity_labels[:, -1], alpha[:, -1]),
+    ):
+        clear_connected[edge_labels[edge_alpha <= 16]] = True
+    clear_connected[0] = False
+    continuous_backdrop = clear_connected[continuity_labels]
+    # A lighting seam can separate two independently clear-edge-connected
+    # backdrop tones. Recover adjacent, tightly sampled-colour pixels. At most
+    # two probe pixels accommodate a resampled seam, but the second step needs
+    # TWO distinct clear-edge-connected regions nearby. A source-bounded head
+    # has only the outside backdrop region; its enclosed interior is not a seed.
+    sampled_tone = np.zeros(alpha.shape, dtype=bool)
+    for color in palette:
+        sampled_tone |= np.linalg.norm(lab - color, axis=2) <= 4.0
+    adjacent_backdrop = cv2.dilate(continuous_backdrop.astype(np.uint8),
+                                  np.ones((3, 3), dtype=np.uint8)).astype(bool)
+    clear_labels = np.where(continuous_backdrop, continuity_labels, 0).astype(np.float32)
+    seam_neighbourhood = np.ones((9, 9), dtype=np.uint8)
+    nearby_max = cv2.dilate(clear_labels, seam_neighbourhood)
+    nearby_min = cv2.erode(np.where(clear_labels > 0, clear_labels, count).astype(np.float32),
+                          seam_neighbourhood)
+    between_backdrops = nearby_min < nearby_max
+    seam_backdrop = cv2.dilate(continuous_backdrop.astype(np.uint8),
+                              np.ones((5, 5), dtype=np.uint8)).astype(bool) & between_backdrops
+    residual &= continuous_backdrop | ((adjacent_backdrop | seam_backdrop) & sampled_tone)
+    # Sparse stitches need protection of neighbouring fabric, not just the
+    # contrast pixels themselves. Local extrema identify small source details;
+    # unlike the gradient they do not mark a broad lighting step as texture.
+    # Keep the neighbourhood bounded so it does not protect a whole spill.
+    texture_radius = max(2, round(min(size) * 0.025))
+    texture_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+        (texture_radius * 2 + 1, texture_radius * 2 + 1))
+    texture = np.linalg.norm(np.maximum(
+        cv2.morphologyEx(lab, cv2.MORPH_TOPHAT, texture_kernel),
+        cv2.morphologyEx(lab, cv2.MORPH_BLACKHAT, texture_kernel)), axis=2)
+    matching_material = cv2.boxFilter(background_like.astype(np.float32), -1,
+        (texture_radius * 2 + 1, texture_radius * 2 + 1)) >= 0.75
+    # A matching stitch on a material boundary is evidence too. The majority
+    # test alone would miss it just because neighbouring skin has another tone.
+    texture_detail = ((texture > continuity_limit) & foreground
+                      & (matching_material | background_like))
+    textured_fabric = cv2.dilate(texture_detail.astype(np.uint8), texture_kernel).astype(bool)
+    residual &= ~textured_fabric
+    # A narrow matching detail must not inherit the confidence of the broad
+    # spill it joins. Open locally; do not promote whole components again.
+    detail_radius = max(2, round(min(size) * 0.008))
+    residual = cv2.morphologyEx(residual.astype(np.uint8), cv2.MORPH_OPEN,
+                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                  (detail_radius * 2 + 1, detail_radius * 2 + 1))).astype(bool)
     residual_area = int(np.count_nonzero(residual))
     if residual_area < area * 0.02 or residual_area < foreground_area * 0.08:
         return None
 
-    # Protect every confident foreground region outside the diagnosed spill,
-    # including narrow arms/hair and enclosed fabric of the backdrop's colour.
-    protected = (alpha >= 192) & ~residual
-    x, y, bbox_width, bbox_height = bbox
+    _, _, bbox_width, bbox_height = bbox
     if bbox_width <= 0 or bbox_height <= 0:
         return None
-    # Coarse head, upper-body/arm and lower-body zones are conservative guards,
-    # not a new detector or crop. Matching colour inside them remains ambiguous:
-    # prefer GrabCut over erasing a broad sleeve, hair section or pale skin.
-    for left_fraction, right_fraction, top_fraction, bottom_fraction in (
-        (0.20, 0.80, 0.00, 0.28),
-        (0.12, 0.88, 0.28, 0.70),
-        (0.25, 0.75, 0.70, 1.00),
-    ):
-        left = min(work_width, max(0, round((x + bbox_width * left_fraction) * scale)))
-        right = min(work_width, max(0, round((x + bbox_width * right_fraction) * scale)))
-        top = min(work_height, max(0, round((y + bbox_height * top_fraction) * scale)))
-        bottom = min(work_height, max(0, round((y + bbox_height * bottom_fraction) * scale)))
-        protected[top:bottom, left:right] |= alpha[top:bottom, left:right] >= 192
+    # Construct protection AFTER confirming residuals. Textured, source-bounded,
+    # enclosed and narrow matching details remain ambiguous/protected; confirmed
+    # backdrop never gets protection restored merely by lying inside a bbox.
+    protected = (alpha >= 192) & ~residual
     if np.count_nonzero(protected) < 32:
         return None
     return {"source_size": image.size, "alpha": alpha, "residual": residual,
