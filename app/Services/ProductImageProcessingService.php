@@ -277,7 +277,16 @@ class ProductImageProcessingService
                 $normalization['mask_method'] ?? ''
             )));
 
-            if ($maskMethod === 'opencv-grabcut') {
+            if (
+                in_array(
+                    $maskMethod,
+                    [
+                        'opencv-grabcut',
+                        'modnet'
+                    ],
+                    true
+                )
+            ) {
                 $normalizedDiagnostics['mask_method'] = $maskMethod;
             }
 

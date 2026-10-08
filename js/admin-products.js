@@ -160,7 +160,10 @@
 
 
     const imageCompareHistoryKey = '__anabelkaProductImageCompare';
+    const imageCompareDetailsHistoryKey =
+        '__anabelkaProductImageCompareDetails';
     let activeImageCompareModal = null;
+    let activeImageCompareDetails = null;
 
 
     function publicProductImageUrl(path)
@@ -578,8 +581,22 @@
             }
 
             if (normalization.subject_mask_applied === true) {
+                const maskMethod = valueOrEmpty(
+                    normalization.mask_method
+                );
+
+                const maskLabels = {
+                    'opencv-grabcut': 'GrabCut',
+                    'modnet': 'MODNet'
+                };
+
                 diagnosticBadge(
-                    'Маска: GrabCut',
+                    'Маска: '
+                    + (
+                        maskLabels[maskMethod]
+                        || maskMethod
+                        || 'GrabCut'
+                    ),
                     'info'
                 );
             }
@@ -692,12 +709,73 @@
             );
         }
 
+        const detailsButton = document.createElement('button');
+        detailsButton.type = 'button';
+        detailsButton.className = 'product-image-compare-details-button';
+        detailsButton.textContent = 'Деталі обробки';
+
+        const detailsModal = document.createElement('div');
+        detailsModal.className = 'product-image-compare-details-modal';
+        detailsModal.hidden = true;
+
+        const detailsDialog = document.createElement('div');
+        detailsDialog.className = 'product-image-compare-details-dialog';
+
+        const detailsClose = document.createElement('button');
+        detailsClose.type = 'button';
+        detailsClose.className = 'product-image-compare-details-close';
+        detailsClose.textContent = '×';
+
+        detailsDialog.appendChild(detailsClose);
+        detailsDialog.appendChild(meta);
+        detailsDialog.appendChild(diagnostics);
+        detailsModal.appendChild(detailsDialog);
+
+        function closeDetails(syncHistory)
+        {
+            detailsModal.hidden = true;
+            activeImageCompareDetails = null;
+
+            if (
+                syncHistory !== false
+                && history.state
+                && history.state[imageCompareDetailsHistoryKey]
+            ) {
+                history.back();
+            }
+        }
+
+        detailsButton.addEventListener('click', function () {
+            detailsModal.hidden = false;
+            activeImageCompareDetails = detailsModal;
+
+            const state = Object.assign({}, history.state || {});
+            state[imageCompareHistoryKey] = true;
+            state[imageCompareDetailsHistoryKey] = true;
+
+            history.pushState(
+                state,
+                '',
+                currentProductEditorUrl()
+            );
+        });
+
+        detailsClose.addEventListener('click', function () {
+            closeDetails(true);
+        });
+
+        detailsModal.addEventListener('click', function (event) {
+            if (event.target === detailsModal) {
+                closeDetails(true);
+            }
+        });
+
         dialog.appendChild(header);
         dialog.appendChild(stage);
         dialog.appendChild(sliderWrap);
-        dialog.appendChild(meta);
-        dialog.appendChild(diagnostics);
+        dialog.appendChild(detailsButton);
         modal.appendChild(dialog);
+        modal.appendChild(detailsModal);
         document.body.appendChild(modal);
 
         activeImageCompareModal = modal;
@@ -740,6 +818,15 @@
             && typeof event.state === 'object'
             ? event.state
             : {};
+
+        if (
+            activeImageCompareDetails
+            && !state[imageCompareDetailsHistoryKey]
+        ) {
+            activeImageCompareDetails.hidden = true;
+            activeImageCompareDetails = null;
+            return;
+        }
 
         if (
             activeImageCompareModal

@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
+import sys
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -77,8 +79,26 @@ PERSON_MODEL_SHA256 = (
 )
 PERSON_MODEL_SCORE_THRESHOLD = 0.45
 
+MODNET_WORKER_PATH = (
+    Path(__file__).resolve().parent
+    / "modnet_worker.py"
+)
+MODNET_MODEL_PATH = (
+    WORK_ROOT
+    / "models"
+    / "modnet_photographic.onnx"
+)
+MODNET_MODEL_BYTES = 25969398
+MODNET_WORKER_TIMEOUT = 45
+MODNET_WORKER_ROOT = (
+    WORK_ROOT
+    / "modnet-worker"
+)
+
 _person_detector = None
 _person_detector_error = ""
+
+_modnet_worker_error = ""
 
 
 def json_bytes(payload: dict[str, Any]) -> bytes:
@@ -169,6 +189,237 @@ def flattened_rgb(image: Image.Image) -> Image.Image:
         return flattened
 
     return image.convert("RGB")
+
+
+
+def modnet_worker_ready() -> bool:
+    try:
+        return (
+            MODNET_WORKER_PATH.is_file()
+            and MODNET_MODEL_PATH.is_file()
+            and MODNET_MODEL_PATH.stat().st_size
+            == MODNET_MODEL_BYTES
+        )
+    except OSError:
+        return False
+
+
+def run_modnet_worker(
+    source: Path,
+    image: Image.Image,
+) -> tuple[
+    Image.Image,
+    float,
+    dict[str, Any],
+] | None:
+    global _modnet_worker_error
+
+    if not source.is_file():
+        _modnet_worker_error = (
+            "source-missing"
+        )
+        return None
+
+    if not modnet_worker_ready():
+        _modnet_worker_error = (
+            "worker-not-ready"
+        )
+        return None
+
+    MODNET_WORKER_ROOT.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    alpha_path = (
+        MODNET_WORKER_ROOT
+        / (
+            uuid.uuid4().hex
+            + ".png"
+        )
+    )
+
+    command = [
+        sys.executable,
+        "-B",
+        str(
+            MODNET_WORKER_PATH
+        ),
+        "--source",
+        str(source),
+        "--model",
+        str(
+            MODNET_MODEL_PATH
+        ),
+        "--alpha",
+        str(alpha_path),
+    ]
+
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(
+                PROJECT_ROOT
+            ),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=(
+                MODNET_WORKER_TIMEOUT
+            ),
+            check=False,
+        )
+
+        lines = [
+            line.strip()
+            for line
+            in completed.stdout.splitlines()
+            if line.strip()
+        ]
+
+        if not lines:
+            _modnet_worker_error = (
+                "worker-no-json"
+            )
+            return None
+
+        try:
+            payload = json.loads(
+                lines[-1]
+            )
+        except json.JSONDecodeError:
+            _modnet_worker_error = (
+                "worker-invalid-json"
+            )
+            return None
+
+        if (
+            completed.returncode
+            != 0
+            or payload.get(
+                "ok"
+            )
+            is not True
+        ):
+            message = str(
+                payload.get(
+                    "error"
+                )
+                or completed.stderr
+                or "worker-failed"
+            ).strip()
+
+            _modnet_worker_error = (
+                "worker-error:"
+                + message[:180]
+            )
+            return None
+
+        try:
+            foreground_ratio = float(
+                payload[
+                    "foreground_ratio"
+                ]
+            )
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+        ):
+            _modnet_worker_error = (
+                "worker-invalid-ratio"
+            )
+            return None
+
+        if (
+            foreground_ratio
+            < SUBJECT_MASK_MIN_RATIO
+            or foreground_ratio
+            > SUBJECT_MASK_MAX_RATIO
+        ):
+            _modnet_worker_error = (
+                "worker-ratio-out-of-range"
+            )
+            return None
+
+        if not alpha_path.is_file():
+            _modnet_worker_error = (
+                "worker-alpha-missing"
+            )
+            return None
+
+        with Image.open(
+            alpha_path
+        ) as opened:
+            alpha = (
+                opened.convert("L")
+                .copy()
+            )
+
+        if (
+            alpha.size
+            != image.size
+        ):
+            _modnet_worker_error = (
+                "worker-alpha-size-mismatch"
+            )
+            return None
+
+        subject = (
+            flattened_rgb(
+                image
+            )
+            .convert("RGBA")
+        )
+
+        subject.putalpha(
+            alpha
+        )
+
+        metadata = {
+            "inference_ms":
+                payload.get(
+                    "inference_ms"
+                ),
+            "onnxruntime":
+                payload.get(
+                    "onnxruntime"
+                ),
+            "provider":
+                payload.get(
+                    "provider"
+                ),
+        }
+
+        _modnet_worker_error = ""
+
+        return (
+            subject,
+            foreground_ratio,
+            metadata,
+        )
+
+    except subprocess.TimeoutExpired:
+        _modnet_worker_error = (
+            "worker-timeout"
+        )
+        return None
+
+    except OSError as error:
+        _modnet_worker_error = (
+            type(error).__name__
+            + ":"
+            + str(error)
+        )[:200]
+        return None
+
+    finally:
+        try:
+            alpha_path.unlink(
+                missing_ok=True
+            )
+        except OSError:
+            pass
 
 
 def person_model_ready() -> bool:
@@ -2225,6 +2476,31 @@ def compose_subject_on_background(
     return background.convert("RGB")
 
 
+
+def complex_background_prefers_modnet(
+    image: Image.Image,
+) -> bool:
+    # Reuse the existing conservative background analysis.
+    # A confirmed near-uniform supplier background stays on GrabCut.
+    # No reliable uniform-border mask means the background is complex
+    # enough to be considered for the separate MODNet worker.
+    probe = flattened_rgb(
+        image
+    ).copy()
+
+    probe.thumbnail(
+        (512, 512),
+        Image.Resampling.BILINEAR,
+    )
+
+    return (
+        uniform_border_background_mask(
+            probe
+        )
+        is None
+    )
+
+
 def custom_background_master(
     image: Image.Image,
     bbox: tuple[int, int, int, int],
@@ -2234,23 +2510,65 @@ def custom_background_master(
     torso_center: tuple[float, float] | None,
     shoulder_center: tuple[float, float] | None,
     background_profile: str,
-) -> tuple[Image.Image, float] | None:
+    source_path: Path | None = None,
+) -> tuple[Image.Image, float, str] | None:
     if background_profile == BACKGROUND_PROFILE_ORIGINAL:
         return None
 
-    subject_result = build_subject_rgba(
-        image,
-        bbox,
-    )
+    subject = None
+    foreground_ratio = None
+    modnet_applied = False
 
-    if subject_result is None:
-        return None
+    if (
+        source_path is not None
+        and background_profile
+        in (
+            BACKGROUND_PROFILE_STUDIO,
+            BACKGROUND_PROFILE_BRAND,
+        )
+        and complex_background_prefers_modnet(
+            image
+        )
+    ):
+        modnet_result = run_modnet_worker(
+            source_path,
+            image,
+        )
 
-    subject, foreground_ratio = subject_result
+        if modnet_result is not None:
+            (
+                subject,
+                foreground_ratio,
+                _modnet_metadata,
+            ) = modnet_result
 
-    if background_profile in (
-        BACKGROUND_PROFILE_STUDIO,
-        BACKGROUND_PROFILE_BRAND,
+            modnet_applied = True
+
+    # MODNet is optional. Any worker failure falls back
+    # to the existing conservative GrabCut path.
+    if subject is None:
+        subject_result = build_subject_rgba(
+            image,
+            bbox,
+        )
+
+        if subject_result is None:
+            return None
+
+        (
+            subject,
+            foreground_ratio,
+        ) = subject_result
+
+    # These cleanup passes were designed specifically
+    # for the GrabCut mask. Keep MODNet's soft alpha intact.
+    if (
+        not modnet_applied
+        and background_profile
+        in (
+            BACKGROUND_PROFILE_STUDIO,
+            BACKGROUND_PROFILE_BRAND,
+        )
     ):
         subject = cosmetic_cleanup_subject_fringes(
             image,
@@ -2295,6 +2613,11 @@ def custom_background_master(
             background_profile,
         ),
         foreground_ratio,
+        (
+            "modnet"
+            if modnet_applied
+            else "opencv-grabcut"
+        ),
     )
 
 
@@ -2642,6 +2965,7 @@ def source_has_cropped_closeup_edges(image: Image.Image) -> bool:
 def normalized_master(
     image: Image.Image,
     background_profile: str = DEFAULT_BACKGROUND_PROFILE,
+    source_path: Path | None = None,
 ) -> tuple[Image.Image, dict[str, Any]]:
     background_profile = normalize_background_profile(
         background_profile
@@ -2859,18 +3183,21 @@ def normalized_master(
             mediapipe_torso_center,
             mediapipe_shoulder_center,
             background_profile,
+            source_path,
         )
 
         if custom_background is not None:
-            background_master, mask_foreground_ratio = (
-                custom_background
-            )
+            (
+                background_master,
+                mask_foreground_ratio,
+                mask_method,
+            ) = custom_background
             diagnostics["background_profile"] = (
                 background_profile
             )
             diagnostics["background_fallback"] = False
             diagnostics["subject_mask_applied"] = True
-            diagnostics["mask_method"] = "opencv-grabcut"
+            diagnostics["mask_method"] = mask_method
             diagnostics["mask_foreground_ratio"] = round(
                 max(
                     0.0,
@@ -3000,6 +3327,7 @@ def process_image(
         master, normalization = normalized_master(
             image,
             background_profile,
+            source_path=original,
         )
         thumb = master.resize(
             THUMB_SIZE,
@@ -3108,6 +3436,15 @@ class Handler(BaseHTTPRequestHandler):
                     PERSON_MODEL_PATH
                 ),
                 "person_model_error": _person_detector_error,
+                "modnet_worker_ready": modnet_worker_ready(),
+                "modnet_worker_path": project_relative(
+                    MODNET_WORKER_PATH
+                ),
+                "modnet_model_path": project_relative(
+                    MODNET_MODEL_PATH
+                ),
+                "modnet_worker_error": _modnet_worker_error,
+                "modnet_execution": "separate-process",
                 "opencv": cv2.__version__,
                 "pillow": PIL.__version__,
                 "host": HOST,
