@@ -2529,13 +2529,14 @@ def weak_source_contour_uncertainty(
     candidates: np.ndarray,
     background_like: np.ndarray,
     diagnostics: dict[str, Any],
-) -> bool:
-    """Keep GrabCut when backdrop noise obscures a coherent weak source edge.
+) -> dict[str, Any]:
+    """Locate weak source edges without vetoing the entire photograph.
 
     ``source_lab`` is the caller's floating Lab raster, with L scaled to 255
     and a/b shifted by 128. No candidate matte participates in this test.
-    True means that the source cannot support confident backdrop removal;
-    it does not manufacture a foreground silhouette from an incomplete edge.
+    Detection and calibration thresholds are unchanged. These maps express
+    uncertainty, never background. Only missing independent calibration is a
+    global refusal; the source graph must resolve or protect each local zone.
     """
     normal_bin_width = 3
     normal_radius = normal_bin_width * 2
@@ -2545,6 +2546,9 @@ def weak_source_contour_uncertainty(
     insufficient_reference = False
     axis_reports = {}
     uncertain_edges = 0
+    local_edges = 0
+    edges = {name: np.zeros(alpha.shape, dtype=bool) for name in ("x", "y")}
+    exposed = {name: np.zeros(alpha.shape, dtype=bool) for name in ("x", "y")}
 
     for axis, axis_name in ((1, "x"), (0, "y")):
         # Orient both passes so columns measure the contour normal and rows
@@ -2639,13 +2643,14 @@ def weak_source_contour_uncertainty(
         normal_maximum = cv2.dilate(
             strength, np.ones((1, normal_width), dtype=np.uint8),
         )
-        suspected = (
+        source_response = (
             (strength > long_limit)
             & (strength < 0.5 * short_noise_envelope)
             & (alignment_density > 0.55)
-            & valid & (oriented_alpha >= 192)
+            & valid
             & (strength >= normal_maximum)
         )
+        suspected = source_response & (oriented_alpha >= 192)
         # Normal maxima suppress nearby weaker responses of strong backdrop
         # seams. Require a connected 21-pixel tangent extent; isolated
         # compression extrema cannot decline the comparison.
@@ -2657,6 +2662,7 @@ def weak_source_contour_uncertainty(
             stats[1:, cv2.CC_STAT_HEIGHT] >= minimum_extent
         )
         suspected = significant[labels]
+        edges[axis_name] = suspected.T if axis == 0 else suspected
         axis_count = int(np.count_nonzero(suspected))
         uncertain_edges += axis_count
         axis_report.update({
@@ -2667,18 +2673,91 @@ def weak_source_contour_uncertainty(
             "weak_upper_limit": round(0.5 * short_noise_envelope, 4),
             "uncertain_edges": axis_count,
         })
+        # A long calibrated window can dilute a short real garment contour.
+        # Before granting LOCAL background confidence, check the remaining
+        # existing spans with exactly the same detector/preservation limits.
+        # Keep the original longest-span diagnostic fields unchanged.
+        scale_reports = []
+        for local_width in tangent_widths:
+            if local_width >= tangent_width:
+                continue
+            # Reuse the independently clear longest-span reference population.
+            # Expanding it for a shorter span could train on an exposed real
+            # lighting step and hide a shorter matching material contour.
+            local_reference = reference
+            if np.count_nonzero(local_reference) < 8:
+                continue
+            local_coherent = cv2.boxFilter(local_step, -1, (1, local_width))
+            local_strength = np.linalg.norm(local_coherent, axis=2)
+            samples = local_strength[local_reference]
+            local_limit = max(0.1, float(samples.max() + 2 * samples.std()))
+            noise = short_strength[local_reference]
+            local_envelope = max(0.1, float(np.percentile(noise, 99) + 2 * noise.std()))
+            aligned = ((np.sum(local_step * local_coherent, axis=2) > 0)
+                       .astype(np.float32) * valid)
+            density = cv2.boxFilter(aligned, -1, (1, local_width))
+            maximum = cv2.dilate(local_strength, np.ones((1, normal_width), dtype=np.uint8))
+            local_response = ((local_strength > local_limit)
+                               & (local_strength < 0.5 * local_envelope)
+                               & (density > 0.55) & valid
+                               & (local_strength >= maximum))
+            source_response |= local_response
+            local_suspected = local_response & (oriented_alpha >= 192)
+            local_count, local_labels, local_stats, _ = cv2.connectedComponentsWithStats(
+                local_suspected.astype(np.uint8), connectivity=8,
+            )
+            keep = np.zeros(local_count, dtype=bool)
+            keep[1:] = local_stats[1:, cv2.CC_STAT_HEIGHT] >= minimum_extent
+            local_suspected = keep[local_labels]
+            suspected |= local_suspected
+            scale_reports.append({"tangent_width": local_width,
+                                  "reference_pixels": int(np.count_nonzero(local_reference)),
+                                  "long_threshold": round(local_limit, 4),
+                                  "weak_upper_limit": round(0.5 * local_envelope, 4),
+                                  "uncertain_edges": int(np.count_nonzero(local_suspected))})
+        edges[axis_name] = suspected.T if axis == 0 else suspected
+        local_edges += int(np.count_nonzero(suspected))
+        axis_report["local_scales"] = scale_reports
+        # A response projected by the long tangent filter into clear pixels
+        # is NOT evidence of continuation. Independently measure the normal
+        # source step in a wholly clear, in-bounds 21x13 footprint. It must
+        # exceed the unchanged background envelope, agree in polarity and
+        # direction with the detected feature, and persist for 21 pixels.
+        clear_support = cv2.erode(
+            clear, np.ones((minimum_extent, normal_width), dtype=np.uint8),
+            borderType=cv2.BORDER_CONSTANT, borderValue=0,
+        ).astype(bool)
+        exposed_step = cv2.boxFilter(local_step, -1, (1, minimum_extent))
+        exposed_strength = np.linalg.norm(exposed_step, axis=2)
+        agreement = np.sum(exposed_step * coherent_step, axis=2)
+        clear_steps = (clear_support & source_response
+                       & (exposed_strength > long_limit)
+                       & (agreement >= 0.8 * exposed_strength * strength))
+        clear_count, clear_labels, clear_stats, _ = cv2.connectedComponentsWithStats(
+            clear_steps.astype(np.uint8), connectivity=8,
+        )
+        clear_keep = np.zeros(clear_count, dtype=bool)
+        clear_keep[1:] = clear_stats[1:, cv2.CC_STAT_HEIGHT] >= minimum_extent
+        clear_steps = clear_keep[clear_labels]
+        support_count, support_labels = cv2.connectedComponents(
+            source_response.astype(np.uint8), connectivity=8,
+        )
+        exposed_components = np.zeros(support_count, dtype=bool)
+        exposed_components[support_labels[clear_steps]] = True
+        exposed_components[0] = False
+        continuation = exposed_components[support_labels]
+        exposed[axis_name] = continuation.T if axis == 0 else continuation
+        axis_report["exposed_continuation_pixels"] = int(np.count_nonzero(clear_steps))
 
     diagnostics["weak_source_contour_calibration"] = axis_reports
     diagnostics["weak_source_contour_tangent_widths"] = list(tangent_widths)
     diagnostics["weak_source_contour_minimum_extent"] = minimum_extent
     diagnostics["counts"]["weak_source_contour_uncertain_edges"] = uncertain_edges
+    diagnostics["counts"]["weak_source_contour_local_edges"] = local_edges
     if insufficient_reference:
         diagnostics["reason"] = "insufficient_weak_source_contour_reference"
-        return True
-    if uncertain_edges:
-        diagnostics["reason"] = "weak_source_contour_uncertainty"
-        return True
-    return False
+    return {**edges, "exposed_x": exposed["x"], "exposed_y": exposed["y"],
+            "calibrated": not insufficient_reference}
 
 
 def source_connected_background(
@@ -2689,7 +2768,7 @@ def source_connected_background(
     diagnostics: dict[str, Any],
     *,
     raw_source: Image.Image | None = None,
-) -> tuple[np.ndarray, np.ndarray] | None:
+) -> tuple[np.ndarray, np.ndarray, dict[str, np.ndarray]] | None:
     """Find clear-edge backdrop paths without crossing source contours.
 
     Links join neighbouring source pixels, rather than forbidding entire edge
@@ -2707,12 +2786,28 @@ def source_connected_background(
     )
     source_lab[:, :, 0] *= 2.55
     source_lab[:, :, 1:] += 128
-    if weak_source_contour_uncertainty(
+    weak = weak_source_contour_uncertainty(
         source_lab, alpha, candidates, background_like, diagnostics,
-    ):
-        # The helper distinguishes ambiguous source structure from missing
-        # calibration; keep its precise refusal reason in mask selection.
+    )
+    if not weak["calibrated"]:
         return None
+    weak_edges = weak["x"] | weak["y"]
+    # The normal detector averages three-pixel bins on either side. Exclude
+    # their six-pixel support before finding independent source paths. A path
+    # through an uncertain pixel cannot prove that pixel to be background.
+    weak_radius = 6
+    weak_kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (weak_radius * 2 + 1, weak_radius * 2 + 1),
+    )
+    weak_guard = cv2.dilate(weak_edges.astype(np.uint8), weak_kernel).astype(bool)
+    local_report = {
+        "policy": "source_only_local_protection",
+        "guard_radius": weak_radius,
+        "region_count": 0,
+        "regions": [],
+        "auto_effect": "pending_source_paths",
+    }
+    diagnostics["weak_source_contour_local"] = local_report
     padded_x = np.pad(source_lab, ((0, 0), (1, 1), (0, 0)), mode="edge")
     padded_y = np.pad(source_lab, ((1, 1), (0, 0), (0, 0)), mode="edge")
     delta_x = source_lab[:, 1:] - source_lab[:, :-1]
@@ -2920,7 +3015,7 @@ def source_connected_background(
 
     # Contiguous horizontal runs are graph nodes. Union only unique permitted
     # vertical links, with rank/path compression and explicit work limits.
-    usable = candidates.astype(bool)
+    usable = candidates.astype(bool) & ~weak_guard
     breaks = usable.copy()
     breaks[:, 1:] = usable[:, 1:] & (~usable[:, :-1] | block_x)
     run_labels = np.cumsum(
@@ -2971,7 +3066,141 @@ def source_connected_background(
     ):
         clear_connected[roots[edge_labels[edge_alpha <= 16]]] = True
     clear_connected[0] = False
-    return clear_connected[roots[run_labels]], source_lab
+    confirmed = clear_connected[roots[run_labels]]
+    weak_background = np.zeros(alpha.shape, dtype=bool)
+    weak_protected = np.zeros(alpha.shape, dtype=bool)
+    region_labels = {}
+    # Each normal side needs its OWN clear-frame source path in the graph
+    # with ALL uncertainty guards removed. Also check attachment to source
+    # foreground; simple colour matching or a MODNet matte is insufficient.
+    side_offset = weak_radius * 2 + 1
+    core_near_guard = distance_to_core <= side_offset
+    for axis_name in ("x", "y"):
+        edge_map = weak[axis_name]
+        component_count, component_labels, component_stats, _ = cv2.connectedComponentsWithStats(
+            edge_map.astype(np.uint8), connectivity=8,
+        )
+        region_labels[axis_name] = component_labels
+        for label in range(1, component_count):
+            local_report["region_count"] += 1
+            # Bound Python work as well as JSON. Excess source complexity
+            # cannot safely establish the remaining local classifications.
+            if local_report["region_count"] > 256:
+                diagnostics["reason"] = "weak_source_regions_too_complex"
+                local_report["auto_effect"] = "keep_grabcut"
+                return None
+            edge = component_labels == label
+            zone = cv2.dilate(edge.astype(np.uint8), weak_kernel).astype(bool)
+            rows, columns = np.nonzero(edge)
+            if axis_name == "x":
+                first_rows, second_rows = rows, rows
+                first_columns, second_columns = columns - side_offset, columns + side_offset
+            else:
+                first_rows, second_rows = rows - side_offset, rows + side_offset
+                first_columns, second_columns = columns, columns
+            in_bounds = (
+                (first_rows >= 0) & (second_rows < alpha.shape[0])
+                & (first_columns >= 0) & (second_columns < alpha.shape[1])
+            )
+            independent_sides = bool(np.all(in_bounds))
+            side_counts = [0, 0]
+            if independent_sides:
+                for side, (side_rows, side_columns) in enumerate((
+                    (first_rows, first_columns), (second_rows, second_columns),
+                )):
+                    # Missing/uncertain samples are not background evidence.
+                    side_counts[side] = int(np.count_nonzero(confirmed[side_rows, side_columns]))
+                    independent_sides &= (side_counts[side] >= 8 and bool(np.all(
+                        confirmed[side_rows, side_columns])))
+            attachment = bool(np.any(zone & core_near_guard))
+            continuation = bool(np.all(weak["exposed_" + axis_name][edge]))
+            reasons = []
+            if not independent_sides:
+                reasons.append("unconfirmed_source_paths")
+            if attachment:
+                reasons.append("foreground_attachment")
+            if not continuation:
+                reasons.append("no_exposed_source_continuation")
+            safe = independent_sides and not attachment and continuation
+            unresolved_interior_rows = 0
+            if safe:
+                # Reintroduce only the independently resolved local pixels.
+                # Broad-spill, source-material and alpha gates still apply.
+                weak_background |= zone & background_like & (candidates > 0)
+                reasons.extend(("both_sides_clear_source_paths", "exposed_source_continuation"))
+            else:
+                # An incomplete/noisy edge may represent a much longer real
+                # outline than its detected maxima. Keep its complete filter
+                # footprint conservative, including matching model interiors.
+                tangent = diagnostics["weak_source_contour_calibration"][axis_name]["tangent_width"]
+                footprint = (side_offset * 2 + 1, tangent) if axis_name == "y" else (tangent, side_offset * 2 + 1)
+                weak_protected |= cv2.dilate(
+                    edge.astype(np.uint8), np.ones(footprint, dtype=np.uint8),
+                ).astype(bool) & (alpha >= 192)
+                # Protection must include the unresolved material interior,
+                # not just a thin line. Close the foreground-facing normal
+                # corridor to actual contrasting source foreground over the
+                # full tangent support. This is ambiguity, never a new matte.
+                oriented_core = source_core if axis_name == "x" else source_core.T
+                oriented_protected = weak_protected if axis_name == "x" else weak_protected.T
+                oriented_edge = edge if axis_name == "x" else edge.T
+                edge_rows = np.nonzero(oriented_edge)[0]
+                first_row = max(0, int(edge_rows.min()) - tangent // 2)
+                last_row = min(oriented_core.shape[0], int(edge_rows.max()) + tangent // 2 + 1)
+                tangent_support = cv2.dilate(
+                    oriented_edge.astype(np.uint8), np.ones((tangent, 1), dtype=np.uint8),
+                ).astype(bool)
+                for row in range(first_row, last_row):
+                    core_columns = np.flatnonzero(oriented_core[row])
+                    edge_columns = np.flatnonzero(tangent_support[row])
+                    if not edge_columns.size:
+                        continue
+                    if not core_columns.size:
+                        # Matching clothing below visible skin may lack a
+                        # contrasting core on this normal line. Its interior
+                        # direction is unresolved: protect the opaque row in
+                        # this local tangent support, never infer background.
+                        oriented_protected[row] = True
+                        unresolved_interior_rows += 1
+                        continue
+                    # Curved and slanted outlines need each row's actual
+                    # normal bounds; a component-wide median leaves gaps.
+                    bounds = (int(edge_columns[0]), int(edge_columns[-1]))
+                    nearest = [int(core_columns[np.argmin(np.abs(core_columns - bound))])
+                               for bound in bounds]
+                    first_column = max(0, min(*nearest, *bounds) - weak_radius)
+                    last_column = min(oriented_core.shape[1], max(*nearest, *bounds) + weak_radius + 1)
+                    oriented_protected[row, first_column:last_column] = True
+                if unresolved_interior_rows:
+                    reasons.append("unresolved_interior_direction")
+            if len(local_report["regions"]) < 64:
+                x, y, width, height, pixels = component_stats[label]
+                local_report["regions"].append({
+                    "axis": axis_name,
+                    "component": label,
+                    "box": [int(x), int(y), int(width), int(height)],
+                    "pixels": int(pixels),
+                    "side_reference_pixels": side_counts,
+                    "unresolved_interior_rows": unresolved_interior_rows,
+                    "classification": "confirmed_background" if safe else "protected",
+                    "reasons": reasons,
+                })
+    # A protected footprint always wins an overlap with another resolved zone.
+    weak_background &= ~weak_protected
+    weak_protected &= alpha >= 192
+    confirmed = (confirmed | weak_background) & ~weak_protected
+    local_report["regions_truncated"] = local_report["region_count"] > len(local_report["regions"])
+    local_report["auto_effect"] = "compare_with_local_protection"
+    counts["weak_source_contour_protected"] = int(np.count_nonzero(weak_protected))
+    counts["weak_source_contour_background"] = int(np.count_nonzero(weak_background & (alpha >= 192)))
+    return confirmed, source_lab, {
+        "weak_contours": weak_edges,
+        "weak_contour_zones": weak_guard,
+        "weak_contour_protected": weak_protected,
+        "weak_contour_background": weak_background & (alpha >= 192),
+        "_region_labels_x": region_labels["x"],
+        "_region_labels_y": region_labels["y"],
+    }
 
 
 def source_paired_lines(
@@ -3103,6 +3332,8 @@ def grabcut_fallback_evidence(
 
     def reject(reason: str) -> None:
         report["reason"] = reason
+        if "weak_source_contour_local" in report:
+            report["weak_source_contour_local"]["auto_effect"] = "keep_grabcut_" + reason
         return None
 
     if subject.mode != "RGBA" or subject.size != image.size:
@@ -3206,8 +3437,10 @@ def grabcut_fallback_evidence(
                     if scale < 1 else None),
     )
     if source_result is None:
+        if "weak_source_contour_local" in report:
+            report["weak_source_contour_local"]["auto_effect"] = "keep_grabcut_" + report["reason"]
         return None
-    confirmed_source, source_lab = source_result
+    confirmed_source, source_lab, weak_masks = source_result
     residual &= confirmed_source
     counts["after_continuity"] = int(np.count_nonzero(residual))
     report["stage"] = "texture"
@@ -3350,6 +3583,29 @@ def grabcut_fallback_evidence(
     confident_background = (
         broad_colour_spill & confirmed_source & ~textured_fabric & (alpha >= 192)
     )
+    # Source texture can overrule a two-sided path, never the reverse.
+    weak_masks["weak_contour_background"] &= confident_background
+    weak_masks["weak_contour_protected"] |= (
+        weak_masks["weak_contour_zones"] & (alpha >= 192) & ~confident_background
+    )
+    counts["weak_source_contour_background"] = int(np.count_nonzero(weak_masks["weak_contour_background"]))
+    counts["weak_source_contour_protected"] = int(np.count_nonzero(weak_masks["weak_contour_protected"]))
+    for region in report["weak_source_contour_local"]["regions"]:
+        x, y, region_width, region_height = region["box"]
+        region_slice = np.s_[y:y + region_height, x:x + region_width]
+        region_edges = weak_masks["_region_labels_" + region["axis"]][region_slice] == region["component"]
+        region["source_classification"] = region["classification"]
+        region["background_pixels"] = int(np.count_nonzero(region_edges & confident_background[region_slice]))
+        region["protected_pixels"] = int(np.count_nonzero(region_edges & ~confident_background[region_slice]))
+        if region["protected_pixels"]:
+            region["classification"] = "protected"
+            if np.any(region_edges & textured_fabric[region_slice]):
+                region["reasons"].append("source_material_detail")
+            elif region["source_classification"] == "confirmed_background":
+                region["reasons"].append("outside_confirmed_broad_spill")
+    # Ownership labels are temporary analysis data, not candidate evidence or
+    # JSON/debug output. Final region counts refer only to that axis/component.
+    del weak_masks["_region_labels_x"], weak_masks["_region_labels_y"]
     residual_area = int(np.count_nonzero(residual))
     counts["after_detail_filter"] = residual_area
     report["stage"] = "residual_area"
@@ -3396,6 +3652,7 @@ def grabcut_fallback_evidence(
         "confident_background": confident_background,
         "confident_foreground": confident_foreground,
         "ambiguous": ambiguous,
+        **weak_masks,
     }
 
 
@@ -3427,7 +3684,8 @@ def modnet_fallback_is_better(
         diagnostics["actual_foreground_ratio"] = actual_ratio
         # Source classes were fixed by the GrabCut probe before this candidate
         # existed. Candidate losses are diagnostics, never background evidence.
-        for name in ("confident_foreground", "confident_background", "ambiguous"):
+        for name in ("confident_foreground", "confident_background", "ambiguous",
+                     "weak_contour_protected", "weak_contour_background"):
             mask = evidence.get(name)
             if mask is not None:
                 pixels = int(np.count_nonzero(mask))
@@ -3490,8 +3748,10 @@ def modnet_fallback_is_better(
     # Keeping tiny stitches while deleting the surrounding fabric can pass a
     # coarse cell score. Check each source-supported material guard using the
     # same local preservation gates, without expanding protection into backdrop.
-    material = evidence.get("material_protected")
-    if material is not None:
+    for kind, material in (("material", evidence.get("material_protected")),
+                           ("weak_contour", evidence.get("weak_contour_protected"))):
+        if material is None:
+            continue
         component_count, labels, stats, _ = cv2.connectedComponentsWithStats(
             material.astype(np.uint8), connectivity=8)
         checked_components = 0
@@ -3508,12 +3768,12 @@ def modnet_fallback_is_better(
             opacity_ratio = candidate_mean / original_mean
             if retention < 0.90 or candidate_mean < original_mean * 0.85:
                 if diagnostics is not None:
-                    diagnostics.update(material_components_checked=checked_components,
-                                       failed_material_region=[int(x), int(y), int(component_width), int(component_height)],
-                                       material_retention=retention, material_opacity_ratio=opacity_ratio)
-                return finish("material_foreground_loss")
+                    diagnostics.update({kind + "_components_checked": checked_components,
+                                        "failed_" + kind + "_region": [int(x), int(y), int(component_width), int(component_height)],
+                                        kind + "_retention": retention, kind + "_opacity_ratio": opacity_ratio})
+                return finish(kind + "_foreground_loss")
         if diagnostics is not None:
-            diagnostics["material_components_checked"] = checked_components
+            diagnostics[kind + "_components_checked"] = checked_components
     return finish("accepted", True)
 
 

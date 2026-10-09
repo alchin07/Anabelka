@@ -34,6 +34,9 @@ DEBUG_LEGEND = {
     "confident_foreground": {"color": [0, 180, 80], "label": "Source: confident foreground"},
     "confident_background": {"color": [255, 205, 0], "label": "Source: confirmed old background"},
     "ambiguous": {"color": [175, 80, 230], "label": "Source: ambiguous (still protected)"},
+    "weak_contour_background": {"color": [230, 160, 0], "label": "Weak zone: confirmed source paths"},
+    "weak_contour_protected": {"color": [180, 40, 180], "label": "Weak zone: protected uncertainty"},
+    "weak_contours": {"color": [0, 210, 215], "label": "Detected weak source contours"},
     "lost_confident_foreground": {"color": [245, 45, 45], "label": "Candidate removed confident foreground"},
     "lost_ambiguous": {"color": [35, 120, 255], "label": "Candidate removed ambiguous pixels"},
 }
@@ -48,6 +51,38 @@ class AutoDebugCapture:
         self.masks = {}
         self.candidate_alpha = None
         self.error = ""
+        self.classification_stage = "contours_only"
+
+    def observe_weak_contours(self, detector, *args, **kwargs):
+        result = detector(*args, **kwargs)
+        try:
+            contours = processor.np.asarray(result["x"] | result["y"], dtype=bool)
+            if contours.ndim != 2 or not contours.size or max(contours.shape) > 512:
+                raise ValueError("Weak contour maps must have a nonempty <=512 pixel analysis edge.")
+            if processor.np.any(contours):
+                self.masks["weak_contours"] = contours.copy()
+        except Exception as error:
+            self.error = type(error).__name__ + ": " + str(error)
+        return result
+
+    def observe_source_graph(self, graph, *args, **kwargs):
+        result = graph(*args, **kwargs)
+        if result is not None:
+            try:
+                weak = result[2]
+                contours = processor.np.asarray(weak["weak_contours"], dtype=bool)
+                if contours.ndim != 2 or not contours.size or max(contours.shape) > 512:
+                    raise ValueError("Source graph maps must have a nonempty <=512 pixel analysis edge.")
+                if processor.np.any(contours):
+                    for name in ("weak_contours", "weak_contour_background", "weak_contour_protected"):
+                        mask = processor.np.asarray(weak[name], dtype=bool)
+                        if mask.shape != contours.shape:
+                            raise ValueError("Source graph maps must match the weak contour map.")
+                        self.masks[name] = mask.copy()
+                    self.classification_stage = "source_paths_pending_material"
+            except Exception as error:
+                self.error = type(error).__name__ + ": " + str(error)
+        return result
 
     def observe_probe(self, *args, **kwargs):
         result = self.probe(*args, **kwargs)
@@ -56,11 +91,15 @@ class AutoDebugCapture:
                 alpha = processor.np.asarray(result["alpha"])
                 if alpha.ndim != 2 or not alpha.size or max(alpha.shape) > 512:
                     raise ValueError("Debug evidence must have a nonempty <=512 pixel analysis edge.")
-                for name in ("confident_foreground", "confident_background", "ambiguous"):
+                for name in ("confident_foreground", "confident_background", "ambiguous",
+                             "weak_contour_background", "weak_contour_protected", "weak_contours"):
+                    if name not in result:
+                        continue
                     mask = processor.np.asarray(result[name], dtype=bool)
                     if mask.shape != alpha.shape:
                         raise ValueError("Debug classification masks must match analysis alpha.")
                     self.masks[name] = mask.copy()
+                self.classification_stage = "final_probe"
             except Exception as error:
                 # Observational export must never alter the production decision.
                 self.masks.clear()
@@ -71,7 +110,7 @@ class AutoDebugCapture:
         result = self.worker(*args, **kwargs)
         if result is not None and self.masks:
             try:
-                height, width = self.masks["ambiguous"].shape
+                height, width = next(iter(self.masks.values())).shape
                 self.candidate_alpha = processor.np.asarray(result[0].resize(
                     (width, height), Image.Resampling.BILINEAR).getchannel("A")).copy()
             except Exception as error:
@@ -80,19 +119,21 @@ class AutoDebugCapture:
 
     def export(self, source: Image.Image, output: Path, selection: dict) -> dict:
         record = {"enabled": True, "legend": DEBUG_LEGEND,
-                  "classification_domain": "opaque GrabCut pixels; unclassified source is unchanged"}
+                  "classification_domain": "opaque GrabCut pixels; unclassified source is unchanged",
+                  "classification_stage": self.classification_stage,
+                  "fallback_reason": selection.get("fallback_reason", "probe_not_run")}
         if self.error:
             return {**record, "status": "error", "error": self.error}
         if not self.masks:
             return {**record, "status": "skipped",
                     "reason": selection.get("fallback_reason", "probe_not_run")}
         try:
-            height, width = self.masks["ambiguous"].shape
+            height, width = next(iter(self.masks.values())).shape
             # This source copy is bounded by the production probe resolution.
             pixels = processor.np.asarray(source.resize(
                 (width, height), Image.Resampling.BILINEAR).convert("RGB")).copy()
             layers = dict(self.masks)
-            if self.candidate_alpha is not None:
+            if self.candidate_alpha is not None and "ambiguous" in self.masks:
                 removed = self.candidate_alpha < 128
                 layers["lost_confident_foreground"] = removed & self.masks["confident_foreground"]
                 layers["lost_ambiguous"] = removed & self.masks["ambiguous"]
@@ -100,11 +141,16 @@ class AutoDebugCapture:
                 color = processor.np.asarray(DEBUG_LEGEND[name]["color"], dtype=float)
                 pixels[mask] = processor.np.rint(pixels[mask] * .35 + color * .65).astype("uint8")
             overlay = Image.fromarray(pixels)
-            footer_height = 104
+            footer_height = 24 + len(DEBUG_LEGEND) * 16
             canvas = Image.new("RGB", (max(width, 330), height + footer_height), "white")
             canvas.paste(overlay, (0, 0))
             draw = ImageDraw.Draw(canvas)
-            draw.text((6, height + 3), "AUTO source classes; loss is not background evidence", fill="black")
+            title = ("Source paths; material checks pending" if
+                     self.classification_stage == "source_paths_pending_material" else
+                     "Weak contours; classification unavailable" if
+                     self.classification_stage == "contours_only" else
+                     "AUTO classes; loss is not background evidence")
+            draw.text((6, height + 3), title, fill="black")
             for index, entry in enumerate(DEBUG_LEGEND.values()):
                 y = height + 21 + index * 16
                 draw.rectangle((6, y, 15, y + 10), fill=tuple(entry["color"]))
@@ -248,6 +294,14 @@ def compare_source(source: Path, output: Path, background_profile: str, *, debug
                                                processor.run_modnet_worker)
                     stack.enter_context(patch.object(processor, "grabcut_fallback_evidence",
                                                      side_effect=capture.observe_probe))
+                    weak_detector = processor.weak_source_contour_uncertainty
+                    stack.enter_context(patch.object(processor, "weak_source_contour_uncertainty",
+                        side_effect=lambda *args, **kwargs: capture.observe_weak_contours(
+                            weak_detector, *args, **kwargs)))
+                    source_graph = processor.source_connected_background
+                    stack.enter_context(patch.object(processor, "source_connected_background",
+                        side_effect=lambda *args, **kwargs: capture.observe_source_graph(
+                            source_graph, *args, **kwargs)))
                     worker = stack.enter_context(patch.object(processor, "run_modnet_worker",
                                                              side_effect=capture.observe_worker))
                 else:

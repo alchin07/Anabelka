@@ -255,6 +255,92 @@ class ModnetFallbackCliTests(unittest.TestCase):
         self.assertEqual(exported["status"], "saved")
         self.assertEqual(exported["analysis_size"], [256, 128])
 
+    def test_debug_map_shows_weak_contours_even_when_source_probe_declines(self):
+        shape = (64, 48)
+        weak_x = processor.np.zeros(shape, dtype=bool)
+        weak_x[12:44, 26] = True
+        weak_y = processor.np.zeros(shape, dtype=bool)
+        weak_y[46, 4:36] = True
+        result = {"x": weak_x, "y": weak_y, "calibrated": True}
+        capture = cli.AutoDebugCapture(lambda *args: None, lambda *args: None)
+        calls = []
+
+        def observed(*args):
+            calls.append(1)
+            return result
+
+        self.assertIs(capture.observe_weak_contours(observed, None), result)
+        self.assertIsNone(capture.observe_probe(None))
+        with tempfile.TemporaryDirectory() as temporary:
+            exported = capture.export(Image.new("RGB", (48, 64), "gray"),
+                                      Path(temporary), {"fallback_reason": "insufficient_residual"})
+        self.assertEqual(calls, [1])
+        self.assertEqual(exported["status"], "saved")
+        self.assertFalse(exported["candidate_available"])
+        self.assertEqual(exported["counts"]["weak_contours"], 64)
+        self.assertIn("weak_contour_protected", exported["legend"])
+        self.assertIn("weak_contour_background", exported["legend"])
+        self.assertEqual(exported["fallback_reason"], "insufficient_residual")
+
+    def test_debug_map_exports_local_weak_classifications_without_another_worker(self):
+        shape = (64, 48)
+        empty = processor.np.zeros(shape, dtype=bool)
+        edge = empty.copy()
+        edge[12:44, 26] = True
+        protected = empty.copy()
+        protected[12:28, 25:28] = True
+        background = empty.copy()
+        background[28:44, 25:28] = True
+        evidence = {"alpha": processor.np.full(shape, 255, dtype="uint8"),
+                    "confident_foreground": empty, "confident_background": background,
+                    "ambiguous": protected, "weak_contours": edge,
+                    "weak_contour_protected": protected,
+                    "weak_contour_background": background}
+        candidate = Image.new("RGBA", (48, 64), (100, 100, 100, 255))
+        calls = []
+
+        def worker(*args):
+            calls.append(1)
+            return candidate, .2, {}
+
+        capture = cli.AutoDebugCapture(lambda *args: evidence, worker)
+        self.assertIs(capture.observe_probe(None), evidence)
+        self.assertIs(capture.observe_worker(None)[0], candidate)
+        with tempfile.TemporaryDirectory() as temporary:
+            exported = capture.export(Image.new("RGB", (48, 64), "gray"), Path(temporary), {})
+        self.assertEqual(calls, [1])
+        self.assertEqual(exported["counts"]["weak_contour_protected"], 48)
+        self.assertEqual(exported["counts"]["weak_contour_background"], 48)
+
+    def test_debug_map_retains_source_protection_when_later_probe_declines(self):
+        shape = (64, 48)
+        edge = processor.np.zeros(shape, dtype=bool)
+        edge[12:44, 26] = True
+        protected = processor.np.zeros(shape, dtype=bool)
+        protected[4:60, 16:32] = True
+        weak = {"weak_contours": edge, "weak_contour_protected": protected,
+                "weak_contour_background": processor.np.zeros(shape, dtype=bool)}
+        graph_result = (processor.np.zeros(shape, dtype=bool),
+                        processor.np.zeros((*shape, 3), dtype=float), weak)
+        capture = cli.AutoDebugCapture(lambda *args: None, lambda *args: None)
+        calls = []
+
+        def graph(*args):
+            calls.append(1)
+            return graph_result
+
+        self.assertIs(capture.observe_source_graph(graph, None), graph_result)
+        self.assertIsNone(capture.observe_probe(None))
+        with tempfile.TemporaryDirectory() as temporary:
+            exported = capture.export(Image.new("RGB", (48, 64), "gray"),
+                                      Path(temporary), {"fallback_reason": "insufficient_residual"})
+        self.assertEqual(calls, [1])
+        self.assertEqual(exported["status"], "saved")
+        self.assertEqual(exported["classification_stage"], "source_paths_pending_material")
+        self.assertEqual(exported["counts"]["weak_contour_protected"], 896)
+        self.assertEqual(exported["fallback_reason"], "insufficient_residual")
+        self.assertFalse(exported["candidate_available"])
+
     def test_debug_map_marks_candidate_losses_without_changing_source_classes(self):
         shape = (32, 24)
         confident = processor.np.zeros(shape, dtype=bool)
