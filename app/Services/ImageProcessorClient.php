@@ -106,7 +106,7 @@ class ImageProcessorClient
 
         $receivedHeaders = function_exists('http_get_last_response_headers')
             ? http_get_last_response_headers()
-            : (get_defined_vars()['http_response_header'] ?? []);
+            : ($http_response_header ?? []);
         if (is_array($receivedHeaders)) { $responseHeaders = $receivedHeaders; }
 
         if ($body === false) {
