@@ -152,13 +152,18 @@ class LocalUncertaintyTests(unittest.TestCase):
         self.assertEqual(result[2], "opencv-grabcut")
         np.testing.assert_array_equal(np.asarray(baseline[0]), np.asarray(result[0]))
 
-    def test_slanted_uncertain_outline_protects_its_whole_attached_interior(self):
+    def test_source_bounded_slanted_material_keeps_its_whole_interior(self):
         image, grabcut, good, _ = self.lighting_fixture(uniform=True)
         alpha = np.asarray(grabcut.getchannel("A"))
         backdrop = np.asarray(good.getchannel("A")) == 0
         edge = np.zeros(alpha.shape, dtype=bool)
         rows = np.arange(220, 380)
         edge[rows, 280 + (rows - 220) // 2] = True
+        pixels = np.asarray(image).copy()
+        for row in rows:
+            outer_edge = min(280 + (row - 220) // 2, pixels.shape[1])
+            pixels[row, 256:outer_edge] += 4
+        image = Image.fromarray(pixels)
         # Isolate the downstream geometry of an already-detected contour.
         # The source graph still runs normally and never sees a candidate.
         for axis in ("x", "y"):
@@ -183,7 +188,10 @@ class LocalUncertaintyTests(unittest.TestCase):
                         ((work_alpha >= 192) & work_backdrop).astype(np.uint8),
                         work_backdrop, {"counts": {}})
                 self.assertIsNotNone(result)
-                protection = result[2]["weak_contour_protected"]
+                # A whole material interior needs independent source bounds;
+                # it must not be manufactured by joining a fake edge to a
+                # distant core. Both graph isolation and local guards protect.
+                protection = ((~result[0]) & (work_alpha >= 192))
                 if transpose:
                     protection = protection.T
                 for row in range(240, 380):
@@ -242,12 +250,13 @@ class LocalUncertaintyTests(unittest.TestCase):
                         work_background.astype(np.uint8), work_background, report)
                 self.assertIsNotNone(result)
                 protection = result[2]["weak_contour_protected"]
+                self.assertTrue(np.all(protection[result[2]["weak_contour_zones"] & (work_alpha >= 192)]))
                 confirmed = result[0]
                 if transpose:
                     protection = protection.T
                     confirmed = confirmed.T
-                self.assertTrue(np.all(protection[440, 128:359]))
                 self.assertFalse(np.any(confirmed[440, 128:359]))
+                self.assertFalse(np.any(protection[440, :110]))
                 region = report["weak_source_contour_local"]["regions"][0]
                 self.assertIn("unresolved_interior_direction", region["reasons"])
                 self.assertGreater(region["unresolved_interior_rows"], 0)

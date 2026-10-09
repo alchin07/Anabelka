@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -2760,6 +2761,55 @@ def weak_source_contour_uncertainty(
             "calibrated": not insufficient_reference}
 
 
+def source_clear_edge_paths(
+    usable: np.ndarray,
+    block_x: np.ndarray,
+    block_y: np.ndarray,
+    alpha: np.ndarray,
+) -> tuple[np.ndarray | None, int, int]:
+    """Traverse the bounded source graph; no candidate matte participates."""
+    breaks = usable.copy()
+    breaks[:, 1:] = usable[:, 1:] & (~usable[:, :-1] | block_x)
+    run_labels = np.cumsum(breaks.ravel(), dtype=np.int32).reshape(alpha.shape)
+    run_labels[~usable] = 0
+    run_count = int(run_labels.max()) + 1
+    if run_count > 32768:
+        return None, run_count - 1, 0
+    links = usable[1:] & usable[:-1] & ~block_y
+    pair_codes = np.unique(run_labels[1:][links].astype(np.int64) * run_count
+                           + run_labels[:-1][links])
+    if pair_codes.size > 65536:
+        return None, run_count - 1, int(pair_codes.size)
+    # Python scalar parent/rank lookups avoid repeated NumPy scalar dispatch.
+    parent = list(range(run_count))
+    rank = [0] * run_count
+
+    def root(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    for pair_code in pair_codes.tolist():
+        first_root, second_root = root(pair_code // run_count), root(pair_code % run_count)
+        if first_root == second_root:
+            continue
+        if rank[first_root] < rank[second_root]:
+            first_root, second_root = second_root, first_root
+        parent[second_root] = first_root
+        if rank[first_root] == rank[second_root]:
+            rank[first_root] += 1
+    roots = np.array([root(index) for index in range(run_count)], dtype=np.int32)
+    clear_connected = np.zeros(run_count, dtype=bool)
+    for edge_labels, edge_alpha in (
+        (run_labels[0], alpha[0]), (run_labels[-1], alpha[-1]),
+        (run_labels[:, 0], alpha[:, 0]), (run_labels[:, -1], alpha[:, -1]),
+    ):
+        clear_connected[roots[edge_labels[edge_alpha <= 16]]] = True
+    clear_connected[0] = False
+    return clear_connected[roots[run_labels]], run_count - 1, int(pair_codes.size)
+
+
 def source_connected_background(
     image: Image.Image,
     alpha: np.ndarray,
@@ -2768,6 +2818,7 @@ def source_connected_background(
     diagnostics: dict[str, Any],
     *,
     raw_source: Image.Image | None = None,
+    measure_guard_effect: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, np.ndarray]] | None:
     """Find clear-edge backdrop paths without crossing source contours.
 
@@ -2779,6 +2830,16 @@ def source_connected_background(
     work has separate conservative caps and never consults a MODNet candidate.
     """
     counts = diagnostics["counts"]
+    source_started = source_checkpoint = time.perf_counter()
+    source_timings = diagnostics["source_timings_ms"] = {}
+
+    def checkpoint(name: str) -> None:
+        nonlocal source_checkpoint
+        now = time.perf_counter()
+        source_timings[name] = round((now - source_checkpoint) * 1000, 3)
+        source_timings["total"] = round((now - source_started) * 1000, 3)
+        source_checkpoint = now
+
     foreground = alpha >= 128
     source_lab = cv2.cvtColor(
         np.asarray(image).astype(np.float32) / 255,
@@ -2789,6 +2850,7 @@ def source_connected_background(
     weak = weak_source_contour_uncertainty(
         source_lab, alpha, candidates, background_like, diagnostics,
     )
+    checkpoint("weak_contours")
     if not weak["calibrated"]:
         return None
     weak_edges = weak["x"] | weak["y"]
@@ -2799,6 +2861,9 @@ def source_connected_background(
     weak_kernel = cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE, (weak_radius * 2 + 1, weak_radius * 2 + 1),
     )
+    # OpenCV's discrete ellipse differs from its transpose at its tips.
+    # Include both footprints so X/Y orientation cannot drop support pixels.
+    weak_kernel = np.maximum(weak_kernel, weak_kernel.T)
     weak_guard = cv2.dilate(weak_edges.astype(np.uint8), weak_kernel).astype(bool)
     local_report = {
         "policy": "source_only_local_protection",
@@ -3013,67 +3078,47 @@ def source_connected_background(
         np.count_nonzero(snap_x) + np.count_nonzero(snap_y)
     )
 
-    # Contiguous horizontal runs are graph nodes. Union only unique permitted
-    # vertical links, with rank/path compression and explicit work limits.
+    checkpoint("source_contours")
+    # Remove weak support from the graph before measuring clear-frame paths.
+    # A second, optional traversal measures guard-induced disconnections only;
+    # it never grants foreground/background confidence to the guarded pixels.
     usable = candidates.astype(bool) & ~weak_guard
-    breaks = usable.copy()
-    breaks[:, 1:] = usable[:, 1:] & (~usable[:, :-1] | block_x)
-    run_labels = np.cumsum(
-        breaks.ravel(), dtype=np.int32,
-    ).reshape(alpha.shape)
-    run_labels[~usable] = 0
-    run_count = int(run_labels.max()) + 1
-    counts["source_graph_runs"] = run_count - 1
-    if run_count > 32768:
+    confirmed, runs, links = source_clear_edge_paths(usable, block_x, block_y, alpha)
+    counts["source_graph_runs"] = runs
+    counts["source_graph_links"] = links
+    checkpoint("source_graph")
+    if confirmed is None:
         diagnostics["reason"] = "source_graph_too_complex"
         return None
-    parent = np.arange(run_count, dtype=np.int32)
-    rank = np.zeros(run_count, dtype=np.uint8)
-    links = usable[1:] & usable[:-1] & ~block_y
-    pair_codes = (
-        run_labels[1:][links].astype(np.int64) * run_count
-        + run_labels[:-1][links]
-    )
-    pair_codes = np.unique(pair_codes)
-    counts["source_graph_links"] = int(pair_codes.size)
-    if pair_codes.size > 65536:
-        diagnostics["reason"] = "source_graph_too_complex"
-        return None
-
-    def root(index: int) -> int:
-        while parent[index] != index:
-            parent[index] = parent[parent[index]]
-            index = parent[index]
-        return index
-
-    for pair_code in pair_codes:
-        first_root = root(int(pair_code // run_count))
-        second_root = root(int(pair_code % run_count))
-        if first_root == second_root:
-            continue
-        if rank[first_root] < rank[second_root]:
-            first_root, second_root = second_root, first_root
-        parent[second_root] = first_root
-        if rank[first_root] == rank[second_root]:
-            rank[first_root] += 1
-    roots = np.array([root(i) for i in range(run_count)], dtype=np.int32)
-    clear_connected = np.zeros(run_count, dtype=bool)
-    for edge_labels, edge_alpha in (
-        (run_labels[0], alpha[0]),
-        (run_labels[-1], alpha[-1]),
-        (run_labels[:, 0], alpha[:, 0]),
-        (run_labels[:, -1], alpha[:, -1]),
-    ):
-        clear_connected[roots[edge_labels[edge_alpha <= 16]]] = True
-    clear_connected[0] = False
-    confirmed = clear_connected[roots[run_labels]]
+    graph_confirmed = confirmed.copy()
+    counts["source_graph_guard_pixels"] = int(np.count_nonzero(weak_guard))
+    counts["source_graph_confirmed"] = int(np.count_nonzero(confirmed))
+    observational_masks = {}
+    if measure_guard_effect:
+        unguarded = confirmed
+        if np.any(weak_guard):
+            unguarded, _, _ = source_clear_edge_paths(candidates.astype(bool), block_x, block_y, alpha)
+        if unguarded is not None:
+            observational_masks["_graph_without_guards"] = unguarded
+            counts["source_graph_confirmed_without_guards"] = int(np.count_nonzero(unguarded))
+            counts["source_graph_guard_induced_disconnected"] = int(np.count_nonzero(
+                unguarded & ~confirmed & ~weak_guard))
+            diagnostics["guard_comparison"] = "observational_only"
+        else:
+            diagnostics["guard_comparison"] = "source_graph_too_complex"
+        checkpoint("guard_comparison")
     weak_background = np.zeros(alpha.shape, dtype=bool)
     weak_protected = np.zeros(alpha.shape, dtype=bool)
     region_labels = {}
+    core_rows = {"x": {}, "y": {}}
+    # Reuse the existing source-core support distance, rather than allowing an
+    # uncertain edge to claim a corridor across arbitrary parts of the raster.
+    unresolved_material_regions = 0
     # Each normal side needs its OWN clear-frame source path in the graph
     # with ALL uncertainty guards removed. Also check attachment to source
     # foreground; simple colour matching or a MODNet matte is insufficient.
     side_offset = weak_radius * 2 + 1
+    material_span = max(side_offset, min(alpha.shape) * 0.1)
     core_near_guard = distance_to_core <= side_offset
     for axis_name in ("x", "y"):
         edge_map = weak[axis_name]
@@ -3089,9 +3134,18 @@ def source_connected_background(
                 diagnostics["reason"] = "weak_source_regions_too_complex"
                 local_report["auto_effect"] = "keep_grabcut"
                 return None
-            edge = component_labels == label
-            zone = cv2.dilate(edge.astype(np.uint8), weak_kernel).astype(bool)
+            x, y, width, height, pixels = map(int, component_stats[label])
+            # Component work is restricted to its actual bounds plus normal
+            # measurement support, not a fresh full-raster dilation per label.
+            left, top = max(0, x - weak_radius), max(0, y - weak_radius)
+            right = min(alpha.shape[1], x + width + weak_radius)
+            bottom = min(alpha.shape[0], y + height + weak_radius)
+            region_slice = np.s_[top:bottom, left:right]
+            edge = component_labels[region_slice] == label
+            zone = cv2.dilate(edge.astype(np.uint8), weak_kernel,
+                              borderType=cv2.BORDER_CONSTANT, borderValue=0).astype(bool)
             rows, columns = np.nonzero(edge)
+            rows, columns = rows + top, columns + left
             if axis_name == "x":
                 first_rows, second_rows = rows, rows
                 first_columns, second_columns = columns - side_offset, columns + side_offset
@@ -3112,8 +3166,8 @@ def source_connected_background(
                     side_counts[side] = int(np.count_nonzero(confirmed[side_rows, side_columns]))
                     independent_sides &= (side_counts[side] >= 8 and bool(np.all(
                         confirmed[side_rows, side_columns])))
-            attachment = bool(np.any(zone & core_near_guard))
-            continuation = bool(np.all(weak["exposed_" + axis_name][edge]))
+            attachment = bool(np.any(zone & core_near_guard[region_slice]))
+            continuation = bool(np.all(weak["exposed_" + axis_name][rows, columns]))
             reasons = []
             if not independent_sides:
                 reasons.append("unconfirmed_source_paths")
@@ -3126,53 +3180,60 @@ def source_connected_background(
             if safe:
                 # Reintroduce only the independently resolved local pixels.
                 # Broad-spill, source-material and alpha gates still apply.
-                weak_background |= zone & background_like & (candidates > 0)
+                weak_background[region_slice] |= zone & background_like[region_slice] & (candidates[region_slice] > 0)
                 reasons.extend(("both_sides_clear_source_paths", "exposed_source_continuation"))
             else:
-                # An incomplete/noisy edge may represent a much longer real
-                # outline than its detected maxima. Keep its complete filter
-                # footprint conservative, including matching model interiors.
-                tangent = diagnostics["weak_source_contour_calibration"][axis_name]["tangent_width"]
-                footprint = (side_offset * 2 + 1, tangent) if axis_name == "y" else (tangent, side_offset * 2 + 1)
-                weak_protected |= cv2.dilate(
-                    edge.astype(np.uint8), np.ones(footprint, dtype=np.uint8),
-                ).astype(bool) & (alpha >= 192)
-                # Protection must include the unresolved material interior,
-                # not just a thin line. Close the foreground-facing normal
-                # corridor to actual contrasting source foreground over the
-                # full tangent support. This is ambiguity, never a new matte.
+                # Keep uncertain source samples and their normal support.
+                # The tangent calibration width is a detector window, not
+                # evidence that every pixel under that window is model material.
+                weak_protected[region_slice] |= zone & (alpha[region_slice] >= 192)
                 oriented_core = source_core if axis_name == "x" else source_core.T
                 oriented_protected = weak_protected if axis_name == "x" else weak_protected.T
-                oriented_edge = edge if axis_name == "x" else edge.T
-                edge_rows = np.nonzero(oriented_edge)[0]
-                first_row = max(0, int(edge_rows.min()) - tangent // 2)
-                last_row = min(oriented_core.shape[0], int(edge_rows.max()) + tangent // 2 + 1)
-                tangent_support = cv2.dilate(
-                    oriented_edge.astype(np.uint8), np.ones((tangent, 1), dtype=np.uint8),
-                ).astype(bool)
-                for row in range(first_row, last_row):
-                    core_columns = np.flatnonzero(oriented_core[row])
-                    edge_columns = np.flatnonzero(tangent_support[row])
-                    if not edge_columns.size:
-                        continue
+                oriented_confirmed = graph_confirmed if axis_name == "x" else graph_confirmed.T
+                normal_edges = block_x if axis_name == "x" else block_y.T
+                edge_rows, edge_columns = (rows, columns) if axis_name == "x" else (columns, rows)
+                unresolved_extent = False
+                for row in np.unique(edge_rows):
+                    bounds = edge_columns[edge_rows == row]
+                    if row not in core_rows[axis_name]:
+                        core_rows[axis_name][row] = np.flatnonzero(oriented_core[row])
+                    core_columns = core_rows[axis_name][row]
                     if not core_columns.size:
-                        # Matching clothing below visible skin may lack a
-                        # contrasting core on this normal line. Its interior
-                        # direction is unresolved: protect the opaque row in
-                        # this local tangent support, never infer background.
-                        oriented_protected[row] = True
                         unresolved_interior_rows += 1
+                        # A source-isolated interior stays protected by the
+                        # graph. If both sides still connect to the frame, an
+                        # unexposed weak outline has no independently known
+                        # interior direction/extent. This also covers curved
+                        # material whose detected fragment is far from skin.
+                        for bound in (int(bounds.min()), int(bounds.max())):
+                            before, after = bound - side_offset, bound + side_offset
+                            if before >= 0 and after < oriented_core.shape[1]:
+                                unresolved_extent |= ((attachment or not continuation)
+                                    and bool(oriented_confirmed[row, before]
+                                             and oriented_confirmed[row, after]))
                         continue
-                    # Curved and slanted outlines need each row's actual
-                    # normal bounds; a component-wide median leaves gaps.
-                    bounds = (int(edge_columns[0]), int(edge_columns[-1]))
-                    nearest = [int(core_columns[np.argmin(np.abs(core_columns - bound))])
-                               for bound in bounds]
-                    first_column = max(0, min(*nearest, *bounds) - weak_radius)
-                    last_column = min(oriented_core.shape[1], max(*nearest, *bounds) + weak_radius + 1)
-                    oriented_protected[row, first_column:last_column] = True
+                    for bound in (int(bounds.min()), int(bounds.max())):
+                        nearest = int(core_columns[np.argmin(np.abs(core_columns - bound))])
+                        if abs(nearest - bound) > material_span:
+                            unresolved_extent = True
+                            continue
+                        first, last = sorted((nearest, bound))
+                        # Do not join across an independently observed source
+                        # boundary. Exclude the core boundary itself and the
+                        # uncertain detector's normal support at the other end.
+                        inner_first = first + (1 if nearest == first else weak_radius)
+                        inner_last = last - (weak_radius if bound == last else 1)
+                        if np.any(normal_edges[row, inner_first:inner_last]):
+                            unresolved_extent = True
+                            continue
+                        first = max(0, first - weak_radius)
+                        last = min(oriented_core.shape[1], last + weak_radius + 1)
+                        oriented_protected[row, first:last] = True
                 if unresolved_interior_rows:
                     reasons.append("unresolved_interior_direction")
+                if unresolved_extent:
+                    unresolved_material_regions += 1
+                    reasons.append("unresolved_material_extent")
             if len(local_report["regions"]) < 64:
                 x, y, width, height, pixels = component_stats[label]
                 local_report["regions"].append({
@@ -3182,9 +3243,12 @@ def source_connected_background(
                     "pixels": int(pixels),
                     "side_reference_pixels": side_counts,
                     "unresolved_interior_rows": unresolved_interior_rows,
+                    "normal_support_box": [left, top, right - left, bottom - top],
                     "classification": "confirmed_background" if safe else "protected",
                     "reasons": reasons,
                 })
+    checkpoint("local_regions")
+    counts["unresolved_weak_material_regions"] = unresolved_material_regions
     # A protected footprint always wins an overlap with another resolved zone.
     weak_background &= ~weak_protected
     weak_protected &= alpha >= 192
@@ -3198,6 +3262,8 @@ def source_connected_background(
         "weak_contour_zones": weak_guard,
         "weak_contour_protected": weak_protected,
         "weak_contour_background": weak_background & (alpha >= 192),
+        "_graph_confirmed": graph_confirmed,
+        **observational_masks,
         "_region_labels_x": region_labels["x"],
         "_region_labels_y": region_labels["y"],
     }
@@ -3327,10 +3393,20 @@ def grabcut_fallback_evidence(
     """
     report = diagnostics if diagnostics is not None else {}
     report.clear()
-    report.update({"stage": "input", "reason": "not_evaluated", "counts": {}})
+    report.update({"stage": "input", "reason": "not_evaluated", "counts": {}, "timings_ms": {}})
     counts = report["counts"]
+    started = stage_started = time.perf_counter()
+
+    def enter_stage(name: str) -> None:
+        nonlocal stage_started
+        now = time.perf_counter()
+        report["timings_ms"][report["stage"]] = round((now - stage_started) * 1000, 3)
+        report["timings_ms"]["total"] = round((now - started) * 1000, 3)
+        report["stage"] = name
+        stage_started = now
 
     def reject(reason: str) -> None:
+        enter_stage(report["stage"])
         report["reason"] = reason
         if "weak_source_contour_local" in report:
             report["weak_source_contour_local"]["auto_effect"] = "keep_grabcut_" + reason
@@ -3347,7 +3423,7 @@ def grabcut_fallback_evidence(
     if min(size) < 8:
         return reject("analysis_too_narrow")
     report["analysis_size"] = list(size)
-    report["stage"] = "foreground_area"
+    enter_stage("foreground_area")
     source_rgb = image if image.mode == "RGB" else flattened_rgb(image)
     rgb = source_rgb.resize(size, Image.Resampling.BILINEAR)
     alpha = np.asarray(subject.getchannel("A").resize(size, Image.Resampling.BILINEAR))
@@ -3362,7 +3438,7 @@ def grabcut_fallback_evidence(
     lab = cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2LAB).astype(np.float32)
     band = max(2, round(min(size) * 0.035))
     palette = []
-    report["stage"] = "clear_background"
+    enter_stage("clear_background")
     # Only nearly transparent, locally uniform patches can train the probe.
     for edge_lab, edge_alpha in (
         (lab[:band], alpha[:band]),
@@ -3389,7 +3465,7 @@ def grabcut_fallback_evidence(
     if not palette:
         return reject("no_clear_background_patches")
     report["palette_size"] = len(palette)
-    report["stage"] = "colour_spill"
+    enter_stage("colour_spill")
 
     candidates = np.zeros(alpha.shape, dtype=np.uint8)
     for color in palette:
@@ -3429,21 +3505,43 @@ def grabcut_fallback_evidence(
     broad_colour_spill = cv2.morphologyEx(
         residual.astype(np.uint8), cv2.MORPH_OPEN, detail_kernel,
     ).astype(bool)
-    report["stage"] = "continuity"
+    enter_stage("continuity")
 
     source_result = source_connected_background(
         rgb, alpha, candidates, background_like, report,
         raw_source=(source_rgb.resize(size, Image.Resampling.NEAREST)
                     if scale < 1 else None),
+        measure_guard_effect=diagnostics is not None,
     )
     if source_result is None:
         if "weak_source_contour_local" in report:
             report["weak_source_contour_local"]["auto_effect"] = "keep_grabcut_" + report["reason"]
-        return None
+        return reject(report["reason"])
     confirmed_source, source_lab, weak_masks = source_result
+    graph_confirmed = weak_masks.pop("_graph_confirmed")
+    graph_without_guards = weak_masks.pop("_graph_without_guards", None)
+    graph_residual = residual & graph_confirmed
+    counts["after_source_graph"] = int(np.count_nonzero(graph_residual))
+    counts["removed_by_source_graph"] = counts["before_continuity"] - counts["after_source_graph"]
+    counts["removed_by_graph_guard_pixels"] = int(np.count_nonzero(
+        residual & weak_masks["weak_contour_zones"]))
+    counts["removed_by_graph_paths"] = (counts["removed_by_source_graph"]
+                                        - counts["removed_by_graph_guard_pixels"])
+    if graph_without_guards is not None:
+        counts["removed_by_source_contours_without_guards"] = int(np.count_nonzero(
+            residual & ~graph_without_guards))
+        counts["removed_by_uncertainty_guard_pixels"] = int(np.count_nonzero(
+            residual & graph_without_guards & weak_masks["weak_contour_zones"]))
+        counts["removed_by_uncertainty_guard_disconnection"] = int(np.count_nonzero(
+            residual & graph_without_guards & ~graph_confirmed
+            & ~weak_masks["weak_contour_zones"]))
+    counts["restored_by_local_confirmation"] = int(np.count_nonzero(
+        residual & confirmed_source & ~graph_confirmed))
+    counts["removed_by_local_protection"] = int(np.count_nonzero(
+        residual & graph_confirmed & ~confirmed_source))
     residual &= confirmed_source
     counts["after_continuity"] = int(np.count_nonzero(residual))
-    report["stage"] = "texture"
+    enter_stage("texture")
     # Texture needs its OWN noise calibration, not the contour threshold.
     # Otherwise ordinary JPEG extrema become seeds, then a wide dilation can
     # protect almost every pixel of a genuinely confirmed backdrop spill.
@@ -3573,13 +3671,12 @@ def grabcut_fallback_evidence(
     residual &= ~textured_fabric
     counts["after_texture"] = int(np.count_nonzero(residual))
     counts["removed_by_texture"] = counts["after_continuity"] - counts["after_texture"]
-    report["stage"] = "detail_filter"
+    enter_stage("detail_filter")
     # A narrow matching detail must not inherit the confidence of the broad
     # spill it joins. Open locally; do not promote whole components again.
     detail_radius = max(2, round(min(size) * 0.008))
     residual = cv2.morphologyEx(residual.astype(np.uint8), cv2.MORPH_OPEN,
-                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                  (detail_radius * 2 + 1, detail_radius * 2 + 1))).astype(bool)
+                              detail_kernel).astype(bool)
     confident_background = (
         broad_colour_spill & confirmed_source & ~textured_fabric & (alpha >= 192)
     )
@@ -3608,9 +3705,15 @@ def grabcut_fallback_evidence(
     del weak_masks["_region_labels_x"], weak_masks["_region_labels_y"]
     residual_area = int(np.count_nonzero(residual))
     counts["after_detail_filter"] = residual_area
-    report["stage"] = "residual_area"
+    counts["removed_by_detail_filter"] = counts["after_texture"] - residual_area
+    enter_stage("residual_area")
     if residual_area < area * 0.02 or residual_area < foreground_area * 0.08:
         return reject("insufficient_residual")
+    if counts["unresolved_weak_material_regions"]:
+        # Localizing the diagnostic guard must not silently license an
+        # unbounded matching garment interior. Keep GrabCut if independent
+        # source boundaries/material cannot establish its full extent.
+        return reject("unresolved_weak_material_extent")
 
     _, _, bbox_width, bbox_height = bbox
     if bbox_width <= 0 or bbox_height <= 0:
@@ -3619,7 +3722,7 @@ def grabcut_fallback_evidence(
     # enclosed and narrow matching details remain ambiguous/protected; confirmed
     # backdrop never gets protection restored merely by lying inside a bbox.
     protected = (alpha >= 192) & ~confident_background
-    report["stage"] = "protection"
+    enter_stage("protection")
     counts["protected_foreground"] = int(np.count_nonzero(protected))
     counts["protected_residual_overlap"] = int(np.count_nonzero(protected & residual))
     if np.count_nonzero(protected) < 32:
@@ -3637,6 +3740,7 @@ def grabcut_fallback_evidence(
     counts["confident_foreground"] = int(np.count_nonzero(confident_foreground))
     counts["confident_background"] = int(np.count_nonzero(confident_background))
     counts["ambiguous"] = int(np.count_nonzero(ambiguous))
+    enter_stage("ready")
     report.update(
         stage="ready",
         reason="residual_confirmed",
