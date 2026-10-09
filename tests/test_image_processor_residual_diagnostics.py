@@ -2,6 +2,7 @@
 
 import json
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
@@ -37,7 +38,8 @@ class ResidualDiagnosticsTests(unittest.TestCase):
         fixture.setUp()
         image, grabcut, _, bbox = fixture.lighting_fixture()
         report = {}
-        evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox, diagnostics=report)
+        evidence = processor.grabcut_fallback_evidence(
+            image, grabcut, bbox, diagnostics=report, measure_guard_effect=True)
         self.assertIsNotNone(evidence, report)
         counts = report["counts"]
         self.assertIn("removed_by_source_graph", counts)
@@ -68,13 +70,44 @@ class ResidualDiagnosticsTests(unittest.TestCase):
         image, grabcut, _, bbox = fixture.lighting_fixture(jpeg=True)
         before = processor.grabcut_fallback_evidence(image, grabcut, bbox)
         report = {}
-        after = processor.grabcut_fallback_evidence(image, grabcut, bbox, diagnostics=report)
+        after = processor.grabcut_fallback_evidence(
+            image, grabcut, bbox, diagnostics=report, measure_guard_effect=True)
         self.assertIsNotNone(before)
         self.assertIsNotNone(after)
         self.assertEqual(before.keys(), after.keys())
         for name, mask in before.items():
             if isinstance(mask, np.ndarray):
                 np.testing.assert_array_equal(mask, after[name], err_msg=name)
+
+    def test_production_timings_do_not_repeat_observational_graph(self):
+        fixture = local.LocalUncertaintyTests(methodName="runTest")
+        fixture.setUp()
+        image, grabcut, _, bbox = fixture.lighting_fixture()
+        report = {}
+        with patch.object(processor, "source_clear_edge_paths",
+                          wraps=processor.source_clear_edge_paths) as paths:
+            evidence = processor.grabcut_fallback_evidence(
+                image, grabcut, bbox, diagnostics=report)
+        self.assertIsNotNone(evidence)
+        self.assertEqual(paths.call_count, 1)
+        self.assertNotIn("guard_comparison", report)
+
+    def test_no_independent_residual_skips_later_material_analysis(self):
+        fixture = local.LocalUncertaintyTests(methodName="runTest")
+        fixture.setUp()
+        image, grabcut, _, bbox = fixture.lighting_fixture()
+        pixels = np.asarray(image).copy()
+        pixels[208:400, 256:320] += 1
+        image = local.Image.fromarray(pixels)
+        probe = {}
+        with patch.object(processor, "source_paired_lines",
+                          wraps=processor.source_paired_lines) as texture:
+            evidence = processor.grabcut_fallback_evidence(
+                image, grabcut, bbox, diagnostics=probe)
+        self.assertIsNone(evidence)
+        self.assertEqual(probe["reason"], "unresolved_weak_material_extent")
+        self.assertLess(probe["counts"]["after_continuity"], probe["minimum_required"])
+        self.assertEqual(texture.call_count, 0)
 
 
 if __name__ == "__main__":

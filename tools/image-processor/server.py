@@ -9,6 +9,8 @@ import subprocess
 import sys
 import time
 import uuid
+from contextlib import contextmanager
+from functools import wraps
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -100,6 +102,38 @@ _person_detector = None
 _person_detector_error = ""
 
 _modnet_worker_error = ""
+_BACKGROUND_MASK_UNSET = object()
+
+
+@contextmanager
+def timed_stage(timings: dict[str, Any], name: str):
+    """Record inclusive wall time, including failures, in one request's dict."""
+    started = time.perf_counter()
+    try:
+        yield
+    finally:
+        elapsed = (time.perf_counter() - started) * 1000
+        timings[name] = round(timings.get(name, 0.0) + elapsed, 3)
+
+
+def timed_function(function):
+    """Give an instrumented function a private collector and a total timer."""
+    @wraps(function)
+    def measured(*args, timings=None, **kwargs):
+        collector = {} if timings is None else timings
+        with timed_stage(collector, "total"):
+            return function(*args, timings=collector, **kwargs)
+    measured.accepts_stage_timings = True
+    return measured
+
+
+def measured_call(timings, name, function, *args, detail=None, **kwargs):
+    # Older integrations replace these functions with two/three-argument
+    # callables. Only our explicitly instrumented functions receive a kwarg.
+    if detail is not None and getattr(function, "accepts_stage_timings", False) is True:
+        kwargs["timings"] = detail
+    with timed_stage(timings, name):
+        return function(*args, **kwargs)
 
 
 def json_bytes(payload: dict[str, Any]) -> bytes:
@@ -157,22 +191,24 @@ def safe_source_path(value: Any) -> Path:
     return candidate
 
 
-def normalized_image(source: Path) -> Image.Image:
-    probe = cv2.imread(str(source), cv2.IMREAD_UNCHANGED)
+@timed_function
+def normalized_image(source: Path, *, timings: dict[str, Any]) -> Image.Image:
+    probe = measured_call(timings, "opencv_probe", cv2.imread, str(source), cv2.IMREAD_UNCHANGED)
 
     if probe is None:
         raise ValueError("OpenCV не зміг прочитати фотографію.")
 
-    with Image.open(source) as opened:
-        image = ImageOps.exif_transpose(opened)
+    with timed_stage(timings, "pillow_decode"):
+        with Image.open(source) as opened:
+            image = ImageOps.exif_transpose(opened)
 
-        if image.mode in ("RGBA", "LA"):
-            return image.convert("RGBA")
+            if image.mode in ("RGBA", "LA"):
+                return image.convert("RGBA")
 
-        if image.mode == "P" and "transparency" in image.info:
-            return image.convert("RGBA")
+            if image.mode == "P" and "transparency" in image.info:
+                return image.convert("RGBA")
 
-        return image.convert("RGB")
+            return image.convert("RGB")
 
 
 def flattened_rgb(image: Image.Image) -> Image.Image:
@@ -205,11 +241,13 @@ def modnet_worker_ready() -> bool:
         return False
 
 
+@timed_function
 def run_modnet_worker(
     source: Path,
     image: Image.Image,
     *,
     diagnostics: dict[str, Any] | None = None,
+    timings: dict[str, Any],
 ) -> tuple[
     Image.Image,
     float,
@@ -217,7 +255,7 @@ def run_modnet_worker(
 ] | None:
     if diagnostics is not None:
         diagnostics.clear()
-        diagnostics.update(status="running", worker_error="")
+        diagnostics.update(status="running", worker_error="", timings_ms=timings)
 
     def record_error(message: str) -> None:
         # Keep the legacy health field, but give each request its own result.
@@ -272,7 +310,7 @@ def run_modnet_worker(
     ]
 
     try:
-        completed = subprocess.run(
+        completed = measured_call(timings, "subprocess", subprocess.run,
             command,
             cwd=str(
                 PROJECT_ROOT
@@ -364,13 +402,9 @@ def run_modnet_worker(
             )
             return None
 
-        with Image.open(
-            alpha_path
-        ) as opened:
-            alpha = (
-                opened.convert("L")
-                .copy()
-            )
+        with timed_stage(timings, "alpha_decode"):
+            with Image.open(alpha_path) as opened:
+                alpha = opened.convert("L").copy()
 
         if (
             alpha.size
@@ -381,12 +415,8 @@ def run_modnet_worker(
             )
             return None
 
-        subject = (
-            flattened_rgb(
-                image
-            )
-            .convert("RGBA")
-        )
+        with timed_stage(timings, "subject_rgb"):
+            subject = flattened_rgb(image).convert("RGBA")
 
         subject.putalpha(
             alpha
@@ -1141,13 +1171,19 @@ def uniform_border_background_mask(
 def suppress_uniform_border_background(
     image: Image.Image,
     foreground: np.ndarray,
+    *,
+    background_mask: np.ndarray | None | object = _BACKGROUND_MASK_UNSET,
 ) -> np.ndarray:
     height, width = foreground.shape[:2]
 
     if image.size != (width, height):
         return foreground
 
-    border_connected_background = uniform_border_background_mask(image)
+    border_connected_background = (
+        uniform_border_background_mask(image)
+        if background_mask is _BACKGROUND_MASK_UNSET
+        else background_mask
+    )
 
     if border_connected_background is None:
         return foreground
@@ -1194,10 +1230,16 @@ def suppress_uniform_border_background(
     return cleaned
 
 
+suppress_uniform_border_background.accepts_background_mask = True
+
+
+@timed_function
 def cosmetic_cleanup_subject_fringes(
     image: Image.Image,
     subject: Image.Image,
     bbox: tuple[int, int, int, int],
+    *,
+    timings: dict[str, Any],
 ) -> Image.Image:
     if (
         subject.mode != "RGBA"
@@ -1205,7 +1247,7 @@ def cosmetic_cleanup_subject_fringes(
     ):
         return subject
 
-    background_like = uniform_border_background_mask(image)
+    background_like = measured_call(timings, "border_analysis", uniform_border_background_mask, image)
 
     if background_like is None:
         return subject
@@ -1349,12 +1391,18 @@ def cosmetic_cleanup_subject_fringes(
 
 
 
+@timed_function
 def refine_upper_enclosed_background_gaps(
     image: Image.Image,
     subject: Image.Image,
     bbox: tuple[int, int, int, int],
+    *,
+    timings: dict[str, Any],
 ) -> Image.Image:
     """Remove only small validated upper-body enclosed background gaps."""
+    timings.update(candidate_components=0, local_inference_calls=0,
+                   local_inference_ms=[], local_inference=0.0)
+    colour_started = time.perf_counter()
     if (
         subject.mode != "RGBA"
         or subject.size != image.size
@@ -1513,6 +1561,7 @@ def refine_upper_enclosed_background_gaps(
             connectivity=8,
         )
     )
+    timings["colour_candidates"] = round((time.perf_counter() - colour_started) * 1000, 3)
 
     if count <= 1:
         return subject
@@ -1665,6 +1714,7 @@ def refine_upper_enclosed_background_gaps(
         ):
             continue
 
+        timings["candidate_components"] += 1
         component = labels == label
 
         # Do not process regions which the main mask already
@@ -1805,6 +1855,8 @@ def refine_upper_enclosed_background_gaps(
             hard_background
         ] = cv2.GC_BGD
 
+        local_started = time.perf_counter()
+        timings["local_inference_calls"] += 1
         try:
             cv2.grabCut(
                 cv2.cvtColor(
@@ -1826,6 +1878,10 @@ def refine_upper_enclosed_background_gaps(
             )
         except cv2.error:
             continue
+        finally:
+            local_ms = (time.perf_counter() - local_started) * 1000
+            timings["local_inference_ms"].append(round(local_ms, 3))
+            timings["local_inference"] = round(timings["local_inference"] + local_ms, 3)
 
         local_background = np.isin(
             seed,
@@ -2137,10 +2193,15 @@ def build_corner_background_seed_mask(image: Image.Image) -> np.ndarray | None:
     return seed
 
 
+@timed_function
 def build_subject_rgba(
     image: Image.Image,
     bbox: tuple[int, int, int, int],
+    *,
+    timings: dict[str, Any],
 ) -> tuple[Image.Image, float] | None:
+    timings["inference_calls"] = 0
+    seed_started = time.perf_counter()
     rgb = flattened_rgb(image)
     source_width, source_height = rgb.size
     x, y, width, height = bbox
@@ -2159,7 +2220,7 @@ def build_subject_rgba(
     work_height = max(2, round(source_height * scale))
 
     if scale < 1.0:
-        work = rgb.resize(
+        work = measured_call(timings, "work_resize", rgb.resize,
             (work_width, work_height),
             Image.Resampling.BILINEAR,
         )
@@ -2204,7 +2265,7 @@ def build_subject_rgba(
         dtype=np.float64,
     )
     grabcut_mode = cv2.GC_INIT_WITH_RECT
-    background_hint = uniform_border_background_mask(work)
+    background_hint = measured_call(timings, "border_seed", uniform_border_background_mask, work)
 
     if background_hint is not None:
         # A cropped body can reach the photo edge. Do not train GrabCut's
@@ -2277,8 +2338,10 @@ def build_subject_rgba(
             mask[:] = corner_seed_mask
             grabcut_mode = cv2.GC_INIT_WITH_MASK
 
+    timings["seed_prepare"] = round((time.perf_counter() - seed_started) * 1000, 3)
     try:
-        cv2.grabCut(
+        timings["inference_calls"] += 1
+        measured_call(timings, "inference", cv2.grabCut,
             frame,
             mask,
             (
@@ -2301,15 +2364,21 @@ def build_subject_rgba(
         255,
         0,
     ).astype(np.uint8)
-    foreground = suppress_uniform_border_background(
+    suppression_kwargs = (
+        {"background_mask": background_hint}
+        if getattr(suppress_uniform_border_background, "accepts_background_mask", False) is True
+        else {}
+    )
+    foreground = measured_call(timings, "border_suppression_work", suppress_uniform_border_background,
         work,
         foreground,
+        **suppression_kwargs,
     )
-    foreground = keep_primary_foreground_component(
+    foreground = measured_call(timings, "primary_component", keep_primary_foreground_component,
         foreground,
     )
 
-    foreground = refine_subject_edge(
+    foreground = measured_call(timings, "edge_refinement", refine_subject_edge,
         foreground,
     )
 
@@ -2330,14 +2399,14 @@ def build_subject_rgba(
     )
 
     if scale < 1.0:
-        alpha = alpha.resize(
+        alpha = measured_call(timings, "alpha_resize", alpha.resize,
             (source_width, source_height),
             Image.Resampling.LANCZOS,
         )
         # Upsampling can reintroduce a fringe above half opacity too.
         # Clean nonopaque pixels while preserving fully opaque foreground.
         resized_alpha = np.asarray(alpha)
-        cleaned_alpha = suppress_uniform_border_background(
+        cleaned_alpha = measured_call(timings, "border_suppression_source", suppress_uniform_border_background,
             rgb,
             resized_alpha,
         )
@@ -2819,6 +2888,7 @@ def source_connected_background(
     *,
     raw_source: Image.Image | None = None,
     measure_guard_effect: bool = False,
+    ownership_alpha: Image.Image | None = None,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, np.ndarray]] | None:
     """Find clear-edge backdrop paths without crossing source contours.
 
@@ -3114,6 +3184,7 @@ def source_connected_background(
     # Reuse the existing source-core support distance, rather than allowing an
     # uncertain edge to claim a corridor across arbitrary parts of the raster.
     unresolved_material_regions = 0
+    unresolved_seeds = np.zeros(alpha.shape, dtype=bool)
     # Each normal side needs its OWN clear-frame source path in the graph
     # with ALL uncertainty guards removed. Also check attachment to source
     # foreground; simple colour matching or a MODNet matte is insufficient.
@@ -3233,6 +3304,11 @@ def source_connected_background(
                     reasons.append("unresolved_interior_direction")
                 if unresolved_extent:
                     unresolved_material_regions += 1
+                    # A short normal guard does not establish which side is
+                    # material or how far its interior extends. Claim both
+                    # sides through complete opacity components below, without inventing
+                    # a finite rectangle/corridor from detector support.
+                    unresolved_seeds[region_slice] |= zone
                     reasons.append("unresolved_material_extent")
             if len(local_report["regions"]) < 64:
                 x, y, width, height, pixels = component_stats[label]
@@ -3249,19 +3325,60 @@ def source_connected_background(
                 })
     checkpoint("local_regions")
     counts["unresolved_weak_material_regions"] = unresolved_material_regions
+    unresolved_material = np.zeros(alpha.shape, dtype=bool)
+    if unresolved_material_regions:
+        # Ownership is conservative, never a new background class. A source
+        # edge may be lighting through one continuous sleeve; a colour stripe
+        # may be part of the same garment. Neither independently establishes
+        # the material's extent. Preserve complete original-alpha components,
+        # including diagonal and soft-alpha attachments, on BOTH sides of the
+        # unresolved support. If this claims the entire connected silhouette,
+        # there is no safe independent comparison and GrabCut must survive.
+        ownership_domain = alpha > 16
+        if ownership_alpha is not None and ownership_alpha.size != (alpha.shape[1], alpha.shape[0]):
+            # Averaged analysis alpha can erase a thin native soft connection
+            # and expose a whole material island to deletion. Boolean max
+            # pooling preserves EVERY native >16 sample and its adjacency;
+            # extra coarse connections only cause conservative protection.
+            # Reduce columns first, avoiding a full native float32 raster.
+            native_domain = np.asarray(ownership_alpha) > 16
+            native_height, native_width = native_domain.shape
+            columns = (np.arange(alpha.shape[1], dtype=np.int64)
+                       * native_width // alpha.shape[1])
+            rows = (np.arange(alpha.shape[0], dtype=np.int64)
+                    * native_height // alpha.shape[0])
+            ownership_domain = np.logical_or.reduceat(
+                np.logical_or.reduceat(native_domain, columns, axis=1), rows, axis=0)
+        component_count, ownership_labels = cv2.connectedComponents(
+            ownership_domain.astype(np.uint8), connectivity=8)
+        counts["uncertainty_ownership_components"] = component_count - 1
+        checkpoint("uncertainty_ownership")
+        if component_count > 32768:
+            diagnostics["reason"] = "uncertainty_ownership_too_complex"
+            local_report["auto_effect"] = "keep_grabcut"
+            return None
+        owned = np.zeros(component_count, dtype=bool)
+        owned[ownership_labels[unresolved_seeds]] = True
+        owned[0] = False
+        unresolved_material = owned[ownership_labels]
+    counts["unresolved_material_protected"] = int(np.count_nonzero(
+        unresolved_material & (alpha >= 192)))
     # A protected footprint always wins an overlap with another resolved zone.
     weak_background &= ~weak_protected
     weak_protected &= alpha >= 192
-    confirmed = (confirmed | weak_background) & ~weak_protected
+    weak_background &= ~unresolved_material
+    confirmed = (confirmed | weak_background) & ~weak_protected & ~unresolved_material
     local_report["regions_truncated"] = local_report["region_count"] > len(local_report["regions"])
     local_report["auto_effect"] = "compare_with_local_protection"
     counts["weak_source_contour_protected"] = int(np.count_nonzero(weak_protected))
     counts["weak_source_contour_background"] = int(np.count_nonzero(weak_background & (alpha >= 192)))
+    checkpoint("classification")
     return confirmed, source_lab, {
         "weak_contours": weak_edges,
         "weak_contour_zones": weak_guard,
         "weak_contour_protected": weak_protected,
         "weak_contour_background": weak_background & (alpha >= 192),
+        "unresolved_material_protected": unresolved_material & (alpha >= 192),
         "_graph_confirmed": graph_confirmed,
         **observational_masks,
         "_region_labels_x": region_labels["x"],
@@ -3382,6 +3499,7 @@ def grabcut_fallback_evidence(
     bbox: tuple[int, int, int, int],
     *,
     diagnostics: dict[str, Any] | None = None,
+    measure_guard_effect: bool = False,
 ) -> dict[str, Any] | None:
     """Find broad backdrop spills, without changing the source or its alpha.
 
@@ -3426,7 +3544,8 @@ def grabcut_fallback_evidence(
     enter_stage("foreground_area")
     source_rgb = image if image.mode == "RGB" else flattened_rgb(image)
     rgb = source_rgb.resize(size, Image.Resampling.BILINEAR)
-    alpha = np.asarray(subject.getchannel("A").resize(size, Image.Resampling.BILINEAR))
+    ownership_alpha = subject.getchannel("A")
+    alpha = np.asarray(ownership_alpha.resize(size, Image.Resampling.BILINEAR))
     foreground = alpha >= 128
     area = alpha.size
     foreground_area = int(np.count_nonzero(foreground))
@@ -3511,7 +3630,8 @@ def grabcut_fallback_evidence(
         rgb, alpha, candidates, background_like, report,
         raw_source=(source_rgb.resize(size, Image.Resampling.NEAREST)
                     if scale < 1 else None),
-        measure_guard_effect=diagnostics is not None,
+        measure_guard_effect=measure_guard_effect,
+        ownership_alpha=ownership_alpha,
     )
     if source_result is None:
         if "weak_source_contour_local" in report:
@@ -3541,6 +3661,12 @@ def grabcut_fallback_evidence(
         residual & graph_confirmed & ~confirmed_source))
     residual &= confirmed_source
     counts["after_continuity"] = int(np.count_nonzero(residual))
+    if (counts["unresolved_weak_material_regions"]
+            and counts["after_continuity"] < report["minimum_required"]):
+        # Subsequent texture/detail filters only remove residual pixels. Once
+        # conservative ownership leaves too little independent evidence, they
+        # cannot make comparison safe; do not pay for them or start a worker.
+        return reject("unresolved_weak_material_extent")
     enter_stage("texture")
     # Texture needs its OWN noise calibration, not the contour threshold.
     # Otherwise ordinary JPEG extrema become seeds, then a wide dilation can
@@ -3708,12 +3834,9 @@ def grabcut_fallback_evidence(
     counts["removed_by_detail_filter"] = counts["after_texture"] - residual_area
     enter_stage("residual_area")
     if residual_area < area * 0.02 or residual_area < foreground_area * 0.08:
-        return reject("insufficient_residual")
-    if counts["unresolved_weak_material_regions"]:
-        # Localizing the diagnostic guard must not silently license an
-        # unbounded matching garment interior. Keep GrabCut if independent
-        # source boundaries/material cannot establish its full extent.
-        return reject("unresolved_weak_material_extent")
+        return reject("unresolved_weak_material_extent"
+                      if counts["unresolved_weak_material_regions"]
+                      else "insufficient_residual")
 
     _, _, bbox_width, bbox_height = bbox
     if bbox_width <= 0 or bbox_height <= 0:
@@ -3789,7 +3912,8 @@ def modnet_fallback_is_better(
         # Source classes were fixed by the GrabCut probe before this candidate
         # existed. Candidate losses are diagnostics, never background evidence.
         for name in ("confident_foreground", "confident_background", "ambiguous",
-                     "weak_contour_protected", "weak_contour_background"):
+                     "weak_contour_protected", "weak_contour_background",
+                     "unresolved_material_protected"):
             mask = evidence.get(name)
             if mask is not None:
                 pixels = int(np.count_nonzero(mask))
@@ -3799,6 +3923,18 @@ def modnet_fallback_is_better(
                     original[mask].astype(np.float32) - alpha[mask], 0).sum(dtype=np.float64)) / 255
     if not SUBJECT_MASK_MIN_RATIO <= actual_ratio <= SUBJECT_MASK_MAX_RATIO:
         return finish("invalid_alpha_area")
+    unresolved_material = evidence.get("unresolved_material_protected")
+    if unresolved_material is not None:
+        # A whole-component average can hide a lost small hand or garment
+        # centre inside a large ambiguous ownership component. Unknown source
+        # material has no independent permission for ANY local opaque loss.
+        loss = unresolved_material & (
+            (alpha < 128) | (alpha.astype(np.float32) < original * 0.90)
+        )
+        if diagnostics is not None:
+            diagnostics["unresolved_material_loss_pixels"] = int(np.count_nonzero(loss))
+        if np.any(loss):
+            return finish("unresolved_material_foreground_loss")
     residual = evidence["residual"]
     before = float(original[residual].sum(dtype=np.float64)) / 255
     after = float(alpha[residual].sum(dtype=np.float64)) / 255
@@ -3881,6 +4017,7 @@ def modnet_fallback_is_better(
     return finish("accepted", True)
 
 
+@timed_function
 def custom_background_master(
     image: Image.Image,
     bbox: tuple[int, int, int, int],
@@ -3893,6 +4030,7 @@ def custom_background_master(
     source_path: Path | None = None,
     *,
     diagnostics: dict[str, Any] | None = None,
+    timings: dict[str, Any],
 ) -> tuple[Image.Image, float, str] | None:
     if diagnostics is not None:
         diagnostics.clear()
@@ -3902,6 +4040,7 @@ def custom_background_master(
             fallback_reason="no_source_path" if source_path is None else "not_checked",
             modnet_worker_calls=0,
             worker_error="",
+            timings_ms=timings,
         )
     if background_profile == BACKGROUND_PROFILE_ORIGINAL:
         if diagnostics is not None:
@@ -3917,12 +4056,13 @@ def custom_background_master(
     def attempt_modnet() -> tuple[Image.Image, float, dict[str, Any]] | None:
         if diagnostics is None:
             # Preserve the established direct-call contract for older callers.
-            return run_modnet_worker(source_path, image)
+            return measured_call(timings, "worker", run_modnet_worker, source_path, image)
         worker_diagnostics: dict[str, Any] = {}
         diagnostics["modnet_worker_calls"] += 1
         diagnostics["worker"] = worker_diagnostics
         try:
-            result = run_modnet_worker(source_path, image, diagnostics=worker_diagnostics)
+            result = measured_call(timings, "worker", run_modnet_worker,
+                                   source_path, image, diagnostics=worker_diagnostics)
         except Exception as error:
             worker_diagnostics.update(status="failed", worker_error=(
                 type(error).__name__ + ":" + str(error))[:200])
@@ -3943,7 +4083,7 @@ def custom_background_master(
             BACKGROUND_PROFILE_STUDIO,
             BACKGROUND_PROFILE_BRAND,
         )
-        and complex_background_prefers_modnet(
+        and measured_call(timings, "primary_route_analysis", complex_background_prefers_modnet,
             image
         )
     ):
@@ -3969,9 +4109,13 @@ def custom_background_master(
     # MODNet is optional. Any worker failure falls back
     # to the existing conservative GrabCut path.
     if subject is None:
-        subject_result = build_subject_rgba(
+        grabcut_timings: dict[str, Any] = {}
+        if diagnostics is not None:
+            diagnostics["grabcut_timings_ms"] = grabcut_timings
+        subject_result = measured_call(timings, "grabcut", build_subject_rgba,
             image,
             bbox,
+            detail=grabcut_timings,
         )
 
         if subject_result is None:
@@ -3995,15 +4139,22 @@ def custom_background_master(
             BACKGROUND_PROFILE_BRAND,
         )
     ):
-        subject = cosmetic_cleanup_subject_fringes(
+        cosmetic_timings: dict[str, Any] = {}
+        enclosed_timings: dict[str, Any] = {}
+        if diagnostics is not None:
+            diagnostics["cosmetic_timings_ms"] = cosmetic_timings
+            diagnostics["enclosed_gap_timings_ms"] = enclosed_timings
+        subject = measured_call(timings, "cosmetic_cleanup", cosmetic_cleanup_subject_fringes,
             image,
             subject,
             bbox,
+            detail=cosmetic_timings,
         )
-        subject = refine_upper_enclosed_background_gaps(
+        subject = measured_call(timings, "enclosed_gap_cleanup", refine_upper_enclosed_background_gaps,
             image,
             subject,
             bbox,
+            detail=enclosed_timings,
         )
 
         # Recheck the mask that would actually be rendered. Preserve the
@@ -4012,11 +4163,12 @@ def custom_background_master(
             stage = "probe"
             try:
                 if diagnostics is None:
-                    evidence = grabcut_fallback_evidence(image, subject, bbox)
+                    evidence = measured_call(timings, "probe", grabcut_fallback_evidence, image, subject, bbox)
                 else:
                     probe: dict[str, Any] = {}
                     diagnostics["probe"] = probe
-                    evidence = grabcut_fallback_evidence(image, subject, bbox, diagnostics=probe)
+                    evidence = measured_call(timings, "probe", grabcut_fallback_evidence,
+                                             image, subject, bbox, diagnostics=probe)
                 if evidence is not None:
                     stage = "worker"
                     modnet_result = attempt_modnet()
@@ -4027,12 +4179,12 @@ def custom_background_master(
                     else:
                         stage = "comparison"
                         if diagnostics is None:
-                            better = modnet_fallback_is_better(
+                            better = measured_call(timings, "comparison", modnet_fallback_is_better,
                                 modnet_result[0], modnet_result[1], evidence)
                         else:
                             comparison: dict[str, Any] = {}
                             diagnostics["comparison"] = comparison
-                            better = modnet_fallback_is_better(
+                            better = measured_call(timings, "comparison", modnet_fallback_is_better,
                                 modnet_result[0], modnet_result[1], evidence, diagnostics=comparison)
                             diagnostics.update(
                                 fallback_status="accepted" if better else "rejected",
@@ -4058,7 +4210,7 @@ def custom_background_master(
         and torso_center is not None
         and shoulder_center is not None
     ):
-        subject_canvas = transparent_zoom_out_canvas(
+        subject_canvas = measured_call(timings, "subject_canvas", transparent_zoom_out_canvas,
             subject,
             torso_center,
             shoulder_center,
@@ -4068,18 +4220,18 @@ def custom_background_master(
         if subject_canvas is None:
             return None
     elif crop_box is not None:
-        subject_canvas = transparent_standard_canvas(
+        subject_canvas = measured_call(timings, "subject_canvas", transparent_standard_canvas,
             subject.crop(crop_box),
             MASTER_SIZE,
         )
     else:
-        subject_canvas = transparent_standard_canvas(
+        subject_canvas = measured_call(timings, "subject_canvas", transparent_standard_canvas,
             subject,
             MASTER_SIZE,
         )
 
     return (
-        compose_subject_on_background(
+        measured_call(timings, "compose", compose_subject_on_background,
             subject_canvas,
             background_profile,
         ),
@@ -4433,10 +4585,13 @@ def source_has_cropped_closeup_edges(image: Image.Image) -> bool:
     return bool(np.any((top[1:] >= minimum) & (bottom[1:] >= minimum)))
 
 
+@timed_function
 def normalized_master(
     image: Image.Image,
     background_profile: str = DEFAULT_BACKGROUND_PROFILE,
     source_path: Path | None = None,
+    *,
+    timings: dict[str, Any],
 ) -> tuple[Image.Image, dict[str, Any]]:
     background_profile = normalize_background_profile(
         background_profile
@@ -4445,7 +4600,7 @@ def normalized_master(
     method = ""
     person_score = None
 
-    mediapipe_result = detect_mediapipe_person_bbox(image)
+    mediapipe_result = measured_call(timings, "detect_mediapipe", detect_mediapipe_person_bbox, image)
     mediapipe_torso_center = None
     mediapipe_shoulder_center = None
     mediapipe_hip_center = None
@@ -4465,17 +4620,18 @@ def normalized_master(
         method = "mediapipe-persondet"
 
     if bbox is None:
-        bbox = detect_face_subject_bbox(image)
+        bbox = measured_call(timings, "detect_face", detect_face_subject_bbox, image)
         method = "opencv-haar-face-subject"
 
     if bbox is None:
-        bbox = detect_person_bbox(image)
+        bbox = measured_call(timings, "detect_hog", detect_person_bbox, image)
         method = "opencv-hog-person"
 
     if bbox is None:
         return (
-            standard_canvas(image, MASTER_SIZE),
+            measured_call(timings, "original_canvas", standard_canvas, image, MASTER_SIZE),
             {
+                "timings_ms": timings,
                 "subject_detected": False,
                 "crop_applied": False,
                 "method": "standard-canvas-fallback",
@@ -4490,8 +4646,9 @@ def normalized_master(
             },
         )
 
+    geometry_started = time.perf_counter()
     crop_strategy = "subject-bbox"
-    crop_box = subject_crop_box(image, bbox)
+    crop_box = measured_call(timings, "bbox_crop", subject_crop_box, image, bbox)
     zoomed_master = None
 
     torso_ratio_before = None
@@ -4505,7 +4662,7 @@ def normalized_master(
         and mediapipe_torso_length is not None
         and mediapipe_upper_radius is not None
     ):
-        torso_crop = mediapipe_torso_crop_box(
+        torso_crop = measured_call(timings, "torso_crop", mediapipe_torso_crop_box,
             image,
             mediapipe_shoulder_center,
             mediapipe_hip_center,
@@ -4517,7 +4674,7 @@ def normalized_master(
             crop_box, torso_ratio_before = torso_crop
             crop_strategy = "torso-normalize"
         elif mediapipe_torso_center is not None:
-            torso_zoom_out = mediapipe_torso_zoom_out_canvas(
+            torso_zoom_out = measured_call(timings, "torso_zoom_out_canvas", mediapipe_torso_zoom_out_canvas,
                 image,
                 mediapipe_torso_center,
                 mediapipe_shoulder_center,
@@ -4542,7 +4699,7 @@ def normalized_master(
         and method == "mediapipe-persondet"
         and mediapipe_torso_center is not None
     ):
-        aspect_fill_crop = mediapipe_aspect_fill_crop_box(
+        aspect_fill_crop = measured_call(timings, "aspect_fill_crop", mediapipe_aspect_fill_crop_box,
             image,
             mediapipe_torso_center,
         )
@@ -4574,7 +4731,7 @@ def normalized_master(
     # Keep an already frame-cropped close-up instead of zooming it out.
     if (
         crop_strategy == "torso-zoom-out"
-        and source_has_cropped_closeup_edges(image)
+        and measured_call(timings, "closeup_analysis", source_has_cropped_closeup_edges, image)
     ):
         crop_strategy = "preserve-closeup"
         crop_box = None
@@ -4583,7 +4740,9 @@ def normalized_master(
         torso_ratio_after = None
         zoom_scale = None
 
+    timings["geometry"] = round((time.perf_counter() - geometry_started) * 1000, 3)
     diagnostics = {
+        "timings_ms": timings,
         "subject_detected": True,
         "crop_applied": crop_box is not None,
         "method": (
@@ -4646,7 +4805,7 @@ def normalized_master(
 
     if background_profile != BACKGROUND_PROFILE_ORIGINAL:
         mask_selection: dict[str, Any] = {}
-        custom_background = custom_background_master(
+        custom_background = measured_call(timings, "custom_background", custom_background_master,
             image,
             bbox,
             crop_box,
@@ -4699,15 +4858,15 @@ def normalized_master(
 
     if crop_box is None:
         return (
-            standard_canvas(image, MASTER_SIZE),
+            measured_call(timings, "original_canvas", standard_canvas, image, MASTER_SIZE),
             diagnostics,
         )
 
     diagnostics["crop_box"] = list(crop_box)
-    cropped = image.crop(crop_box)
+    cropped = measured_call(timings, "original_crop", image.crop, crop_box)
 
     return (
-        standard_canvas(cropped, MASTER_SIZE),
+        measured_call(timings, "original_canvas", standard_canvas, cropped, MASTER_SIZE),
         diagnostics,
     )
 
@@ -4774,11 +4933,14 @@ def save_webp(image: Image.Image, target: Path, quality: int) -> None:
     )
 
 
+@timed_function
 def process_image(
     source_value: Any,
     background_profile_value: Any = None,
+    *,
+    timings: dict[str, Any],
 ) -> dict[str, Any]:
-    source = safe_source_path(source_value)
+    source = measured_call(timings, "source_validation", safe_source_path, source_value)
     background_profile = normalize_background_profile(
         background_profile_value
     )
@@ -4792,18 +4954,19 @@ def process_image(
     original = original_dir / source.name
 
     try:
-        shutil.copy2(source, original)
-        original_hash = sha256_file(original)
+        measured_call(timings, "copy_original", shutil.copy2, source, original)
+        original_hash = measured_call(timings, "hash_original", sha256_file, original)
 
-        image = normalized_image(original)
+        decode_timings: dict[str, Any] = {}
+        image = measured_call(timings, "decode", normalized_image, original, detail=decode_timings)
         width, height = image.size
 
-        master, normalization = normalized_master(
+        master, normalization = measured_call(timings, "normalization", normalized_master,
             image,
             background_profile,
             source_path=original,
         )
-        thumb = master.resize(
+        thumb = measured_call(timings, "thumbnail_resize", master.resize,
             THUMB_SIZE,
             Image.Resampling.LANCZOS,
         )
@@ -4811,11 +4974,13 @@ def process_image(
         master_path = processed_dir / "master.webp"
         thumb_path = processed_dir / "thumb.webp"
 
-        save_webp(master, master_path, 92)
-        save_webp(thumb, thumb_path, 86)
+        measured_call(timings, "save_master", save_webp, master, master_path, 92)
+        measured_call(timings, "save_thumb", save_webp, thumb, thumb_path, 86)
 
         return {
             "ok": True,
+            "timings_ms": timings,
+            "decode_timings_ms": decode_timings,
             "processor_version": VERSION,
             "profile": PROFILE,
             "background_profile": (

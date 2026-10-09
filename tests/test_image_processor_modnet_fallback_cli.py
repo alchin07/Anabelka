@@ -204,7 +204,15 @@ class ModnetFallbackCliTests(unittest.TestCase):
         self.assertIn("classification-map.png", mapped[7])
         for stage, _ in cli.STAGES:
             first, second = plain_report["stages"][stage], mapped_report["stages"][stage]
-            self.assertEqual(first["normalization"], second["normalization"], stage)
+            def processing_fields(value):
+                if isinstance(value, dict):
+                    return {key: processing_fields(item) for key, item in value.items()
+                            if key != "timings_ms" and not key.endswith("_timings_ms")}
+                if isinstance(value, list):
+                    return [processing_fields(item) for item in value]
+                return value
+            self.assertEqual(processing_fields(first["normalization"]),
+                             processing_fields(second["normalization"]), stage)
             self.assertEqual(first["modnet_worker_calls"], second["modnet_worker_calls"], stage)
             self.assertEqual(plain[7][stage + ".webp"], mapped[7][stage + ".webp"], stage)
         self.assertEqual(mapped[3], mapped[4])
