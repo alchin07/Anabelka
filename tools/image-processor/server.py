@@ -2523,6 +2523,564 @@ def complex_background_prefers_modnet(
     )
 
 
+def weak_source_contour_uncertainty(
+    source_lab: np.ndarray,
+    alpha: np.ndarray,
+    candidates: np.ndarray,
+    background_like: np.ndarray,
+    diagnostics: dict[str, Any],
+) -> bool:
+    """Keep GrabCut when backdrop noise obscures a coherent weak source edge.
+
+    ``source_lab`` is the caller's floating Lab raster, with L scaled to 255
+    and a/b shifted by 128. No candidate matte participates in this test.
+    True means that the source cannot support confident backdrop removal;
+    it does not manufacture a foreground silhouette from an incomplete edge.
+    """
+    normal_bin_width = 3
+    normal_radius = normal_bin_width * 2
+    normal_width = normal_radius * 2 + 1
+    tangent_widths = (191, 127, 63, 31, 15)
+    minimum_extent = 21
+    insufficient_reference = False
+    axis_reports = {}
+    uncertain_edges = 0
+
+    for axis, axis_name in ((1, "x"), (0, "y")):
+        # Orient both passes so columns measure the contour normal and rows
+        # measure its tangent. The same calibration then applies in each axis.
+        if axis == 0:
+            source = np.swapaxes(source_lab, 0, 1)
+            candidate_domain = candidates.T
+            oriented_alpha = alpha.T
+            oriented_background = background_like.T
+        else:
+            source = source_lab
+            candidate_domain = candidates
+            oriented_alpha = alpha
+            oriented_background = background_like
+        padded = np.pad(
+            source, ((0, 0), (normal_radius, normal_radius), (0, 0)),
+            mode="edge",
+        )
+
+        def normal_mean(start: int, end: int) -> np.ndarray:
+            return sum(
+                padded[
+                    :, normal_radius + start + offset:
+                    normal_radius + start + offset + source.shape[1]
+                ]
+                for offset in range(end - start)
+            ) / (end - start)
+
+        near_left = normal_mean(-normal_bin_width, 0)
+        near_right = normal_mean(0, normal_bin_width)
+        # Average the two source sides directly: subtracting additional
+        # short derivatives amplifies noise until a weak real step vanishes.
+        # Observed clear-source variation calibrates lighting as well as grain.
+        local_step = near_right - near_left
+        # Every normal sample must belong to the palette candidate domain.
+        # Mask BEFORE tangent averaging so contrasting skin/body contours
+        # cannot project into similarly coloured backdrop past a corner.
+        valid = cv2.erode(
+            candidate_domain.astype(np.uint8),
+            np.ones((1, normal_width), dtype=np.uint8),
+        ).astype(bool)
+        local_step *= valid[:, :, None]
+        clear = ((oriented_alpha <= 16) & oriented_background).astype(np.uint8)
+        # Use the longest independently calibrated span. Smaller rasters or
+        # narrow clear patches use a shorter span instead of skipping an axis.
+        # Zero erosion borders exclude reflected/padded filter footprints from
+        # noise training: only actual, fully clear source samples count.
+        for tangent_width in tangent_widths:
+            reference = cv2.erode(
+                clear,
+                np.ones((tangent_width + 2, normal_width + 2), dtype=np.uint8),
+                borderType=cv2.BORDER_CONSTANT, borderValue=0,
+            ).astype(bool)
+            reference_count = int(np.count_nonzero(reference))
+            if reference_count >= 8:
+                break
+        axis_report = {
+            "reference_pixels": reference_count,
+            "tangent_width": tangent_width,
+        }
+        axis_reports[axis_name] = axis_report
+        if reference_count < 8:
+            axis_report["reason"] = "insufficient_reference"
+            insufficient_reference = True
+            continue
+        coherent_step = cv2.boxFilter(local_step, -1, (1, tangent_width))
+        strength = np.linalg.norm(coherent_step, axis=2)
+
+        reference_strength = strength[reference]
+        long_limit = max(
+            0.1,
+            float(reference_strength.max() + 2 * reference_strength.std()),
+        )
+        short_strength = np.linalg.norm(local_step, axis=2)
+        short_reference = short_strength[reference]
+        short_noise_envelope = max(
+            0.1,
+            float(np.percentile(short_reference, 99)
+                  + 2 * short_reference.std()),
+        )
+        # A real long edge must also have local source support: a majority
+        # (55%) of short normal steps point in its coherent direction. The weak
+        # interval lies below half the observed short-noise envelope, where
+        # pixelwise source connectivity cannot establish a reliable outline.
+        locally_aligned = (
+            (np.sum(local_step * coherent_step, axis=2) > 0)
+            .astype(np.float32) * valid
+        )
+        alignment_density = cv2.boxFilter(
+            locally_aligned, -1, (1, tangent_width),
+        )
+        normal_maximum = cv2.dilate(
+            strength, np.ones((1, normal_width), dtype=np.uint8),
+        )
+        suspected = (
+            (strength > long_limit)
+            & (strength < 0.5 * short_noise_envelope)
+            & (alignment_density > 0.55)
+            & valid & (oriented_alpha >= 192)
+            & (strength >= normal_maximum)
+        )
+        # Normal maxima suppress nearby weaker responses of strong backdrop
+        # seams. Require a connected 21-pixel tangent extent; isolated
+        # compression extrema cannot decline the comparison.
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(
+            suspected.astype(np.uint8), connectivity=8,
+        )
+        significant = np.zeros(count, dtype=bool)
+        significant[1:] = (
+            stats[1:, cv2.CC_STAT_HEIGHT] >= minimum_extent
+        )
+        suspected = significant[labels]
+        axis_count = int(np.count_nonzero(suspected))
+        uncertain_edges += axis_count
+        axis_report.update({
+            "long_background_max": round(float(reference_strength.max()), 4),
+            "long_background_std": round(float(reference_strength.std()), 4),
+            "long_threshold": round(long_limit, 4),
+            "short_noise_envelope": round(short_noise_envelope, 4),
+            "weak_upper_limit": round(0.5 * short_noise_envelope, 4),
+            "uncertain_edges": axis_count,
+        })
+
+    diagnostics["weak_source_contour_calibration"] = axis_reports
+    diagnostics["weak_source_contour_tangent_widths"] = list(tangent_widths)
+    diagnostics["weak_source_contour_minimum_extent"] = minimum_extent
+    diagnostics["counts"]["weak_source_contour_uncertain_edges"] = uncertain_edges
+    if insufficient_reference:
+        diagnostics["reason"] = "insufficient_weak_source_contour_reference"
+        return True
+    if uncertain_edges:
+        diagnostics["reason"] = "weak_source_contour_uncertainty"
+        return True
+    return False
+
+
+def source_connected_background(
+    image: Image.Image,
+    alpha: np.ndarray,
+    candidates: np.ndarray,
+    background_like: np.ndarray,
+    diagnostics: dict[str, Any],
+    *,
+    raw_source: Image.Image | None = None,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Find clear-edge backdrop paths without crossing source contours.
+
+    Links join neighbouring source pixels, rather than forbidding entire edge
+    neighbourhoods. This keeps the backdrop side of a real contour available
+    while retaining independently bounded, similarly coloured model details.
+    Float Lab preserves weak RGB differences lost by eight-bit Lab conversion.
+    The raster stays at the caller's maximum 512-pixel analysis edge; graph
+    work has separate conservative caps and never consults a MODNet candidate.
+    """
+    counts = diagnostics["counts"]
+    foreground = alpha >= 128
+    source_lab = cv2.cvtColor(
+        np.asarray(image).astype(np.float32) / 255,
+        cv2.COLOR_RGB2LAB,
+    )
+    source_lab[:, :, 0] *= 2.55
+    source_lab[:, :, 1:] += 128
+    if weak_source_contour_uncertainty(
+        source_lab, alpha, candidates, background_like, diagnostics,
+    ):
+        # The helper distinguishes ambiguous source structure from missing
+        # calibration; keep its precise refusal reason in mask selection.
+        return None
+    padded_x = np.pad(source_lab, ((0, 0), (1, 1), (0, 0)), mode="edge")
+    padded_y = np.pad(source_lab, ((1, 1), (0, 0), (0, 0)), mode="edge")
+    delta_x = source_lab[:, 1:] - source_lab[:, :-1]
+    delta_y = source_lab[1:] - source_lab[:-1]
+    # Subtract same-side slopes: gradual lighting is not an object boundary.
+    signed_x = delta_x - 0.5 * (
+        (padded_x[:, 3:] - padded_x[:, 2:-1])
+        + (padded_x[:, 1:-2] - padded_x[:, :-3])
+    )
+    signed_y = delta_y - 0.5 * (
+        (padded_y[3:] - padded_y[2:-1])
+        + (padded_y[1:-2] - padded_y[:-3])
+    )
+    coherent_x = cv2.boxFilter(signed_x, -1, (1, 15))
+    coherent_y = cv2.boxFilter(signed_y, -1, (15, 1))
+    strength_x = np.linalg.norm(coherent_x, axis=2)
+    strength_y = np.linalg.norm(coherent_y, axis=2)
+    clear_reference = cv2.erode(
+        ((alpha <= 16) & background_like).astype(np.uint8),
+        np.ones((19, 19), dtype=np.uint8),
+    ).astype(bool)
+    # Lighting transitions are real source edges, not noise samples. Every
+    # training footprint must remain within one independently clear tone;
+    # both sides of a lighting transition have their own frame-edge seeds.
+    tone_kernel = np.ones((19, 19), dtype=np.uint8)
+    tone_range = (
+        cv2.dilate(source_lab, tone_kernel) - cv2.erode(source_lab, tone_kernel)
+    )
+    same_tone = (
+        (tone_range[:, :, 0] <= 10)
+        & (np.linalg.norm(tone_range[:, :, 1:], axis=2) <= 5)
+    )
+    clear_reference &= same_tone
+    counts["source_tone_reference"] = int(np.count_nonzero(clear_reference))
+    reference_x = clear_reference[:, 1:] & clear_reference[:, :-1]
+    reference_y = clear_reference[1:] & clear_reference[:-1]
+    if (np.count_nonzero(reference_x) < 8
+            or np.count_nonzero(reference_y) < 8):
+        diagnostics["reason"] = "insufficient_contour_reference"
+        return None
+
+    high_frequency = source_lab[:, :, 0] - cv2.GaussianBlur(
+        source_lab[:, :, 0], (3, 3), 0,
+    )
+
+    def neighbour_correlation(
+        first: np.ndarray,
+        second: np.ndarray,
+        reference: np.ndarray,
+    ) -> float:
+        first_samples = first[reference].astype(np.float64)
+        second_samples = second[reference].astype(np.float64)
+        first_samples -= first_samples.mean()
+        second_samples -= second_samples.mean()
+        denominator = np.sqrt(
+            np.sum(first_samples * first_samples)
+            * np.sum(second_samples * second_samples)
+        )
+        if denominator <= 1e-8:
+            return 0.0
+        return float(np.sum(first_samples * second_samples) / denominator)
+
+    correlation_x = neighbour_correlation(
+        high_frequency[:, 1:], high_frequency[:, :-1], reference_x,
+    )
+    correlation_y = neighbour_correlation(
+        high_frequency[1:], high_frequency[:-1], reference_y,
+    )
+    diagnostics["background_noise_correlation_x"] = round(correlation_x, 4)
+    diagnostics["background_noise_correlation_y"] = round(correlation_y, 4)
+    # A periodic alternating field can hide similarly fine model structure.
+    # Ordinary JPEG noise and smooth gradients lack this strong two-axis
+    # anticorrelation; structured references conservatively keep GrabCut.
+    if correlation_x < -0.7 and correlation_y < -0.7:
+        diagnostics["reason"] = "structured_background_texture"
+        return None
+
+    limit_x = max(
+        0.1, float(np.percentile(strength_x[reference_x], 95)) + 0.05,
+    )
+    limit_y = max(
+        0.1, float(np.percentile(strength_y[reference_y], 95)) + 0.05,
+    )
+    block_x = strength_x > limit_x
+    block_y = strength_y > limit_y
+    # Nearby actual source links support compression gaps; a tangent average
+    # by itself cannot paint a contour across an otherwise flat backdrop.
+    local_x = cv2.boxFilter(delta_x, -1, (1, 3))
+    local_y = cv2.boxFilter(delta_y, -1, (3, 1))
+    block_x &= np.sum(coherent_x * local_x, axis=2) > 0
+    block_y &= np.sum(coherent_y * local_y, axis=2) > 0
+    diagnostics["continuity_threshold"] = round(max(limit_x, limit_y), 4)
+    diagnostics["source_contour_threshold_x"] = round(limit_x, 4)
+    diagnostics["source_contour_threshold_y"] = round(limit_y, 4)
+    # Keep central contour maxima, avoiding derivative side-lobe rings which
+    # would incorrectly isolate background pixels next to a genuine contour.
+    padded_strength_x = np.pad(strength_x, ((0, 0), (1, 1)), mode="edge")
+    padded_strength_y = np.pad(strength_y, ((1, 1), (0, 0)), mode="edge")
+    block_x &= (
+        (strength_x >= padded_strength_x[:, :-2])
+        & (strength_x >= padded_strength_x[:, 2:])
+    )
+    block_y &= (
+        (strength_y >= padded_strength_y[:-2])
+        & (strength_y >= padded_strength_y[2:])
+    )
+    # Raw source steps complement slope-cancelled contours at curved corners.
+    # Sampling the native colors avoids inventing a thin intermediate-tone
+    # strip beside a body edge when the analysis image is downscaled. The
+    # primary contour and texture analysis retain their bilinear samples.
+    raw_lab = source_lab
+    if raw_source is not None:
+        raw_lab = cv2.cvtColor(
+            np.asarray(raw_source).astype(np.float32) / 255,
+            cv2.COLOR_RGB2LAB,
+        )
+        raw_lab[:, :, 0] *= 2.55
+        raw_lab[:, :, 1:] += 128
+    raw_delta_x = raw_lab[:, 1:] - raw_lab[:, :-1]
+    raw_delta_y = raw_lab[1:] - raw_lab[:-1]
+    candidate_x = (candidates[:, 1:] > 0) & (candidates[:, :-1] > 0)
+    candidate_y = (candidates[1:] > 0) & (candidates[:-1] > 0)
+    # Contrasting body edges already forbid graph links through foreground.
+    # They must not project a large averaged response into nearby backdrop.
+    masked_delta_x = raw_delta_x * candidate_x[:, :, None]
+    masked_delta_y = raw_delta_y * candidate_y[:, :, None]
+    for tangent_width in (1, 3, 15):
+        raw_x = cv2.boxFilter(masked_delta_x, -1, (1, tangent_width))
+        raw_y = cv2.boxFilter(masked_delta_y, -1, (tangent_width, 1))
+        raw_strength_x = np.linalg.norm(raw_x, axis=2)
+        raw_strength_y = np.linalg.norm(raw_y, axis=2)
+        raw_limit_x = max(
+            0.1, float(np.percentile(raw_strength_x[reference_x], 99)) + 0.05,
+        )
+        raw_limit_y = max(
+            0.1, float(np.percentile(raw_strength_y[reference_y], 99)) + 0.05,
+        )
+        diagnostics["source_contour_thresholds_" + str(tangent_width)] = [
+            round(raw_limit_x, 4), round(raw_limit_y, 4),
+        ]
+        raw_block_x = raw_strength_x > raw_limit_x
+        raw_block_y = raw_strength_y > raw_limit_y
+        if tangent_width == 1:
+            # A contrast-body transition may suppress a resampling fringe.
+            # An independently exposed backdrop tone transition must not
+            # suppress a second genuine weak contour beside that transition:
+            # a JPEG lighting seam can otherwise open a path into real hair.
+            normal_strength_x = np.linalg.norm(raw_delta_x, axis=2) * ~candidate_x
+            normal_strength_y = np.linalg.norm(raw_delta_y, axis=2) * ~candidate_y
+        else:
+            normal_strength_x = raw_strength_x
+            normal_strength_y = raw_strength_y
+        padded_normal_x = np.pad(
+            normal_strength_x, ((0, 0), (1, 1)), mode="edge",
+        )
+        padded_normal_y = np.pad(
+            normal_strength_y, ((1, 1), (0, 0)), mode="edge",
+        )
+        raw_block_x &= (
+            (raw_strength_x >= padded_normal_x[:, :-2])
+            & (raw_strength_x >= padded_normal_x[:, 2:])
+        )
+        raw_block_y &= (
+            (raw_strength_y >= padded_normal_y[:-2])
+            & (raw_strength_y >= padded_normal_y[2:])
+        )
+        # A response must agree with an actual source step at this link.
+        raw_block_x &= np.sum(raw_x * raw_delta_x, axis=2) > 0
+        raw_block_y &= np.sum(raw_y * raw_delta_y, axis=2) > 0
+        block_x |= raw_block_x
+        block_y |= raw_block_y
+
+    # Compression may shift a weak source outline by two pixels. Its normal
+    # response may support a nearby GrabCut silhouette only beside actual
+    # contrasting source foreground. Arbitrary distant spill edges do not
+    # acquire protection merely from belonging to the GrabCut foreground.
+    source_core = (alpha >= 192) & (candidates == 0)
+    distance_to_core = cv2.distanceTransform(
+        (~source_core).astype(np.uint8), cv2.DIST_L2, 3,
+    )
+    near_source_core = distance_to_core <= max(3, min(alpha.shape) * 0.1)
+    alpha_edge_x = foreground[:, 1:] != foreground[:, :-1]
+    alpha_edge_y = foreground[1:] != foreground[:-1]
+    supported_x = cv2.dilate(
+        (strength_x > limit_x).astype(np.uint8),
+        np.ones((1, 5), dtype=np.uint8),
+    ).astype(bool)
+    supported_y = cv2.dilate(
+        (strength_y > limit_y).astype(np.uint8),
+        np.ones((5, 1), dtype=np.uint8),
+    ).astype(bool)
+    snap_x = (
+        alpha_edge_x & supported_x
+        & (near_source_core[:, 1:] | near_source_core[:, :-1])
+    )
+    snap_y = (
+        alpha_edge_y & supported_y
+        & (near_source_core[1:] | near_source_core[:-1])
+    )
+    block_x |= snap_x
+    block_y |= snap_y
+    counts["source_supported_silhouette_edges"] = int(
+        np.count_nonzero(snap_x) + np.count_nonzero(snap_y)
+    )
+
+    # Contiguous horizontal runs are graph nodes. Union only unique permitted
+    # vertical links, with rank/path compression and explicit work limits.
+    usable = candidates.astype(bool)
+    breaks = usable.copy()
+    breaks[:, 1:] = usable[:, 1:] & (~usable[:, :-1] | block_x)
+    run_labels = np.cumsum(
+        breaks.ravel(), dtype=np.int32,
+    ).reshape(alpha.shape)
+    run_labels[~usable] = 0
+    run_count = int(run_labels.max()) + 1
+    counts["source_graph_runs"] = run_count - 1
+    if run_count > 32768:
+        diagnostics["reason"] = "source_graph_too_complex"
+        return None
+    parent = np.arange(run_count, dtype=np.int32)
+    rank = np.zeros(run_count, dtype=np.uint8)
+    links = usable[1:] & usable[:-1] & ~block_y
+    pair_codes = (
+        run_labels[1:][links].astype(np.int64) * run_count
+        + run_labels[:-1][links]
+    )
+    pair_codes = np.unique(pair_codes)
+    counts["source_graph_links"] = int(pair_codes.size)
+    if pair_codes.size > 65536:
+        diagnostics["reason"] = "source_graph_too_complex"
+        return None
+
+    def root(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    for pair_code in pair_codes:
+        first_root = root(int(pair_code // run_count))
+        second_root = root(int(pair_code % run_count))
+        if first_root == second_root:
+            continue
+        if rank[first_root] < rank[second_root]:
+            first_root, second_root = second_root, first_root
+        parent[second_root] = first_root
+        if rank[first_root] == rank[second_root]:
+            rank[first_root] += 1
+    roots = np.array([root(i) for i in range(run_count)], dtype=np.int32)
+    clear_connected = np.zeros(run_count, dtype=bool)
+    for edge_labels, edge_alpha in (
+        (run_labels[0], alpha[0]),
+        (run_labels[-1], alpha[-1]),
+        (run_labels[:, 0], alpha[:, 0]),
+        (run_labels[:, -1], alpha[:, -1]),
+    ):
+        clear_connected[roots[edge_labels[edge_alpha <= 16]]] = True
+    clear_connected[0] = False
+    return clear_connected[roots[run_labels]], source_lab
+
+
+def source_paired_lines(
+    source_lab: np.ndarray,
+    alpha: np.ndarray,
+    background_like: np.ndarray,
+    *,
+    seed_domain: np.ndarray | None = None,
+    tangent_width: int = 15,
+    max_gap: int = 4,
+) -> tuple[np.ndarray, np.ndarray, list[tuple[float, float, float]]] | None:
+    """Protect thin source ridges without mistaking lighting steps for seams.
+
+    Opposed, tangent-coherent normal steps must also exist in the unaveraged
+    source. Train their score against clear backdrop, then protect only a small
+    normal neighbourhood. Clip seeds before dilation so averaging cannot paint
+    a neighbouring foreground stitch into clear background.
+    """
+    height, width = alpha.shape
+    ridges = np.zeros(alpha.shape, dtype=bool)
+    guards = np.zeros(alpha.shape, dtype=bool)
+    guard_radius = max(3, round(min(alpha.shape) * 0.01))
+    limits = []
+    for axis in (0, 1):
+        directional_ridges = np.zeros(alpha.shape, dtype=bool)
+        raw = np.diff(source_lab, axis=axis)
+        tangent_kernel = (
+            (tangent_width, 1) if axis == 0 else (1, tangent_width)
+        )
+        coherent = cv2.boxFilter(raw, -1, tangent_kernel)
+        strength = np.linalg.norm(coherent, axis=2)
+        scores = np.zeros(strength.shape, dtype=np.float32)
+        pairs = []
+        for gap in range(1, max_gap + 1):
+            first = coherent[:-gap] if axis == 0 else coherent[:, :-gap]
+            second = coherent[gap:] if axis == 0 else coherent[:, gap:]
+            first_strength = (
+                strength[:-gap] if axis == 0 else strength[:, :-gap]
+            )
+            second_strength = (
+                strength[gap:] if axis == 0 else strength[:, gap:]
+            )
+            opposite = np.sum(first * second, axis=2) <= (
+                -0.8 * first_strength * second_strength
+            )
+            score = np.where(
+                opposite, np.minimum(first_strength, second_strength), 0,
+            )
+            pairs.append((gap, score))
+            if axis == 0:
+                scores[:-gap] = np.maximum(scores[:-gap], score)
+                scores[gap:] = np.maximum(scores[gap:], score)
+            else:
+                scores[:, :-gap] = np.maximum(scores[:, :-gap], score)
+                scores[:, gap:] = np.maximum(scores[:, gap:], score)
+        clear = (alpha <= 16) & background_like
+        reference_shape = (
+            (2 * max_gap + 3, tangent_width + 2)
+            if axis == 0 else (tangent_width + 2, 2 * max_gap + 3)
+        )
+        reference = cv2.erode(
+            clear.astype(np.uint8),
+            np.ones(reference_shape, dtype=np.uint8),
+        ).astype(bool)
+        reference = reference[:-1] if axis == 0 else reference[:, :-1]
+        if np.count_nonzero(reference) < 8:
+            return None
+        maximum = float(np.max(scores[reference]))
+        spread = float(np.std(scores[reference]))
+        limit = max(0.1, maximum + 2 * spread)
+        limits.append((maximum, spread, limit))
+        for gap, score in pairs:
+            first_raw = raw[:-gap] if axis == 0 else raw[:, :-gap]
+            second_raw = raw[gap:] if axis == 0 else raw[:, gap:]
+            first_raw_strength = np.linalg.norm(first_raw, axis=2)
+            second_raw_strength = np.linalg.norm(second_raw, axis=2)
+            # A tangent average alone cannot licence protecting pixels beside
+            # a seam: require an opposed pair at the same source pixel too.
+            local_opposite = np.sum(first_raw * second_raw, axis=2) <= (
+                -0.8 * first_raw_strength * second_raw_strength
+            )
+            accepted = (
+                (score > limit) & local_opposite
+                & (first_raw_strength > 0) & (second_raw_strength > 0)
+            )
+            for offset in range(1, gap + 1):
+                if axis == 0:
+                    directional_ridges[
+                        offset:height - 1 - gap + offset
+                    ] |= accepted
+                else:
+                    directional_ridges[
+                        :, offset:width - 1 - gap + offset
+                    ] |= accepted
+        directional_ridges &= alpha >= 128
+        if seed_domain is not None:
+            directional_ridges &= seed_domain
+        ridges |= directional_ridges
+        normal_shape = (
+            (guard_radius * 2 + 1, 1)
+            if axis == 0 else (1, guard_radius * 2 + 1)
+        )
+        guards |= cv2.dilate(
+            directional_ridges.astype(np.uint8),
+            np.ones(normal_shape, dtype=np.uint8),
+        ).astype(bool)
+    return ridges, guards, limits
+
+
 def grabcut_fallback_evidence(
     image: Image.Image,
     subject: Image.Image,
@@ -2535,7 +3093,8 @@ def grabcut_fallback_evidence(
     Colour is only evidence for a second opinion, never permission to erase
     pixels. Use transparent border patches, source-edge connectivity and
     thickness to avoid treating enclosed fabric or thin hair as a backdrop.
-    All NumPy analysis buffers have a 512-pixel maximum edge.
+    Analysis rasters have a 512-pixel maximum edge. Classification is based
+    on source evidence before any optional MODNet candidate is obtained.
     """
     report = diagnostics if diagnostics is not None else {}
     report.clear()
@@ -2558,8 +3117,8 @@ def grabcut_fallback_evidence(
         return reject("analysis_too_narrow")
     report["analysis_size"] = list(size)
     report["stage"] = "foreground_area"
-    rgb = (image if image.mode == "RGB" else flattened_rgb(image)).resize(
-        size, Image.Resampling.BILINEAR)
+    source_rgb = image if image.mode == "RGB" else flattened_rgb(image)
+    rgb = source_rgb.resize(size, Image.Resampling.BILINEAR)
     alpha = np.asarray(subject.getchannel("A").resize(size, Image.Resampling.BILINEAR))
     foreground = alpha >= 128
     area = alpha.size
@@ -2570,24 +3129,20 @@ def grabcut_fallback_evidence(
         return reject("invalid_foreground_area")
 
     lab = cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2LAB).astype(np.float32)
-    source_variation = np.linalg.norm(cv2.morphologyEx(
-        lab, cv2.MORPH_GRADIENT, np.ones((3, 3), dtype=np.uint8)), axis=2)
     band = max(2, round(min(size) * 0.035))
     palette = []
-    clear_variation = []
     report["stage"] = "clear_background"
     # Only nearly transparent, locally uniform patches can train the probe.
-    for edge_lab, edge_alpha, edge_variation in (
-        (lab[:band], alpha[:band], source_variation[:band]),
-        (lab[-band:], alpha[-band:], source_variation[-band:]),
-        (lab[:, :band], alpha[:, :band], source_variation[:, :band]),
-        (lab[:, -band:], alpha[:, -band:], source_variation[:, -band:]),
+    for edge_lab, edge_alpha in (
+        (lab[:band], alpha[:band]),
+        (lab[-band:], alpha[-band:]),
+        (lab[:, :band], alpha[:, :band]),
+        (lab[:, -band:], alpha[:, -band:]),
     ):
         axis = 1 if edge_alpha.shape[0] == band else 0
-        for patch_lab, patch_alpha, patch_variation in zip(
+        for patch_lab, patch_alpha in zip(
             np.array_split(edge_lab, 8, axis=axis),
             np.array_split(edge_alpha, 8, axis=axis),
-            np.array_split(edge_variation, 8, axis=axis),
         ):
             clear = patch_alpha <= 16
             if np.count_nonzero(clear) < 8 or float(clear.mean()) < 0.85:
@@ -2595,8 +3150,10 @@ def grabcut_fallback_evidence(
             samples = patch_lab[clear]
             color = np.median(samples, axis=0)
             if float(np.percentile(np.linalg.norm(samples - color, axis=1), 90)) <= 10:
-                clear_variation.append(float(np.percentile(patch_variation[clear], 90)))
-                if not any(float(np.linalg.norm(color - known)) <= 2 for known in palette):
+                if not any(
+                    float(np.linalg.norm(color - known)) <= 2
+                    for known in palette
+                ):
                     palette.append(color)
     if not palette:
         return reject("no_clear_background_patches")
@@ -2628,58 +3185,30 @@ def grabcut_fallback_evidence(
     substantial = stats[:, cv2.CC_STAT_AREA] >= max(32, area * 0.01)
     residual = (thick & substantial)[labels]
     counts["before_continuity"] = int(np.count_nonzero(residual))
+    if counts["before_continuity"] < report["minimum_required"]:
+        return reject("insufficient_colour_spill")
+    # Broad color geometry excludes narrow appendages before any source
+    # contour cuts it into smaller pieces. Improvement cores are opened later
+    # as well; that second opening must not turn source-proven backdrop corner
+    # pixels back into protected model merely because a nearby contour exists.
+    detail_radius = max(2, round(min(size) * 0.008))
+    detail_kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (detail_radius * 2 + 1, detail_radius * 2 + 1),
+    )
+    broad_colour_spill = cv2.morphologyEx(
+        residual.astype(np.uint8), cv2.MORPH_OPEN, detail_kernel,
+    ).astype(bool)
     report["stage"] = "continuity"
 
-    # Colour/thickness alone can also match skin, hair or fabric. Confirm
-    # backdrop continuation from clear SOURCE edges without crossing a visible
-    # source contour or texture. This is independent of the detector's bbox:
-    # a loose body box often contains genuine backdrop, as well as the model.
-    # Calibrate against clear backdrop noise, but never widen confirmation past
-    # two Lab units: the permissive shadow palette must not license crossing a
-    # subtle source contour.
-    # Noisy/ambiguous sources may therefore keep GrabCut rather than weaken
-    # preservation. This does not change any candidate acceptance threshold.
-    continuity_limit = min(2.0, max(1.0, float(np.median(clear_variation)) + 1.0))
-    report["continuity_threshold"] = round(continuity_limit, 4)
-    continuous = ((candidates > 0) & (source_variation <= continuity_limit)).astype(np.uint8)
-    count, continuity_labels = cv2.connectedComponents(continuous, connectivity=8)
-    clear_connected = np.zeros(count, dtype=bool)
-    for edge_labels, edge_alpha in (
-        (continuity_labels[0], alpha[0]), (continuity_labels[-1], alpha[-1]),
-        (continuity_labels[:, 0], alpha[:, 0]), (continuity_labels[:, -1], alpha[:, -1]),
-    ):
-        clear_connected[edge_labels[edge_alpha <= 16]] = True
-    clear_connected[0] = False
-    continuous_backdrop = clear_connected[continuity_labels]
-    # A lighting seam can separate two independently clear-edge-connected
-    # backdrop tones. Recover adjacent, tightly sampled-colour pixels. At most
-    # two probe pixels accommodate a resampled seam, but the second step needs
-    # TWO distinct clear-edge-connected regions nearby. A source-bounded head
-    # has only the outside backdrop region; its enclosed interior is not a seed.
-    sampled_tone = np.zeros(alpha.shape, dtype=bool)
-    for color in palette:
-        sampled_tone |= np.linalg.norm(lab - color, axis=2) <= 4.0
-    adjacent_backdrop = cv2.dilate(continuous_backdrop.astype(np.uint8),
-                                  np.ones((3, 3), dtype=np.uint8)).astype(bool)
-    clear_labels = np.where(continuous_backdrop, continuity_labels, 0).astype(np.float32)
-    seam_neighbourhood = np.ones((9, 9), dtype=np.uint8)
-    nearby_max = cv2.dilate(clear_labels, seam_neighbourhood)
-    nearby_min = cv2.erode(np.where(clear_labels > 0, clear_labels, count).astype(np.float32),
-                          seam_neighbourhood)
-    between_backdrops = nearby_min < nearby_max
-    seam_backdrop = cv2.dilate(continuous_backdrop.astype(np.uint8),
-                              np.ones((5, 5), dtype=np.uint8)).astype(bool) & between_backdrops
-    confirmed_source = continuous_backdrop | ((adjacent_backdrop | seam_backdrop) & sampled_tone)
+    source_result = source_connected_background(
+        rgb, alpha, candidates, background_like, report,
+        raw_source=(source_rgb.resize(size, Image.Resampling.NEAREST)
+                    if scale < 1 else None),
+    )
+    if source_result is None:
+        return None
+    confirmed_source, source_lab = source_result
     residual &= confirmed_source
-    # Distinguish localized ambiguous garment contours from background seams
-    # that continue into actually transparent source backdrop. This only gates
-    # an additional local preservation check; it never adds residual pixels.
-    ambiguous_source = (background_like & ~confirmed_source).astype(np.uint8)
-    ambiguity_count, ambiguity_labels = cv2.connectedComponents(ambiguous_source, connectivity=8)
-    exposed_ambiguity = np.zeros(ambiguity_count, dtype=bool)
-    exposed_ambiguity[ambiguity_labels[alpha <= 16]] = True
-    exposed_ambiguity[0] = False
-    known_backdrop_contour = exposed_ambiguity[ambiguity_labels]
     counts["after_continuity"] = int(np.count_nonzero(residual))
     report["stage"] = "texture"
     # Texture needs its OWN noise calibration, not the contour threshold.
@@ -2705,8 +3234,9 @@ def grabcut_fallback_evidence(
     # Train on ALL exposed, palette-connected backdrop tones. Erosion excludes
     # foreground contours from the filters' reference neighbourhoods. The
     # observed envelope, rather than P90 alone, also covers rare JPEG/seam noise
-    # which would otherwise multiply through dilation. Half a Lab unit is a
-    # quantization margin; these thresholds never lower preservation gates.
+    # which would otherwise multiply through dilation. Observed spread covers
+    # new noise extrema; half a Lab unit remains the quantization floor.
+    # These source-detector limits do not change preservation gates.
     clear_texture = cv2.erode(((alpha <= 16) & background_like).astype(np.uint8),
                              texture_kernel).astype(bool)
     if np.count_nonzero(clear_texture) < 8:
@@ -2714,9 +3244,12 @@ def grabcut_fallback_evidence(
     ordinary_max = float(np.max(ordinary_texture[clear_texture]))
     wide_max = float(np.max(wide_texture[clear_texture]))
     fine_max = float(np.max(fine_texture[clear_texture]))
-    ordinary_limit = max(1.0, ordinary_max + 0.5)
-    wide_limit = max(1.0, wide_max + 0.5)
-    fine_limit = max(1.0, fine_max + 0.5)
+    ordinary_std = float(np.std(ordinary_texture[clear_texture]))
+    wide_std = float(np.std(wide_texture[clear_texture]))
+    fine_std = float(np.std(fine_texture[clear_texture]))
+    ordinary_limit = max(1.0, ordinary_max + max(0.5, 2 * ordinary_std))
+    wide_limit = max(1.0, wide_max + max(0.5, 2 * wide_std))
+    fine_limit = max(1.0, fine_max + max(0.5, 2 * fine_std))
 
     matching_material = (cv2.boxFilter(background_like.astype(np.float32), -1,
         (texture_width, texture_width)) >= 0.75) | background_like
@@ -2753,21 +3286,36 @@ def grabcut_fallback_evidence(
     if np.count_nonzero(density_reference) < 8:
         return reject("insufficient_density_reference")
     density_max = float(np.max(texture_density[density_reference]))
-    density_limit = density_max + 0.5
+    density_std = float(np.std(texture_density[density_reference]))
+    density_limit = density_max + max(0.5, density_std)
     weak_detail = ((weak_texture > 0) & (texture_density > density_limit)
                    & foreground & matching_material)
     direct_detail |= weak_detail
     boundary_detail = ((ordinary_texture > ordinary_limit) & core_support
                        & support_enclosure & foreground & matching_material)
-    texture_detail = direct_detail | boundary_detail
+    source_lines = source_paired_lines(
+        source_lab, alpha, background_like, seed_domain=matching_material,
+    )
+    if source_lines is None:
+        return reject("insufficient_paired_line_reference")
+    line_ridges, line_guard, line_limits = source_lines
+    line_ridges &= foreground & matching_material
+    line_guard &= foreground & matching_material
+    counts["paired_line_seeds"] = int(np.count_nonzero(line_ridges))
+    report["paired_line_background_limits"] = line_limits
+    texture_detail = direct_detail | boundary_detail | line_ridges
     # Protect neighbouring fabric with a SMALL guard, independently of the
     # texture measurement radius. A rare seed cannot reclaim a whole spill.
     guard_radius = max(3, round(min(size) * 0.01))
     guard_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
         (guard_radius * 2 + 1, guard_radius * 2 + 1))
     direct_guard = cv2.dilate(direct_detail.astype(np.uint8), guard_kernel).astype(bool)
-    boundary_guard = cv2.dilate(boundary_detail.astype(np.uint8), guard_kernel).astype(bool)
-    textured_fabric = direct_guard | (boundary_guard & support_enclosure)
+    boundary_guard = cv2.dilate(
+        boundary_detail.astype(np.uint8), guard_kernel,
+    ).astype(bool)
+    textured_fabric = (
+        direct_guard | (boundary_guard & support_enclosure) | line_guard
+    )
     report.update(texture_radius=texture_radius, texture_guard_radius=guard_radius,
                   texture_threshold=round(ordinary_limit, 4),
                   wide_texture_threshold=round(wide_limit, 4),
@@ -2776,6 +3324,10 @@ def grabcut_fallback_evidence(
                   texture_background_max=round(ordinary_max, 4),
                   wide_texture_background_max=round(wide_max, 4),
                   fine_texture_background_max=round(fine_max, 4),
+                  texture_background_std=round(ordinary_std, 4),
+                  wide_texture_background_std=round(wide_std, 4),
+                  fine_texture_background_std=round(fine_std, 4),
+                  texture_density_background_std=round(density_std, 4),
                   texture_density_background_max=round(density_max, 4),
                   texture_density_threshold=round(density_limit, 4),
                   residual_texture_p90=round(float(np.percentile(ordinary_texture[residual], 90)), 4) if np.any(residual) else 0.0)
@@ -2795,6 +3347,9 @@ def grabcut_fallback_evidence(
     residual = cv2.morphologyEx(residual.astype(np.uint8), cv2.MORPH_OPEN,
                               cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                   (detail_radius * 2 + 1, detail_radius * 2 + 1))).astype(bool)
+    confident_background = (
+        broad_colour_spill & confirmed_source & ~textured_fabric & (alpha >= 192)
+    )
     residual_area = int(np.count_nonzero(residual))
     counts["after_detail_filter"] = residual_area
     report["stage"] = "residual_area"
@@ -2807,23 +3362,41 @@ def grabcut_fallback_evidence(
     # Construct protection AFTER confirming residuals. Textured, source-bounded,
     # enclosed and narrow matching details remain ambiguous/protected; confirmed
     # backdrop never gets protection restored merely by lying inside a bbox.
-    protected = (alpha >= 192) & ~residual
+    protected = (alpha >= 192) & ~confident_background
     report["stage"] = "protection"
     counts["protected_foreground"] = int(np.count_nonzero(protected))
     counts["protected_residual_overlap"] = int(np.count_nonzero(protected & residual))
     if np.count_nonzero(protected) < 32:
         return reject("insufficient_protected_foreground")
-    # Fine source-localized seams can remain ambiguous even without enough
-    # two-direction texture. Keep the existing protected pixels, and check them
-    # locally so a small lost seam cannot hide in a coarse whole-body score.
-    localized_detail = protected & background_like & ~known_backdrop_contour
+    # Local ambiguity remains protected so real matching material cannot hide
+    # a loss inside a whole-body/coarse-cell preservation score.
+    localized_detail = protected & (candidates > 0)
     material_protected = (textured_fabric & protected) | localized_detail
     counts["localized_ambiguous_detail"] = int(np.count_nonzero(localized_detail))
     counts["material_protected"] = int(np.count_nonzero(material_protected))
-    report.update({"stage": "ready", "reason": "residual_confirmed"})
-    return {"source_size": image.size, "alpha": alpha, "residual": residual,
-            "background_like": background_like, "protected": protected,
-            "material_protected": material_protected}
+    confident_foreground = protected & (
+        ((candidates == 0) & foreground) | textured_fabric
+    )
+    ambiguous = protected & ~confident_foreground
+    counts["confident_foreground"] = int(np.count_nonzero(confident_foreground))
+    counts["confident_background"] = int(np.count_nonzero(confident_background))
+    counts["ambiguous"] = int(np.count_nonzero(ambiguous))
+    report.update(
+        stage="ready",
+        reason="residual_confirmed",
+        classification_domain="opaque_grabcut_foreground",
+    )
+    return {
+        "source_size": image.size,
+        "alpha": alpha,
+        "residual": residual,
+        "background_like": background_like,
+        "protected": protected,
+        "material_protected": material_protected,
+        "confident_background": confident_background,
+        "confident_foreground": confident_foreground,
+        "ambiguous": ambiguous,
+    }
 
 
 def modnet_fallback_is_better(
@@ -2852,6 +3425,16 @@ def modnet_fallback_is_better(
     actual_ratio = float(np.mean(alpha >= 128))
     if diagnostics is not None:
         diagnostics["actual_foreground_ratio"] = actual_ratio
+        # Source classes were fixed by the GrabCut probe before this candidate
+        # existed. Candidate losses are diagnostics, never background evidence.
+        for name in ("confident_foreground", "confident_background", "ambiguous"):
+            mask = evidence.get(name)
+            if mask is not None:
+                pixels = int(np.count_nonzero(mask))
+                diagnostics[name + "_pixels"] = pixels
+                diagnostics[name + "_lost_pixels"] = int(np.count_nonzero(mask & (alpha < 128)))
+                diagnostics[name + "_opacity_loss"] = float(np.maximum(
+                    original[mask].astype(np.float32) - alpha[mask], 0).sum(dtype=np.float64)) / 255
     if not SUBJECT_MASK_MIN_RATIO <= actual_ratio <= SUBJECT_MASK_MAX_RATIO:
         return finish("invalid_alpha_area")
     residual = evidence["residual"]

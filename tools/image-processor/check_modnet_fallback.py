@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import json
 import sys
 import time
@@ -27,6 +28,98 @@ STAGES = (
     ("modnet", "Forced MODNet"),
     ("auto", "Automatic"),
 )
+
+
+DEBUG_LEGEND = {
+    "confident_foreground": {"color": [0, 180, 80], "label": "Source: confident foreground"},
+    "confident_background": {"color": [255, 205, 0], "label": "Source: confirmed old background"},
+    "ambiguous": {"color": [175, 80, 230], "label": "Source: ambiguous (still protected)"},
+    "lost_confident_foreground": {"color": [245, 45, 45], "label": "Candidate removed confident foreground"},
+    "lost_ambiguous": {"color": [35, 120, 255], "label": "Candidate removed ambiguous pixels"},
+}
+
+
+class AutoDebugCapture:
+    """Observe existing AUTO calls, keeping only small analysis masks."""
+
+    def __init__(self, probe, worker):
+        self.probe = probe
+        self.worker = worker
+        self.masks = {}
+        self.candidate_alpha = None
+        self.error = ""
+
+    def observe_probe(self, *args, **kwargs):
+        result = self.probe(*args, **kwargs)
+        if result is not None:
+            try:
+                alpha = processor.np.asarray(result["alpha"])
+                if alpha.ndim != 2 or not alpha.size or max(alpha.shape) > 512:
+                    raise ValueError("Debug evidence must have a nonempty <=512 pixel analysis edge.")
+                for name in ("confident_foreground", "confident_background", "ambiguous"):
+                    mask = processor.np.asarray(result[name], dtype=bool)
+                    if mask.shape != alpha.shape:
+                        raise ValueError("Debug classification masks must match analysis alpha.")
+                    self.masks[name] = mask.copy()
+            except Exception as error:
+                # Observational export must never alter the production decision.
+                self.masks.clear()
+                self.error = type(error).__name__ + ": " + str(error)
+        return result
+
+    def observe_worker(self, *args, **kwargs):
+        result = self.worker(*args, **kwargs)
+        if result is not None and self.masks:
+            try:
+                height, width = self.masks["ambiguous"].shape
+                self.candidate_alpha = processor.np.asarray(result[0].resize(
+                    (width, height), Image.Resampling.BILINEAR).getchannel("A")).copy()
+            except Exception as error:
+                self.error = type(error).__name__ + ": " + str(error)
+        return result
+
+    def export(self, source: Image.Image, output: Path, selection: dict) -> dict:
+        record = {"enabled": True, "legend": DEBUG_LEGEND,
+                  "classification_domain": "opaque GrabCut pixels; unclassified source is unchanged"}
+        if self.error:
+            return {**record, "status": "error", "error": self.error}
+        if not self.masks:
+            return {**record, "status": "skipped",
+                    "reason": selection.get("fallback_reason", "probe_not_run")}
+        try:
+            height, width = self.masks["ambiguous"].shape
+            # This source copy is bounded by the production probe resolution.
+            pixels = processor.np.asarray(source.resize(
+                (width, height), Image.Resampling.BILINEAR).convert("RGB")).copy()
+            layers = dict(self.masks)
+            if self.candidate_alpha is not None:
+                removed = self.candidate_alpha < 128
+                layers["lost_confident_foreground"] = removed & self.masks["confident_foreground"]
+                layers["lost_ambiguous"] = removed & self.masks["ambiguous"]
+            for name, mask in layers.items():
+                color = processor.np.asarray(DEBUG_LEGEND[name]["color"], dtype=float)
+                pixels[mask] = processor.np.rint(pixels[mask] * .35 + color * .65).astype("uint8")
+            overlay = Image.fromarray(pixels)
+            footer_height = 104
+            canvas = Image.new("RGB", (max(width, 330), height + footer_height), "white")
+            canvas.paste(overlay, (0, 0))
+            draw = ImageDraw.Draw(canvas)
+            draw.text((6, height + 3), "AUTO source classes; loss is not background evidence", fill="black")
+            for index, entry in enumerate(DEBUG_LEGEND.values()):
+                y = height + 21 + index * 16
+                draw.rectangle((6, y, 15, y + 10), fill=tuple(entry["color"]))
+                draw.text((21, y - 1), entry["label"], fill="black")
+            # The complete debug artifact also has a maximum 512-pixel edge.
+            canvas.thumbnail((512, 512), Image.Resampling.LANCZOS)
+            path = output / "classification-map.png"
+            canvas.save(path, "PNG")
+            return {**record, "status": "saved", "path": str(path),
+                    "analysis_size": [width, height], "map_size": list(canvas.size),
+                    "candidate_available": self.candidate_alpha is not None,
+                    "counts": {name: int(processor.np.count_nonzero(mask))
+                               for name, mask in layers.items()}}
+        except Exception as error:
+            return {**record, "status": "error", "error": type(error).__name__ + ": " + str(error)}
 
 
 def checked_source(value: str) -> Path:
@@ -121,7 +214,7 @@ def comparison_image(previews: dict[str, Image.Image], stages: dict) -> Image.Im
     return canvas
 
 
-def compare_source(source: Path, output: Path, background_profile: str) -> bool:
+def compare_source(source: Path, output: Path, background_profile: str, *, debug_map: bool = False) -> bool:
     before = processor.sha256_file(source)
     image = processor.normalized_image(source)
     output.mkdir(parents=True, exist_ok=False)
@@ -147,8 +240,19 @@ def compare_source(source: Path, output: Path, background_profile: str) -> bool:
     for stage, label in STAGES:
         started = time.perf_counter()
         record = {}
+        capture = None
         try:
-            with patch.object(processor, "run_modnet_worker", wraps=processor.run_modnet_worker) as worker:
+            with ExitStack() as stack:
+                if debug_map and stage == "auto":
+                    capture = AutoDebugCapture(processor.grabcut_fallback_evidence,
+                                               processor.run_modnet_worker)
+                    stack.enter_context(patch.object(processor, "grabcut_fallback_evidence",
+                                                     side_effect=capture.observe_probe))
+                    worker = stack.enter_context(patch.object(processor, "run_modnet_worker",
+                                                             side_effect=capture.observe_worker))
+                else:
+                    worker = stack.enter_context(patch.object(processor, "run_modnet_worker",
+                                                             wraps=processor.run_modnet_worker))
                 try:
                     master, diagnostics = render_stage(stage, image, source, background_profile)
                 finally:
@@ -171,6 +275,10 @@ def compare_source(source: Path, output: Path, background_profile: str) -> bool:
         # Per-image diagnostics must not inherit another HTTP request's legacy
         # health error. The observed call count remains a useful CLI cross-check.
         selection = record.get("normalization", {}).get("mask_selection", {})
+        if capture is not None:
+            report["debug_map"] = capture.export(image, output, selection)
+            print("  DEBUG_MAP: " + report["debug_map"]["status"]
+                  + " | " + str(report["debug_map"].get("path", report["debug_map"].get("reason", ""))))
         record["worker_error"] = selection.get("worker_error", "")
         report["stages"][stage] = record
         print(" | ".join(stage_caption(label, record)))
@@ -224,6 +332,11 @@ def compare_source(source: Path, output: Path, background_profile: str) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--debug-map",
+        action="store_true",
+        help="Observe AUTO source classifications and export a <=512 pixel debug map; no extra inference.",
+    )
+    parser.add_argument(
         "sources",
         nargs="*",
         help="Upload filenames or uploads/products/<filename>; defaults to both controls.",
@@ -252,7 +365,8 @@ def main(argv: list[str] | None = None) -> int:
     succeeded = True
     for source in sources:
         try:
-            passed = compare_source(source, run_root / source.stem, args.background_profile)
+            passed = compare_source(source, run_root / source.stem, args.background_profile,
+                                    debug_map=args.debug_map)
             succeeded = passed and succeeded
         except (ValueError, OSError) as error:
             print("ERROR: " + source.name + ": " + str(error), file=sys.stderr)
