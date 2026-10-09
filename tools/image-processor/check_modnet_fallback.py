@@ -145,7 +145,6 @@ def compare_source(source: Path, output: Path, background_profile: str) -> bool:
     succeeded = True
     print("\nSOURCE: " + source.name)
     for stage, label in STAGES:
-        processor._modnet_worker_error = ""
         started = time.perf_counter()
         record = {}
         try:
@@ -169,9 +168,32 @@ def compare_source(source: Path, output: Path, background_profile: str) -> bool:
             record["error"] = type(error).__name__ + ": " + str(error)
             succeeded = False
         record["elapsed_seconds"] = round(time.perf_counter() - started, 3)
-        record["worker_error"] = processor._modnet_worker_error
+        # Per-image diagnostics must not inherit another HTTP request's legacy
+        # health error. The observed call count remains a useful CLI cross-check.
+        selection = record.get("normalization", {}).get("mask_selection", {})
+        record["worker_error"] = selection.get("worker_error", "")
         report["stages"][stage] = record
         print(" | ".join(stage_caption(label, record)))
+        if selection:
+            print("  FALLBACK: " + str(selection.get("fallback_status", "unknown"))
+                  + " / " + str(selection.get("fallback_reason", "unknown")))
+            probe = selection.get("probe", {})
+            if probe:
+                print("  PROBE: stage=" + str(probe.get("stage", "unknown"))
+                      + " | reason=" + str(probe.get("reason", "unknown"))
+                      + " | minimum_required=" + str(probe.get("minimum_required", "n/a")))
+            if probe.get("counts"):
+                print("  PROBE_COUNTS: " + ", ".join(
+                    str(key) + "=" + str(value)
+                    for key, value in sorted(probe["counts"].items())
+                ))
+            if "texture_threshold" in probe or "texture_background_p90" in probe:
+                print("  TEXTURE: threshold=" + str(probe.get("texture_threshold", "n/a"))
+                      + " | backdrop_p90=" + str(probe.get("texture_background_p90", "n/a"))
+                      + " | backdrop_max=" + str(probe.get("texture_background_max", "n/a"))
+                      + " | density_threshold=" + str(probe.get("texture_density_threshold", "n/a"))
+                      + " | measurement_radius=" + str(probe.get("texture_radius", "n/a"))
+                      + " | guard_radius=" + str(probe.get("texture_guard_radius", "n/a")))
         if record.get("worker_error"):
             print("  WORKER_ERROR: " + record["worker_error"])
         if record.get("error"):

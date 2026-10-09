@@ -207,29 +207,44 @@ def modnet_worker_ready() -> bool:
 def run_modnet_worker(
     source: Path,
     image: Image.Image,
+    *,
+    diagnostics: dict[str, Any] | None = None,
 ) -> tuple[
     Image.Image,
     float,
     dict[str, Any],
 ] | None:
-    global _modnet_worker_error
+    if diagnostics is not None:
+        diagnostics.clear()
+        diagnostics.update(status="running", worker_error="")
+
+    def record_error(message: str) -> None:
+        # Keep the legacy health field, but give each request its own result.
+        global _modnet_worker_error
+        _modnet_worker_error = message
+        if diagnostics is not None:
+            diagnostics.update(
+                status="failed" if message else "succeeded",
+                worker_error=message,
+            )
 
     if not source.is_file():
-        _modnet_worker_error = (
+        record_error(
             "source-missing"
         )
         return None
 
     if not modnet_worker_ready():
-        _modnet_worker_error = (
+        record_error(
             "worker-not-ready"
         )
         return None
 
-    MODNET_WORKER_ROOT.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    try:
+        MODNET_WORKER_ROOT.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        record_error((type(error).__name__ + ":" + str(error))[:200])
+        return None
 
     alpha_path = (
         MODNET_WORKER_ROOT
@@ -278,7 +293,7 @@ def run_modnet_worker(
         ]
 
         if not lines:
-            _modnet_worker_error = (
+            record_error(
                 "worker-no-json"
             )
             return None
@@ -288,7 +303,7 @@ def run_modnet_worker(
                 lines[-1]
             )
         except json.JSONDecodeError:
-            _modnet_worker_error = (
+            record_error(
                 "worker-invalid-json"
             )
             return None
@@ -309,7 +324,7 @@ def run_modnet_worker(
                 or "worker-failed"
             ).strip()
 
-            _modnet_worker_error = (
+            record_error(
                 "worker-error:"
                 + message[:180]
             )
@@ -326,7 +341,7 @@ def run_modnet_worker(
             TypeError,
             ValueError,
         ):
-            _modnet_worker_error = (
+            record_error(
                 "worker-invalid-ratio"
             )
             return None
@@ -337,13 +352,13 @@ def run_modnet_worker(
             or foreground_ratio
             > SUBJECT_MASK_MAX_RATIO
         ):
-            _modnet_worker_error = (
+            record_error(
                 "worker-ratio-out-of-range"
             )
             return None
 
         if not alpha_path.is_file():
-            _modnet_worker_error = (
+            record_error(
                 "worker-alpha-missing"
             )
             return None
@@ -360,7 +375,7 @@ def run_modnet_worker(
             alpha.size
             != image.size
         ):
-            _modnet_worker_error = (
+            record_error(
                 "worker-alpha-size-mismatch"
             )
             return None
@@ -391,7 +406,18 @@ def run_modnet_worker(
                 ),
         }
 
-        _modnet_worker_error = ""
+        record_error("")
+        if diagnostics is not None:
+            diagnostics.update(metadata)
+            # Worker metadata is optional; a valid alpha must not make the
+            # request-local JSON contain NaN or Infinity timing values.
+            try:
+                inference_ms = float(metadata["inference_ms"])
+            except (TypeError, ValueError, OverflowError):
+                inference_ms = None
+            diagnostics["inference_ms"] = (
+                inference_ms if inference_ms is not None and np.isfinite(inference_ms) else None
+            )
 
         return (
             subject,
@@ -400,17 +426,13 @@ def run_modnet_worker(
         )
 
     except subprocess.TimeoutExpired:
-        _modnet_worker_error = (
+        record_error(
             "worker-timeout"
         )
         return None
 
     except OSError as error:
-        _modnet_worker_error = (
-            type(error).__name__
-            + ":"
-            + str(error)
-        )[:200]
+        record_error((type(error).__name__ + ":" + str(error))[:200])
         return None
 
     finally:
@@ -2505,6 +2527,8 @@ def grabcut_fallback_evidence(
     image: Image.Image,
     subject: Image.Image,
     bbox: tuple[int, int, int, int],
+    *,
+    diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Find broad backdrop spills, without changing the source or its alpha.
 
@@ -2513,24 +2537,37 @@ def grabcut_fallback_evidence(
     thickness to avoid treating enclosed fabric or thin hair as a backdrop.
     All NumPy analysis buffers have a 512-pixel maximum edge.
     """
-    if subject.mode != "RGBA" or subject.size != image.size:
+    report = diagnostics if diagnostics is not None else {}
+    report.clear()
+    report.update({"stage": "input", "reason": "not_evaluated", "counts": {}})
+    counts = report["counts"]
+
+    def reject(reason: str) -> None:
+        report["reason"] = reason
         return None
+
+    if subject.mode != "RGBA" or subject.size != image.size:
+        return reject("invalid_subject")
     width, height = image.size
     if min(width, height) < 24:
-        return None
+        return reject("source_too_small")
     scale = min(1.0, 512 / max(width, height))
     size = (round(width * scale), round(height * scale))
     # Too few pixels across an extreme panorama cannot support this probe.
     if min(size) < 8:
-        return None
+        return reject("analysis_too_narrow")
+    report["analysis_size"] = list(size)
+    report["stage"] = "foreground_area"
     rgb = (image if image.mode == "RGB" else flattened_rgb(image)).resize(
         size, Image.Resampling.BILINEAR)
     alpha = np.asarray(subject.getchannel("A").resize(size, Image.Resampling.BILINEAR))
     foreground = alpha >= 128
     area = alpha.size
     foreground_area = int(np.count_nonzero(foreground))
+    counts["foreground"] = foreground_area
+    report["minimum_required"] = int(np.ceil(max(area * 0.02, foreground_area * 0.08)))
     if not SUBJECT_MASK_MIN_RATIO <= foreground_area / area <= SUBJECT_MASK_MAX_RATIO:
-        return None
+        return reject("invalid_foreground_area")
 
     lab = cv2.cvtColor(np.asarray(rgb), cv2.COLOR_RGB2LAB).astype(np.float32)
     source_variation = np.linalg.norm(cv2.morphologyEx(
@@ -2538,6 +2575,7 @@ def grabcut_fallback_evidence(
     band = max(2, round(min(size) * 0.035))
     palette = []
     clear_variation = []
+    report["stage"] = "clear_background"
     # Only nearly transparent, locally uniform patches can train the probe.
     for edge_lab, edge_alpha, edge_variation in (
         (lab[:band], alpha[:band], source_variation[:band]),
@@ -2561,7 +2599,9 @@ def grabcut_fallback_evidence(
                 if not any(float(np.linalg.norm(color - known)) <= 2 for known in palette):
                     palette.append(color)
     if not palette:
-        return None
+        return reject("no_clear_background_patches")
+    report["palette_size"] = len(palette)
+    report["stage"] = "colour_spill"
 
     candidates = np.zeros(alpha.shape, dtype=np.uint8)
     for color in palette:
@@ -2578,6 +2618,7 @@ def grabcut_fallback_evidence(
         connected[edge_labels[edge_alpha <= 16]] = True
     connected[0] = False
     background_like = connected[labels]
+    counts["background_like"] = int(np.count_nonzero(background_like))
     overlap = (background_like & foreground).astype(np.uint8)
     count, labels, stats, _ = cv2.connectedComponentsWithStats(overlap, connectivity=8)
     distance = cv2.distanceTransform(overlap, cv2.DIST_L2, 3)
@@ -2586,6 +2627,8 @@ def grabcut_fallback_evidence(
     thick[0] = False
     substantial = stats[:, cv2.CC_STAT_AREA] >= max(32, area * 0.01)
     residual = (thick & substantial)[labels]
+    counts["before_continuity"] = int(np.count_nonzero(residual))
+    report["stage"] = "continuity"
 
     # Colour/thickness alone can also match skin, hair or fabric. Confirm
     # backdrop continuation from clear SOURCE edges without crossing a visible
@@ -2597,6 +2640,7 @@ def grabcut_fallback_evidence(
     # Noisy/ambiguous sources may therefore keep GrabCut rather than weaken
     # preservation. This does not change any candidate acceptance threshold.
     continuity_limit = min(2.0, max(1.0, float(np.median(clear_variation)) + 1.0))
+    report["continuity_threshold"] = round(continuity_limit, 4)
     continuous = ((candidates > 0) & (source_variation <= continuity_limit)).astype(np.uint8)
     count, continuity_labels = cv2.connectedComponents(continuous, connectivity=8)
     clear_connected = np.zeros(count, dtype=bool)
@@ -2625,25 +2669,126 @@ def grabcut_fallback_evidence(
     between_backdrops = nearby_min < nearby_max
     seam_backdrop = cv2.dilate(continuous_backdrop.astype(np.uint8),
                               np.ones((5, 5), dtype=np.uint8)).astype(bool) & between_backdrops
-    residual &= continuous_backdrop | ((adjacent_backdrop | seam_backdrop) & sampled_tone)
-    # Sparse stitches need protection of neighbouring fabric, not just the
-    # contrast pixels themselves. Local extrema identify small source details;
-    # unlike the gradient they do not mark a broad lighting step as texture.
-    # Keep the neighbourhood bounded so it does not protect a whole spill.
+    confirmed_source = continuous_backdrop | ((adjacent_backdrop | seam_backdrop) & sampled_tone)
+    residual &= confirmed_source
+    # Distinguish localized ambiguous garment contours from background seams
+    # that continue into actually transparent source backdrop. This only gates
+    # an additional local preservation check; it never adds residual pixels.
+    ambiguous_source = (background_like & ~confirmed_source).astype(np.uint8)
+    ambiguity_count, ambiguity_labels = cv2.connectedComponents(ambiguous_source, connectivity=8)
+    exposed_ambiguity = np.zeros(ambiguity_count, dtype=bool)
+    exposed_ambiguity[ambiguity_labels[alpha <= 16]] = True
+    exposed_ambiguity[0] = False
+    known_backdrop_contour = exposed_ambiguity[ambiguity_labels]
+    counts["after_continuity"] = int(np.count_nonzero(residual))
+    report["stage"] = "texture"
+    # Texture needs its OWN noise calibration, not the contour threshold.
+    # Otherwise ordinary JPEG extrema become seeds, then a wide dilation can
+    # protect almost every pixel of a genuinely confirmed backdrop spill.
     texture_radius = max(2, round(min(size) * 0.025))
+    texture_width = texture_radius * 2 + 1
     texture_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-        (texture_radius * 2 + 1, texture_radius * 2 + 1))
-    texture = np.linalg.norm(np.maximum(
-        cv2.morphologyEx(lab, cv2.MORPH_TOPHAT, texture_kernel),
-        cv2.morphologyEx(lab, cv2.MORPH_BLACKHAT, texture_kernel)), axis=2)
-    matching_material = cv2.boxFilter(background_like.astype(np.float32), -1,
-        (texture_radius * 2 + 1, texture_radius * 2 + 1)) >= 0.75
-    # A matching stitch on a material boundary is evidence too. The majority
-    # test alone would miss it just because neighbouring skin has another tone.
-    texture_detail = ((texture > continuity_limit) & foreground
-                      & (matching_material | background_like))
-    textured_fabric = cv2.dilate(texture_detail.astype(np.uint8), texture_kernel).astype(bool)
+        (texture_width, texture_width))
+
+    def extrema(kernel: np.ndarray) -> np.ndarray:
+        return np.linalg.norm(np.maximum(
+            cv2.morphologyEx(lab, cv2.MORPH_TOPHAT, kernel),
+            cv2.morphologyEx(lab, cv2.MORPH_BLACKHAT, kernel)), axis=2)
+
+    ordinary_texture = extrema(texture_kernel)
+    wide_texture = np.minimum(
+        extrema(np.ones((1, texture_width), dtype=np.uint8)),
+        extrema(np.ones((texture_width, 1), dtype=np.uint8)))
+    fine_texture = np.minimum(
+        extrema(np.ones((1, 5), dtype=np.uint8)),
+        extrema(np.ones((5, 1), dtype=np.uint8)))
+    # Train on ALL exposed, palette-connected backdrop tones. Erosion excludes
+    # foreground contours from the filters' reference neighbourhoods. The
+    # observed envelope, rather than P90 alone, also covers rare JPEG/seam noise
+    # which would otherwise multiply through dilation. Half a Lab unit is a
+    # quantization margin; these thresholds never lower preservation gates.
+    clear_texture = cv2.erode(((alpha <= 16) & background_like).astype(np.uint8),
+                             texture_kernel).astype(bool)
+    if np.count_nonzero(clear_texture) < 8:
+        return reject("insufficient_texture_reference")
+    ordinary_max = float(np.max(ordinary_texture[clear_texture]))
+    wide_max = float(np.max(wide_texture[clear_texture]))
+    fine_max = float(np.max(fine_texture[clear_texture]))
+    ordinary_limit = max(1.0, ordinary_max + 0.5)
+    wide_limit = max(1.0, wide_max + 0.5)
+    fine_limit = max(1.0, fine_max + 0.5)
+
+    matching_material = (cv2.boxFilter(background_like.astype(np.float32), -1,
+        (texture_width, texture_width)) >= 0.75) | background_like
+    trusted_core = (alpha >= 192) & ~background_like
+    # Enclosures support ambiguous ONE-direction boundary features only. Direct
+    # two-direction material detail must also protect garments/hair protruding
+    # beyond the contrasting body core. The enclosure never creates protection
+    # by itself or changes output geometry.
+    support_enclosure = np.zeros(alpha.shape, dtype=np.uint8)
+    contours, _ = cv2.findContours(trusted_core.astype(np.uint8),
+                                  cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for contour in contours:
+        if contour.shape[0] >= 3:
+            cv2.fillConvexPoly(support_enclosure, cv2.convexHull(contour), 1)
+    support_enclosure = support_enclosure.astype(bool)
+    core_support = cv2.dilate(trusted_core.astype(np.uint8),
+        cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))).astype(bool)
+    # Two-direction extrema distinguish material details from tonal bands and
+    # provide source evidence even outside the core. A boundary stitch may meet
+    # brighter skin in one direction; allow that weaker exception only beside
+    # confident foreground, on its enclosed side of the source contour.
+    direct_detail = ((wide_texture > wide_limit) | (fine_texture > fine_limit))
+    direct_detail &= foreground & matching_material
+    # Compression can reduce real stitches to the same one-Lab-unit amplitude
+    # as rare noise. Nonzero fine extrema alone are NOT protection: require a
+    # local density above the greatest observed clear-backdrop density, with
+    # another erosion so each training window is wholly clear. This preserves
+    # coherent weak structure without admitting ordinary JPEG extrema en masse.
+    weak_texture = (fine_texture >= 1.0).astype(np.float32)
+    texture_density = cv2.boxFilter(weak_texture, -1,
+                                   (texture_width, texture_width), normalize=False)
+    density_reference = cv2.erode(clear_texture.astype(np.uint8),
+        np.ones((texture_width, texture_width), dtype=np.uint8)).astype(bool)
+    if np.count_nonzero(density_reference) < 8:
+        return reject("insufficient_density_reference")
+    density_max = float(np.max(texture_density[density_reference]))
+    density_limit = density_max + 0.5
+    weak_detail = ((weak_texture > 0) & (texture_density > density_limit)
+                   & foreground & matching_material)
+    direct_detail |= weak_detail
+    boundary_detail = ((ordinary_texture > ordinary_limit) & core_support
+                       & support_enclosure & foreground & matching_material)
+    texture_detail = direct_detail | boundary_detail
+    # Protect neighbouring fabric with a SMALL guard, independently of the
+    # texture measurement radius. A rare seed cannot reclaim a whole spill.
+    guard_radius = max(3, round(min(size) * 0.01))
+    guard_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+        (guard_radius * 2 + 1, guard_radius * 2 + 1))
+    direct_guard = cv2.dilate(direct_detail.astype(np.uint8), guard_kernel).astype(bool)
+    boundary_guard = cv2.dilate(boundary_detail.astype(np.uint8), guard_kernel).astype(bool)
+    textured_fabric = direct_guard | (boundary_guard & support_enclosure)
+    report.update(texture_radius=texture_radius, texture_guard_radius=guard_radius,
+                  texture_threshold=round(ordinary_limit, 4),
+                  wide_texture_threshold=round(wide_limit, 4),
+                  fine_texture_threshold=round(fine_limit, 4),
+                  texture_background_p90=round(float(np.percentile(ordinary_texture[clear_texture], 90)), 4),
+                  texture_background_max=round(ordinary_max, 4),
+                  wide_texture_background_max=round(wide_max, 4),
+                  fine_texture_background_max=round(fine_max, 4),
+                  texture_density_background_max=round(density_max, 4),
+                  texture_density_threshold=round(density_limit, 4),
+                  residual_texture_p90=round(float(np.percentile(ordinary_texture[residual], 90)), 4) if np.any(residual) else 0.0)
+    counts["texture_reference"] = int(np.count_nonzero(clear_texture))
+    counts["texture_density_reference"] = int(np.count_nonzero(density_reference))
+    counts["weak_structure_seeds"] = int(np.count_nonzero(weak_detail))
+    counts["texture_seeds"] = int(np.count_nonzero(texture_detail))
+    counts["seeds_in_residual"] = int(np.count_nonzero(texture_detail & residual))
+    counts["expanded_texture"] = int(np.count_nonzero(textured_fabric))
     residual &= ~textured_fabric
+    counts["after_texture"] = int(np.count_nonzero(residual))
+    counts["removed_by_texture"] = counts["after_continuity"] - counts["after_texture"]
+    report["stage"] = "detail_filter"
     # A narrow matching detail must not inherit the confidence of the broad
     # spill it joins. Open locally; do not promote whole components again.
     detail_radius = max(2, round(min(size) * 0.008))
@@ -2651,70 +2796,142 @@ def grabcut_fallback_evidence(
                               cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                   (detail_radius * 2 + 1, detail_radius * 2 + 1))).astype(bool)
     residual_area = int(np.count_nonzero(residual))
+    counts["after_detail_filter"] = residual_area
+    report["stage"] = "residual_area"
     if residual_area < area * 0.02 or residual_area < foreground_area * 0.08:
-        return None
+        return reject("insufficient_residual")
 
     _, _, bbox_width, bbox_height = bbox
     if bbox_width <= 0 or bbox_height <= 0:
-        return None
+        return reject("invalid_bbox")
     # Construct protection AFTER confirming residuals. Textured, source-bounded,
     # enclosed and narrow matching details remain ambiguous/protected; confirmed
     # backdrop never gets protection restored merely by lying inside a bbox.
     protected = (alpha >= 192) & ~residual
+    report["stage"] = "protection"
+    counts["protected_foreground"] = int(np.count_nonzero(protected))
+    counts["protected_residual_overlap"] = int(np.count_nonzero(protected & residual))
     if np.count_nonzero(protected) < 32:
-        return None
+        return reject("insufficient_protected_foreground")
+    # Fine source-localized seams can remain ambiguous even without enough
+    # two-direction texture. Keep the existing protected pixels, and check them
+    # locally so a small lost seam cannot hide in a coarse whole-body score.
+    localized_detail = protected & background_like & ~known_backdrop_contour
+    material_protected = (textured_fabric & protected) | localized_detail
+    counts["localized_ambiguous_detail"] = int(np.count_nonzero(localized_detail))
+    counts["material_protected"] = int(np.count_nonzero(material_protected))
+    report.update({"stage": "ready", "reason": "residual_confirmed"})
     return {"source_size": image.size, "alpha": alpha, "residual": residual,
-            "background_like": background_like, "protected": protected}
+            "background_like": background_like, "protected": protected,
+            "material_protected": material_protected}
 
 
 def modnet_fallback_is_better(
     candidate: Image.Image,
     foreground_ratio: float,
     evidence: dict[str, Any],
+    *,
+    diagnostics: dict[str, Any] | None = None,
 ) -> bool:
     """Require backdrop removal AND global/local foreground preservation."""
+    if diagnostics is not None:
+        diagnostics.clear()
+
+    def finish(reason: str, accepted: bool = False) -> bool:
+        if diagnostics is not None:
+            diagnostics.update(reason=reason, accepted=accepted)
+        return accepted
+
     if (candidate.mode != "RGBA" or candidate.size != evidence["source_size"]
             or not np.isfinite(foreground_ratio)
             or not SUBJECT_MASK_MIN_RATIO <= foreground_ratio <= SUBJECT_MASK_MAX_RATIO):
-        return False
+        return finish("invalid_candidate")
     original = evidence["alpha"]
     height, width = original.shape
     alpha = np.asarray(candidate.getchannel("A").resize((width, height), Image.Resampling.BILINEAR))
     actual_ratio = float(np.mean(alpha >= 128))
+    if diagnostics is not None:
+        diagnostics["actual_foreground_ratio"] = actual_ratio
     if not SUBJECT_MASK_MIN_RATIO <= actual_ratio <= SUBJECT_MASK_MAX_RATIO:
-        return False
+        return finish("invalid_alpha_area")
     residual = evidence["residual"]
     before = float(original[residual].sum(dtype=np.float64)) / 255
     after = float(alpha[residual].sum(dtype=np.float64)) / 255
+    if diagnostics is not None:
+        diagnostics.update(residual_before=before, residual_after=after,
+                           residual_removed=before - after)
     if after > before * 0.5 or before - after < original.size * 0.01:
-        return False
+        return finish("insufficient_improvement")
     # Do not exchange one spill for another outside GrabCut's foreground.
     added_background = evidence["background_like"] & (original <= 16)
     added = float(alpha[added_background].sum(dtype=np.float64)) / 255
+    if diagnostics is not None:
+        diagnostics["added_background"] = added
     if added > max(original.size * 0.002, before * 0.05):
-        return False
+        return finish("added_background")
     # A different-coloured backdrop/object is still background if GrabCut
     # excluded it. Allow only a narrow contour extension, not a new large island.
     near_foreground = cv2.dilate((original > 16).astype(np.uint8),
                                 np.ones((5, 5), dtype=np.uint8)).astype(bool)
     unexplained = float(alpha[~near_foreground].sum(dtype=np.float64)) / 255
+    if diagnostics is not None:
+        diagnostics["unexplained_foreground"] = unexplained
     if unexplained > original.size * 0.002:
-        return False
+        return finish("unexplained_foreground")
     protected = evidence["protected"]
-    if (float(np.mean(alpha[protected] >= 128)) < 0.98
-            or float(alpha[protected].mean()) < float(original[protected].mean()) * 0.90):
-        return False
+    protected_retention = float(np.mean(alpha[protected] >= 128))
+    protected_mean = float(alpha[protected].mean())
+    original_protected_mean = float(original[protected].mean())
+    protected_opacity_ratio = protected_mean / original_protected_mean
+    if diagnostics is not None:
+        diagnostics.update(protected_retention=protected_retention,
+                           protected_opacity_ratio=protected_opacity_ratio)
+    if protected_retention < 0.98 or protected_mean < original_protected_mean * 0.90:
+        return finish("protected_foreground_loss")
     # A good whole-image score can hide a lost hand, head or garment detail.
-    for rows in np.array_split(np.arange(height), 6):
-        for columns in np.array_split(np.arange(width), 4):
+    for row_index, rows in enumerate(np.array_split(np.arange(height), 6)):
+        for column_index, columns in enumerate(np.array_split(np.arange(width), 4)):
             region = np.ix_(rows, columns)
             core = protected[region]
             if np.count_nonzero(core) < 12:
                 continue
-            if (float(np.mean(alpha[region][core] >= 128)) < 0.90
-                    or float(alpha[region][core].mean()) < float(original[region][core].mean()) * 0.85):
-                return False
-    return True
+            retention = float(np.mean(alpha[region][core] >= 128))
+            candidate_mean = float(alpha[region][core].mean())
+            original_mean = float(original[region][core].mean())
+            opacity_ratio = candidate_mean / original_mean
+            if retention < 0.90 or candidate_mean < original_mean * 0.85:
+                if diagnostics is not None:
+                    diagnostics.update(failed_region=[row_index, column_index],
+                                       local_retention=retention, local_opacity_ratio=opacity_ratio)
+                return finish("local_foreground_loss")
+    # Keeping tiny stitches while deleting the surrounding fabric can pass a
+    # coarse cell score. Check each source-supported material guard using the
+    # same local preservation gates, without expanding protection into backdrop.
+    material = evidence.get("material_protected")
+    if material is not None:
+        component_count, labels, stats, _ = cv2.connectedComponentsWithStats(
+            material.astype(np.uint8), connectivity=8)
+        checked_components = 0
+        for label in range(1, component_count):
+            if stats[label, cv2.CC_STAT_AREA] < 12:
+                continue
+            checked_components += 1
+            x, y, component_width, component_height = stats[label, :4]
+            region = np.s_[y:y + component_height, x:x + component_width]
+            core = labels[region] == label
+            retention = float(np.mean(alpha[region][core] >= 128))
+            candidate_mean = float(alpha[region][core].mean())
+            original_mean = float(original[region][core].mean())
+            opacity_ratio = candidate_mean / original_mean
+            if retention < 0.90 or candidate_mean < original_mean * 0.85:
+                if diagnostics is not None:
+                    diagnostics.update(material_components_checked=checked_components,
+                                       failed_material_region=[int(x), int(y), int(component_width), int(component_height)],
+                                       material_retention=retention, material_opacity_ratio=opacity_ratio)
+                return finish("material_foreground_loss")
+        if diagnostics is not None:
+            diagnostics["material_components_checked"] = checked_components
+    return finish("accepted", True)
 
 
 def custom_background_master(
@@ -2727,14 +2944,50 @@ def custom_background_master(
     shoulder_center: tuple[float, float] | None,
     background_profile: str,
     source_path: Path | None = None,
+    *,
+    diagnostics: dict[str, Any] | None = None,
 ) -> tuple[Image.Image, float, str] | None:
+    if diagnostics is not None:
+        diagnostics.clear()
+        diagnostics.update(
+            primary_route="opencv-grabcut",
+            fallback_status="skipped",
+            fallback_reason="no_source_path" if source_path is None else "not_checked",
+            modnet_worker_calls=0,
+            worker_error="",
+        )
     if background_profile == BACKGROUND_PROFILE_ORIGINAL:
+        if diagnostics is not None:
+            diagnostics.update(primary_route=BACKGROUND_PROFILE_ORIGINAL,
+                               fallback_reason="original_profile")
         return None
 
     subject = None
     foreground_ratio = None
     modnet_applied = False
     modnet_attempted = False
+
+    def attempt_modnet() -> tuple[Image.Image, float, dict[str, Any]] | None:
+        if diagnostics is None:
+            # Preserve the established direct-call contract for older callers.
+            return run_modnet_worker(source_path, image)
+        worker_diagnostics: dict[str, Any] = {}
+        diagnostics["modnet_worker_calls"] += 1
+        diagnostics["worker"] = worker_diagnostics
+        try:
+            result = run_modnet_worker(source_path, image, diagnostics=worker_diagnostics)
+        except Exception as error:
+            worker_diagnostics.update(status="failed", worker_error=(
+                type(error).__name__ + ":" + str(error))[:200])
+            result = None
+        if result is None:
+            worker_diagnostics.setdefault("status", "failed")
+            worker_diagnostics.setdefault("worker_error", "worker-failed")
+        else:
+            worker_diagnostics.setdefault("status", "succeeded")
+            worker_diagnostics.setdefault("worker_error", "")
+        diagnostics["worker_error"] = worker_diagnostics["worker_error"]
+        return result
 
     if (
         source_path is not None
@@ -2748,10 +3001,9 @@ def custom_background_master(
         )
     ):
         modnet_attempted = True
-        modnet_result = run_modnet_worker(
-            source_path,
-            image,
-        )
+        if diagnostics is not None:
+            diagnostics["primary_route"] = "modnet"
+        modnet_result = attempt_modnet()
 
         if modnet_result is not None:
             (
@@ -2761,6 +3013,11 @@ def custom_background_master(
             ) = modnet_result
 
             modnet_applied = True
+            if diagnostics is not None:
+                diagnostics.update(fallback_reason="primary_modnet_selected")
+        elif diagnostics is not None:
+            diagnostics.update(fallback_status="worker_failed",
+                               fallback_reason="primary_worker_failed")
 
     # MODNet is optional. Any worker failure falls back
     # to the existing conservative GrabCut path.
@@ -2771,6 +3028,9 @@ def custom_background_master(
         )
 
         if subject_result is None:
+            if diagnostics is not None:
+                diagnostics.update(fallback_status="error",
+                                   fallback_reason="grabcut_mask_unavailable")
             return None
 
         (
@@ -2802,19 +3062,48 @@ def custom_background_master(
         # Recheck the mask that would actually be rendered. Preserve the
         # primary route, and never retry a failed complex-background worker.
         if source_path is not None and not modnet_attempted:
+            stage = "probe"
             try:
-                evidence = grabcut_fallback_evidence(image, subject, bbox)
+                if diagnostics is None:
+                    evidence = grabcut_fallback_evidence(image, subject, bbox)
+                else:
+                    probe: dict[str, Any] = {}
+                    diagnostics["probe"] = probe
+                    evidence = grabcut_fallback_evidence(image, subject, bbox, diagnostics=probe)
                 if evidence is not None:
-                    modnet_result = run_modnet_worker(source_path, image)
-                    if (modnet_result is not None
-                            and modnet_fallback_is_better(
-                                modnet_result[0], modnet_result[1], evidence)):
-                        subject, foreground_ratio, _modnet_metadata = modnet_result
-                        modnet_applied = True
+                    stage = "worker"
+                    modnet_result = attempt_modnet()
+                    if modnet_result is None:
+                        if diagnostics is not None:
+                            diagnostics.update(fallback_status="worker_failed",
+                                               fallback_reason="fallback_worker_failed")
+                    else:
+                        stage = "comparison"
+                        if diagnostics is None:
+                            better = modnet_fallback_is_better(
+                                modnet_result[0], modnet_result[1], evidence)
+                        else:
+                            comparison: dict[str, Any] = {}
+                            diagnostics["comparison"] = comparison
+                            better = modnet_fallback_is_better(
+                                modnet_result[0], modnet_result[1], evidence, diagnostics=comparison)
+                            diagnostics.update(
+                                fallback_status="accepted" if better else "rejected",
+                                fallback_reason=comparison.get("reason", "candidate_not_better"),
+                            )
+                        if better:
+                            subject, foreground_ratio, _modnet_metadata = modnet_result
+                            modnet_applied = True
+                elif diagnostics is not None:
+                    diagnostics.update(fallback_status="skipped",
+                                       fallback_reason=probe.get("reason", "insufficient_residual"))
             except Exception as error:
                 # Optional analysis/inference must never discard a usable mask.
                 global _modnet_worker_error
                 _modnet_worker_error = ("fallback-check:" + type(error).__name__ + ":" + str(error))[:200]
+                if diagnostics is not None:
+                    diagnostics.update(fallback_status="error", fallback_reason=stage + "_error",
+                                       worker_error=("fallback-check:" + type(error).__name__ + ":" + str(error))[:200])
 
     if (
         crop_strategy == "torso-zoom-out"
@@ -3409,6 +3698,7 @@ def normalized_master(
         )
 
     if background_profile != BACKGROUND_PROFILE_ORIGINAL:
+        mask_selection: dict[str, Any] = {}
         custom_background = custom_background_master(
             image,
             bbox,
@@ -3419,7 +3709,9 @@ def normalized_master(
             mediapipe_shoulder_center,
             background_profile,
             source_path,
+            diagnostics=mask_selection,
         )
+        diagnostics["mask_selection"] = mask_selection
 
         if custom_background is not None:
             (

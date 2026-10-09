@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import subprocess
 import sys
 import tempfile
@@ -211,6 +212,7 @@ class GrabcutFallbackTests(unittest.TestCase):
                 geometry.get("crop_strategy", "subject-bbox"),
                 geometry.get("zoom_scale"), geometry.get("torso_center"),
                 geometry.get("shoulder_center"), profile, source,
+                **({"diagnostics": geometry["diagnostics"]} if "diagnostics" in geometry else {}),
             )
         return result, worker.call_count
 
@@ -218,6 +220,201 @@ class GrabcutFallbackTests(unittest.TestCase):
         if ratio is None:
             ratio = float(np.mean(np.asarray(subject.getchannel("A")) >= 128))
         return subject, ratio, {"inference_ms": 100, "provider": "CPUExecutionProvider"}
+
+    def noisy_fixture(self, jpeg=False, spill=True, fabric=False):
+        image, grabcut, good, bbox = self.fixture(spill=spill)
+        size = (384, 512)
+        image = image.resize(size, Image.Resampling.NEAREST)
+        grabcut = grabcut.resize(size, Image.Resampling.NEAREST)
+        good = good.resize(size, Image.Resampling.NEAREST)
+        bbox = tuple(round(value * 3.2) for value in bbox)
+        pixels = np.asarray(image).astype(np.float32)
+        background = np.asarray(good.getchannel("A")) == 0
+        rows, columns = np.indices(background.shape)
+        # Small tonal ripples/gradient, common in supplier JPEG backdrops.
+        # Each source background band reaches a transparent frame edge.
+        noise = 2 * np.sin(rows / 6) + 2 * columns / size[0]
+        pixels[background] += noise[background, None]
+        if fabric:
+            pixels[230:290, 220:256] = (115, 83, 60)
+            pixels[235:285:12, 220:256:12] = (119, 85, 62)
+        image = Image.fromarray(np.clip(np.rint(pixels), 0, 255).astype(np.uint8))
+        if jpeg:
+            encoded = io.BytesIO()
+            image.save(encoded, "JPEG", quality=95, subsampling=0)
+            encoded.seek(0)
+            with Image.open(encoded) as opened:
+                image = opened.convert("RGB")
+        for subject in (grabcut, good):
+            alpha = subject.getchannel("A")
+            subject.paste(image, (0, 0))
+            subject.putalpha(alpha)
+        return image, grabcut, good, bbox
+
+    def test_background_noise_does_not_hide_spill_or_reject_good_modnet(self):
+        for jpeg in (False, True):
+            with self.subTest(jpeg=jpeg):
+                image, grabcut, good, bbox = self.noisy_fixture(jpeg=jpeg)
+                self.assertFalse(processor.complex_background_prefers_modnet(image))
+                evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox)
+                self.assertIsNotNone(evidence)
+                self.assertFalse(np.any(evidence["protected"] & evidence["residual"]))
+                result, calls = self.render(image, grabcut, self.candidate(good), bbox)
+                self.assertEqual(result[2], "modnet")
+                self.assertEqual(calls, 1)
+
+    def test_good_grabcut_with_background_noise_keeps_output_without_worker(self):
+        image, grabcut, good, bbox = self.noisy_fixture(jpeg=True, spill=False)
+        self.assertFalse(processor.complex_background_prefers_modnet(image))
+        baseline, _ = self.render(image, grabcut, None, bbox, source=None)
+        result, calls = self.render(image, grabcut, self.candidate(good), bbox)
+        self.assertEqual(result[2], "opencv-grabcut")
+        self.assertEqual(calls, 0)
+        np.testing.assert_array_equal(np.asarray(result[0]), np.asarray(baseline[0]))
+
+    def test_noisy_backdrop_cannot_license_loss_of_model(self):
+        image, grabcut, good, bbox = self.noisy_fixture(jpeg=True)
+        damaged = good.copy()
+        alpha = np.asarray(good.getchannel("A")).copy()
+        alpha[32:96, 144:240] = 0
+        damaged.putalpha(Image.fromarray(alpha))
+        selection = {}
+        result, calls = self.render(image, grabcut, self.candidate(damaged), bbox,
+                                    diagnostics=selection)
+        self.assertEqual(result[2], "opencv-grabcut")
+        self.assertEqual(calls, 1)
+        self.assertFalse(selection["comparison"]["accepted"])
+
+    def test_low_contrast_seam_keeps_surrounding_fabric(self):
+        for jpeg in (False, True):
+            with self.subTest(jpeg=jpeg):
+                image, grabcut, good, bbox = self.noisy_fixture(fabric=True)
+                pixels = np.asarray(image).copy()
+                pixels[230:290, 220:256] = (115, 83, 60)
+                pixels[249:251, 220:256] = (119, 85, 62)
+                image = Image.fromarray(pixels)
+                if jpeg:
+                    encoded = io.BytesIO()
+                    image.save(encoded, "JPEG", quality=95, subsampling=0)
+                    encoded.seek(0)
+                    with Image.open(encoded) as opened:
+                        image = opened.convert("RGB")
+                for subject in (grabcut, good):
+                    alpha = subject.getchannel("A")
+                    subject.paste(image, (0, 0))
+                    subject.putalpha(alpha)
+                preserved, calls = self.render(image, grabcut, self.candidate(good), bbox)
+                self.assertEqual(preserved[2], "modnet")
+                self.assertEqual(calls, 1)
+                alpha = np.asarray(good.getchannel("A")).copy()
+                alpha[230:247, 220:256] = 0
+                alpha[253:290, 220:256] = 0
+                damaged = good.copy()
+                damaged.putalpha(Image.fromarray(alpha))
+                result, calls = self.render(image, grabcut, self.candidate(damaged), bbox)
+                self.assertEqual(result[2], "opencv-grabcut")
+                self.assertEqual(calls, 1)
+
+    def test_noise_probe_diagnostics_preserve_stage_counts_and_decision(self):
+        image, grabcut, good, bbox = self.noisy_fixture(jpeg=True)
+        selection = {}
+        result, calls = self.render(image, grabcut, self.candidate(good), bbox,
+                                    diagnostics=selection)
+        self.assertEqual(result[2], "modnet")
+        self.assertEqual(calls, 1)
+        self.assertEqual(selection["fallback_reason"], "accepted")
+        probe = selection["probe"]
+        self.assertEqual(probe["stage"], "ready")
+        self.assertEqual(probe["reason"], "residual_confirmed")
+        counts = probe["counts"]
+        for stage in ("before_continuity", "after_continuity", "after_texture", "after_detail_filter"):
+            self.assertGreaterEqual(counts[stage], probe["minimum_required"])
+        self.assertEqual(counts["removed_by_texture"], counts["after_continuity"] - counts["after_texture"])
+        self.assertEqual(counts["protected_residual_overlap"], 0)
+        self.assertGreater(probe["texture_threshold"], probe["texture_background_p90"])
+
+    def exterior_fabric_fixture(self, jpeg=False, seam_colour=None):
+        image, grabcut, good, bbox = self.noisy_fixture()
+        pixels = np.asarray(image).copy()
+        pixels[230:290, 256:288] = (115, 83, 60)
+        if seam_colour is None:
+            pixels[235:285:12, 256:288:12] = (119, 85, 62)
+        else:
+            pixels[245, 256:288] = seam_colour
+        image = Image.fromarray(pixels)
+        if jpeg:
+            encoded = io.BytesIO()
+            image.save(encoded, "JPEG", quality=95, subsampling=0)
+            encoded.seek(0)
+            with Image.open(encoded) as opened:
+                image = opened.convert("RGB")
+        alpha = np.asarray(good.getchannel("A")).copy()
+        alpha[230:290, 256:288] = 255
+        good.putalpha(Image.fromarray(alpha))
+        for subject in (grabcut, good):
+            alpha = subject.getchannel("A")
+            subject.paste(image, (0, 0))
+            subject.putalpha(alpha)
+        return image, grabcut, good, bbox
+
+    def check_exterior_material(self, jpeg, seam_colour=None):
+        image, grabcut, good, bbox = self.exterior_fabric_fixture(jpeg, seam_colour)
+        preserved, calls = self.render(image, grabcut, self.candidate(good), bbox)
+        self.assertEqual(preserved[2], "modnet")
+        self.assertEqual(calls, 1)
+        alpha = np.asarray(good.getchannel("A")).copy()
+        alpha[230:290, 256:288] = 0
+        damaged = good.copy()
+        damaged.putalpha(Image.fromarray(alpha))
+        result, calls = self.render(image, grabcut, self.candidate(damaged), bbox)
+        self.assertEqual(result[2], "opencv-grabcut")
+        self.assertEqual(calls, 1)
+
+    def test_weak_textured_garment_outside_body_core_is_preserved(self):
+        for jpeg in (False, True):
+            with self.subTest(jpeg=jpeg):
+                self.check_exterior_material(jpeg)
+
+    def test_long_seam_outside_body_core_is_preserved(self):
+        for jpeg in (False, True):
+            for colour in ((119, 85, 62), (130, 92, 66)):
+                with self.subTest(jpeg=jpeg, colour=colour):
+                    self.check_exterior_material(jpeg, colour)
+
+    def test_weak_fabric_structure_survives_backdrop_noise_calibration(self):
+        for jpeg in (False, True):
+            with self.subTest(jpeg=jpeg):
+                self.check_weak_fabric_structure(jpeg)
+
+    def check_weak_fabric_structure(self, jpeg):
+        image, grabcut, good, bbox = self.noisy_fixture(jpeg=jpeg, fabric=True)
+        evidence = processor.grabcut_fallback_evidence(image, grabcut, bbox)
+        self.assertIsNotNone(evidence)
+        preserved, calls = self.render(image, grabcut, self.candidate(good), bbox)
+        self.assertEqual(preserved[2], "modnet")
+        self.assertEqual(calls, 1)
+        pixels = np.asarray(image)
+        matching_fabric = np.zeros((512, 384), dtype=bool)
+        matching_fabric[230:290, 220:256] = True
+        if jpeg:
+            # Preserve the stitches and their compressed pixel neighbourhoods,
+            # lose the material between them. Quality is not a seed count.
+            for row in range(235, 285, 12):
+                for column in range(220, 256, 12):
+                    matching_fabric[row - 1:row + 2, column - 1:column + 2] = False
+        else:
+            matching_fabric &= np.all(pixels == (115, 83, 60), axis=2)
+        alpha = np.asarray(good.getchannel("A")).copy()
+        alpha[matching_fabric] = 0  # Retain stitches but lose their fabric.
+        damaged = good.copy()
+        damaged.putalpha(Image.fromarray(alpha))
+        selection = {}
+        result, calls = self.render(image, grabcut, self.candidate(damaged), bbox,
+                                    diagnostics=selection)
+        self.assertEqual(result[2], "opencv-grabcut")
+        self.assertEqual(calls, 1)
+        self.assertIn(selection["comparison"]["reason"], {
+            "protected_foreground_loss", "local_foreground_loss", "material_foreground_loss"})
 
     def test_good_grabcut_does_not_run_modnet(self):
         image, grabcut, good, bbox = self.fixture(spill=False)
