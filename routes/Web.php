@@ -415,6 +415,29 @@ $router->post(
     ['csrf' => true, 'csrf_family' => 'admin']
 );
 
+$router->post(
+    '/admin/products/image-process-preview',
+    'AdminImageProcessorController@preview',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/products/image-process-confirm',
+    'AdminImageProcessorController@confirm',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/products/image-process-cancel',
+    'AdminImageProcessorController@cancel',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->get(
+    '/admin/products/image-process-preview-file',
+    'AdminImageProcessorController@previewFile'
+);
+
 $router->get(
     '/admin/delivery',
     'AdminDeliveryController@index'

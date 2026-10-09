@@ -47,6 +47,7 @@ BACKGROUND_PROFILES = (
     BACKGROUND_PROFILE_STUDIO,
     BACKGROUND_PROFILE_BRAND,
 )
+MASK_MODES = ("auto", "grabcut", "modnet")
 DEFAULT_BACKGROUND_PROFILE = BACKGROUND_PROFILE_ORIGINAL
 SUBJECT_MASK_MAX_EDGE = 1200
 SUBJECT_MASK_MIN_RATIO = 0.02
@@ -103,6 +104,14 @@ _person_detector_error = ""
 
 _modnet_worker_error = ""
 _BACKGROUND_MASK_UNSET = object()
+
+
+class MaskProcessingError(RuntimeError):
+    """A requested mask failed; retain diagnostics after job cleanup."""
+
+    def __init__(self, reason: str, normalization: dict[str, Any]):
+        super().__init__("Не вдалося застосувати маску фотографії: " + reason)
+        self.normalization = normalization
 
 
 @contextmanager
@@ -986,6 +995,13 @@ def normalize_background_profile(value: Any) -> str:
         raise ValueError("Невідомий профіль фону фотографії.")
 
     return profile
+
+
+def normalize_mask_mode(value: Any) -> str:
+    mode = "auto" if value is None else str(value).strip().lower()
+    if mode not in MASK_MODES:
+        raise ValueError("Невідомий метод маски фотографії.")
+    return mode
 
 
 def gradient_background(
@@ -4029,9 +4045,13 @@ def custom_background_master(
     background_profile: str,
     source_path: Path | None = None,
     *,
+    mask_mode: str = "auto",
     diagnostics: dict[str, Any] | None = None,
     timings: dict[str, Any],
 ) -> tuple[Image.Image, float, str] | None:
+    mask_mode = normalize_mask_mode(mask_mode)
+    if diagnostics is None and mask_mode != "auto":
+        diagnostics = {}
     if diagnostics is not None:
         diagnostics.clear()
         diagnostics.update(
@@ -4040,6 +4060,10 @@ def custom_background_master(
             fallback_reason="no_source_path" if source_path is None else "not_checked",
             modnet_worker_calls=0,
             worker_error="",
+            mask_mode_requested=mask_mode,
+            mask_method="none",
+            processor_version=VERSION,
+            background_profile=background_profile,
             timings_ms=timings,
         )
     if background_profile == BACKGROUND_PROFILE_ORIGINAL:
@@ -4076,8 +4100,14 @@ def custom_background_master(
         diagnostics["worker_error"] = worker_diagnostics["worker_error"]
         return result
 
-    if (
-        source_path is not None
+    if mask_mode == "modnet" and source_path is None:
+        diagnostics.update(worker_error="source-missing", fallback_status="worker_failed",
+                           fallback_reason="forced_worker_failed")
+        raise MaskProcessingError("source-missing", diagnostics)
+
+    if mask_mode == "modnet" or (
+        mask_mode == "auto"
+        and source_path is not None
         and background_profile
         in (
             BACKGROUND_PROFILE_STUDIO,
@@ -4101,13 +4131,17 @@ def custom_background_master(
 
             modnet_applied = True
             if diagnostics is not None:
-                diagnostics.update(fallback_reason="primary_modnet_selected")
+                diagnostics.update(fallback_reason=("forced_modnet_selected" if mask_mode == "modnet"
+                                                    else "primary_modnet_selected"))
+        elif mask_mode == "modnet":
+            diagnostics.update(fallback_status="worker_failed", fallback_reason="forced_worker_failed")
+            raise MaskProcessingError(diagnostics["worker_error"] or "worker-failed", diagnostics)
         elif diagnostics is not None:
             diagnostics.update(fallback_status="worker_failed",
                                fallback_reason="primary_worker_failed")
 
-    # MODNet is optional. Any worker failure falls back
-    # to the existing conservative GrabCut path.
+    # AUTO keeps the existing conservative GrabCut fallback when the
+    # optional worker fails. Forced MODNet has already failed above.
     if subject is None:
         grabcut_timings: dict[str, Any] = {}
         if diagnostics is not None:
@@ -4122,6 +4156,8 @@ def custom_background_master(
             if diagnostics is not None:
                 diagnostics.update(fallback_status="error",
                                    fallback_reason="grabcut_mask_unavailable")
+            if mask_mode == "grabcut":
+                raise MaskProcessingError("grabcut_mask_unavailable", diagnostics)
             return None
 
         (
@@ -4159,7 +4195,7 @@ def custom_background_master(
 
         # Recheck the mask that would actually be rendered. Preserve the
         # primary route, and never retry a failed complex-background worker.
-        if source_path is not None and not modnet_attempted:
+        if mask_mode == "auto" and source_path is not None and not modnet_attempted:
             stage = "probe"
             try:
                 if diagnostics is None:
@@ -4218,6 +4254,8 @@ def custom_background_master(
         )
 
         if subject_canvas is None:
+            if mask_mode != "auto":
+                raise MaskProcessingError("subject_canvas_unavailable", diagnostics)
             return None
     elif crop_box is not None:
         subject_canvas = measured_call(timings, "subject_canvas", transparent_standard_canvas,
@@ -4230,17 +4268,17 @@ def custom_background_master(
             MASTER_SIZE,
         )
 
+    master = measured_call(timings, "compose", compose_subject_on_background,
+        subject_canvas,
+        background_profile,
+    )
+    actual_method = "modnet" if modnet_applied else "opencv-grabcut"
+    if diagnostics is not None:
+        diagnostics["mask_method"] = actual_method
     return (
-        measured_call(timings, "compose", compose_subject_on_background,
-            subject_canvas,
-            background_profile,
-        ),
+        master,
         foreground_ratio,
-        (
-            "modnet"
-            if modnet_applied
-            else "opencv-grabcut"
-        ),
+        actual_method,
     )
 
 
@@ -4591,11 +4629,13 @@ def normalized_master(
     background_profile: str = DEFAULT_BACKGROUND_PROFILE,
     source_path: Path | None = None,
     *,
+    mask_mode: str = "auto",
     timings: dict[str, Any],
 ) -> tuple[Image.Image, dict[str, Any]]:
     background_profile = normalize_background_profile(
         background_profile
     )
+    mask_mode = normalize_mask_mode(mask_mode)
     bbox = None
     method = ""
     person_score = None
@@ -4628,22 +4668,29 @@ def normalized_master(
         method = "opencv-hog-person"
 
     if bbox is None:
+        diagnostics = {
+            "timings_ms": timings,
+            "subject_detected": False,
+            "crop_applied": False,
+            "method": "standard-canvas-fallback",
+            "background_profile_requested": background_profile,
+            "background_profile": BACKGROUND_PROFILE_ORIGINAL,
+            "background_fallback": (
+                background_profile
+                != BACKGROUND_PROFILE_ORIGINAL
+            ),
+            "subject_mask_applied": False,
+            "shadow_applied": False,
+            "mask_mode_requested": mask_mode,
+            "mask_method": "none",
+            "processor_version": VERSION,
+            "worker_error": "",
+        }
+        if mask_mode != "auto" and background_profile != BACKGROUND_PROFILE_ORIGINAL:
+            raise MaskProcessingError("subject-not-detected", diagnostics)
         return (
             measured_call(timings, "original_canvas", standard_canvas, image, MASTER_SIZE),
-            {
-                "timings_ms": timings,
-                "subject_detected": False,
-                "crop_applied": False,
-                "method": "standard-canvas-fallback",
-                "background_profile_requested": background_profile,
-                "background_profile": BACKGROUND_PROFILE_ORIGINAL,
-                "background_fallback": (
-                    background_profile
-                    != BACKGROUND_PROFILE_ORIGINAL
-                ),
-                "subject_mask_applied": False,
-                "shadow_applied": False,
-            },
+            diagnostics,
         )
 
     geometry_started = time.perf_counter()
@@ -4759,6 +4806,10 @@ def normalized_master(
         "background_fallback": False,
         "subject_mask_applied": False,
         "shadow_applied": False,
+        "mask_mode_requested": mask_mode,
+        "mask_method": "none",
+        "processor_version": VERSION,
+        "worker_error": "",
     }
 
     if (
@@ -4805,19 +4856,26 @@ def normalized_master(
 
     if background_profile != BACKGROUND_PROFILE_ORIGINAL:
         mask_selection: dict[str, Any] = {}
-        custom_background = measured_call(timings, "custom_background", custom_background_master,
-            image,
-            bbox,
-            crop_box,
-            crop_strategy,
-            zoom_scale,
-            mediapipe_torso_center,
-            mediapipe_shoulder_center,
-            background_profile,
-            source_path,
-            diagnostics=mask_selection,
-        )
         diagnostics["mask_selection"] = mask_selection
+        try:
+            custom_background = measured_call(timings, "custom_background", custom_background_master,
+                image,
+                bbox,
+                crop_box,
+                crop_strategy,
+                zoom_scale,
+                mediapipe_torso_center,
+                mediapipe_shoulder_center,
+                background_profile,
+                source_path,
+                mask_mode=mask_mode,
+                diagnostics=mask_selection,
+            )
+        except MaskProcessingError as error:
+            diagnostics["worker_error"] = mask_selection.get("worker_error", "")
+            error.normalization = diagnostics
+            raise
+        diagnostics["worker_error"] = mask_selection.get("worker_error", "")
 
         if custom_background is not None:
             (
@@ -4937,6 +4995,7 @@ def save_webp(image: Image.Image, target: Path, quality: int) -> None:
 def process_image(
     source_value: Any,
     background_profile_value: Any = None,
+    mask_mode: Any = None,
     *,
     timings: dict[str, Any],
 ) -> dict[str, Any]:
@@ -4944,6 +5003,7 @@ def process_image(
     background_profile = normalize_background_profile(
         background_profile_value
     )
+    mask_mode = normalize_mask_mode(mask_mode)
     job_id = uuid.uuid4().hex
 
     original_dir = ORIGINAL_ROOT / job_id
@@ -4965,6 +5025,7 @@ def process_image(
             image,
             background_profile,
             source_path=original,
+            mask_mode=mask_mode,
         )
         thumb = measured_call(timings, "thumbnail_resize", master.resize,
             THUMB_SIZE,
@@ -5125,8 +5186,19 @@ class Handler(BaseHTTPRequestHandler):
             result = process_image(
                 payload.get("source"),
                 payload.get("background_profile"),
+                mask_mode=payload.get("mask_mode"),
             )
             self.send_json(200, result)
+        except MaskProcessingError as error:
+            self.send_json(
+                500,
+                {
+                    "ok": False,
+                    "error": str(error),
+                    "worker_error": error.normalization.get("worker_error", ""),
+                    "normalization": error.normalization,
+                },
+            )
         except (ValueError, OSError, UnidentifiedImageError) as error:
             self.send_json(
                 400,

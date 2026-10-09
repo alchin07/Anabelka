@@ -9,6 +9,7 @@ const processingModel = read('app/Models/ProductImageProcessing.php');
 const processingService = read(
     'app/Services/ProductImageProcessingService.php'
 );
+const previewService = read('app/Services/ProductImagePreviewService.php');
 const processorController = read(
     'app/Controllers/AdminImageProcessorController.php'
 );
@@ -50,16 +51,21 @@ assert.match(processingModel, /SHOW COLUMNS[\s\S]*?normalization_json/);
 assert.match(processingModel, /processed_at = NOW\(\)/);
 
 assert.match(
-    processingService,
+    previewService,
     /ProductImage::findById\(\$imageId\)/
 );
 assert.match(
-    processingService,
-    /ImageProcessorClient::processProductImage\(\s*\$sourcePath,\s*\$backgroundProfile\s*\)/
+    previewService,
+    /ImageProcessorClient::class, 'processProductImage'/
 );
-assert.match(processingService, /ProductImageProcessing::markProcessing/);
-assert.match(processingService, /ProductImageProcessing::markReady/);
-assert.match(processingService, /ProductImageProcessing::markError/);
+assert.match(processingService, /\$service->create\(\$imageId, \$backgroundProfile, \$maskMode\)/);
+assert.match(processingService, /\$service->confirm\(\$imageId, \$preview\['preview_id'\]\)/);
+assert.doesNotMatch(processingService, /ProductImageProcessing::mark(?:Processing|Error)/);
+assert.match(previewService, /ProductImageProcessing::markReady/);
+assert.match(previewService, /\$db->beginTransaction\(\)/);
+assert.match(previewService, /FOR UPDATE/);
+assert.match(previewService, /\$db->commit\(\)/);
+assert.match(previewService, /\$db->rollBack\(\)/);
 assert.match(processingService, /\^\[a-f0-9\]\{64\}\$/);
 assert.match(processingService, /storage\/image-processor/);
 

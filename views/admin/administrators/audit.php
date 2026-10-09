@@ -69,6 +69,8 @@ $actionLabels = [
     'product.visibility_changed' => 'Змінено видимість товару',
     'product.duplicated' => 'Створено копію товару',
     'product.variant_stock_updated' => 'Оновлено залишки варіантів товару',
+    'product.image_processed' => 'Застосовано обробку фотографії товару',
+    'product.image_processing_failed' => 'Помилка обробки фотографії товару',
 
     'category.created' => 'Створено категорію',
     'category.updated' => 'Оновлено категорію',
@@ -161,6 +163,14 @@ $detailLabels = [
     'category_id' => 'ID категорії',
     'sku' => 'SKU',
     'stock_mode' => 'Облік залишків',
+    'image_id' => 'ID фотографії',
+    'job_id' => 'Завдання обробки',
+    'background_profile' => 'Застосований фон',
+    'background_profile_requested' => 'Обраний фон',
+    'mask_mode_requested' => 'Обраний метод',
+    'mask_method' => 'Застосований метод',
+    'processor_version' => 'Версія обробника',
+    'worker_error' => 'Помилка MODNet worker',
 
     'user_id' => 'ID користувача',
     'request_id' => 'ID запиту',
@@ -202,6 +212,28 @@ $detailLabels = [
 ];
 
 $formatDetail = static function ($key, $value) {
+    if (in_array($key, ['mask_mode_requested', 'mask_method'], true)) {
+        $labels = [
+            'auto' => 'Автоматично',
+            'grabcut' => 'GrabCut',
+            'opencv-grabcut' => 'GrabCut',
+            'modnet' => 'MODNet',
+            'none' => 'Без видалення фону'
+        ];
+
+        return (string) ($labels[(string) $value] ?? $value);
+    }
+
+    if (in_array($key, ['background_profile', 'background_profile_requested'], true)) {
+        $labels = [
+            'original-canvas' => 'Original+Canvas',
+            'studio-light' => 'Studio Light',
+            'anabelka-brand' => 'Anabelka Brand'
+        ];
+
+        return (string) ($labels[(string) $value] ?? $value);
+    }
+
     if (in_array($key, ['is_active', 'is_enabled', 'enabled', 'name_changed'], true)) {
         return (string) ((int) $value === 1 ? 'Так' : 'Ні');
     }

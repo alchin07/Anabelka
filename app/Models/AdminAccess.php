@@ -367,6 +367,10 @@ class AdminAccess
             $path = '/';
         }
 
+        if ($path === '/admin/products/image-process-preview-file') {
+            return 'products.manage';
+        }
+
         $isWrite = $method !== 'GET' && $method !== 'HEAD';
         $areas = [
             '/admin/dashboard-builder' => ['dashboard.manage', 'dashboard.manage'],

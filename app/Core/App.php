@@ -120,6 +120,7 @@ class App
         require_once __DIR__ . '/../Services/SocialAuthService.php';
         require_once __DIR__ . '/../Services/ImageProcessorClient.php';
         require_once __DIR__ . '/../Services/ProductImageProcessingService.php';
+        require_once __DIR__ . '/../Services/ProductImagePreviewService.php';
 
         require_once __DIR__ . '/../Controllers/HomeController.php';
         require_once __DIR__ . '/../Controllers/CatalogController.php';

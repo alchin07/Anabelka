@@ -4,84 +4,27 @@ class ProductImageProcessingService
 {
     public static function process(
         $imageId,
-        $backgroundProfile = 'original-canvas'
+        $backgroundProfile = 'original-canvas',
+        $maskMode = 'auto'
     ) {
-        $imageId = (int) $imageId;
-
-        if ($imageId <= 0) {
-            throw new InvalidArgumentException(
-                'Некоректна фотографія товару.'
-            );
-        }
-
-        ProductImageProcessing::ensureSchema();
-        $image = ProductImage::findById($imageId);
-
-        if (!$image) {
-            throw new InvalidArgumentException(
-                'Фотографію товару не знайдено.'
-            );
-        }
-
-        $sourcePath = trim((string) ($image['path'] ?? ''));
-
-        if ($sourcePath === '') {
-            throw new InvalidArgumentException(
-                'Для фотографії не збережено шлях до файла.'
-            );
-        }
-
-        ProductImageProcessing::markProcessing(
-            $imageId,
-            $sourcePath
-        );
-
-        try {
-            $response = ImageProcessorClient::processProductImage(
-                $sourcePath,
-                $backgroundProfile
-            );
-            $data = self::normalizeResult(
-                $sourcePath,
-                $response
-            );
-
-            ProductImageProcessing::markReady(
-                $imageId,
-                $data
-            );
-
-            $stored = ProductImageProcessing::find($imageId);
-
-            if (!$stored || ($stored['status'] ?? '') !== 'ready') {
-                throw new RuntimeException(
-                    'База не підтвердила результат обробки фотографії.'
-                );
-            }
-
-            return array_merge(
-                $stored,
-                [
-                    'product_id' => (int) (
-                        $image['product_id'] ?? 0
-                    )
-                ]
-            );
-        } catch (Throwable $e) {
-            ProductImageProcessing::markError(
-                $imageId,
-                $sourcePath,
-                $e->getMessage()
-            );
-
-            throw $e;
-        }
+        // Legacy clients accept immediately, through the same safe publication path.
+        $service = new ProductImagePreviewService();
+        $preview = $service->create($imageId, $backgroundProfile, $maskMode);
+        return $service->confirm($imageId, $preview['preview_id']);
     }
 
 
-    private static function normalizeResult(
+    public static function preview($imageId, $backgroundProfile = 'original-canvas', $maskMode = 'auto')
+    {
+        return (new ProductImagePreviewService())->create($imageId, $backgroundProfile, $maskMode);
+    }
+
+
+    public static function normalizeResult(
         $sourcePath,
-        array $response
+        array $response,
+        $requestedBackground = null,
+        $requestedMaskMode = null
     ) {
         $jobId = strtolower(trim((string) (
             $response['job_id'] ?? ''
@@ -186,6 +129,33 @@ class ProductImageProcessingService
             );
         }
 
+        $maskModeRequested = strtolower(trim((string) ($normalization['mask_mode_requested'] ?? '')));
+        $maskMethod = strtolower(trim((string) ($normalization['mask_method'] ?? '')));
+        $workerError = $normalization['worker_error'] ?? null;
+        if ($workerError !== null && !is_string($workerError)) {
+            throw new RuntimeException('Некоректна діагностика помилки обробника.');
+        }
+        $workerError = $workerError === null ? null : substr(trim($workerError), 0, 500);
+        if ($requestedMaskMode !== null) {
+            if (
+                $backgroundProfileRequested !== $requestedBackground
+                || $maskModeRequested !== $requestedMaskMode
+                || $normalizationMethod === ''
+                || !in_array($maskMethod, ['none', 'opencv-grabcut', 'modnet'], true)
+                || ($normalization['processor_version'] ?? '') !== $processorVersion
+                || ($requestedMaskMode === 'modnet' && $requestedBackground !== 'original-canvas' && !empty($workerError))
+                || ($backgroundProfile !== $backgroundProfileRequested && empty($normalization['background_fallback']))
+            ) {
+                throw new RuntimeException('Обробник повернув некоректну діагностику запитаного методу.');
+            }
+            if ($requestedBackground !== 'original-canvas' && $requestedMaskMode !== 'auto') {
+                $expectedMethod = $requestedMaskMode === 'grabcut' ? 'opencv-grabcut' : 'modnet';
+                if ($maskMethod !== $expectedMethod || empty($normalization['subject_mask_applied'])) {
+                    throw new RuntimeException('Обробник не застосував запитаний метод маски.');
+                }
+            }
+        }
+
         $allowedNormalizationMethods = [
             'mediapipe-persondet',
             'mediapipe-persondet-no-crop',
@@ -252,6 +222,9 @@ class ProductImageProcessingService
                 'subject_mask_applied' => (
                     $normalization['subject_mask_applied'] ?? false
                 ) === true,
+                'mask_mode_requested' => $maskModeRequested,
+                'processor_version' => $processorVersion,
+                'worker_error' => $workerError,
                 'shadow_applied' => (
                     $normalization['shadow_applied'] ?? false
                 ) === true
@@ -281,6 +254,7 @@ class ProductImageProcessingService
                 in_array(
                     $maskMethod,
                     [
+                        'none',
                         'opencv-grabcut',
                         'modnet'
                     ],

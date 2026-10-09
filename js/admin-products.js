@@ -54,6 +54,9 @@
     let productEditorHistoryArmed = false;
     let productEditorHistoryToken = 0;
     const productEditorHistoryKey = '__anabelkaProductEditor';
+    const imageCompareHistoryKey = '__anabelkaProductImageCompare';
+    const imageCompareDetailsHistoryKey =
+        '__anabelkaProductImageCompareDetails';
 
 
     function currentProductEditorUrl()
@@ -71,6 +74,8 @@
             : {};
 
         delete state[productEditorHistoryKey];
+        delete state[imageCompareHistoryKey];
+        delete state[imageCompareDetailsHistoryKey];
 
         return state;
     }
@@ -114,7 +119,11 @@
         }
 
         productEditorHistoryArmed = false;
-        history.back();
+        const state = history.state || {};
+        const comparisonDepth = state[imageCompareDetailsHistoryKey]
+            ? 2
+            : (state[imageCompareHistoryKey] ? 1 : 0);
+        unwindImageComparisonHistory(comparisonDepth + 1);
     }
 
 
@@ -159,11 +168,126 @@
     }
 
 
-    const imageCompareHistoryKey = '__anabelkaProductImageCompare';
-    const imageCompareDetailsHistoryKey =
-        '__anabelkaProductImageCompareDetails';
     let activeImageCompareModal = null;
     let activeImageCompareDetails = null;
+    let activeImagePreview = null;
+    let imagePreviewGeneration = 0;
+    let imageCompareHistoryUnwinding = false;
+    let imageCompareHistorySettled = Promise.resolve();
+    let settleImageCompareHistory = null;
+    let imageCompareHistoryPendingDepth = 0;
+
+
+    function unwindImageComparisonHistory(depth)
+    {
+        const remainingDepth = Math.max(0, depth - imageCompareHistoryPendingDepth);
+        if (remainingDepth === 0) {
+            return;
+        }
+
+        imageCompareHistoryPendingDepth += remainingDepth;
+
+        function traverse()
+        {
+            return new Promise(function (resolve) {
+                settleImageCompareHistory = resolve;
+                history.go(-remainingDepth);
+            });
+        }
+
+        imageCompareHistorySettled = imageCompareHistoryUnwinding
+            ? imageCompareHistorySettled.then(traverse)
+            : traverse();
+        imageCompareHistoryUnwinding = true;
+        const lastTraversal = imageCompareHistorySettled;
+        lastTraversal.then(function () {
+            if (imageCompareHistorySettled === lastTraversal) {
+                imageCompareHistoryUnwinding = false;
+                imageCompareHistoryPendingDepth = 0;
+            }
+        });
+    }
+
+
+    async function imageProcessingRequest(action, payload)
+    {
+        const response = await fetch(
+            '/Anabelka/admin/products/image-process-' + action,
+            {
+                method: 'POST',
+                body: payload,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            }
+        );
+        let data;
+
+        try {
+            data = JSON.parse(await response.text());
+        } catch (error) {
+            throw new Error('Сервер повернув некоректну відповідь.');
+        }
+
+        if (!response.ok || !data || !data.success) {
+            throw new Error(
+                (data && data.message)
+                || 'Не вдалося обробити фотографію.'
+            );
+        }
+
+        return data;
+    }
+
+
+    function imagePreviewPayload(preview)
+    {
+        const payload = new FormData();
+        payload.append('_csrf', preview.csrf);
+        payload.append('image_id', String(preview.imageId));
+        payload.append('preview_id', preview.previewId);
+        return payload;
+    }
+
+
+    function cancelImagePreview(preview)
+    {
+        if (!preview) {
+            return;
+        }
+
+        preview.dismissed = true;
+
+        if (activeImagePreview === preview) {
+            activeImagePreview = null;
+        }
+
+        if (preview.confirming || preview.committed) {
+            return;
+        }
+
+        preview.setBusy(false);
+
+        if (!preview.previewId || preview.cancelled) {
+            return;
+        }
+
+        preview.cancelled = true;
+        // A late request is allowed to return its token so it can be cleaned up.
+        // Failed cleanup is harmless: previews also expire on the server.
+        imageProcessingRequest('cancel', imagePreviewPayload(preview))
+            .catch(function () {});
+    }
+
+
+    function cleanImageComparisonState(source)
+    {
+        const state = Object.assign({}, source || {});
+        delete state[imageCompareHistoryKey];
+        delete state[imageCompareDetailsHistoryKey];
+        return state;
+    }
 
 
     function publicProductImageUrl(path)
@@ -221,43 +345,65 @@
             return;
         }
 
+        if (options.cancelPreview !== false) {
+            cancelImagePreview(activeImagePreview);
+        }
+
         activeImageCompareModal.remove();
         activeImageCompareModal = null;
+        activeImageCompareDetails = null;
         document.documentElement.classList.remove(
             'product-image-compare-open'
         );
-        document.body.classList.remove(
-            'product-image-compare-open'
-        );
+        document.body.classList.remove('product-image-compare-open');
 
-        if (
-            options.syncHistory !== false
-            && history.state
-            && typeof history.state === 'object'
-            && history.state[imageCompareHistoryKey]
-        ) {
-            history.back();
+        const state = history.state || {};
+        const depth = state[imageCompareDetailsHistoryKey]
+            ? 2
+            : (state[imageCompareHistoryKey] ? 1 : 0);
+
+        if (options.syncHistory !== false && depth > 0) {
+            unwindImageComparisonHistory(depth);
         }
     }
 
 
-    function openImageComparison(image)
+    function openImageComparison(image, preview)
     {
-        const originalUrl = publicProductImageUrl(
-            image ? image.path : ''
-        );
-        const processedUrl = processedMasterUrl(image);
+        if (!preview) {
+            cancelImagePreview(activeImagePreview);
+            imagePreviewGeneration += 1;
+        }
+
+        if (imageCompareHistoryUnwinding) {
+            imageCompareHistorySettled.then(function () {
+                if (!editor.hidden && (!preview || !preview.dismissed)) {
+                    openImageComparison(image, preview);
+                }
+            });
+            return;
+        }
+
+        const originalUrl = publicProductImageUrl(image ? image.path : '');
+        const processedUrl = preview
+            ? preview.previewUrl
+            : processedMasterUrl(image);
 
         if (!originalUrl || !processedUrl) {
+            cancelImagePreview(preview);
             showMessage(
                 'Для порівняння потрібна готова оброблена фотографія.'
             );
             return;
         }
 
-        closeImageComparison({ syncHistory: false });
+        if (activeImageCompareModal) {
+            closeImageComparison();
+            openImageComparison(image, preview);
+            return;
+        }
 
-        const processing = image.processing || {};
+        const processing = preview ? preview.processing : (image.processing || {});
         const modal = document.createElement('div');
         modal.className = 'product-image-compare-modal';
         modal.dataset.productImageCompareModal = '';
@@ -275,7 +421,9 @@
         header.className = 'product-image-compare-header';
 
         const title = document.createElement('strong');
-        title.textContent = 'Порівняння фотографії';
+        title.textContent = preview
+            ? 'Попередній перегляд'
+            : 'Порівняння фотографії';
 
         const close = document.createElement('button');
         close.type = 'button';
@@ -733,6 +881,10 @@
 
         function closeDetails(syncHistory)
         {
+            if (detailsModal.hidden) {
+                return;
+            }
+
             detailsModal.hidden = true;
             activeImageCompareDetails = null;
 
@@ -741,11 +893,21 @@
                 && history.state
                 && history.state[imageCompareDetailsHistoryKey]
             ) {
-                history.back();
+                unwindImageComparisonHistory(1);
             }
         }
 
-        detailsButton.addEventListener('click', function () {
+        function openDetails()
+        {
+            if (!detailsModal.hidden || activeImageCompareModal !== modal) {
+                return;
+            }
+
+            if (imageCompareHistoryUnwinding) {
+                imageCompareHistorySettled.then(openDetails);
+                return;
+            }
+
             detailsModal.hidden = false;
             activeImageCompareDetails = detailsModal;
 
@@ -758,7 +920,9 @@
                 '',
                 currentProductEditorUrl()
             );
-        });
+        }
+
+        detailsButton.addEventListener('click', openDetails);
 
         detailsClose.addEventListener('click', function () {
             closeDetails(true);
@@ -774,6 +938,91 @@
         dialog.appendChild(stage);
         dialog.appendChild(sliderWrap);
         dialog.appendChild(detailsButton);
+
+        if (preview) {
+            const actions = document.createElement('div');
+            actions.className = 'product-image-preview-actions';
+
+            const apply = document.createElement('button');
+            apply.type = 'button';
+            apply.dataset.productImagePreviewConfirm = '';
+            apply.textContent = 'Застосувати';
+
+            const cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.dataset.productImagePreviewCancel = '';
+            cancel.textContent = 'Скасувати';
+            cancel.addEventListener('click', function () {
+                if (!preview.confirming) {
+                    closeImageComparison();
+                }
+            });
+
+            apply.addEventListener('click', async function () {
+                if (preview.confirming || preview.dismissed || preview.committed) {
+                    return;
+                }
+
+                preview.confirming = true;
+                preview.setBusy(true);
+                apply.disabled = true;
+                cancel.disabled = true;
+                apply.textContent = 'Застосування…';
+
+                try {
+                    const data = await imageProcessingRequest(
+                        'confirm', imagePreviewPayload(preview)
+                    );
+
+                    if (
+                        Number(data.image_id) !== preview.imageId
+                        || !data.processing
+                        || typeof data.processing !== 'object'
+                    ) {
+                        throw new Error('Сервер повернув некоректну відповідь.');
+                    }
+
+                    // The commit may finish after Back or the editor has closed.
+                    image.processing = data.processing;
+                    preview.committed = true;
+                    preview.confirming = false;
+                    preview.setBusy(false);
+                    fields.imageList.querySelectorAll('[data-image-id]')
+                        .forEach(function (card) {
+                            if (Number(card.dataset.imageId) === preview.imageId) {
+                                const control = card.querySelector('.product-image-processing');
+                                if (control) {
+                                    syncProcessingControl(control, image);
+                                }
+                            }
+                        });
+
+                    if (activeImagePreview === preview) {
+                        activeImagePreview = null;
+                        closeImageComparison({ cancelPreview: false });
+                    }
+
+                    showMessage('Обробку фотографії застосовано.');
+                } catch (error) {
+                    preview.confirming = false;
+                    preview.setBusy(false);
+
+                    if (preview.dismissed) {
+                        cancelImagePreview(preview);
+                    } else {
+                        apply.disabled = false;
+                        cancel.disabled = false;
+                        apply.textContent = 'Застосувати';
+                        showMessage(error.message || 'Не вдалося застосувати обробку.');
+                    }
+                }
+            });
+
+            actions.appendChild(apply);
+            actions.appendChild(cancel);
+            dialog.appendChild(actions);
+        }
+
         modal.appendChild(dialog);
         modal.appendChild(detailsModal);
         document.body.appendChild(modal);
@@ -792,6 +1041,7 @@
                 ? history.state
                 : {}
         );
+        delete historyState[imageCompareDetailsHistoryKey];
         historyState[imageCompareHistoryKey] = true;
         history.pushState(
             historyState,
@@ -825,7 +1075,6 @@
         ) {
             activeImageCompareDetails.hidden = true;
             activeImageCompareDetails = null;
-            return;
         }
 
         if (
@@ -834,11 +1083,26 @@
         ) {
             closeImageComparison({ syncHistory: false });
         }
+
+        if (!activeImageCompareModal && state[imageCompareHistoryKey]) {
+            history.replaceState(
+                cleanImageComparisonState(state), '', currentProductEditorUrl()
+            );
+        }
+
+        if (imageCompareHistoryUnwinding) {
+            const settle = settleImageCompareHistory;
+            settleImageCompareHistory = null;
+            if (settle) {
+                settle();
+            }
+        }
     });
 
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && activeImageCompareModal) {
             event.preventDefault();
+            event.stopImmediatePropagation();
             closeImageComparison();
         }
     });
@@ -1214,6 +1478,7 @@
         const profileSelect = control.querySelector(
             '[data-product-image-background-profile]'
         );
+        const modeSelect = control.querySelector('[data-product-image-mask-mode]');
         const normalization = processing.normalization
             && typeof processing.normalization === 'object'
             ? processing.normalization
@@ -1240,9 +1505,7 @@
         }
 
         if (button) {
-            button.textContent = status === 'ready'
-                ? 'Повторити'
-                : 'Обробити';
+            button.textContent = 'Попередній перегляд';
         }
 
         if (
@@ -1252,6 +1515,16 @@
             })
         ) {
             profileSelect.value = storedBackgroundProfile;
+        }
+
+        if (modeSelect) {
+            const mode = valueOrEmpty(normalization.mask_mode_requested || 'auto');
+            modeSelect.value = ['auto', 'grabcut', 'modnet'].indexOf(mode) >= 0
+                ? mode
+                : 'auto';
+            modeSelect.disabled = !profileSelect
+                || profileSelect.disabled
+                || profileSelect.value === 'original-canvas';
         }
 
         if (compareButton) {
@@ -1274,7 +1547,7 @@
         button.setAttribute('data-product-image-process', '');
         button.setAttribute(
             'aria-label',
-            'Обробити фотографію товару'
+            'Попередній перегляд обробки фотографії товару'
         );
 
         const profileSelect = document.createElement('select');
@@ -1295,6 +1568,35 @@
             option.textContent = entry[1];
             profileSelect.appendChild(option);
         });
+
+        const modeSelect = document.createElement('select');
+        modeSelect.className = 'product-image-mask-mode';
+        modeSelect.dataset.productImageMaskMode = '';
+        modeSelect.setAttribute('aria-label', 'Метод маски фотографії');
+        [
+            ['auto', 'Автоматично (рекомендовано)'],
+            ['grabcut', 'GrabCut'],
+            ['modnet', 'MODNet']
+        ].forEach(function (entry) {
+            const option = document.createElement('option');
+            option.value = entry[0];
+            option.textContent = entry[1];
+            modeSelect.appendChild(option);
+        });
+
+        let busy = false;
+        let busyPreview = null;
+
+        function updateDisabled()
+        {
+            button.disabled = busy || remove.checked;
+            profileSelect.disabled = busy || remove.checked;
+            modeSelect.disabled = busy || remove.checked
+                || profileSelect.value === 'original-canvas';
+            compareButton.disabled = busy || remove.checked;
+        }
+
+        profileSelect.addEventListener('change', updateDisabled);
 
         const compareButton = document.createElement('button');
         compareButton.type = 'button';
@@ -1318,95 +1620,107 @@
             const csrf = form.querySelector('input[name="_csrf"]');
 
             if (
-                imageId <= 0
-                || !csrf
-                || !csrf.value
-                || remove.checked
+                busy || editor.hidden || imageId <= 0
+                || !csrf || !csrf.value || remove.checked
+                || (activeImagePreview && activeImagePreview.confirming)
             ) {
                 return;
             }
 
-            const oldText = button.textContent;
-            button.disabled = true;
-            profileSelect.disabled = true;
-            status.textContent = 'Обробка…';
-            control.dataset.processingStatus = 'processing';
-
+            closeImageComparison();
+            cancelImagePreview(activeImagePreview);
+            imagePreviewGeneration += 1;
+            const preview = {
+                imageId: imageId,
+                csrf: csrf.value,
+                generation: imagePreviewGeneration,
+                editorToken: productEditorHistoryToken,
+                previewId: '',
+                dismissed: false,
+                confirming: false,
+                committed: false,
+                cancelled: false,
+                setBusy: function (value) {
+                    if (busyPreview && busyPreview !== preview) {
+                        return;
+                    }
+                    busyPreview = value ? preview : null;
+                    busy = value;
+                    syncProcessingControl(control, image);
+                    updateDisabled();
+                    if (value) {
+                        status.textContent = 'Обробка…';
+                        control.dataset.processingStatus = 'processing';
+                    }
+                }
+            };
             const payload = new FormData();
             payload.append('_csrf', csrf.value);
             payload.append('image_id', String(imageId));
-            payload.append(
-                'background_profile',
-                String(profileSelect.value || 'original-canvas')
-            );
+            payload.append('background_profile', profileSelect.value || 'original-canvas');
+            payload.append('mask_mode', modeSelect.value || 'auto');
+
+            activeImagePreview = preview;
+            preview.setBusy(true);
 
             try {
-                const response = await fetch(
-                    '/Anabelka/admin/products/image-process',
-                    {
-                        method: 'POST',
-                        body: payload,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    }
-                );
-                const responseText = await response.text();
-                let data = {};
+                const data = await imageProcessingRequest('preview', payload);
+                preview.previewId = valueOrEmpty(data.preview_id);
 
-                try {
-                    data = JSON.parse(responseText);
-                } catch (parseError) {
-                    throw new Error(
-                        'Сервер повернув некоректну відповідь.'
-                    );
+                if (
+                    Number(data.image_id) !== imageId
+                    || !preview.previewId
+                    || !data.processing
+                    || typeof data.processing !== 'object'
+                    || !valueOrEmpty(data.preview_url).startsWith(
+                        '/Anabelka/admin/products/image-process-preview-file?'
+                    )
+                ) {
+                    throw new Error('Сервер повернув некоректну відповідь.');
                 }
 
-                if (!response.ok || !data.success) {
-                    throw new Error(
-                        data.message
-                        || 'Не вдалося обробити фотографію.'
-                    );
+                preview.processing = data.processing;
+                preview.previewUrl = data.preview_url;
+                await imageCompareHistorySettled;
+
+                if (
+                    preview.dismissed || editor.hidden || !item.isConnected
+                    || remove.checked || activeImagePreview !== preview
+                    || preview.generation !== imagePreviewGeneration
+                    || preview.editorToken !== productEditorHistoryToken
+                ) {
+                    cancelImagePreview(preview);
+                    return;
                 }
 
-                image.processing = data.processing || {};
-                syncProcessingControl(control, image);
-                showMessage('Фотографію оброблено.');
+                preview.setBusy(false);
+                openImageComparison(image, preview);
             } catch (error) {
-                image.processing = Object.assign(
-                    {},
-                    image.processing || {},
-                    {
-                        status: 'error',
-                        last_error: error.message
-                            || 'Не вдалося обробити фотографію.'
-                    }
-                );
-                syncProcessingControl(control, image);
-                showMessage(
-                    error.message
-                    || 'Не вдалося обробити фотографію.'
-                );
+                if (!preview.dismissed && activeImagePreview === preview) {
+                    showMessage(error.message || 'Не вдалося отримати попередній перегляд.');
+                }
+                cancelImagePreview(preview);
             } finally {
-                button.disabled = remove.checked;
-                profileSelect.disabled = remove.checked;
-                if (!button.textContent) {
-                    button.textContent = oldText || 'Обробити';
+                if (!preview.confirming) {
+                    preview.setBusy(false);
                 }
             }
         });
 
         control.appendChild(status);
         control.appendChild(profileSelect);
+        control.appendChild(modeSelect);
         control.appendChild(button);
         control.appendChild(compareButton);
         syncProcessingControl(control, image);
 
         remove.addEventListener('change', function () {
-            button.disabled = remove.checked;
-            compareButton.disabled = remove.checked;
-            profileSelect.disabled = remove.checked;
+            updateDisabled();
+            if (remove.checked && activeImagePreview
+                && activeImagePreview.imageId === Number(image.id)) {
+                closeImageComparison();
+                cancelImagePreview(activeImagePreview);
+            }
         });
 
         return control;
@@ -1659,9 +1973,7 @@
     }
 
 
-    function requestedTranslationFocus(productId)
-    {
-        window.addEventListener('popstate', function (event) {
+    window.addEventListener('popstate', function (event) {
         const state = event.state
             && typeof event.state === 'object'
             ? event.state
@@ -1697,7 +2009,9 @@
     });
 
 
-    const params = new URLSearchParams(window.location.search);
+    function requestedTranslationFocus(productId)
+    {
+        const params = new URLSearchParams(window.location.search);
         const requestedId = String(params.get('highlight') || '').trim();
         const language = String(params.get('focus_language') || '')
             .trim()
@@ -1849,6 +2163,9 @@
             : {};
         const syncHistory = settings.syncHistory !== false;
 
+        cancelImagePreview(activeImagePreview);
+        closeImageComparison({ syncHistory: false });
+        imagePreviewGeneration += 1;
         editor.hidden = true;
         document.body.classList.remove('product-editor-open');
 

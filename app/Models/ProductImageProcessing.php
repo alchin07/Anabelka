@@ -163,28 +163,71 @@ class ProductImageProcessing
         self::ensureSchema();
 
         $stmt = Database::connect()->prepare("
-            UPDATE product_image_processing
-            SET source_path = :source_path,
+            INSERT INTO product_image_processing
+            (
+                image_id,
+                source_path,
+                job_id,
+                processor_version,
+                source_sha256,
+                source_bytes,
+                source_width,
+                source_height,
+                original_path,
+                master_path,
+                master_width,
+                master_height,
+                master_bytes,
+                thumb_path,
+                thumb_width,
+                thumb_height,
+                thumb_bytes,
+                normalization_json,
+                status, last_error, processed_at
+            )
+            VALUES
+            (
+                :image_id,
+                :source_path,
+                :job_id,
+                :processor_version,
+                :source_sha256,
+                :source_bytes,
+                :source_width,
+                :source_height,
+                :original_path,
+                :master_path,
+                :master_width,
+                :master_height,
+                :master_bytes,
+                :thumb_path,
+                :thumb_width,
+                :thumb_height,
+                :thumb_bytes,
+                :normalization_json,
+                'ready', NULL, NOW()
+            )
+            ON DUPLICATE KEY UPDATE
+                source_path = VALUES(source_path),
+                job_id = VALUES(job_id),
+                processor_version = VALUES(processor_version),
+                source_sha256 = VALUES(source_sha256),
+                source_bytes = VALUES(source_bytes),
+                source_width = VALUES(source_width),
+                source_height = VALUES(source_height),
+                original_path = VALUES(original_path),
+                master_path = VALUES(master_path),
+                master_width = VALUES(master_width),
+                master_height = VALUES(master_height),
+                master_bytes = VALUES(master_bytes),
+                thumb_path = VALUES(thumb_path),
+                thumb_width = VALUES(thumb_width),
+                thumb_height = VALUES(thumb_height),
+                thumb_bytes = VALUES(thumb_bytes),
+                normalization_json = VALUES(normalization_json),
                 status = 'ready',
-                job_id = :job_id,
-                processor_version = :processor_version,
-                source_sha256 = :source_sha256,
-                source_bytes = :source_bytes,
-                source_width = :source_width,
-                source_height = :source_height,
-                original_path = :original_path,
-                master_path = :master_path,
-                master_width = :master_width,
-                master_height = :master_height,
-                master_bytes = :master_bytes,
-                thumb_path = :thumb_path,
-                thumb_width = :thumb_width,
-                thumb_height = :thumb_height,
-                thumb_bytes = :thumb_bytes,
-                normalization_json = :normalization_json,
                 last_error = NULL,
                 processed_at = NOW()
-            WHERE image_id = :image_id
         ");
         $stmt->execute([
             'source_path' => (string) $data['source_path'],
@@ -250,6 +293,15 @@ class ProductImageProcessing
                 ? $message
                 : 'Невідома помилка обробки.'
         ]);
+    }
+
+
+    public static function isJobAccepted($jobId)
+    {
+        self::ensureSchema();
+        $stmt = Database::connect()->prepare("SELECT 1 FROM product_image_processing WHERE job_id = :job_id AND status = 'ready' LIMIT 1");
+        $stmt->execute(['job_id' => (string) $jobId]);
+        return (bool) $stmt->fetchColumn();
     }
 
 

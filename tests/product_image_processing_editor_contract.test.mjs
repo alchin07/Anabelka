@@ -17,19 +17,24 @@ assert.match(
     /\$image\['processing'\]\s*=/
 );
 
-assert.match(view, /admin-products\.css\?v=11/);
-assert.match(view, /admin-products\.js\?v=20/);
+assert.match(view, /admin-products\.css\?v=13/);
+assert.match(view, /admin-products\.js\?v=25/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(
     script,
-    /\/Anabelka\/admin\/products\/image-process/
+    /\/Anabelka\/admin\/products\/image-process-/
 );
+assert.match(script, /imageProcessingRequest\('preview'/);
+assert.match(script, /'confirm', imagePreviewPayload/);
+assert.match(script, /'cancel', imagePreviewPayload/);
+assert.match(script, /data-product-image-mask-mode/);
+assert.match(script, /payload\.append\('mask_mode'/);
 assert.match(script, /payload\.append\('_csrf'/);
 assert.match(script, /payload\.append\('image_id'/);
 assert.match(script, /Готово ·/);
 assert.match(script, /Не оброблено/);
-assert.match(script, /Повторити/);
+assert.match(script, /Попередній перегляд/);
 assert.match(script, /image\.processing\s*=\s*data\.processing/);
 assert.match(script, /data-product-image-compare/);
 assert.match(script, /Порівняти/);
@@ -68,7 +73,7 @@ assert.match(script, /Studio Light/);
 assert.match(script, /Anabelka Brand/);
 assert.match(script, /background_profile/);
 assert.match(script, /Фон:/);
-assert.match(script, /Маска: GrabCut/);
+assert.match(script, /'opencv-grabcut': 'GrabCut'/);
 assert.match(css, /\.product-image-background-profile/);
 
 

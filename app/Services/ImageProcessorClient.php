@@ -1,5 +1,16 @@
 <?php
 
+class ImageProcessorException extends RuntimeException
+{
+    public $diagnostics;
+
+    public function __construct($message, array $diagnostics = [])
+    {
+        parent::__construct($message);
+        $this->diagnostics = $diagnostics;
+    }
+}
+
 class ImageProcessorClient
 {
     private const DEFAULT_ENDPOINT = 'http://127.0.0.1:8765';
@@ -19,12 +30,14 @@ class ImageProcessorClient
 
     public static function processProductImage(
         $path,
-        $backgroundProfile = 'original-canvas'
+        $backgroundProfile = 'original-canvas',
+        $maskMode = 'auto'
     ) {
         $relativePath = self::normalizeProductImagePath($path);
         $backgroundProfile = self::normalizeBackgroundProfile(
             $backgroundProfile
         );
+        $maskMode = self::normalizeMaskMode($maskMode);
         $absolutePath = self::projectRoot() . '/' . $relativePath;
 
         if (!is_file($absolutePath)) {
@@ -38,7 +51,8 @@ class ImageProcessorClient
             '/process',
             [
                 'source' => $relativePath,
-                'background_profile' => $backgroundProfile
+                'background_profile' => $backgroundProfile,
+                'mask_mode' => $maskMode
             ],
             180
         );
@@ -90,9 +104,10 @@ class ImageProcessorClient
             $context
         );
 
-        if (isset($http_response_header) && is_array($http_response_header)) {
-            $responseHeaders = $http_response_header;
-        }
+        $receivedHeaders = function_exists('http_get_last_response_headers')
+            ? http_get_last_response_headers()
+            : (get_defined_vars()['http_response_header'] ?? []);
+        if (is_array($receivedHeaders)) { $responseHeaders = $receivedHeaders; }
 
         if ($body === false) {
             throw new RuntimeException(
@@ -116,10 +131,18 @@ class ImageProcessorClient
         ) {
             $message = trim((string) ($data['error'] ?? ''));
 
-            throw new RuntimeException(
+            $diagnostics = is_array($data['normalization'] ?? null)
+                ? $data['normalization'] : [];
+            foreach (['mask_mode_requested', 'mask_method', 'processor_version', 'worker_error'] as $key) {
+                if (array_key_exists($key, $data)) {
+                    $diagnostics[$key] = $data[$key];
+                }
+            }
+            throw new ImageProcessorException(
                 $message !== ''
                     ? $message
-                    : 'Обробник зображень не виконав операцію.'
+                    : 'Обробник зображень не виконав операцію.',
+                $diagnostics
             );
         }
 
@@ -142,6 +165,19 @@ class ImageProcessorClient
         }
 
         return $profile;
+    }
+
+
+    public static function normalizeMaskMode($maskMode)
+    {
+        if (!is_string($maskMode)) {
+            throw new InvalidArgumentException('Некоректний метод маски фотографії.');
+        }
+        $maskMode = strtolower(trim((string) $maskMode));
+        if (!in_array($maskMode, ['auto', 'grabcut', 'modnet'], true)) {
+            throw new InvalidArgumentException('Невідомий метод маски фотографії.');
+        }
+        return $maskMode;
     }
 
 
