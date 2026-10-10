@@ -108,6 +108,137 @@ async function harness(t, images = [{id: 17, path: 'uploads/products/original.jp
     };
 }
 
+function selectProcessing(h, profile = 'studio-light', mode = 'modnet', card = h.q('.product-image-manage')) {
+    const profileSelect = card.querySelector('[data-product-image-background-profile]');
+    const modeSelect = card.querySelector('[data-product-image-mask-mode]');
+    profileSelect.value = profile;
+    profileSelect.dispatchEvent(new h.window.Event('change'));
+    modeSelect.value = mode;
+    modeSelect.dispatchEvent(new h.window.Event('change'));
+}
+
+function assertProcessingSelection(h, profile = 'studio-light', mode = 'modnet', card = h.q('.product-image-manage')) {
+    assert.equal(card.querySelector('[data-product-image-background-profile]').value, profile,
+        'Selected background profile must survive processing state changes');
+    assert.equal(card.querySelector('[data-product-image-mask-mode]').value, mode,
+        'Selected mask mode must survive processing state changes');
+}
+
+test('preview keeps selected profile and mask mode while busy and after receiving the candidate', async t => {
+    const h = await harness(t);
+    const before = h.snapshot();
+    selectProcessing(h);
+    const profile = h.q('[data-product-image-background-profile]');
+    profile.value = 'original-canvas';
+    profile.dispatchEvent(new h.window.Event('change'));
+    assertProcessingSelection(h, 'original-canvas', 'modnet');
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, true);
+    profile.value = 'studio-light';
+    profile.dispatchEvent(new h.window.Event('change'));
+    assertProcessingSelection(h);
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, false);
+    const pending = deferred();
+    h.queued.push(pending.promise);
+    h.click('[data-product-image-process]');
+    assert.deepEqual(h.calls[0].body, {
+        _csrf: 'csrf-token', image_id: '17', background_profile: 'studio-light', mask_mode: 'modnet'
+    });
+    assertProcessingSelection(h);
+    assert.equal(h.q('[data-product-image-background-profile]').disabled, true);
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, true);
+    pending.resolve(response(preview()));
+    await pause();
+    assertProcessingSelection(h);
+    assert.equal(h.q('[data-product-image-background-profile]').disabled, false);
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, false);
+    assert.equal(h.snapshot(), before);
+    assert.ok(h.q('.product-image-compare-modal'));
+});
+
+test('preview and confirm errors preserve selected profile and mask mode for retry', async t => {
+    const h = await harness(t);
+    const before = h.snapshot();
+    selectProcessing(h);
+    h.queued.push(response({success: false, message: 'Preview failed'}));
+    h.click('[data-product-image-process]');
+    await pause();
+    assertProcessingSelection(h);
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, false);
+    await h.start();
+    assert.deepEqual(h.calls.filter(call => call.url.endsWith('image-process-preview')).at(-1).body, {
+        _csrf: 'csrf-token', image_id: '17', background_profile: 'studio-light', mask_mode: 'modnet'
+    });
+    h.queued.push(response({success: false, message: 'Confirm failed'}));
+    h.click('[data-product-image-preview-confirm]');
+    await pause();
+    assertProcessingSelection(h);
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, false);
+    assert.equal(h.snapshot(), before);
+    assert.ok(h.q('.product-image-compare-modal'));
+});
+
+for (const action of ['cancel', 'close', 'escape', 'back', 'editor-close', 'editor-back']) {
+    test(action + ' preserves draft processing selections through editor reopen', async t => {
+        const h = await harness(t);
+        const before = h.snapshot();
+        selectProcessing(h);
+        await h.start();
+        if (action === 'back' || action === 'editor-back') {
+            await h.back();
+            if (action === 'editor-back') await h.back();
+        } else if (action === 'escape') {
+            h.window.document.dispatchEvent(new h.window.KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+        } else {
+            h.click(action === 'cancel' ? '[data-product-image-preview-cancel]'
+                : action === 'close' ? '.product-image-compare-close' : '[data-product-close]');
+        }
+        await pause();
+        assert.equal(h.q('.product-image-compare-modal'), null);
+        assertProcessingSelection(h);
+        assert.equal(h.snapshot(), before);
+        if (!h.q('#product-editor').hidden) {
+            h.click('[data-product-close]');
+            await pause();
+        }
+        await h.open();
+        assertProcessingSelection(h);
+        assert.equal(h.q('[data-product-image-mask-mode]').disabled, false);
+        await h.start(preview('retry-after-reopen'));
+        assert.deepEqual(h.calls.filter(call => call.url.endsWith('image-process-preview')).at(-1).body, {
+            _csrf: 'csrf-token', image_id: '17', background_profile: 'studio-light', mask_mode: 'modnet'
+        });
+    });
+}
+
+test('confirmation replaces draft selections with the applied processing settings', async t => {
+    const h = await harness(t);
+    selectProcessing(h);
+    await h.start();
+    const saved = {...candidate, master_path: 'uploads/products/processed/applied.jpg', normalization: {
+        ...candidate.normalization, background_profile_requested: 'anabelka-brand',
+        background_profile: 'anabelka-brand', mask_mode_requested: 'grabcut'
+    }};
+    h.queued.push(response({success: true, image_id: 17, processing: saved}));
+    h.click('[data-product-image-preview-confirm]');
+    await pause();
+    assertProcessingSelection(h, 'anabelka-brand', 'grabcut');
+    h.click('[data-product-image-compare]');
+    assert.match(h.q('.product-image-compare-diagnostics').textContent, /Фон: Anabelka Brand/);
+    assert.match(h.q('.product-image-compare-diagnostics').textContent, /Маска: GrabCut/);
+    h.click('[data-product-close]');
+    await pause();
+    await h.open();
+    assertProcessingSelection(h, 'anabelka-brand', 'grabcut');
+    const profile = h.q('[data-product-image-background-profile]');
+    profile.value = 'original-canvas';
+    profile.dispatchEvent(new h.window.Event('change'));
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, true);
+    profile.value = 'studio-light';
+    profile.dispatchEvent(new h.window.Event('change'));
+    assert.equal(h.q('[data-product-image-mask-mode]').disabled, false);
+    assert.equal(h.q('[data-product-image-mask-mode]').value, 'grabcut');
+});
+
 test('profile enables three mask modes and older accepted photos default to auto', async t => {
     const h = await harness(t);
     const mode = h.q('[data-product-image-mask-mode]');

@@ -18,7 +18,7 @@ assert.match(
 );
 
 assert.match(view, /admin-products\.css\?v=13/);
-assert.match(view, /admin-products\.js\?v=25/);
+assert.match(view, /admin-products\.js\?v=26/);
 
 assert.match(script, /data-product-image-process/);
 assert.match(

@@ -441,14 +441,30 @@ class ProductImagePreviewService
         $directory = $this->directory($token);
         $json = json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $temporary = $directory . '/manifest-' . bin2hex(random_bytes(8)) . '.tmp';
-        if (file_put_contents($temporary, $json, LOCK_EX) !== strlen($json)) {
-            @unlink($temporary);
-            throw new RuntimeException('Не вдалося зберегти пробу фотографії.');
-        }
-        chmod($temporary, 0600);
-        if (!@rename($temporary, $directory . '/manifest.json')) {
-            @unlink($temporary);
-            throw new RuntimeException('Не вдалося зберегти пробу фотографії.');
+        // Token operations already hold their lock. The unique, exclusively
+        // created temporary file needs no stream lock (unsupported by KSWEB).
+        $handle = @fopen($temporary, 'x+b');
+        if (!$handle) { throw new RuntimeException('Не вдалося зберегти пробу фотографії.'); }
+        try {
+            if (!@chmod($temporary, 0600)) { throw new RuntimeException('Не вдалося зберегти пробу фотографії.'); }
+            $length = strlen($json);
+            for ($offset = 0; $offset < $length; $offset += $written) {
+                $written = @fwrite($handle, substr($json, $offset));
+                if ($written === false || $written === 0) {
+                    throw new RuntimeException('Не вдалося зберегти пробу фотографії.');
+                }
+            }
+            if (!@fflush($handle)) { throw new RuntimeException('Не вдалося зберегти пробу фотографії.'); }
+            $closed = @fclose($handle);
+            $handle = null;
+            if (!$closed || !@rename($temporary, $directory . '/manifest.json')) {
+                throw new RuntimeException('Не вдалося зберегти пробу фотографії.');
+            }
+        } catch (Throwable $e) {
+            try {
+                if (is_resource($handle)) { @fclose($handle); }
+            } finally { @unlink($temporary); }
+            throw $e;
         }
     }
 

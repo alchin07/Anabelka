@@ -171,6 +171,7 @@
     let activeImageCompareModal = null;
     let activeImageCompareDetails = null;
     let activeImagePreview = null;
+    const imageProcessingSelections = new WeakMap();
     let imagePreviewGeneration = 0;
     let imageCompareHistoryUnwinding = false;
     let imageCompareHistorySettled = Promise.resolve();
@@ -984,6 +985,7 @@
 
                     // The commit may finish after Back or the editor has closed.
                     image.processing = data.processing;
+                    imageProcessingSelections.delete(image);
                     preview.committed = true;
                     preview.confirming = false;
                     preview.setBusy(false);
@@ -1483,8 +1485,10 @@
             && typeof processing.normalization === 'object'
             ? processing.normalization
             : {};
+        const selection = imageProcessingSelections.get(image) || {};
         const storedBackgroundProfile = valueOrEmpty(
-            normalization.background_profile_requested
+            selection.backgroundProfile
+            || normalization.background_profile_requested
             || normalization.background_profile
             || 'original-canvas'
         );
@@ -1518,7 +1522,7 @@
         }
 
         if (modeSelect) {
-            const mode = valueOrEmpty(normalization.mask_mode_requested || 'auto');
+            const mode = valueOrEmpty(selection.maskMode || normalization.mask_mode_requested || 'auto');
             modeSelect.value = ['auto', 'grabcut', 'modnet'].indexOf(mode) >= 0
                 ? mode
                 : 'auto';
@@ -1596,7 +1600,20 @@
             compareButton.disabled = busy || remove.checked;
         }
 
-        profileSelect.addEventListener('change', updateDisabled);
+        function rememberSelection()
+        {
+            // Draft choices survive status refreshes and editor card rebuilds.
+            imageProcessingSelections.set(image, {
+                backgroundProfile: profileSelect.value,
+                maskMode: modeSelect.value
+            });
+        }
+
+        profileSelect.addEventListener('change', function () {
+            rememberSelection();
+            updateDisabled();
+        });
+        modeSelect.addEventListener('change', rememberSelection);
 
         const compareButton = document.createElement('button');
         compareButton.type = 'button';
@@ -1655,6 +1672,7 @@
                 }
             };
             const payload = new FormData();
+            rememberSelection();
             payload.append('_csrf', csrf.value);
             payload.append('image_id', String(imageId));
             payload.append('background_profile', profileSelect.value || 'original-canvas');
