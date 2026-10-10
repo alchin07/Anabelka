@@ -2,22 +2,54 @@
 
 class AdultController extends Controller
 {
-    public function entry($slug)
+    public function entry($departmentSlug, $categorySlug)
+    {
+        $category = Category::findByDepartmentAndSlug(
+            $departmentSlug,
+            $categorySlug
+        );
+
+        $this->showGate($category);
+    }
+
+
+    public function confirm($departmentSlug, $categorySlug)
+    {
+        $category = Category::findByDepartmentAndSlug(
+            $departmentSlug,
+            $categorySlug
+        );
+
+        $this->confirmCategory($category);
+    }
+
+
+    public function legacyEntry($slug)
+    {
+        $category = $this->legacyCategory($slug);
+        $url = AdultAccess::gateUrl(
+            $category,
+            $_GET['return'] ?? ''
+        );
+
+        // Keep this temporary for the same reason as the legacy catalog URL:
+        // department ownership and cross-department ambiguity can change.
+        header('Location: ' . $url, true, 302);
+        exit;
+    }
+
+
+    public function legacyConfirm($slug)
+    {
+        $this->confirmCategory($this->legacyCategory($slug));
+    }
+
+
+    private function showGate($category)
     {
         HomeInterfaceTranslator::seed();
-
-        $category = Category::findBySlug($slug);
-
-        if (
-            !$category
-            || !HomePage::isAdultCategoryId((int) ($category['id'] ?? 0))
-        ) {
-            http_response_code(404);
-            die('Розділ не знайдено');
-        }
-
-        $defaultReturn = '/Anabelka/catalog/'
-            . rawurlencode((string) $category['slug']);
+        $this->assertAdultCategory($category);
+        $defaultReturn = Category::catalogUrl($category);
         $returnUrl = AdultAccess::safeReturnUrl(
             $_GET['return'] ?? $defaultReturn
         );
@@ -37,33 +69,20 @@ class AdultController extends Controller
             $currentLanguage['code'] ?? Language::SOURCE_CODE
         );
 
-        $this->view(
-            'adult/gate',
-            [
-                'category' => $category,
-                'returnUrl' => $returnUrl,
-                'currentLanguage' => $currentLanguage,
-                'accessDenied' => AdultAccess::isKnownUnderage(),
-                'csrfToken' => CustomerAccount::csrfToken()
-            ]
-        );
+        $this->view('adult/gate', [
+            'category' => $category,
+            'returnUrl' => $returnUrl,
+            'currentLanguage' => $currentLanguage,
+            'accessDenied' => AdultAccess::isKnownUnderage(),
+            'csrfToken' => CustomerAccount::csrfToken()
+        ]);
     }
 
 
-    public function confirm($slug)
+    private function confirmCategory($category)
     {
-        $category = Category::findBySlug($slug);
-
-        if (
-            !$category
-            || !HomePage::isAdultCategoryId((int) ($category['id'] ?? 0))
-        ) {
-            http_response_code(404);
-            die('Розділ не знайдено');
-        }
-
-        $defaultReturn = '/Anabelka/catalog/'
-            . rawurlencode((string) $category['slug']);
+        $this->assertAdultCategory($category);
+        $defaultReturn = Category::catalogUrl($category);
         $returnUrl = AdultAccess::safeReturnUrl(
             $_POST['return_url'] ?? $defaultReturn
         );
@@ -75,7 +94,7 @@ class AdultController extends Controller
         if (!CustomerAccount::verifyCsrf($_POST['_csrf'] ?? '')) {
             header(
                 'Location: '
-                . AdultAccess::gateUrl((string) $category['slug'], $returnUrl)
+                . AdultAccess::gateUrl($category, $returnUrl)
             );
             exit;
         }
@@ -84,14 +103,33 @@ class AdultController extends Controller
             AdultAccess::clearConfirmation();
             header(
                 'Location: '
-                . AdultAccess::gateUrl((string) $category['slug'], $returnUrl)
+                . AdultAccess::gateUrl($category, $returnUrl)
             );
             exit;
         }
 
         AdultAccess::confirm();
-
         header('Location: ' . $returnUrl);
         exit;
+    }
+
+
+    private function legacyCategory($slug)
+    {
+        $category = Category::findUniqueActiveBySlug($slug);
+        $this->assertAdultCategory($category);
+
+        return $category;
+    }
+
+
+    private function assertAdultCategory($category)
+    {
+        if ($category && !empty($category['effective_adult'])) {
+            return;
+        }
+
+        http_response_code(404);
+        die('Розділ не знайдено');
     }
 }

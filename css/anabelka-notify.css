@@ -1,0 +1,104 @@
+:root {
+    --notify-success-bg: var(--purple, #8A2BE2);
+    --notify-success-text: var(--white, #fff);
+    --notify-success-border: var(--purple, #8A2BE2);
+    --notify-error-bg: #b63e48;
+    --notify-error-text: var(--white, #fff);
+    --notify-error-border: #b63e48;
+    --notify-info-bg: var(--purple-light, #f4eaff);
+    --notify-info-text: var(--purple-dark, #6519b9);
+    --notify-info-border: var(--purple, #8A2BE2);
+    --notify-warning-bg: #f3e8ff;
+    --notify-warning-text: var(--purple-dark, #6519b9);
+    --notify-warning-border: var(--purple, #8A2BE2);
+    --notify-shadow: var(
+        --shadow,
+        0 10px 30px rgba(70, 46, 76, 0.16)
+    );
+}
+
+/*
+ * Theme hook for the future site theme switcher.
+ * Changing data-theme on a parent (normally <html>) updates notifications
+ * immediately because every notification color is a CSS custom property.
+ */
+[data-theme="dark"],
+.theme-dark {
+    --notify-success-bg: var(--purple, #8A2BE2);
+    --notify-success-text: #fff;
+    --notify-success-border: var(--purple, #8A2BE2);
+    --notify-error-bg: #92333b;
+    --notify-error-text: #fff;
+    --notify-error-border: #d86a73;
+    --notify-info-bg: #241a2d;
+    --notify-info-text: #eadcff;
+    --notify-info-border: var(--purple, #8A2BE2);
+    --notify-warning-bg: #30213d;
+    --notify-warning-text: #f0e3ff;
+    --notify-warning-border: var(--purple, #8A2BE2);
+    --notify-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+}
+
+.anabelka-notify,
+.site-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 10050;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: min(360px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 10px 14px;
+    border-radius: 12px;
+    box-shadow: var(--notify-shadow);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.96);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.anabelka-notify.show,
+.site-message.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.anabelka-notify.is-success,
+.site-message.is-success {
+    background: var(--notify-success-bg);
+    color: var(--notify-success-text);
+    border: 1px solid var(--notify-success-border);
+    border-left-width: 4px;
+}
+
+.anabelka-notify.is-error,
+.site-message.is-error {
+    background: var(--notify-error-bg);
+    color: var(--notify-error-text);
+    border: 1px solid var(--notify-error-border);
+    border-left-width: 4px;
+}
+
+.anabelka-notify.is-info,
+.site-message.is-info {
+    background: var(--notify-info-bg);
+    color: var(--notify-info-text);
+    border: 1px solid var(--notify-info-border);
+    border-left-width: 4px;
+}
+
+.anabelka-notify.is-warning,
+.site-message.is-warning {
+    background: var(--notify-warning-bg);
+    color: var(--notify-warning-text);
+    border: 1px solid var(--notify-warning-border);
+    border-left-width: 4px;
+}

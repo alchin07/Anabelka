@@ -4,18 +4,22 @@
     place-items: center;
     padding: 34px 18px 54px;
     background:
-        radial-gradient(circle at 50% 18%, rgba(138, 43, 226, .08), transparent 32%),
-        #fff;
+        radial-gradient(circle at 50% 18%, rgba(138, 43, 226, .14), transparent 34%),
+        #f4eaff;
 }
 
 .adult-gate-card {
+    box-sizing: border-box;
     width: min(560px, 100%);
+    min-width: 0;
+    max-width: 100%;
     padding: 34px;
-    border: 1px solid var(--border);
+    border: 1px solid #eadcf7;
     border-radius: 24px;
     background: #fff;
-    box-shadow: var(--shadow);
+    box-shadow: 0 18px 48px rgba(101, 25, 185, .14);
     text-align: center;
+    overflow-wrap: anywhere;
 }
 
 .adult-gate-badge {
@@ -25,13 +29,15 @@
     place-items: center;
     margin: 0 auto 18px;
     border-radius: 50%;
-    background: #241d27;
+    background: #8A2BE2;
     color: #fff;
     font-size: 24px;
     font-weight: 900;
+    box-shadow: 0 10px 24px rgba(138, 43, 226, .24);
 }
 
 .adult-gate-card h1 {
+    color: #6519b9;
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(28px, 5vw, 40px);
     line-height: 1.08;
@@ -48,11 +54,13 @@
     margin-top: 18px;
     padding: 7px 11px;
     border-radius: 999px;
-    background: #f3eef6;
+    background: #f4eaff;
+    color: #6519b9;
     font-weight: 800;
 }
 
 .adult-gate-actions {
+    min-width: 0;
     display: grid;
     gap: 10px;
     margin-top: 24px;
@@ -60,29 +68,44 @@
 
 .adult-gate-confirm,
 .adult-gate-leave {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     min-height: 48px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 10px 16px;
     border-radius: 13px;
     font-weight: 800;
+    overflow-wrap: anywhere;
 }
 
 .adult-gate-confirm {
     border: 0;
-    background: #241d27;
+    background: #8A2BE2;
     color: #fff;
     cursor: pointer;
 }
 
-.adult-gate-confirm:hover {
-    background: #000;
+.adult-gate-confirm:hover,
+.adult-gate-confirm:focus-visible {
+    background: #6519b9;
+    outline: 3px solid rgba(138, 43, 226, .2);
+    outline-offset: 2px;
 }
 
 .adult-gate-leave {
-    border: 1px solid var(--border);
+    border: 1px solid #8A2BE2;
     background: #fff;
-    color: var(--purple);
+    color: #6519b9;
+}
+
+.adult-gate-leave:hover,
+.adult-gate-leave:focus-visible {
+    background: #f4eaff;
+    outline: none;
 }
 
 .adult-gate-card small {
@@ -100,5 +123,9 @@
     .adult-gate-card {
         padding: 26px 18px;
         border-radius: 19px;
+    }
+
+    .adult-gate-card h1 {
+        font-size: clamp(25px, 8vw, 32px);
     }
 }

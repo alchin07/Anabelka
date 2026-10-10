@@ -6,6 +6,15 @@ $currentLanguage = $currentLanguage
 $query = CatalogSearch::normalizeQuery($query ?? '');
 $products = is_array($products ?? null) ? $products : [];
 $categories = is_array($categories ?? null) ? $categories : [];
+$searchPagination = is_array($searchPagination ?? null)
+    ? $searchPagination
+    : [
+        'page' => 1,
+        'total' => count($products) + count($categories),
+        'total_pages' => 1,
+        'has_previous' => false,
+        'has_next' => false
+    ];
 $pageTitle = Translator::t('search.title', 'Пошук');
 
 $escape = function ($value) {
@@ -33,7 +42,7 @@ $assetUrl = function ($path) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=7">
     <link rel="stylesheet" href="/Anabelka/css/search.css?v=1">
 </head>
 <body>
@@ -52,7 +61,7 @@ $assetUrl = function ($path) {
                 </p>
                 <span class="search-total">
                     <?= $escape(Translator::t('search.found', 'Знайдено')) ?>:
-                    <?= count($products) + count($categories) ?>
+                    <?= (int) ($searchPagination['total'] ?? 0) ?>
                 </span>
             <?php else: ?>
                 <p><?= $escape(Translator::t('search.start', 'Введіть назву товару, категорію або SKU.')) ?></p>
@@ -72,7 +81,7 @@ $assetUrl = function ($path) {
                     <?php foreach ($categories as $category): ?>
                         <a
                             class="search-category-card"
-                            href="/Anabelka/catalog/<?= rawurlencode((string) ($category['slug'] ?? '')) ?>"
+                            href="<?= $escape(Category::catalogUrl($category)) ?>"
                         >
                             <strong><?= $escape($category['name'] ?? '') ?></strong>
                             <?php if (!empty($category['description'])): ?>
@@ -146,6 +155,17 @@ $assetUrl = function ($path) {
                 </div>
             </section>
         <?php endif; ?>
+
+        <?php
+        $pagination = $searchPagination;
+        $paginationPath = '/Anabelka/search';
+        $paginationQuery = ['q' => $query];
+        $paginationLabel = Translator::t(
+            'search.pagination.label',
+            'Посторінкова навігація результатів пошуку'
+        );
+        require __DIR__ . '/../partials/pagination.php';
+        ?>
     </div>
 </main>
 

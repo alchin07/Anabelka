@@ -76,9 +76,13 @@
             colors: [],
             stockRows: [],
             stockMap: new Map(),
+            stockOnHandMap: new Map(),
+            cartMap: new Map(),
             usesVariantStock: false,
             selectedColor: null
         };
+
+        const stockUi = window.AnabelkaProductI18n || {};
 
 
         function showMessage(text)
@@ -125,34 +129,134 @@
         function rebuildStockMap()
         {
             state.stockMap.clear();
+            state.stockOnHandMap.clear();
+            state.cartMap.clear();
 
             state.stockRows.forEach(function (row) {
-                state.stockMap.set(
-                    stockKey(row.size_id, row.color_key),
-                    Math.max(0, Number(row.stock || 0))
+                const key = stockKey(row.size_id, row.color_key);
+                const stockOnHand = Math.max(
+                    0,
+                    Number(row.stock_on_hand ?? row.stock ?? 0)
                 );
+                const inCart = Math.max(
+                    0,
+                    Number(row.in_cart ?? 0)
+                );
+                const available = Math.max(
+                    0,
+                    Number(row.available ?? row.stock ?? 0)
+                );
+
+                state.stockOnHandMap.set(key, stockOnHand);
+                state.cartMap.set(key, inCart);
+                state.stockMap.set(key, available);
             });
         }
 
 
-        function stockForSize(sizeId)
+        function stockDetailsForSize(sizeId)
         {
             if (!state.usesVariantStock || !state.selectedColor) {
                 const checkbox = sizeCheckboxes.find(function (item) {
                     return Number(item.value) === Number(sizeId);
                 });
                 const button = checkbox ? checkbox.nextElementSibling : null;
-                return button ? Math.max(0, Number(button.dataset.stock || 0)) : 0;
+
+                return {
+                    stockOnHand: button
+                        ? Math.max(0, Number(button.dataset.stockOnHand || 0))
+                        : 0,
+                    inCart: button
+                        ? Math.max(0, Number(button.dataset.cartQuantity || 0))
+                        : 0,
+                    available: button
+                        ? Math.max(0, Number(button.dataset.stock || 0))
+                        : 0
+                };
             }
 
-            return Math.max(
-                0,
-                Number(
-                    state.stockMap.get(
-                        stockKey(sizeId, state.selectedColor.key)
-                    ) || 0
+            const key = stockKey(sizeId, state.selectedColor.key);
+
+            return {
+                stockOnHand: Math.max(
+                    0,
+                    Number(state.stockOnHandMap.get(key) || 0)
+                ),
+                inCart: Math.max(
+                    0,
+                    Number(state.cartMap.get(key) || 0)
+                ),
+                available: Math.max(
+                    0,
+                    Number(state.stockMap.get(key) || 0)
                 )
-            );
+            };
+        }
+
+
+        function stockForSize(sizeId)
+        {
+            return stockDetailsForSize(sizeId).available;
+        }
+
+
+        function renderStockSummary(summary, stockOnHand, inCart, available)
+        {
+            if (!summary) {
+                return;
+            }
+
+            summary.dataset.stockOnHand = String(stockOnHand);
+            summary.dataset.cartQuantity = String(inCart);
+            summary.dataset.available = String(available);
+
+            const values = {
+                stock_on_hand: stockOnHand,
+                in_your_cart: inCart,
+                available_to_add: available
+            };
+
+            Object.entries(values).forEach(function (entry) {
+                const element = summary.querySelector(
+                    '[data-stock-value="' + entry[0] + '"]'
+                );
+
+                if (element) {
+                    element.textContent = String(entry[1]);
+                }
+            });
+        }
+
+
+        function renderSizeStock(stockElement, details)
+        {
+            if (!stockElement) {
+                return;
+            }
+
+            stockElement.dataset.stockOnHand = String(details.stockOnHand);
+            stockElement.dataset.cartQuantity = String(details.inCart);
+            stockElement.dataset.available = String(details.available);
+
+            const unit = stockUi.pcs || 'шт.';
+            const showQuantity = stockElement.dataset.showQuantity === '1';
+
+            if (showQuantity) {
+                stockElement.textContent =
+                    details.available + ' ' + unit;
+                stockElement.style.display = 'inline';
+                return;
+            }
+
+            if (details.available <= 0) {
+                stockElement.textContent =
+                    stockUi.out_of_stock || 'Нет в наличии';
+                stockElement.style.display = 'inline';
+                return;
+            }
+
+            stockElement.textContent = '';
+            stockElement.style.display = 'none';
         }
 
 
@@ -162,23 +266,135 @@
                 '[data-product-stock-summary]'
             );
 
-            if (!summary || !state.usesVariantStock || !state.selectedColor) {
+            if (!summary) {
                 return;
             }
 
-            const total = sizeCheckboxes.reduce(function (sum, checkbox) {
-                return sum + stockForSize(Number(checkbox.value));
-            }, 0);
+            if (!state.usesVariantStock || !state.selectedColor) {
+                renderStockSummary(
+                    summary,
+                    Math.max(0, Number(summary.dataset.stockOnHand || 0)),
+                    Math.max(0, Number(summary.dataset.cartQuantity || 0)),
+                    Math.max(0, Number(summary.dataset.available || 0))
+                );
+                return;
+            }
 
-            const currentText = String(summary.textContent || '')
-                .replace(/\s+/g, ' ')
-                .trim();
-            const labelMatch = currentText.match(/^(.+?):\s*\d+/u);
-            const unitMatch = currentText.match(/\d+\s+(.+)$/u);
-            const label = labelMatch ? labelMatch[1].trim() : 'В наличии';
-            const unit = unitMatch ? unitMatch[1].trim() : 'шт.';
+            const totals = sizeCheckboxes.reduce(
+                function (result, checkbox) {
+                    const details = stockDetailsForSize(
+                        Number(checkbox.value)
+                    );
 
-            summary.textContent = label + ': ' + total + ' ' + unit;
+                    result.stockOnHand += details.stockOnHand;
+                    result.inCart += details.inCart;
+                    result.available += details.available;
+                    return result;
+                },
+                {
+                    stockOnHand: 0,
+                    inCart: 0,
+                    available: 0
+                }
+            );
+
+            renderStockSummary(
+                summary,
+                totals.stockOnHand,
+                totals.inCart,
+                totals.available
+            );
+        }
+
+
+        function applyLegacyAvailability(availability)
+        {
+            if (
+                state.usesVariantStock
+                || !availability
+                || typeof availability !== 'object'
+            ) {
+                return false;
+            }
+
+            const availableSizes =
+                availability.available_sizes
+                && typeof availability.available_sizes === 'object'
+                    ? availability.available_sizes
+                    : (availability.sizes || {});
+            const stockSizes =
+                availability.stock_sizes
+                && typeof availability.stock_sizes === 'object'
+                    ? availability.stock_sizes
+                    : {};
+            const cartSizes =
+                availability.cart_sizes
+                && typeof availability.cart_sizes === 'object'
+                    ? availability.cart_sizes
+                    : {};
+
+            sizeCheckboxes.forEach(function (checkbox) {
+                const key = String(checkbox.value);
+                const rawAvailable = availableSizes[key];
+
+                if (typeof rawAvailable === 'undefined') {
+                    return;
+                }
+
+                const button = checkbox.nextElementSibling;
+
+                if (button) {
+                    button.dataset.stock = String(
+                        Math.max(0, Number(rawAvailable) || 0)
+                    );
+                    button.dataset.stockOnHand = String(
+                        Math.max(
+                            0,
+                            Number(stockSizes[key] ?? button.dataset.stockOnHand ?? 0)
+                        )
+                    );
+                    button.dataset.cartQuantity = String(
+                        Math.max(0, Number(cartSizes[key] || 0))
+                    );
+                }
+            });
+
+            const summary = cartForm.querySelector(
+                '[data-product-stock-summary]'
+            );
+
+            if (summary) {
+                renderStockSummary(
+                    summary,
+                    Math.max(
+                        0,
+                        Number(
+                            availability.stock_total
+                            ?? summary.dataset.stockOnHand
+                            ?? 0
+                        )
+                    ),
+                    Math.max(
+                        0,
+                        Number(
+                            availability.cart_total
+                            ?? summary.dataset.cartQuantity
+                            ?? 0
+                        )
+                    ),
+                    Math.max(
+                        0,
+                        Number(
+                            availability.available_total
+                            ?? availability.total
+                            ?? summary.dataset.available
+                            ?? 0
+                        )
+                    )
+                );
+            }
+
+            return true;
         }
 
 
@@ -187,14 +403,32 @@
             sizeCheckboxes.forEach(function (checkbox) {
                 const label = checkbox.closest('label');
                 const button = checkbox.nextElementSibling;
-                const stockElement = button
+                const details = stockDetailsForSize(
+                    Number(checkbox.value)
+                );
+                const available = details.available > 0;
+                let stockElement = button
                     ? button.querySelector('.size-stock')
                     : null;
-                const stock = stockForSize(Number(checkbox.value));
-                const available = !state.usesVariantStock || stock > 0;
+
+                if (
+                    !stockElement
+                    && button
+                    && details.available <= 0
+                ) {
+                    stockElement = document.createElement('small');
+                    stockElement.className = 'size-stock';
+                    stockElement.dataset.showQuantity = '0';
+                    stockElement.style.marginLeft = '5px';
+                    stockElement.style.fontSize = '11px';
+                    stockElement.style.fontWeight = 'normal';
+                    button.appendChild(stockElement);
+                }
 
                 if (button) {
-                    button.dataset.stock = String(stock);
+                    button.dataset.stock = String(details.available);
+                    button.dataset.stockOnHand = String(details.stockOnHand);
+                    button.dataset.cartQuantity = String(details.inCart);
                 }
 
                 checkbox.disabled = !available;
@@ -204,8 +438,13 @@
                 }
 
                 if (label) {
-                    label.classList.toggle('product-size-unavailable', !available);
-                    label.style.cursor = available ? 'pointer' : 'not-allowed';
+                    label.classList.toggle(
+                        'product-size-unavailable',
+                        !available
+                    );
+                    label.style.cursor = available
+                        ? 'pointer'
+                        : 'not-allowed';
                     label.style.opacity = available ? '1' : '0.45';
                 }
 
@@ -225,19 +464,7 @@
                     }
                 }
 
-                if (stockElement) {
-                    const showQuantity = stockElement.dataset.showQuantity === '1';
-
-                    if (!available) {
-                        stockElement.textContent = 'Нет в наличии';
-                        stockElement.style.display = 'inline';
-                    } else if (showQuantity) {
-                        stockElement.textContent = stock + ' шт.';
-                    } else {
-                        stockElement.textContent = '';
-                        stockElement.style.display = 'none';
-                    }
-                }
+                renderSizeStock(stockElement, details);
             });
 
             updateStockSummary();
@@ -457,17 +684,30 @@
                     return;
                 }
 
-                if (state.usesVariantStock && state.selectedColor) {
+                const appliedLegacyAvailability =
+                    applyLegacyAvailability(data.availability);
+
+                if (
+                    !appliedLegacyAvailability
+                    && state.usesVariantStock
+                    && state.selectedColor
+                ) {
                     selectedSizes.forEach(function (checkbox) {
                         const key = stockKey(
                             checkbox.value,
                             state.selectedColor.key
                         );
-                        const stock = Math.max(
+                        const available = Math.max(
                             0,
                             Number(state.stockMap.get(key) || 0) - 1
                         );
-                        state.stockMap.set(key, stock);
+                        const inCart = Math.max(
+                            0,
+                            Number(state.cartMap.get(key) || 0) + 1
+                        );
+
+                        state.stockMap.set(key, available);
+                        state.cartMap.set(key, inCart);
                     });
                 }
 

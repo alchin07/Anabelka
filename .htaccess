@@ -2,6 +2,9 @@
 # если mod_rewrite доступен.
 RewriteEngine On
 
+# Originals, preview manifests and locks are served only through authorized controllers.
+RewriteRule ^storage/image-processor/ - [F,L]
+
 # Если файл или папка существуют физически —
 # Apache обслуживает их напрямую.
 RewriteCond %{REQUEST_FILENAME} !-f

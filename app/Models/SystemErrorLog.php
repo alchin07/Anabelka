@@ -163,6 +163,185 @@ class SystemErrorLog
     }
 
 
+    public static function categoryForItem(array $item)
+    {
+        $request = is_array($item['request'] ?? null)
+            ? $item['request']
+            : [];
+
+        $haystack = strtolower(implode(' ', [
+            (string) ($item['kind'] ?? ''),
+            (string) ($item['class'] ?? ''),
+            (string) ($item['message'] ?? ''),
+            (string) ($item['file'] ?? ''),
+            (string) ($request['uri'] ?? ''),
+            (string) ($request['method'] ?? '')
+        ]));
+
+        $containsAny = static function ($value, array $needles) {
+            foreach ($needles as $needle) {
+                if ($needle !== '' && strpos($value, $needle) !== false) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        if ($containsAny($haystack, [
+            'sqlstate',
+            'pdoexception',
+            'pdo',
+            'database',
+            'mysql',
+            'mariadb',
+            'duplicate entry',
+            'deadlock',
+            'foreign key',
+            'constraint'
+        ])) {
+            return [
+                'key' => 'database',
+                'label' => 'База даних'
+            ];
+        }
+
+        if ($containsAny($haystack, [
+            'curl',
+            'webhook',
+            'api ',
+            '/api/',
+            'groq',
+            'telegram',
+            'viber',
+            'whatsapp',
+            'google oauth',
+            'facebook oauth',
+            'apple oauth',
+            'provider'
+        ])) {
+            return [
+                'key' => 'external',
+                'label' => 'Зовнішні сервіси'
+            ];
+        }
+
+        if ($containsAny($haystack, [
+            'csrf',
+            'unauthorized',
+            'forbidden',
+            'access denied',
+            'permission',
+            'login',
+            'logout',
+            'session',
+            'authentication',
+            'authorization'
+        ])) {
+            return [
+                'key' => 'security',
+                'label' => 'Авторизація та доступ'
+            ];
+        }
+
+        if ($containsAny($haystack, [
+            'upload',
+            'thumbnail',
+            'image',
+            'file_get_contents',
+            'file_put_contents',
+            'fopen',
+            'fwrite',
+            'mkdir',
+            'storage/',
+            'filesystem',
+            'directory'
+        ])) {
+            return [
+                'key' => 'files',
+                'label' => 'Файли та зображення'
+            ];
+        }
+
+        if ($containsAny($haystack, [
+            'router',
+            'route ',
+            'routing',
+            '404',
+            '405',
+            'method not allowed',
+            'request uri',
+            'http'
+        ])) {
+            return [
+                'key' => 'http',
+                'label' => 'Маршрути та HTTP'
+            ];
+        }
+
+        if (in_array(
+            (string) ($item['kind'] ?? ''),
+            [
+                'uncaught_exception',
+                'fatal_error',
+                'php_error',
+                'handled_exception'
+            ],
+            true
+        )) {
+            return [
+                'key' => 'php',
+                'label' => 'PHP та код'
+            ];
+        }
+
+        return [
+            'key' => 'application',
+            'label' => 'Застосунок'
+        ];
+    }
+
+
+    public static function categorizeItems(array $items)
+    {
+        $groups = [];
+        $order = [];
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $category = self::categoryForItem($item);
+            $key = (string) ($category['key'] ?? 'application');
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'label' => (string) ($category['label'] ?? 'Застосунок'),
+                    'items' => []
+                ];
+                $order[] = $key;
+            }
+
+            $item['category_key'] = $key;
+            $item['category_label'] =
+                (string) ($category['label'] ?? 'Застосунок');
+            $groups[$key]['items'][] = $item;
+        }
+
+        $result = [];
+
+        foreach ($order as $key) {
+            $group = $groups[$key];
+            $group['count'] = count($group['items']);
+            $result[] = $group;
+        }
+
+        return $result;
+    }
+
+
     public static function summary(array $items)
     {
         $summary = [

@@ -64,16 +64,22 @@ class FavoriteController extends Controller
             (int) ($product['category_id'] ?? 0)
         );
 
+        if (!$category) {
+            $this->json([
+                'success' => false,
+                'message' => 'Товар недоступний.'
+            ], 404);
+        }
+
         if (
-            $category
-            && HomePage::isAdultCategoryId((int) ($category['id'] ?? 0))
+            !empty($category['effective_adult'])
             && !AdultAccess::isConfirmed()
         ) {
             $this->json([
                 'success' => false,
                 'message' => 'Потрібне підтвердження віку.',
                 'gate_url' => AdultAccess::gateUrl(
-                    (string) ($category['slug'] ?? ''),
+                    $category,
                     '/Anabelka/product/'
                         . rawurlencode((string) ($product['slug'] ?? ''))
                 )

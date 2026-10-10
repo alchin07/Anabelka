@@ -1,0 +1,40 @@
+.product-rank-price.vip-price-protected {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.product-rank-price.vip-price-protected > *:not(.vip-price-watermark) {
+    position: relative;
+    z-index: 2;
+}
+
+.vip-price-watermark {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+    color: var(--primary-dark-color, #6519b9);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.035em;
+    line-height: 1;
+    opacity: 0.19;
+    transform: rotate(-4deg);
+}
+
+@media (max-width: 430px) {
+    .vip-price-watermark {
+        padding: 0 4px;
+        font-size: 8px;
+        letter-spacing: 0.015em;
+        transform: rotate(-3deg);
+    }
+}
