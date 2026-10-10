@@ -2248,6 +2248,87 @@ def build_undetected_seed_mask(image: Image.Image) -> np.ndarray | None:
     return seed
 
 
+def build_closeup_validation_seed_mask(image: Image.Image) -> np.ndarray | None:
+    """Source evidence for a ready MODNet mask, never GrabCut training labels.
+
+    Cropped lower corners need not be background. Uniform upper samples may
+    differ in illumination, but must retain the same chromatic family. A
+    disconnected lower backdrop needs its own corroborating corner sample.
+    """
+    pixels = np.asarray(image.convert("RGB"), dtype=np.float32)
+    height, width = pixels.shape[:2]
+    if min(height, width) < 40:
+        return None
+    dx, dy = max(2, round(width * .05)), max(2, round(height * .05))
+    corners = [(slice(0, dy), slice(0, dx)), (slice(0, dy), slice(-dx, None)),
+               (slice(-dy, None), slice(0, dx)), (slice(-dy, None), slice(-dx, None))]
+    patches = [pixels[region].reshape(-1, 3) for region in corners]
+    centers = [np.median(patch, axis=0) for patch in patches]
+    uniform = [float(np.percentile(np.linalg.norm(patch - center, axis=1), 90)) <= 4
+               for patch, center in zip(patches, centers)]
+    chroma = np.stack((pixels[:, :, 0] - pixels[:, :, 1],
+                       pixels[:, :, 1] - pixels[:, :, 2]), axis=2)
+    center_chroma = [np.array((c[0] - c[1], c[1] - c[2])) for c in centers]
+    brightness = [float(c.mean()) for c in centers]
+    if (not all(uniform[:2]) or np.linalg.norm(centers[0] - centers[1]) > 48
+            or np.linalg.norm(center_chroma[0] - center_chroma[1]) > 8):
+        return None
+    anchors = [0, 1]
+    for index in (2, 3):
+        if uniform[index] and any(
+                abs(brightness[index] - brightness[top]) <= 24
+                and np.linalg.norm(center_chroma[index] - center_chroma[top]) <= 6
+                for top in (0, 1)):
+            anchors.append(index)
+    # A bounded source-colour family, not an unrestricted chroma-only model.
+    level = pixels.mean(axis=2)
+    candidates = ((level >= min(brightness[i] for i in anchors) - 6)
+                  & (level <= max(brightness[i] for i in anchors) + 6)
+                  & np.logical_or.reduce([
+                      np.linalg.norm(chroma - center_chroma[i], axis=2) <= 4
+                      for i in anchors])).astype(np.uint8)
+    if any(float(candidates[corners[i]].mean()) < .98 for i in anchors):
+        return None
+    count, labels = cv2.connectedComponents(candidates, connectivity=8)
+    selected = np.zeros(count, dtype=bool)
+    for index in (0, 1):
+        selected[labels[corners[index]]] = True
+    selected[0] = False
+    upper_core = cv2.erode((~selected[labels]).astype(np.uint8), np.ones((3, 3), np.uint8))
+    region = np.s_[:height // 2, width // 3:2 * width // 3]
+    upper_material = pixels[region][upper_core[region] > 0]
+    minimum = max(16, round(width * height * .001))
+    for index in (2, 3):
+        if not uniform[index]:
+            continue
+        matches = np.count_nonzero(np.linalg.norm(upper_material - centers[index], axis=1) <= 20)
+        if matches >= minimum and index in anchors:
+            # Matching enclosed source material contradicts lower-background
+            # ownership. Keep that corner as material and check its retention.
+            anchors.remove(index)
+        elif matches < minimum and index not in anchors:
+            # A new solid supplier tone cannot become foreground merely
+            # because MODNet kept it opaque.
+            return None
+    for index in anchors:
+        selected[labels[corners[index]]] = True
+    selected[0] = False
+    background = selected[labels]
+    if np.count_nonzero(background) < max(64, round(width * height * .02)):
+        return None
+    core = cv2.erode((~background).astype(np.uint8), np.ones((3, 3), np.uint8))
+    samples = pixels[core > 0]
+    if len(samples) < 16 or np.count_nonzero(
+            np.linalg.norm(samples - np.median(samples, axis=0), axis=1) > 20
+    ) < max(16, round(len(samples) * .02)):
+        return None
+    seed = np.full((height, width), cv2.GC_PR_FGD, dtype=np.uint8)
+    seed[background] = cv2.GC_PR_BGD
+    for index in anchors:
+        seed[corners[index]][candidates[corners[index]] > 0] = cv2.GC_BGD
+    return seed
+
+
 @timed_function
 def build_subject_rgba(
     image: Image.Image,
@@ -2501,6 +2582,7 @@ def build_subject_rgba(
 def validate_undetected_subject(
     image: Image.Image, subject: Image.Image, reported_ratio: float,
     diagnostics: dict[str, Any],
+    *, allow_closeup_evidence: bool = False,
 ) -> bool:
     """Conservative structural checks; never a semantic person detector."""
     diagnostics.clear()
@@ -2520,6 +2602,13 @@ def validate_undetected_subject(
     probe.thumbnail((512, 512), Image.Resampling.BILINEAR)
     opacity = np.asarray(subject.getchannel("A").resize(probe.size, Image.Resampling.BILINEAR))
     seed = build_undetected_seed_mask(probe)
+    closeup_evidence = False
+    if (seed is None and allow_closeup_evidence and actual_ratio >= .50
+            and float(np.mean(opacity[-max(2, round(probe.height * .05)):] >= 128)) >= .50):
+        seed = build_closeup_validation_seed_mask(probe)
+        closeup_evidence = seed is not None
+        if closeup_evidence:
+            diagnostics["source_evidence"] = "closeup_corner_samples"
     if seed is None:
         diagnostics["reason"] = "source_evidence_unavailable"
         return False
@@ -2556,7 +2645,15 @@ def validate_undetected_subject(
                 diagnostics["reason"] = "source_thin_material_loss"
                 return False
         background_samples = seed == cv2.GC_BGD
-        if float(np.mean(opacity[background_samples] <= 32)) < 0.90:
+        background_retention = float(np.mean(opacity[background_samples] <= 32))
+        if closeup_evidence:
+            # Also check the independently supported backdrop interiors. Clear
+            # upper samples alone must not conceal a retained lower background.
+            backdrop = cv2.erode((seed != cv2.GC_PR_FGD).astype(np.uint8),
+                                np.ones((3, 3), np.uint8)).astype(bool)
+            background_retention = min(background_retention,
+                                       float(np.mean(opacity[backdrop] <= 32)))
+        if background_retention < 0.90:
             diagnostics["reason"] = "source_background_retained"
             return False
     diagnostics.update(status="accepted", reason="structural_checks_passed")
@@ -4202,7 +4299,8 @@ def custom_background_master(
         if diagnostics is not None:
             diagnostics.setdefault("mask_quality", {})[method] = quality
         if not measured_call(timings, "mask_quality", validate_undetected_subject,
-                             image, result[0], result[1], quality):
+                             image, result[0], result[1], quality,
+                             allow_closeup_evidence=method == "modnet"):
             if diagnostics is not None:
                 diagnostics["failure_reason"] = "mask_quality_rejected"
             return None
