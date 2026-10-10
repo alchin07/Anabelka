@@ -106,6 +106,24 @@ test('ImageProcessorClient reads real HTTP status and response JSON', async t =>
             `/error-${status}-${ok}`, {status, body: errorBody(ok)}
         ]))
     ]);
+    const processingReasons = ['subject-not-detected', 'grabcut_mask_unavailable',
+        'modnet_worker_failed', 'mask_quality_rejected'];
+    for (const reason of processingReasons) {
+        fixtures.set('/reason-' + reason, {status: 500, body: {
+            ok: false, error: 'Не вдалося застосувати маску: ' + reason,
+            normalization: {mask_mode_requested: 'modnet', mask_method: 'none', processor_version: '0.11',
+                reason_code: reason, detection_reason: 'subject-not-detected',
+                worker_error: 'worker crashed at /srv/private/weights/model.onnx',
+                mask_selection: {failure_reason: reason}},
+        }});
+    }
+    const backgroundFallback = {ok: true, normalization: {
+        reason_code: 'background_fallback', detection_reason: 'subject-not-detected',
+        fallback_reason: 'background_fallback', background_fallback: true,
+        background_profile_requested: 'studio-light', background_profile: 'original-canvas',
+        mask_mode_requested: 'auto', mask_method: 'none', processor_version: '0.11'
+    }};
+    fixtures.set('/background-fallback', {status: 200, body: backgroundFallback});
     const requests = [];
     const server = createServer((request, response) => {
         requests.push(request.url);
@@ -164,6 +182,18 @@ test('ImageProcessorClient reads real HTTP status and response JSON', async t =>
             message: 'Обробник зображень повернув некоректну відповідь.',
             diagnostics: null
         });
+    });
+    for (const reason of processingReasons) {
+        await t.test(`${reason} crosses the real HTTP boundary with the exact private diagnostics`, async () => {
+            const fixture = fixtures.get('/reason-' + reason).body;
+            assert.deepEqual(await runPhp(endpoint, '/reason-' + reason), {
+                type: 'ImageProcessorException', message: fixture.error,
+                diagnostics: fixture.normalization
+            });
+        });
+    }
+    await t.test('AUTO background_fallback success preserves its explicit diagnostics', async () => {
+        assert.deepEqual(await runPhp(endpoint, '/background-fallback'), {data: backgroundFallback});
     });
     assert.deepEqual(requests.sort(), [
         ...fixtures.keys(), ...modes.slice(1).map(() => '/success')

@@ -164,6 +164,7 @@ class ProductImageProcessingService
             'opencv-hog-person',
             'opencv-hog-person-no-crop',
             'person-detected-no-crop',
+            'full-frame-segmentation',
             'standard-canvas-fallback'
         ];
 
@@ -230,6 +231,23 @@ class ProductImageProcessingService
                 ) === true
             ];
 
+            foreach (['reason_code', 'detection_reason', 'fallback_reason'] as $reasonKey) {
+                $reason = $normalization[$reasonKey] ?? null;
+                if (is_string($reason) && preg_match('/^[a-z0-9][a-z0-9_-]{0,79}$/iD', $reason) === 1) {
+                    $normalizedDiagnostics[$reasonKey] = $reason;
+                }
+            }
+            $maskSelection = is_array($normalization['mask_selection'] ?? null) ? $normalization['mask_selection'] : [];
+            $maskFailureReason = $maskSelection['failure_reason'] ?? null;
+            if (is_string($maskFailureReason) && preg_match('/^[a-z0-9][a-z0-9_-]{0,79}$/iD', $maskFailureReason) === 1) {
+                $normalizedDiagnostics['mask_failure_reason'] = $maskFailureReason;
+            }
+            $timings = is_array($normalization['timings_ms'] ?? null) ? $normalization['timings_ms'] : [];
+            $processingTime = $timings['total'] ?? null;
+            if ((is_int($processingTime) || is_float($processingTime)) && is_finite($processingTime) && $processingTime >= 0) {
+                $normalizedDiagnostics['processing_time_ms'] = $processingTime;
+            }
+
             foreach (['person_bbox', 'crop_box'] as $boxKey) {
                 $box = $normalization[$boxKey] ?? null;
 
@@ -284,6 +302,7 @@ class ProductImageProcessingService
                     $cropStrategy,
                     [
                         'subject-bbox',
+                        'preserve-source-frame',
                         'aspect-fill',
                         'torso-normalize',
                         'torso-zoom-out'

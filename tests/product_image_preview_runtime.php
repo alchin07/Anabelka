@@ -80,8 +80,10 @@ ProductImage::$images[7] = ['id' => 7, 'product_id' => 3, 'path' => '/Anabelka/u
 $clock = 100000;
 $calls = 0;
 $responseEdit = null;
-$processor = function ($source, $background, $mode) use ($root, &$calls, &$responseEdit) {
+$processorError = null;
+$processor = function ($source, $background, $mode) use ($root, &$calls, &$responseEdit, &$processorError) {
     $calls++;
+    if ($processorError) { throw $processorError; }
     $job = bin2hex(random_bytes(16));
     $original = 'storage/image-processor/originals/' . $job . '/source.jpg';
     $master = 'uploads/products/processed/' . $job . '/master.webp';
@@ -130,6 +132,89 @@ try {
     $service->cancel(7, $cancel['preview_id']);
     rejects(function () use ($service, $cancel) { $service->confirm(7, $cancel['preview_id']); }, 'cancelled preview cannot publish');
     check(ProductImageProcessing::find(7)['job_id'] === $accepted['job_id'], 'cancel leaves live image unchanged');
+
+    $acceptedRows = Database::$db->rows;
+    $acceptedFiles = glob($root . '/uploads/products/processed/*/*');
+    $acceptedHash = hash_file('sha256', $root . '/' . $accepted['master_path']);
+    $previewManifests = glob($root . '/storage/image-processor/previews/*/manifest.json');
+    foreach (['subject-not-detected', 'grabcut_mask_unavailable', 'modnet_worker_failed', 'mask_quality_rejected', 'background_fallback'] as $reason) {
+        $processorError = new ImageProcessorException('Mask processing failed: ' . $reason, [
+            'reason_code' => $reason, 'detection_reason' => 'subject-not-detected',
+            'worker_error' => 'worker crashed at /srv/private/weights/model.onnx'
+        ]);
+        try {
+            $service->create(7, 'studio-light', 'modnet');
+            check(false, $reason . ' must reject preview creation');
+        } catch (ImageProcessorException $error) {
+            check($error === $processorError, $reason . ' preserves the exact worker exception');
+        }
+        check(Database::$db->rows === $acceptedRows, $reason . ' preserves the accepted DB row');
+        check(glob($root . '/uploads/products/processed/*/*') === $acceptedFiles, $reason . ' never publishes new files');
+        check(glob($root . '/storage/image-processor/previews/*/manifest.json') === $previewManifests, $reason . ' never leaves a confirmable preview');
+        check(hash_file('sha256', $root . '/' . $accepted['master_path']) === $acceptedHash, $reason . ' preserves accepted bytes');
+    }
+    $processorError = null;
+    $responseEdit = function ($data) {
+        $data['normalization'] = array_merge($data['normalization'], [
+            'background_profile' => 'original-canvas', 'background_fallback' => true,
+            'mask_method' => 'none', 'subject_mask_applied' => false,
+            'reason_code' => 'background_fallback', 'fallback_reason' => 'background_fallback',
+            'detection_reason' => 'subject-not-detected'
+        ]);
+        return $data;
+    };
+    $canvasFallback = $service->create(7, 'studio-light', 'auto');
+    $canvasDiagnostics = $canvasFallback['processing']['normalization'];
+    check($canvasDiagnostics['reason_code'] === 'background_fallback', 'AUTO original-canvas fallback preserves its exact reason code');
+    check($canvasDiagnostics['detection_reason'] === 'subject-not-detected', 'AUTO original-canvas fallback preserves detection reason');
+    check($canvasDiagnostics['fallback_reason'] === 'background_fallback', 'AUTO original-canvas fallback preserves fallback reason');
+    check($canvasDiagnostics['background_fallback'] === true, 'AUTO original-canvas fallback remains explicit');
+    $service->cancel(7, $canvasFallback['preview_id']);
+    rejects(function () use ($service, $canvasFallback) { $service->confirm(7, $canvasFallback['preview_id']); }, 'cancelled AUTO fallback cannot publish');
+    check(Database::$db->rows === $acceptedRows, 'cancelled AUTO fallback preserves accepted row');
+    check(glob($root . '/uploads/products/processed/*/*') === $acceptedFiles, 'cancelled AUTO fallback preserves published files');
+    $responseEdit = function ($data) {
+        $data['normalization'] = array_merge($data['normalization'], [
+            'method' => 'full-frame-segmentation', 'crop_strategy' => 'preserve-source-frame',
+            'subject_detected' => false, 'crop_applied' => false, 'zoom_out_applied' => false,
+            'zoom_scale' => 1.0, 'subject_mask_applied' => true, 'background_fallback' => false,
+            'detection_reason' => 'subject-not-detected', 'timings_ms' => ['total' => 231.75],
+            'mask_selection' => ['failure_reason' => 'grabcut_mask_unavailable']
+        ]);
+        return $data;
+    };
+    foreach (['studio-light', 'anabelka-brand'] as $profile) {
+        foreach (['auto', 'grabcut', 'modnet'] as $mode) {
+            $fullFrame = $service->create(7, $profile, $mode);
+            $normalization = $fullFrame['processing']['normalization'];
+            check($normalization['method'] === 'full-frame-segmentation', 'full-frame method is accepted by real normalization');
+            check(($normalization['crop_strategy'] ?? null) === 'preserve-source-frame', 'full-frame crop strategy survives real normalization');
+            check($normalization['subject_detected'] === false, 'full-frame segmentation does not fabricate a person detection');
+            check($normalization['crop_applied'] === false && $normalization['zoom_out_applied'] === false && $normalization['zoom_scale'] === 1.0, 'full-frame normalization preserves source framing');
+            check(!isset($normalization['person_bbox']) && !isset($normalization['crop_box']), 'full-frame normalization does not fabricate geometry');
+            check($normalization['background_profile_requested'] === $profile && $normalization['background_profile'] === $profile, 'full-frame requested background remains applied');
+            check($normalization['mask_mode_requested'] === $mode && $normalization['subject_mask_applied'] === true, 'full-frame requested mask remains applied');
+            check(($normalization['processing_time_ms'] ?? null) === 231.75, 'full-frame processing time survives real normalization');
+            check(($normalization['mask_failure_reason'] ?? null) === 'grabcut_mask_unavailable', 'mask failure detail survives real normalization');
+            check($fullFrame['processing']['master_width'] === 1200 && $fullFrame['processing']['master_height'] === 1800, 'full-frame master dimensions stay unchanged');
+            check($fullFrame['processing']['thumb_width'] === 320 && $fullFrame['processing']['thumb_height'] === 480, 'full-frame thumbnail dimensions stay unchanged');
+            $service->cancel(7, $fullFrame['preview_id']);
+            check(Database::$db->rows === $acceptedRows, 'cancelled full-frame preview preserves accepted row');
+            check(glob($root . '/uploads/products/processed/*/*') === $acceptedFiles, 'cancelled full-frame preview preserves accepted files');
+        }
+    }
+    $fullFrameResponseEdit = $responseEdit;
+    foreach ([-1, NAN, INF, '231.75'] as $invalidTiming) {
+        $responseEdit = function ($data) use ($fullFrameResponseEdit, $invalidTiming) {
+            $data = $fullFrameResponseEdit($data);
+            $data['normalization']['timings_ms']['total'] = $invalidTiming;
+            return $data;
+        };
+        $invalidTimingPreview = $service->create(7, 'studio-light', 'auto');
+        check(!isset($invalidTimingPreview['processing']['normalization']['processing_time_ms']), 'invalid total timing is not persisted by real normalization');
+        $service->cancel(7, $invalidTimingPreview['preview_id']);
+    }
+    $responseEdit = null;
 
     $owner = $service->create(7, 'studio-light', 'auto');
     AdminAccess::$id = 10;

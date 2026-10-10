@@ -111,6 +111,7 @@ class MaskProcessingError(RuntimeError):
 
     def __init__(self, reason: str, normalization: dict[str, Any]):
         super().__init__("Не вдалося застосувати маску фотографії: " + reason)
+        self.reason = reason
         self.normalization = normalization
 
 
@@ -2209,10 +2210,48 @@ def build_corner_background_seed_mask(image: Image.Image) -> np.ndarray | None:
     return seed
 
 
+def build_undetected_seed_mask(image: Image.Image) -> np.ndarray | None:
+    """Reject ambiguous ownership before using any corner as a training seed.
+
+    Without a detector, a homogeneous internal patch could equally be an
+    object or a background pocket surrounded by cropped skin. Require source
+    material variation and corroborating corner samples; otherwise fail closed.
+    These are conservative cues, not proof of semantic foreground ownership.
+    """
+    seed = build_corner_background_seed_mask(image)
+    if seed is None:
+        return None
+    probe = flattened_rgb(image).copy()
+    probe.thumbnail((512, 512), Image.Resampling.BILINEAR)
+    pixels = np.asarray(probe, dtype=np.float32)
+    height, width = pixels.shape[:2]
+    dx, dy = max(2, round(width * .05)), max(2, round(height * .05))
+    patches = [pixels[-dy:, :dx].reshape(-1, 3), pixels[-dy:, -dx:].reshape(-1, 3)]
+    centers = [np.median(patch, axis=0) for patch in patches]
+    if (all(float(np.percentile(np.linalg.norm(patch - center, axis=1), 90)) <= 4
+            for patch, center in zip(patches, centers))
+            and float(np.linalg.norm(centers[0] - centers[1])) <= 8
+            and float(np.linalg.norm(centers[0] - np.median(pixels[:dy, :dx].reshape(-1, 3), axis=0))) > 12):
+        # A second uniform supplier tone or cropped body at both lower corners
+        # cannot safely inherit ownership from the upper samples.
+        return None
+    probe_seed = seed if probe.size == image.size else build_corner_background_seed_mask(probe)
+    if probe_seed is None:
+        return None
+    core = cv2.erode((probe_seed == cv2.GC_PR_FGD).astype(np.uint8), np.ones((3, 3), np.uint8))
+    samples = pixels[core > 0]
+    if len(samples) < 16:
+        return None
+    different = np.linalg.norm(samples - np.median(samples, axis=0), axis=1) > 20
+    if np.count_nonzero(different) < max(16, round(len(samples) * .02)):
+        return None
+    return seed
+
+
 @timed_function
 def build_subject_rgba(
     image: Image.Image,
-    bbox: tuple[int, int, int, int],
+    bbox: tuple[int, int, int, int] | None,
     *,
     timings: dict[str, Any],
 ) -> tuple[Image.Image, float] | None:
@@ -2220,7 +2259,7 @@ def build_subject_rgba(
     seed_started = time.perf_counter()
     rgb = flattened_rgb(image)
     source_width, source_height = rgb.size
-    x, y, width, height = bbox
+    x, y, width, height = bbox or (0, 0, source_width, source_height)
 
     if (
         source_width <= 2
@@ -2283,7 +2322,20 @@ def build_subject_rgba(
     grabcut_mode = cv2.GC_INIT_WITH_RECT
     background_hint = measured_call(timings, "border_seed", uniform_border_background_mask, work)
 
-    if background_hint is not None:
+    if bbox is None:
+        # No detector rectangle: train only from independently sampled,
+        # matching corners. All possible material stays PROBABLE foreground.
+        # In a closeup the median frame colour can be skin, so it cannot
+        # override the corner samples or make the frame definite background.
+        seed = measured_call(timings, "corner_seed", build_undetected_seed_mask, work)
+        if seed is None:
+            return None
+        if background_hint is not None and not np.all(background_hint[seed == cv2.GC_BGD]):
+            background_hint = None
+        mask[:] = seed
+        grabcut_mode = cv2.GC_INIT_WITH_MASK
+
+    elif background_hint is not None:
         # A cropped body can reach the photo edge. Do not train GrabCut's
         # certain-background model on that skin or hair. Extend only frame
         # edges that contain non-background pixels; keep the other edges
@@ -2344,6 +2396,8 @@ def build_subject_rgba(
     # ANABELKA_CORNER_BG_FALLBACK_V2
     # Only the full-frame path without a reliable border hint uses this fallback.
     if (
+        bbox is not None
+        and
         background_hint is None
         and grabcut_mode == cv2.GC_INIT_WITH_RECT
         and (left, top, right, bottom)
@@ -2390,9 +2444,10 @@ def build_subject_rgba(
         foreground,
         **suppression_kwargs,
     )
-    foreground = measured_call(timings, "primary_component", keep_primary_foreground_component,
-        foreground,
-    )
+    if bbox is not None:
+        foreground = measured_call(timings, "primary_component", keep_primary_foreground_component,
+            foreground,
+        )
 
     foreground = measured_call(timings, "edge_refinement", refine_subject_edge,
         foreground,
@@ -2422,10 +2477,9 @@ def build_subject_rgba(
         # Upsampling can reintroduce a fringe above half opacity too.
         # Clean nonopaque pixels while preserving fully opaque foreground.
         resized_alpha = np.asarray(alpha)
-        cleaned_alpha = measured_call(timings, "border_suppression_source", suppress_uniform_border_background,
-            rgb,
-            resized_alpha,
-        )
+        cleaned_alpha = (resized_alpha if bbox is None and background_hint is None else
+            measured_call(timings, "border_suppression_source", suppress_uniform_border_background,
+                rgb, resized_alpha))
         alpha = Image.fromarray(
             np.where(
                 resized_alpha < 255,
@@ -2442,6 +2496,71 @@ def build_subject_rgba(
         rgba,
         foreground_ratio,
     )
+
+
+def validate_undetected_subject(
+    image: Image.Image, subject: Image.Image, reported_ratio: float,
+    diagnostics: dict[str, Any],
+) -> bool:
+    """Conservative structural checks; never a semantic person detector."""
+    diagnostics.clear()
+    diagnostics.update(status="rejected", reason="invalid_alpha", retention="not_evaluated")
+    if (subject.mode != "RGBA" or subject.size != image.size
+            or not np.isfinite(reported_ratio)
+            or not SUBJECT_MASK_MIN_RATIO <= reported_ratio <= SUBJECT_MASK_MAX_RATIO):
+        return False
+    alpha = np.asarray(subject.getchannel("A"))
+    actual_ratio = float(np.mean(alpha >= 128))
+    diagnostics["actual_foreground_ratio"] = round(actual_ratio, 6)
+    if (not SUBJECT_MASK_MIN_RATIO <= actual_ratio <= SUBJECT_MASK_MAX_RATIO
+            or np.count_nonzero(alpha >= 192) < max(16, alpha.size * 0.005)
+            or np.count_nonzero(alpha <= 32) < max(16, alpha.size * 0.02)):
+        return False
+    probe = flattened_rgb(image).copy()
+    probe.thumbnail((512, 512), Image.Resampling.BILINEAR)
+    opacity = np.asarray(subject.getchannel("A").resize(probe.size, Image.Resampling.BILINEAR))
+    seed = build_undetected_seed_mask(probe)
+    if seed is None:
+        diagnostics["reason"] = "source_evidence_unavailable"
+        return False
+    if seed is not None:
+        # Check separate source-supported cores, including detached hands and
+        # garments. Colour evidence does not authorize removing uncertain
+        # detail; reject the candidate rather than repairing its alpha.
+        core = cv2.erode((seed == cv2.GC_PR_FGD).astype(np.uint8), np.ones((3, 3), np.uint8))
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(core, connectivity=8)
+        minimum = max(16, round(core.size * 0.001))
+        retention = []
+        for index in range(1, count):
+            if stats[index, cv2.CC_STAT_AREA] >= minimum:
+                retention.append(float(np.mean(opacity[labels == index] >= 128)))
+        diagnostics.update(retention="corner_source_cores", component_retention=retention)
+        if not retention or min(retention) < 0.90:
+            diagnostics["reason"] = "source_component_loss"
+            return False
+        lost = ((core > 0) & (opacity < 128)).astype(np.uint8)
+        _, _, loss_stats, _ = cv2.connectedComponentsWithStats(lost, connectivity=8)
+        # An enclosed swatch/hand can disappear inside a large retained torso.
+        # A global percentage alone would conceal that local material loss.
+        if len(loss_stats) > 1 and np.any(loss_stats[1:, cv2.CC_STAT_AREA] >= minimum):
+            diagnostics["reason"] = "source_local_material_loss"
+            return False
+        # Erosion deliberately ignores soft boundaries, but must not silently
+        # discard an entire narrow hair/strap component or a thin branch.
+        strands = ((seed == cv2.GC_PR_FGD)
+                   & (cv2.dilate(core, np.ones((3, 3), np.uint8)) == 0)).astype(np.uint8)
+        strand_count, strand_labels, strand_stats, _ = cv2.connectedComponentsWithStats(strands, connectivity=8)
+        for index in range(1, strand_count):
+            if (strand_stats[index, cv2.CC_STAT_AREA] >= minimum
+                    and float(np.mean(opacity[strand_labels == index] >= 64)) < .90):
+                diagnostics["reason"] = "source_thin_material_loss"
+                return False
+        background_samples = seed == cv2.GC_BGD
+        if float(np.mean(opacity[background_samples] <= 32)) < 0.90:
+            diagnostics["reason"] = "source_background_retained"
+            return False
+    diagnostics.update(status="accepted", reason="structural_checks_passed")
+    return True
 
 
 def transparent_standard_canvas(
@@ -3512,7 +3631,7 @@ def source_paired_lines(
 def grabcut_fallback_evidence(
     image: Image.Image,
     subject: Image.Image,
-    bbox: tuple[int, int, int, int],
+    bbox: tuple[int, int, int, int] | None,
     *,
     diagnostics: dict[str, Any] | None = None,
     measure_guard_effect: bool = False,
@@ -3854,8 +3973,7 @@ def grabcut_fallback_evidence(
                       if counts["unresolved_weak_material_regions"]
                       else "insufficient_residual")
 
-    _, _, bbox_width, bbox_height = bbox
-    if bbox_width <= 0 or bbox_height <= 0:
+    if bbox is not None and (bbox[2] <= 0 or bbox[3] <= 0):
         return reject("invalid_bbox")
     # Construct protection AFTER confirming residuals. Textured, source-bounded,
     # enclosed and narrow matching details remain ambiguous/protected; confirmed
@@ -4036,7 +4154,7 @@ def modnet_fallback_is_better(
 @timed_function
 def custom_background_master(
     image: Image.Image,
-    bbox: tuple[int, int, int, int],
+    bbox: tuple[int, int, int, int] | None,
     crop_box: tuple[int, int, int, int] | None,
     crop_strategy: str,
     zoom_scale: float | None,
@@ -4050,7 +4168,7 @@ def custom_background_master(
     timings: dict[str, Any],
 ) -> tuple[Image.Image, float, str] | None:
     mask_mode = normalize_mask_mode(mask_mode)
-    if diagnostics is None and mask_mode != "auto":
+    if diagnostics is None and (mask_mode != "auto" or bbox is None):
         diagnostics = {}
     if diagnostics is not None:
         diagnostics.clear()
@@ -4077,6 +4195,21 @@ def custom_background_master(
     modnet_applied = False
     modnet_attempted = False
 
+    def checked_subject(result, method):
+        if result is None or bbox is not None:
+            return result
+        quality: dict[str, Any] = {}
+        if diagnostics is not None:
+            diagnostics.setdefault("mask_quality", {})[method] = quality
+        if not measured_call(timings, "mask_quality", validate_undetected_subject,
+                             image, result[0], result[1], quality):
+            if diagnostics is not None:
+                diagnostics["failure_reason"] = "mask_quality_rejected"
+            return None
+        if diagnostics is not None:
+            diagnostics.pop("failure_reason", None)
+        return (result[0], quality["actual_foreground_ratio"], *result[2:])
+
     def attempt_modnet() -> tuple[Image.Image, float, dict[str, Any]] | None:
         if diagnostics is None:
             # Preserve the established direct-call contract for older callers.
@@ -4094,16 +4227,22 @@ def custom_background_master(
         if result is None:
             worker_diagnostics.setdefault("status", "failed")
             worker_diagnostics.setdefault("worker_error", "worker-failed")
+            if bbox is None:
+                diagnostics["failure_reason"] = (
+                    "mask_quality_rejected" if worker_diagnostics["worker_error"] in
+                    ("worker-invalid-ratio", "worker-ratio-out-of-range", "worker-alpha-size-mismatch")
+                    else "modnet_worker_failed"
+                )
         else:
             worker_diagnostics.setdefault("status", "succeeded")
             worker_diagnostics.setdefault("worker_error", "")
         diagnostics["worker_error"] = worker_diagnostics["worker_error"]
-        return result
+        return checked_subject(result, "modnet")
 
     if mask_mode == "modnet" and source_path is None:
         diagnostics.update(worker_error="source-missing", fallback_status="worker_failed",
                            fallback_reason="forced_worker_failed")
-        raise MaskProcessingError("source-missing", diagnostics)
+        raise MaskProcessingError("modnet_worker_failed" if bbox is None else "source-missing", diagnostics)
 
     if mask_mode == "modnet" or (
         mask_mode == "auto"
@@ -4135,7 +4274,8 @@ def custom_background_master(
                                                     else "primary_modnet_selected"))
         elif mask_mode == "modnet":
             diagnostics.update(fallback_status="worker_failed", fallback_reason="forced_worker_failed")
-            raise MaskProcessingError(diagnostics["worker_error"] or "worker-failed", diagnostics)
+            raise MaskProcessingError((diagnostics.get("failure_reason", "modnet_worker_failed")
+                                       if bbox is None else diagnostics["worker_error"] or "worker-failed"), diagnostics)
         elif diagnostics is not None:
             diagnostics.update(fallback_status="worker_failed",
                                fallback_reason="primary_worker_failed")
@@ -4152,18 +4292,27 @@ def custom_background_master(
             detail=grabcut_timings,
         )
 
+        if bbox is None and diagnostics is not None:
+            diagnostics["failure_reason"] = "grabcut_mask_unavailable"
+        subject_result = checked_subject(subject_result, "opencv-grabcut")
         if subject_result is None:
             if diagnostics is not None:
                 diagnostics.update(fallback_status="error",
-                                   fallback_reason="grabcut_mask_unavailable")
+                                   fallback_reason=diagnostics.get("failure_reason", "grabcut_mask_unavailable"))
             if mask_mode == "grabcut":
-                raise MaskProcessingError("grabcut_mask_unavailable", diagnostics)
-            return None
+                raise MaskProcessingError(diagnostics.get("failure_reason", "grabcut_mask_unavailable"), diagnostics)
+            if bbox is None and source_path is not None and not modnet_attempted:
+                modnet_attempted = True
+                modnet_result = attempt_modnet()
+                if modnet_result is not None:
+                    subject, foreground_ratio, _modnet_metadata = modnet_result
+                    modnet_applied = True
+                    diagnostics.update(fallback_status="accepted", fallback_reason="no_bbox_grabcut_unavailable")
+            if subject is None:
+                return None
 
-        (
-            subject,
-            foreground_ratio,
-        ) = subject_result
+        else:
+            subject, foreground_ratio = subject_result
 
     # These cleanup passes were designed specifically
     # for the GrabCut mask. Keep MODNet's soft alpha intact.
@@ -4180,18 +4329,11 @@ def custom_background_master(
         if diagnostics is not None:
             diagnostics["cosmetic_timings_ms"] = cosmetic_timings
             diagnostics["enclosed_gap_timings_ms"] = enclosed_timings
-        subject = measured_call(timings, "cosmetic_cleanup", cosmetic_cleanup_subject_fringes,
-            image,
-            subject,
-            bbox,
-            detail=cosmetic_timings,
-        )
-        subject = measured_call(timings, "enclosed_gap_cleanup", refine_upper_enclosed_background_gaps,
-            image,
-            subject,
-            bbox,
-            detail=enclosed_timings,
-        )
+        if bbox is not None:
+            subject = measured_call(timings, "cosmetic_cleanup", cosmetic_cleanup_subject_fringes,
+                image, subject, bbox, detail=cosmetic_timings)
+            subject = measured_call(timings, "enclosed_gap_cleanup", refine_upper_enclosed_background_gaps,
+                image, subject, bbox, detail=enclosed_timings)
 
         # Recheck the mask that would actually be rendered. Preserve the
         # primary route, and never retry a failed complex-background worker.
@@ -4685,9 +4827,32 @@ def normalized_master(
             "mask_method": "none",
             "processor_version": VERSION,
             "worker_error": "",
+            "detection_reason": "subject-not-detected",
+            "crop_strategy": "preserve-source-frame",
+            "zoom_out_applied": False,
+            "zoom_scale": 1.0,
         }
-        if mask_mode != "auto" and background_profile != BACKGROUND_PROFILE_ORIGINAL:
-            raise MaskProcessingError("subject-not-detected", diagnostics)
+        if background_profile != BACKGROUND_PROFILE_ORIGINAL:
+            selection: dict[str, Any] = {}
+            diagnostics["mask_selection"] = selection
+            try:
+                result = measured_call(timings, "custom_background", custom_background_master,
+                    image, None, None, "preserve-source-frame", None, None, None,
+                    background_profile, source_path, mask_mode=mask_mode, diagnostics=selection)
+            except MaskProcessingError as error:
+                diagnostics.update(reason_code=error.reason, worker_error=selection.get("worker_error", ""),
+                                   background_fallback=False)
+                error.normalization = diagnostics
+                raise
+            diagnostics["worker_error"] = selection.get("worker_error", "")
+            if result is not None:
+                master, ratio, actual_method = result
+                diagnostics.update(method="full-frame-segmentation", background_profile=background_profile,
+                                   background_fallback=False, subject_mask_applied=True,
+                                   shadow_applied=True, mask_method=actual_method,
+                                   mask_foreground_ratio=round(ratio, 4))
+                return master, diagnostics
+            diagnostics.update(reason_code="background_fallback", fallback_reason="background_fallback")
         return (
             measured_call(timings, "original_canvas", standard_canvas, image, MASTER_SIZE),
             diagnostics,

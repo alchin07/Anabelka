@@ -206,10 +206,12 @@ class MaskModeDispatchTests(unittest.TestCase):
                     self.assertFalse(diagnostics["subject_mask_applied"])
                     self.assertEqual(diagnostics["worker_error"], "")
 
-    def test_no_bbox_preserves_auto_canvas_but_fails_manual_replacement(self):
+    def test_no_bbox_preserves_auto_canvas_only_when_segmentation_fails(self):
         image, _, _ = fixture()
         with ExitStack() as stack:
             detection_patches(stack, None)
+            stack.enter_context(patch.object(processor, "build_subject_rgba", return_value=None))
+            stack.enter_context(patch.object(processor, "run_modnet_worker", return_value=None))
             canvas, diagnostics = processor.normalized_master(image, "studio-light")
             self.assertEqual(diagnostics.get("mask_method"), "none")
             self.assertEqual(canvas.size, processor.MASTER_SIZE)
