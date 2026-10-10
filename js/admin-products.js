@@ -168,8 +168,52 @@
     }
 
 
+    function imageActionIcon(name)
+    {
+        const paths = {
+            preview: ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z',
+                'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'],
+            compare: ['M3 4h18v16H3Z', 'M12 4v16', 'M8 9l-3 3 3 3',
+                'M16 9l3 3-3 3'],
+            info: ['M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
+                'M12 11v6', 'M12 7v.5'],
+            arrows: ['M9 7l-5 5 5 5', 'M4 12h16', 'M15 7l5 5-5 5']
+        };
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('width', '24');
+        svg.setAttribute('height', '24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '1.8');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('focusable', 'false');
+        paths[name].forEach(function (data) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', data);
+            svg.appendChild(path);
+        });
+        return svg;
+    }
+
+
+    function imageActionContent(button, icon, text, label)
+    {
+        button.setAttribute('aria-label', label || text);
+        button.title = text;
+        const caption = document.createElement('span');
+        caption.className = 'product-image-action-text';
+        caption.textContent = text;
+        button.appendChild(imageActionIcon(icon));
+        button.appendChild(caption);
+    }
+
+
     let activeImageCompareModal = null;
     let activeImageCompareDetails = null;
+    let imageCompareReturnFocus = null;
     let activeImagePreview = null;
     const imageProcessingSelections = new WeakMap();
     let imagePreviewGeneration = 0;
@@ -357,6 +401,10 @@
             'product-image-compare-open'
         );
         document.body.classList.remove('product-image-compare-open');
+        if (imageCompareReturnFocus && imageCompareReturnFocus.isConnected) {
+            imageCompareReturnFocus.focus({ preventScroll: true });
+        }
+        imageCompareReturnFocus = null;
 
         const state = history.state || {};
         const depth = state[imageCompareDetailsHistoryKey]
@@ -405,6 +453,7 @@
         }
 
         const processing = preview ? preview.processing : (image.processing || {});
+        imageCompareReturnFocus = preview ? preview.returnFocus : document.activeElement;
         const modal = document.createElement('div');
         modal.className = 'product-image-compare-modal';
         modal.dataset.productImageCompareModal = '';
@@ -431,6 +480,7 @@
         close.className = 'product-image-compare-close';
         close.textContent = '×';
         close.setAttribute('aria-label', 'Закрити порівняння');
+        close.title = 'Закрити порівняння';
 
         header.appendChild(title);
         header.appendChild(close);
@@ -470,6 +520,12 @@
         divider.setAttribute('aria-valuemin', '0');
         divider.setAttribute('aria-valuemax', '100');
         divider.setAttribute('aria-valuenow', '50');
+        divider.setAttribute('aria-orientation', 'horizontal');
+        divider.title = 'Перетягніть межу або використайте стрілки, Home та End';
+        const handle = document.createElement('span');
+        handle.className = 'product-image-compare-handle';
+        handle.appendChild(imageActionIcon('arrows'));
+        divider.appendChild(handle);
 
         stage.appendChild(original);
         stage.appendChild(processed);
@@ -477,23 +533,7 @@
         stage.appendChild(processedLabel);
         stage.appendChild(divider);
 
-        const sliderWrap = document.createElement('label');
-        sliderWrap.className = 'product-image-compare-slider';
-
-        const sliderText = document.createElement('span');
-        sliderText.textContent =
-            'Перетягніть повзунок для порівняння';
-
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.min = '0';
-        slider.max = '100';
-        slider.value = '50';
-        slider.step = '1';
-        slider.setAttribute(
-            'aria-label',
-            'Положення межі порівняння'
-        );
+        let compareSplit = 50;
 
         function setCompareSplit(value)
         {
@@ -506,8 +546,8 @@
                 '--compare-split',
                 normalized + '%'
             );
-            slider.value = String(Math.round(normalized));
-            slider.setAttribute(
+            compareSplit = normalized;
+            divider.setAttribute(
                 'aria-valuetext',
                 Math.round(normalized)
                 + '% ширини оригіналу'
@@ -523,7 +563,7 @@
             const rect = stage.getBoundingClientRect();
 
             if (!rect.width) {
-                return Number(slider.value || 50);
+                return compareSplit;
             }
 
             return (
@@ -533,12 +573,9 @@
             );
         }
 
-        slider.addEventListener('input', function () {
-            setCompareSplit(slider.value);
-        });
-
         divider.addEventListener('pointerdown', function (event) {
             event.preventDefault();
+            divider.focus({ preventScroll: true });
             divider.setPointerCapture(event.pointerId);
             setCompareSplit(compareSplitFromPointer(event));
         });
@@ -563,7 +600,7 @@
         divider.addEventListener('pointercancel', finishDividerDrag);
 
         divider.addEventListener('keydown', function (event) {
-            const current = Number(slider.value || 50);
+            const current = compareSplit;
             let next = current;
 
             if (event.key === 'ArrowLeft') {
@@ -583,9 +620,6 @@
         });
 
         setCompareSplit(50);
-
-        sliderWrap.appendChild(sliderText);
-        sliderWrap.appendChild(slider);
 
         const meta = document.createElement('div');
         meta.className = 'product-image-compare-meta';
@@ -861,7 +895,10 @@
         const detailsButton = document.createElement('button');
         detailsButton.type = 'button';
         detailsButton.className = 'product-image-compare-details-button';
-        detailsButton.textContent = 'Деталі обробки';
+        imageActionContent(detailsButton, 'info', 'Деталі обробки');
+        detailsButton.querySelector('span').className = 'visually-hidden';
+        detailsButton.setAttribute('aria-haspopup', 'dialog');
+        header.insertBefore(detailsButton, close);
 
         const detailsModal = document.createElement('div');
         detailsModal.className = 'product-image-compare-details-modal';
@@ -869,11 +906,16 @@
 
         const detailsDialog = document.createElement('div');
         detailsDialog.className = 'product-image-compare-details-dialog';
+        detailsDialog.setAttribute('role', 'dialog');
+        detailsDialog.setAttribute('aria-modal', 'true');
+        detailsDialog.setAttribute('aria-label', 'Деталі обробки');
 
         const detailsClose = document.createElement('button');
         detailsClose.type = 'button';
         detailsClose.className = 'product-image-compare-details-close';
         detailsClose.textContent = '×';
+        detailsClose.setAttribute('aria-label', 'Закрити деталі обробки');
+        detailsClose.title = 'Закрити деталі обробки';
 
         detailsDialog.appendChild(detailsClose);
         detailsDialog.appendChild(meta);
@@ -888,6 +930,8 @@
 
             detailsModal.hidden = true;
             activeImageCompareDetails = null;
+            dialog.inert = false;
+            detailsButton.focus({ preventScroll: true });
 
             if (
                 syncHistory !== false
@@ -911,6 +955,8 @@
 
             detailsModal.hidden = false;
             activeImageCompareDetails = detailsModal;
+            dialog.inert = true;
+            detailsClose.focus({ preventScroll: true });
 
             const state = Object.assign({}, history.state || {});
             state[imageCompareHistoryKey] = true;
@@ -937,8 +983,6 @@
 
         dialog.appendChild(header);
         dialog.appendChild(stage);
-        dialog.appendChild(sliderWrap);
-        dialog.appendChild(detailsButton);
 
         if (preview) {
             const actions = document.createElement('div');
@@ -1075,8 +1119,9 @@
             activeImageCompareDetails
             && !state[imageCompareDetailsHistoryKey]
         ) {
-            activeImageCompareDetails.hidden = true;
-            activeImageCompareDetails = null;
+            activeImageCompareDetails.querySelector(
+                '.product-image-compare-details-close'
+            ).click();
         }
 
         if (
@@ -1105,7 +1150,32 @@
         if (event.key === 'Escape' && activeImageCompareModal) {
             event.preventDefault();
             event.stopImmediatePropagation();
-            closeImageComparison();
+            if (activeImageCompareDetails) {
+                activeImageCompareDetails.querySelector(
+                    '.product-image-compare-details-close'
+                ).click();
+            } else {
+                closeImageComparison();
+            }
+        }
+
+        if (event.key === 'Tab' && activeImageCompareModal) {
+            const root = activeImageCompareDetails || activeImageCompareModal;
+            const controls = Array.from(root.querySelectorAll(
+                'button:not(:disabled), [tabindex="0"]'
+            )).filter(function (control) {
+                return !control.closest('[hidden]');
+            });
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            const focused = document.activeElement;
+
+            if (first && (!controls.includes(focused)
+                || (event.shiftKey && focused === first)
+                || (!event.shiftKey && focused === last))) {
+                event.preventDefault();
+                (event.shiftKey ? last : first).focus();
+            }
         }
     });
 
@@ -1471,9 +1541,6 @@
         const label = control.querySelector(
             '[data-product-image-processing-status]'
         );
-        const button = control.querySelector(
-            '[data-product-image-process]'
-        );
         const compareButton = control.querySelector(
             '[data-product-image-compare]'
         );
@@ -1506,10 +1573,6 @@
             label.title = status === 'error'
                 ? valueOrEmpty(processing.last_error)
                 : valueOrEmpty(processing.processed_at);
-        }
-
-        if (button) {
-            button.textContent = 'Попередній перегляд';
         }
 
         if (
@@ -1549,8 +1612,7 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.setAttribute('data-product-image-process', '');
-        button.setAttribute(
-            'aria-label',
+        imageActionContent(button, 'preview', 'Попередній перегляд',
             'Попередній перегляд обробки фотографії товару'
         );
 
@@ -1622,13 +1684,12 @@
             'data-product-image-compare',
             ''
         );
-        compareButton.setAttribute(
-            'aria-label',
+        imageActionContent(compareButton, 'compare', 'Порівняти',
             'Порівняти оригінал і оброблену фотографію'
         );
-        compareButton.textContent = 'Порівняти';
         compareButton.hidden = true;
         compareButton.addEventListener('click', function () {
+            compareButton.focus({ preventScroll: true });
             openImageComparison(image);
         });
 
@@ -1652,6 +1713,7 @@
                 csrf: csrf.value,
                 generation: imagePreviewGeneration,
                 editorToken: productEditorHistoryToken,
+                returnFocus: button,
                 previewId: '',
                 dismissed: false,
                 confirming: false,

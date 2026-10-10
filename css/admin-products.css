@@ -704,7 +704,9 @@ details.product-form-section > summary small {
 
 .product-image-manage {
     position: relative;
+    min-width: 0;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     padding: 6px;
     border: 1px solid var(--product-admin-border);
@@ -1771,6 +1773,7 @@ body.product-color-picker-open {
     align-items: center;
     gap: 5px;
     min-height: 31px;
+    min-width: 0;
 }
 
 .product-image-processing-status {
@@ -1827,7 +1830,13 @@ body.product-color-picker-open {
 }
 
 .product-image-processing > button {
-    min-height: 31px;
+    grid-column: 1 / -1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 44px;
+    min-height: 44px;
     width: 100%;
     padding: 5px 7px;
     border: 1px solid var(--product-admin-purple);
@@ -1835,9 +1844,32 @@ body.product-color-picker-open {
     background: #fff;
     color: var(--product-admin-purple);
     font: inherit;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 850;
     cursor: pointer;
+}
+
+.product-image-processing > button[hidden] {
+    display: none;
+}
+
+.product-image-processing > button svg,
+.product-image-compare-details-button svg {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+}
+
+.product-image-action-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.product-image-processing > button:focus-visible,
+.product-image-compare-header button:focus-visible,
+.product-image-compare-details-close:focus-visible {
+    outline: 3px solid rgba(138, 43, 226, .35);
+    outline-offset: 1px;
 }
 
 .product-image-processing:not(.has-comparison)
@@ -1876,10 +1908,14 @@ body.product-image-compare-open {
 
 .product-image-compare-dialog {
     width: min(100%, 620px);
+    min-width: 0;
+    max-height: calc(100vh - 28px);
     max-height: calc(100dvh - 28px);
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
     overflow: auto;
+    overscroll-behavior: contain;
     padding: 14px;
     border-radius: 16px;
     background: #fff;
@@ -1890,18 +1926,23 @@ body.product-image-compare-open {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
+    flex: 0 0 auto;
 }
 
 .product-image-compare-header strong {
+    min-width: 0;
+    flex: 1;
+    overflow-wrap: anywhere;
     color: #443b49;
     font-size: 16px;
+    line-height: 1.3;
 }
 
 .product-image-compare-close {
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
     border: 1px solid var(--product-admin-border);
     border-radius: 10px;
     background: #fff;
@@ -1915,9 +1956,12 @@ body.product-image-compare-open {
 .product-image-compare-stage {
     --compare-split: 50%;
     position: relative;
-    width: min(100%, 520px);
+    /* Reserve space for the header and preview actions on short screens. */
+    width: min(100%, 520px, max(44px, calc((100vh - 180px) * .666667)));
+    width: min(100%, 520px, max(44px, calc((100dvh - 180px) * .666667)));
     aspect-ratio: 2 / 3;
-    justify-self: center;
+    flex: 0 0 auto;
+    align-self: center;
     overflow: hidden;
     border: 1px solid var(--product-admin-border);
     border-radius: 13px;
@@ -1970,8 +2014,7 @@ body.product-image-compare-open {
     box-shadow: 0 0 0 1px rgba(45, 36, 49, 0.22);
 }
 
-.product-image-compare-divider::after {
-    content: "↔";
+.product-image-compare-handle {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -1985,12 +2028,16 @@ body.product-image-compare-open {
     background: var(--product-admin-purple);
     color: #fff;
     box-shadow: 0 4px 14px rgba(54, 36, 64, 0.28);
-    font-size: 18px;
-    font-weight: 900;
-    line-height: 1;
+    pointer-events: none;
 }
 
-.product-image-compare-divider:focus-visible::after {
+.product-image-compare-handle svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+}
+
+.product-image-compare-divider:focus-visible .product-image-compare-handle {
     box-shadow:
         0 0 0 4px rgba(138, 43, 226, 0.18),
         0 4px 14px rgba(54, 36, 64, 0.28);
@@ -1998,7 +2045,7 @@ body.product-image-compare-open {
 
 .product-image-compare-label {
     position: absolute;
-    z-index: 4;
+    z-index: 6;
     top: 10px;
     padding: 5px 8px;
     border-radius: 999px;
@@ -2017,58 +2064,11 @@ body.product-image-compare-open {
     right: 10px;
 }
 
-.product-image-compare-slider {
-    display: grid;
-    gap: 7px;
-    color: #675e6c;
-    font-size: 11px;
-    font-weight: 750;
-}
-
-.product-image-compare-slider input {
-    width: 100%;
-    height: 38px;
-    margin: 0;
-    padding: 0;
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
-    accent-color: var(--product-admin-purple);
-    touch-action: pan-x;
-}
-
-.product-image-compare-slider input::-webkit-slider-runnable-track {
-    height: 8px;
-    border: 1px solid #cfc6d4;
-    border-radius: 999px;
-    background: #f1edf4;
-}
-
-.product-image-compare-slider input::-webkit-slider-thumb {
-    width: 32px;
-    height: 32px;
-    margin-top: -13px;
-    -webkit-appearance: none;
-    border: 3px solid #fff;
-    border-radius: 50%;
-    background: var(--product-admin-purple);
-    box-shadow: 0 2px 8px rgba(54, 36, 64, 0.24);
-}
-
-.product-image-compare-slider input::-moz-range-track {
-    height: 8px;
-    border: 1px solid #cfc6d4;
-    border-radius: 999px;
-    background: #f1edf4;
-}
-
-.product-image-compare-slider input::-moz-range-thumb {
-    width: 28px;
-    height: 28px;
-    border: 3px solid #fff;
-    border-radius: 50%;
-    background: var(--product-admin-purple);
-    box-shadow: 0 2px 8px rgba(54, 36, 64, 0.24);
+@media (max-height: 480px) {
+    .product-image-compare-label.is-processed {
+        top: auto;
+        bottom: 10px;
+    }
 }
 
 .product-image-compare-meta {
@@ -2112,20 +2112,21 @@ body.product-image-compare-open {
     }
 
     .product-image-compare-dialog {
+        max-height: calc(100vh - 16px);
         max-height: calc(100dvh - 16px);
         padding: 10px;
         border-radius: 13px;
     }
 
-    .product-image-compare-stage {
-        width: min(100%, 430px);
-    }
 }
 
 .product-image-compare-details-button {
-    justify-self: center;
-    min-height: 40px;
-    padding: 8px 14px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    padding: 8px;
     border: 1px solid #8A2BE2;
     border-radius: 999px;
     background: #f4eaff;
@@ -2133,6 +2134,7 @@ body.product-image-compare-open {
     font: inherit;
     font-size: 11px;
     font-weight: 850;
+    cursor: pointer;
 }
 
 .product-image-compare-details-modal {
@@ -2151,8 +2153,12 @@ body.product-image-compare-open {
 
 .product-image-compare-details-dialog {
     width: min(100%, 430px);
+    min-width: 0;
+    max-height: calc(100vh - 36px);
     max-height: calc(100dvh - 36px);
     overflow: auto;
+    overflow-wrap: anywhere;
+    overscroll-behavior: contain;
     padding: 16px;
     border-radius: 16px;
     background: #fff;
@@ -2160,15 +2166,19 @@ body.product-image-compare-open {
 }
 
 .product-image-compare-details-close {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: block;
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     margin: 0 0 12px auto;
     border: 1px solid #eadcf7;
     border-radius: 10px;
     background: #fff;
     color: #655b6b;
     font-size: 24px;
+    cursor: pointer;
 }
 
 .product-image-compare-details-dialog
@@ -2181,11 +2191,12 @@ body.product-image-compare-open {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 12px;
+    flex: 0 0 auto;
 }
 
 .product-image-preview-actions button {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 44px;
     min-height: 44px;
     padding: 8px 14px;
     border: 1px solid var(--product-admin-purple);
@@ -2217,7 +2228,25 @@ body.product-image-compare-open {
     }
 
     .product-image-processing > button {
-        min-height: 40px;
-        font-size: 11px;
+        grid-column: auto;
+        min-height: 44px;
+        padding: 5px;
+    }
+
+    .product-image-processing .product-image-action-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .product-image-preview-actions button {
+        padding: 8px;
+        font-size: 13px;
     }
 }

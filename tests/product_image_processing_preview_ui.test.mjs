@@ -124,6 +124,14 @@ function assertProcessingSelection(h, profile = 'studio-light', mode = 'modnet',
         'Selected mask mode must survive processing state changes');
 }
 
+function pressKey(h, key, target = h.window.document.activeElement, options = {}) {
+    const event = new h.window.KeyboardEvent('keydown', {
+        key, bubbles: true, cancelable: true, ...options
+    });
+    target.dispatchEvent(event);
+    return event;
+}
+
 test('preview keeps selected profile and mask mode while busy and after receiving the candidate', async t => {
     const h = await harness(t);
     const before = h.snapshot();
@@ -363,16 +371,12 @@ test('Android Back closes details then cancels preview then closes editor', asyn
     assert.equal(h.q('#product-editor').hidden, true, 'Reopened editor owns a fresh Back entry');
 });
 
-for (const action of ['close', 'escape', 'cancel']) {
+for (const action of ['close', 'cancel']) {
     test(action + ' unwinds preview and details history without closing editor', async t => {
         const h = await harness(t);
         await h.start();
         h.click('.product-image-compare-details-button');
-        if (action === 'escape') {
-            h.window.document.dispatchEvent(new h.window.KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
-        } else {
-            h.click(action === 'close' ? '.product-image-compare-close' : '[data-product-image-preview-cancel]');
-        }
+        h.click(action === 'close' ? '.product-image-compare-close' : '[data-product-image-preview-cancel]');
         await pause();
         assert.equal(h.q('.product-image-compare-modal'), null);
         assert.equal(h.q('#product-editor').hidden, false);
@@ -383,6 +387,103 @@ for (const action of ['close', 'escape', 'cancel']) {
         assert.equal(h.q('#product-editor').hidden, true);
     });
 }
+
+for (const comparison of ['preview', 'accepted', 'confirmed']) {
+    test(comparison + ' comparison exposes an accessible details icon in its header', async t => {
+        const h = await harness(t);
+        if (comparison === 'accepted') {
+            h.click('[data-product-image-compare]');
+        } else {
+            await h.start();
+            if (comparison === 'confirmed') {
+                const saved = {...candidate, master_path: 'uploads/products/processed/confirmed.jpg'};
+                h.queued.push(response({success: true, image_id: 17, processing: saved}));
+                h.click('[data-product-image-preview-confirm]');
+                await pause();
+                h.click('[data-product-image-compare]');
+            }
+        }
+        const button = h.q('.product-image-compare-details-button');
+        assert.ok(h.q('.product-image-compare-header').contains(button),
+            'Details must remain reachable in the header beside the comparison close control');
+        assert.equal(button.getAttribute('aria-label'), 'Деталі обробки');
+        assert.equal(button.title, 'Деталі обробки');
+        assert.equal(button.querySelector('svg')?.getAttribute('aria-hidden'), 'true');
+        assert.equal(button.querySelector('.visually-hidden')?.textContent, 'Деталі обробки');
+        h.click(button);
+        const dialog = h.q('.product-image-compare-details-dialog');
+        assert.equal(dialog.getAttribute('role'), 'dialog');
+        assert.equal(dialog.getAttribute('aria-modal'), 'true');
+        assert.equal(dialog.getAttribute('aria-label'), 'Деталі обробки');
+        assert.equal(h.q('.product-image-compare-details-close').getAttribute('aria-label'),
+            'Закрити деталі обробки');
+        if (comparison === 'confirmed') {
+            assert.match(dialog.textContent, /1200×1800/,
+                'Accepted details must describe the newly confirmed result');
+        }
+    });
+}
+
+test('details focus moves inside and Back returns focus to its header icon', async t => {
+    const h = await harness(t);
+    await h.start();
+    const button = h.q('.product-image-compare-details-button');
+    button.focus();
+    h.click(button);
+    assert.equal(h.window.document.activeElement, h.q('.product-image-compare-details-close'));
+    await h.back();
+    assert.equal(h.q('.product-image-compare-details-modal').hidden, true);
+    assert.equal(h.window.document.activeElement, button);
+    assert.ok(h.q('.product-image-compare-modal'));
+    assert.equal(h.calls.some(call => call.url.endsWith('image-process-cancel')), false);
+});
+
+test('Escape closes details before cancelling preview and preserves the editor Back entry', async t => {
+    const h = await harness(t);
+    const before = h.snapshot();
+    await h.start();
+    const button = h.q('.product-image-compare-details-button');
+    button.focus();
+    h.click(button);
+    pressKey(h, 'Escape');
+    await pause();
+    assert.ok(h.q('.product-image-compare-modal'), 'First Escape closes only processing details');
+    assert.equal(h.q('.product-image-compare-details-modal').hidden, true);
+    assert.equal(h.window.document.activeElement, button);
+    assert.equal(h.calls.some(call => call.url.endsWith('image-process-cancel')), false);
+    assert.equal(Boolean(h.window.history.state.__anabelkaProductImageCompareDetails), false);
+    pressKey(h, 'Escape');
+    await pause();
+    assert.equal(h.q('.product-image-compare-modal'), null);
+    assert.equal(h.snapshot(), before);
+    assert.equal(h.q('#product-editor').hidden, false);
+    assert.equal(h.calls.filter(call => call.url.endsWith('image-process-cancel')).length, 1);
+    await h.back();
+    assert.equal(h.q('#product-editor').hidden, true);
+});
+
+test('Tab stays inside the active comparison and details dialogs', async t => {
+    const h = await harness(t);
+    await h.start();
+    const dialog = h.q('.product-image-compare-dialog');
+    const controls = [...dialog.querySelectorAll('button:not(:disabled), [tabindex="0"]')];
+    const first = controls[0];
+    const last = controls.at(-1);
+    last.focus();
+    assert.equal(pressKey(h, 'Tab').defaultPrevented, true,
+        'Tab at the last comparison control must not reach the underlying product editor');
+    assert.equal(h.window.document.activeElement, first);
+    assert.equal(pressKey(h, 'Tab', first, {shiftKey: true}).defaultPrevented, true);
+    assert.equal(h.window.document.activeElement, last);
+    h.click('.product-image-compare-details-button');
+    const close = h.q('.product-image-compare-details-close');
+    assert.equal(h.window.document.activeElement, close);
+    assert.equal(pressKey(h, 'Tab', close).defaultPrevented, true,
+        'Tab inside details must not reach the underlying comparison controls');
+    assert.equal(h.window.document.activeElement, close);
+    assert.equal(pressKey(h, 'Tab', close, {shiftKey: true}).defaultPrevented, true);
+    assert.equal(h.window.document.activeElement, close);
+});
 
 test('a preview response after editor close is cancelled and never reopens comparison', async t => {
     const h = await harness(t);
@@ -439,11 +540,24 @@ test('comparison preserves keyboard and pointer slider interactions', async t =>
     await h.start();
     const divider = h.q('.product-image-compare-divider');
     const stage = h.q('.product-image-compare-stage');
-    const slider = h.q('.product-image-compare-slider input');
+    assert.equal(h.q('.product-image-compare-slider'), null,
+        'The comparison must not render a second lower slider');
+    assert.equal(h.q('.product-image-compare-dialog input[type="range"]'), null);
+    const assertSplit = value => {
+        assert.equal(divider.getAttribute('aria-valuenow'), String(value));
+        assert.equal(divider.getAttribute('aria-valuetext'), value + '% ширини оригіналу');
+        assert.equal(stage.style.getPropertyValue('--compare-split'), value + '%');
+    };
     divider.dispatchEvent(new h.window.KeyboardEvent('keydown', {key: 'ArrowRight'}));
-    assert.equal(slider.value, '52');
+    assertSplit(52);
+    divider.dispatchEvent(new h.window.KeyboardEvent('keydown', {key: 'Home'}));
+    assertSplit(0);
+    divider.dispatchEvent(new h.window.KeyboardEvent('keydown', {key: 'ArrowRight'}));
+    assertSplit(2);
     divider.dispatchEvent(new h.window.KeyboardEvent('keydown', {key: 'End'}));
-    assert.equal(divider.getAttribute('aria-valuenow'), '100');
+    assertSplit(100);
+    divider.dispatchEvent(new h.window.KeyboardEvent('keydown', {key: 'ArrowLeft'}));
+    assertSplit(98);
     stage.getBoundingClientRect = () => ({left: 10, width: 100});
     let captured = false;
     divider.setPointerCapture = () => {captured = true;};
@@ -455,11 +569,19 @@ test('comparison preserves keyboard and pointer slider interactions', async t =>
         divider.dispatchEvent(event);
     };
     pointer('pointerdown', 35);
-    assert.equal(slider.value, '25');
+    assertSplit(25);
     pointer('pointermove', 90);
-    assert.equal(slider.value, '80');
+    assertSplit(80);
     pointer('pointerup', 90);
     assert.equal(captured, false);
+    pointer('pointerdown', -100);
+    assertSplit(0);
+    pointer('pointermove', 200);
+    assertSplit(100);
+    pointer('pointercancel', 200);
+    assert.equal(captured, false);
+    pointer('pointermove', 60);
+    assertSplit(100);
 });
 
 test('late superseded completion does not unlock a newer request on the same image', async t => {

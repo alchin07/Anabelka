@@ -39,7 +39,8 @@ assert.match(script, /image\.processing\s*=\s*data\.processing/);
 assert.match(script, /data-product-image-compare/);
 assert.match(script, /Порівняти/);
 assert.match(script, /product-image-compare-modal/);
-assert.match(script, /type = 'range'/);
+assert.doesNotMatch(script, /type = 'range'/);
+assert.match(script, /setAttribute\('role', 'slider'\)/);
 assert.match(script, /processedMasterUrl/);
 assert.match(script, /imageCompareHistoryKey/);
 assert.match(script, /closeImageComparison/);
@@ -98,10 +99,8 @@ assert.match(css, /\.product-image-compare-modal/);
 assert.match(css, /\.product-image-compare-stage/);
 assert.match(css, /\.product-image-compare-divider/);
 assert.match(css, /touch-action: none/);
-assert.match(css, /::-webkit-slider-thumb/);
-assert.match(css, /width: 32px/);
-
-assert.match(css, /\.product-image-compare-slider/);
+assert.match(css, /\.product-image-compare-handle/);
+assert.doesNotMatch(css, /\.product-image-compare-slider/);
 assert.match(css, /\.product-image-compare-diagnostics/);
 assert.match(css, /\.product-image-compare-diagnostic/);
 
