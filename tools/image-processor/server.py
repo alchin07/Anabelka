@@ -25,7 +25,7 @@ import PIL
 from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 
 from mp_persondet import MPPersonDet
-from mask_review import MAX_SOURCE_EDGE, MAX_SOURCE_PIXELS, revise_alpha, validate_alpha
+from mask_review import MAX_SOURCE_EDGE, MAX_SOURCE_PIXELS, normalize_actions, revise_alpha, validate_alpha
 
 try:
     import fcntl as _fcntl
@@ -135,6 +135,16 @@ class MaskProcessingError(RuntimeError):
         super().__init__("Не вдалося застосувати маску фотографії: " + reason)
         self.reason = reason
         self.normalization = normalization
+
+
+class MaskReviewEditRejected(ValueError):
+    """An input/footprint failure proven to occur before this edit can commit."""
+
+    def __init__(self, message: str, metadata: dict[str, Any]):
+        super().__init__(message)
+        self.job_id = metadata["job_id"]
+        self.source_sha256 = metadata["source_sha256"]
+        self.revision = metadata["revision"]
 
 
 @contextmanager
@@ -5521,6 +5531,9 @@ def review_public(metadata: dict[str, Any]) -> dict[str, Any]:
         "source_image_sha256": metadata["source_image_sha256"],
         "raw_alpha_sha256": metadata["raw_alpha_sha256"],
         "alpha_sha256": metadata["alpha_sha256"],
+        "initial_region_count": metadata["initial_region_count"],
+        "actions": metadata["actions"],
+        "action_results": metadata["action_results"],
     }
 
 
@@ -5611,7 +5624,8 @@ def create_locked_mask_review(job_id: str, original: Path, image: Image.Image,
             "alpha_sha256": sha256_file(directory / "alpha-0.png"),
             "seed_sha256": sha256_file(directory / "source-seed.png") if seed is not None else None,
             "geometry": capture["geometry"], "mask_method": capture.get("mask_method", "modnet"),
-            "normalization": normalization, "validation": validation, "actions": [],
+            "normalization": normalization, "validation": validation, "actions": [], "action_results": [],
+            "initial_region_count": len(validation["regions"]),
         }
         review_metadata_write(directory, metadata)
         return review_public(metadata)
@@ -5621,7 +5635,7 @@ def create_locked_mask_review(job_id: str, original: Path, image: Image.Image,
 
 
 @contextmanager
-def locked_mask_review(payload: dict[str, Any]):
+def locked_mask_review(payload: dict[str, Any], *, allow_parent_revision: bool = False):
     job_id = payload.get("job_id")
     revision = payload.get("revision")
     source_hash = payload.get("source_sha256")
@@ -5642,15 +5656,17 @@ def locked_mask_review(payload: dict[str, Any]):
             if metadata_path.is_symlink() or metadata_path.stat().st_size > MAX_JSON_BYTES * 4:
                 raise ValueError("Некоректні дані сеансу маски.")
             metadata = json.loads(metadata_path.read_text("utf-8"))
+            parent_retry = (allow_parent_revision and metadata["revision"] > 0
+                            and metadata["revision"] == revision + 1)
             if (metadata["job_id"] != job_id or metadata["source_sha256"] != source_hash
-                    or metadata["revision"] != revision):
+                    or (metadata["revision"] != revision and not parent_retry)):
                 raise ValueError("Сеанс або версія маски змінилися.")
             if time.time() - metadata["created_at"] > REVIEW_TTL_SECONDS:
                 raise ValueError("Термін сеансу перевірки маски завершився.")
             for filename, expected in (
                 ("source.png", metadata["source_image_sha256"]),
                 ("raw-alpha.png", metadata["raw_alpha_sha256"]),
-                ("alpha-" + str(revision) + ".png", metadata["alpha_sha256"]),
+                ("alpha-" + str(metadata["revision"]) + ".png", metadata["alpha_sha256"]),
                 (metadata["original_name"], source_hash),
                 ("source-seed.png", metadata["seed_sha256"]),
             ):
@@ -5667,6 +5683,16 @@ def locked_mask_review(payload: dict[str, Any]):
                     seed = np.asarray(opened.convert("L")).copy()
             if raw.shape != (metadata["input"]["height"], metadata["input"]["width"]):
                 raise ValueError("Розмір маски змінився.")
+            # Existing private sessions can finish after an update without altering
+            # their immutable data or writing a transaction for a retry.
+            if "initial_region_count" not in metadata:
+                metadata["initial_region_count"] = len(validate_alpha(raw, raw, seed)["regions"])
+            if "action_results" not in metadata:
+                with Image.open(directory / "source.png") as opened:
+                    rgb = np.asarray(opened.convert("RGB")).copy()
+                replay = revise_alpha(raw, seed, metadata["actions"], source_rgb=rgb)
+                metadata.update(validation=replay["validation"], actions=replay["actions"],
+                                action_results=replay["action_results"])
             yield directory, metadata, raw, seed
 
 
@@ -5678,19 +5704,33 @@ def review_response(metadata: dict[str, Any]) -> dict[str, Any]:
 
 
 def revise_mask_review(payload: dict[str, Any]) -> dict[str, Any]:
-    with locked_mask_review(payload) as (directory, metadata, raw, seed):
+    with locked_mask_review(payload, allow_parent_revision=True) as (directory, metadata, raw, seed):
+        try:
+            actions = normalize_actions(payload.get("actions"), raw.shape)
+        except ValueError as error:
+            if payload["revision"] != metadata["revision"]:
+                raise
+            raise MaskReviewEditRejected(str(error), metadata) from error
+        if actions == normalize_actions(metadata["actions"], raw.shape):
+            return review_response(metadata)
+        if payload["revision"] != metadata["revision"]:
+            raise ValueError("Сеанс або версія маски змінилися.")
         if metadata["revision"] >= 32:
             raise ValueError("Завершено ліміт редагувань маски.")
         with Image.open(directory / "source.png") as opened:
             rgb = np.asarray(opened.convert("RGB")).copy()
-        result = revise_alpha(raw, seed, payload.get("actions"), source_rgb=rgb)
+        try:
+            result = revise_alpha(raw, seed, actions, source_rgb=rgb)
+        except ValueError as error:
+            raise MaskReviewEditRejected(str(error), metadata) from error
         revision = metadata["revision"] + 1
         path = directory / ("alpha-" + str(revision) + ".png")
         if path.exists():
             raise ValueError("Версія маски вже існує.")
         Image.fromarray(result["alpha"]).save(path, "PNG")
         metadata.update(revision=revision, alpha_sha256=sha256_file(path),
-                        validation=result["validation"], actions=payload["actions"])
+                        validation=result["validation"], actions=result["actions"],
+                        action_results=result["action_results"])
         review_metadata_write(directory, metadata)
         return review_response(metadata)
 
@@ -5705,7 +5745,8 @@ def render_mask_review(payload: dict[str, Any], *, timings: dict[str, Any]) -> d
             current = np.asarray(opened.convert("L")).copy()
         if not np.array_equal(current, replay["alpha"]):
             raise ValueError("Маска не відповідає локальним діям редагування.")
-        metadata["validation"] = replay["validation"]
+        metadata.update(validation=replay["validation"], actions=replay["actions"],
+                        action_results=replay["action_results"])
         if replay["validation"]["status"] != "accepted":
             return review_response(metadata)
         background_profile = normalize_background_profile(payload.get("background_profile"))
@@ -6045,6 +6086,10 @@ class Handler(BaseHTTPRequestHandler):
                     payload.get("source"), payload.get("background_profile"),
                     mask_mode=payload.get("mask_mode"), allow_review=payload.get("allow_review", False))
             self.send_json(200, result)
+        except MaskReviewEditRejected as error:
+            self.send_json(400, {"ok": False, "error": str(error), "review_edit_rejected": True,
+                                 "job_id": error.job_id, "source_sha256": error.source_sha256,
+                                 "revision": error.revision})
         except MaskProcessingError as error:
             self.send_json(
                 500,

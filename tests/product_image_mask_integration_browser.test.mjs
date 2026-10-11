@@ -26,12 +26,15 @@ const processing = {status: 'ready', master_width: 1200, master_height: 1800,
 const actualReview = process.env.ANABELKA_MASK_REVIEW_FILE
     ? JSON.parse(fs.readFileSync(process.env.ANABELKA_MASK_REVIEW_FILE, 'utf8')).initial_review : null;
 const assetUrl = (asset, revision = 0) => `/Anabelka/admin/products/image-process-mask-file?image_id=17&preview_id=${token}&revision=${revision}&asset=${asset}`;
-const review = (revision = 0, status = 'needs_review', actual = false) => ({success: true, state: 'needs_review', image_id: 17,
+const review = (revision = 0, status = 'needs_review', actual = false, actions = []) => ({success: true, state: 'needs_review', image_id: 17,
     preview_id: token, review_available: true, revision, review: {revision, status, width, height,
         regions: actual && actualReview ? actualReview.regions : [{id: 1, bbox: [330, 2460, 140, 140]}],
         reasons: actual && actualReview ? actualReview.reasons : ['source_background_retained'],
         gates: actual && actualReview ? actualReview.gates : {component: {accepted: true}, background: {accepted: false}},
-        source_url: assetUrl('source', revision), alpha_url: assetUrl('alpha', revision)}});
+        actions, initial_region_count: actual && actualReview ? actualReview.regions.length : 1,
+        action_results: actions.map((_,index)=>({index,status:status === 'accepted'?'accepted':'rejected',
+            reasons:status === 'accepted'?[]:['unsafe_background_annotation']})),
+        source_url: assetUrl('source', revision), alpha_url: assetUrl('alpha', revision), raw_alpha_url: assetUrl('raw-alpha', revision)}});
 const ready = (revision = 0) => ({success: true, state: 'ready', image_id: 17, preview_id: token,
     review_available: true, revision, processing,
     preview_url: `/Anabelka/admin/products/image-process-preview-file?image_id=17&preview_id=${token}&revision=${revision}`});
@@ -54,7 +57,7 @@ before(async () => {
             res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({success: true, rows: []}));
         } else if (pathname.endsWith('image-process-mask-file') || pathname.endsWith('image-process-preview-file')
             || pathname.includes('/uploads/products/')) {
-            const isAlpha = url.searchParams.get('asset') === 'alpha';
+            const isAlpha = ['alpha','raw-alpha'].includes(url.searchParams.get('asset'));
             const fixturePath = isAlpha ? process.env.ANABELKA_MASK_ALPHA_FILE : process.env.ANABELKA_MASK_SOURCE_FILE;
             if (fixturePath) {
                 res.setHeader('Content-Type', /\.jpe?g$/i.test(fixturePath) ? 'image/jpeg' : 'image/png');
@@ -78,6 +81,8 @@ async function harness(t, options = {}) {
     page.on('pageerror', error => errors.push(error.message));
     const calls = [];
     let revision = 0;
+    let journal = [];
+    let reviewStatus = 'needs_review';
     let editGate;
     t.after(async () => {if (editGate) editGate(); await context.close(); assert.deepEqual(errors, [], 'Application JS must not throw.');});
     await page.route('**/image-process-*', async route => {
@@ -87,10 +92,12 @@ async function harness(t, options = {}) {
         calls.push({action, body});
         let result;
         if (action === 'preview') result = options.refused ? review(0, 'needs_review', options.actualReview) : ready();
-        else if (action === 'mask-start') result = review(revision, 'needs_review', options.actualReview);
+        else if (action === 'mask-start') result = review(revision, reviewStatus, options.actualReview, journal);
         else if (action === 'mask-edit') {
             if (options.delayEdit) await new Promise(resolve => {editGate = resolve;});
-            result = review(++revision, options.rejectEdit ? 'needs_review' : 'accepted');
+            journal = JSON.parse(body.match(/name="actions"\r\n\r\n([^\r]+)/)[1]);
+            reviewStatus = options.rejectEdit ? 'needs_review' : 'accepted';
+            result = review(++revision, reviewStatus, false, journal);
         } else if (action === 'mask-result') result = options.resultFailsOnce
             && calls.filter(call => call.action === 'mask-result').length === 1
             ? {success: false, message: 'Проблема результату перевірки.'} : ready(revision);
@@ -203,6 +210,7 @@ test('a result failure keeps the current mask revision available for retry', asy
     await h.page.locator('[data-mask-validate]').click();
     await h.page.waitForFunction(() => !window.AnabelkaMaskEditor.isOpen());
     assert.equal(h.calls.filter(call => call.action === 'mask-result').length, 2);
+    assert.equal(h.calls.filter(call => call.action === 'mask-edit').length, 1, 'Rendering retry must preserve the accepted revision');
 });
 
 test('Escape handles a dirty mask helper without closing the underlying comparison', async t => {
@@ -221,12 +229,12 @@ test('reset sends an empty cumulative action log using the current review revisi
     const h = await harness(t, {rejectEdit: true});
     await h.mark();
     await h.page.locator('[data-mask-validate]').click();
-    await h.page.waitForFunction(() => !document.querySelector('[data-mask-validate]').disabled);
+    await h.page.waitForFunction(() => document.querySelector('.mask-editor').getAttribute('aria-busy') === 'false' && document.querySelector('.mask-editor').dataset.ready === 'true');
     await h.page.locator('[data-mask-reset]').click();
     await h.page.locator('[data-mask-confirm-reset]').click();
     await h.page.waitForTimeout(100);
     await h.page.locator('[data-mask-validate]').click();
-    await h.page.waitForFunction(() => !document.querySelector('[data-mask-validate]').disabled);
+    await h.page.waitForFunction(() => document.querySelector('.mask-editor').getAttribute('aria-busy') === 'false' && document.querySelector('.mask-editor').dataset.ready === 'true');
     const edit = h.calls.filter(call => call.action === 'mask-edit').at(-1);
     assert.ok(edit.body.includes('name="actions"\r\n\r\n[]'));
     assert.ok(edit.body.includes('name="revision"\r\n\r\n1'));

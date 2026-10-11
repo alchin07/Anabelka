@@ -143,6 +143,22 @@ test('ImageProcessorClient reads real HTTP status and response JSON', async t =>
     }));
     const endpoint = `http://127.0.0.1:${server.address().port}`;
 
+    await t.test('only a complete HTTP 400 mask rejection carries an unchanged revision proof', async () => {
+        const proof = {review_edit_rejected:true, job_id:'a'.repeat(32), source_sha256:'b'.repeat(64), revision:0};
+        fixtures.set('/mask-review', {status:400,body:{ok:false,error:'Позначено забагато пікселів.',...proof}});
+        assert.deepEqual((await runPhp(endpoint,'/mask-review')).diagnostics,proof);
+        for (const altered of [{revision:.5},{job_id:'/private/job'},{source_sha256:'not-a-hash'},{review_edit_rejected:1}]) {
+            fixtures.set('/mask-review', {status:400,body:{ok:false,error:'Rejected',...proof,...altered}});
+            assert.deepEqual((await runPhp(endpoint,'/mask-review')).diagnostics,[]);
+        }
+        fixtures.set('/mask-review', {status:500,body:{ok:false,error:'Unknown outcome',...proof}});
+        assert.deepEqual((await runPhp(endpoint,'/mask-review')).diagnostics,[]);
+        for (const status of [400,500]) {
+            fixtures.set('/mask-review', {status,body:{ok:false,error:'Unproven diagnostic',normalization:proof}});
+            assert.deepEqual((await runPhp(endpoint,'/mask-review')).diagnostics,[]);
+        }
+    });
+
     const runtime = await runPhp(endpoint, '', [], 'status');
     await t.test('status parser recognizes 200, 400 and 500', () => {
         assert.deepEqual(runtime.statuses, [200, 400, 500, 0, 0]);
@@ -196,6 +212,6 @@ test('ImageProcessorClient reads real HTTP status and response JSON', async t =>
         assert.deepEqual(await runPhp(endpoint, '/background-fallback'), {data: backgroundFallback});
     });
     assert.deepEqual(requests.sort(), [
-        ...fixtures.keys(), ...modes.slice(1).map(() => '/success')
+        ...fixtures.keys(), ...Array(7).fill('/mask-review'), ...modes.slice(1).map(() => '/success')
     ].sort());
 });

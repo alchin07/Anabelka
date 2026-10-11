@@ -5,6 +5,7 @@ import sys
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from types import SimpleNamespace
 import unittest
 from pathlib import Path
@@ -41,6 +42,33 @@ class MaskReviewTests(unittest.TestCase):
         spec.loader.exec_module(module)
         return module
 
+    def rgb(self, seed):
+        rgb = np.full((*seed.shape, 3), 240, np.uint8)
+        rgb[seed == cv2.GC_PR_FGD] = (180, 110, 90)
+        return rgb
+
+    @contextmanager
+    def private_review(self, raw=None):
+        server = self.server()
+        seed, baseline = self.fixture()
+        if raw is None:
+            raw = baseline
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'photo.png'
+            image = Image.fromarray(self.rgb(seed))
+            image.save(source)
+            job = 'a' * 32
+            with (patch.object(server, 'REVIEW_ROOT', root / 'reviews'),
+                  patch.object(server, 'REVIEW_LOCK_ROOT', root / 'locks')):
+                server.create_mask_review(job, source, image,
+                    {'alpha': Image.fromarray(raw), 'seed': seed,
+                     'geometry': {'crop_box': None, 'crop_strategy': 'preserve-source-frame'}},
+                    {}, 'uploads/products/photo.png')
+                yield server, root / 'reviews' / job, {
+                    'job_id': job, 'source_sha256': server.sha256_file(source), 'revision': 0,
+                }
+
     def test_private_review_replay_revisions_hashes_and_raw_are_immutable(self):
         server = self.server()
         self.assertTrue(hasattr(server, 'create_mask_review'), 'private review storage is required')
@@ -49,7 +77,7 @@ class MaskReviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / 'photo.png'
-            image = Image.new('RGB', (100, 120), (200, 140, 100))
+            image = Image.fromarray(self.rgb(seed))
             image.save(source)
             job = 'a' * 32
             capture = {'alpha': Image.fromarray(raw), 'seed': seed,
@@ -63,8 +91,8 @@ class MaskReviewTests(unittest.TestCase):
                 self.assertEqual(result['revision'], 1)
                 self.assertEqual(review['raw_alpha_sha256'], result['review']['raw_alpha_sha256'])
                 np.testing.assert_array_equal(np.asarray(Image.open(root / 'reviews' / job / 'raw-alpha.png')), raw)
-                with self.assertRaises(ValueError):
-                    server.revise_mask_review(request)
+                retry = server.revise_mask_review(request)
+                self.assertEqual(retry['revision'], 1)
                 request.update(revision=1, actions=[])
                 result = server.revise_mask_review(request)
                 self.assertEqual(result['revision'], 2)
@@ -170,14 +198,14 @@ class MaskReviewTests(unittest.TestCase):
                     response = connection.getresponse()
                     result = json.loads(response.read())
                     self.assertEqual(response.status, 200)
-                    self.assertEqual(result['revision'], 1)
+                    self.assertEqual(result['revision'], 0)
                     self.assertNotIn('path', json.dumps(result))
                     connection.close()
                     connection = http.client.HTTPConnection('127.0.0.1', http_server.server_port)
                     connection.request('POST', '/mask-review', body=json.dumps(request),
                                        headers={'Content-Type': 'application/json'})
                     response = connection.getresponse()
-                    self.assertEqual(response.status, 400)
+                    self.assertEqual(response.status, 200)
                     response.read()
                     connection.close()
                 finally:
@@ -330,6 +358,240 @@ class MaskReviewTests(unittest.TestCase):
         np.testing.assert_array_equal(raw, baseline)
         self.assertTrue(np.all(result['alpha'][raw == 255] == 255))
         self.assertEqual(set(result['validation']['gates']), {'component', 'local', 'thin', 'background'})
+
+    def test_each_action_reports_its_own_disposition_without_refusal_problem_regions(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        raw[50:54, 48:52] = 64
+        actions = [
+            {'kind': 'foreground', 'tool': 'point', 'radius': 3, 'points': [[50, 52]]},
+            {'kind': 'background', 'tool': 'point', 'radius': 3, 'points': [[45, 55]]},
+            {'kind': 'foreground', 'tool': 'point', 'radius': 3, 'points': [[5, 4]]},
+            {'kind': 'unsure', 'tool': 'point', 'radius': 3, 'points': [[50, 55]]},
+        ]
+        result = module.revise_alpha(raw, seed, actions, source_rgb=self.rgb(seed))
+        self.assertEqual([item['index'] for item in result.get('action_results', [])], [0, 1, 2, 3])
+        self.assertEqual([item['status'] for item in result['action_results']],
+                         ['accepted', 'rejected', 'rejected', 'unresolved'])
+        self.assertEqual([item['reasons'] for item in result['action_results']],
+                         [[], ['unsafe_background_annotation'], ['unsupported_foreground_annotation'],
+                          ['annotation_unsure']])
+        self.assertTrue(result['action_results'][1]['conflicts'])
+        self.assertEqual(result['validation']['regions'], [])
+        self.assertEqual(result['validation']['status'], 'needs_review')
+        self.assertEqual(result['alpha'][52, 50], 255)
+        self.assertEqual(result['alpha'][55, 45], raw[55, 45])
+
+    def test_duplicate_rejected_annotations_do_not_increase_actual_mask_problem_regions(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        raw[30:50, 40:60] = 0
+        action = {'kind': 'background', 'tool': 'point', 'radius': 3, 'points': [[45, 55]]}
+        baseline = module.validate_alpha(raw, raw, seed)
+        self.assertTrue(baseline['regions'])
+        for count in (1, 2, 16):
+            with self.subTest(actions=count):
+                result = module.revise_alpha(raw, seed, [action] * count)
+                self.assertEqual(result['validation']['regions'], baseline['regions'])
+                self.assertEqual(len(result.get('action_results', [])), count)
+                self.assertTrue(all(item['status'] == 'rejected' for item in result['action_results']))
+                np.testing.assert_array_equal(result['alpha'], raw)
+
+    def test_maximum_rejected_journal_stays_bounded_and_can_be_undone(self):
+        server = self.server()
+        seed = np.full((200, 200), cv2.GC_BGD, np.uint8)
+        seed[20:100, 20:100] = cv2.GC_PR_FGD
+        raw = np.where(seed == cv2.GC_PR_FGD, 255, 0).astype(np.uint8)
+        points = [[10 + 5 * index, 150] for index in range(32)]
+        for x, y in points:
+            raw[y - 1:y + 2, x:x + 3] = 255
+        action = {'kind': 'background', 'tool': 'brush', 'radius': 2,
+                  'hardness': 1, 'points': points}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'photo.png'
+            image = Image.fromarray(self.rgb(seed))
+            image.save(source)
+            job = 'a' * 32
+            with (patch.object(server, 'REVIEW_ROOT', root / 'reviews'),
+                  patch.object(server, 'REVIEW_LOCK_ROOT', root / 'locks')):
+                server.create_mask_review(job, source, image,
+                    {'alpha': Image.fromarray(raw), 'seed': seed,
+                     'geometry': {'crop_box': None, 'crop_strategy': 'preserve-source-frame'}},
+                    {}, 'uploads/products/photo.png')
+                request = {'job_id': job, 'source_sha256': server.sha256_file(source), 'revision': 0}
+                result = server.revise_mask_review({**request, 'actions': [action] * 64})
+                directory = root / 'reviews' / job
+                self.assertLessEqual((directory / 'metadata.json').stat().st_size, server.MAX_JSON_BYTES * 4)
+                self.assertLess(len(server.json_bytes(result)), 1024 * 1024)
+                self.assertEqual(len(result['review']['action_results']), 64)
+                for item in result['review']['action_results']:
+                    self.assertEqual(item['status'], 'rejected')
+                    self.assertEqual(item['reasons'], ['unsafe_background_annotation'])
+                    self.assertEqual(len(item['conflicts']), 1)
+                    self.assertEqual(item['conflicts'][0]['bbox'], [10, 149, 157, 3])
+                    self.assertEqual(item['conflicts'][0]['pixels'], 285)
+                    self.assertNotIn('polygon', item['conflicts'][0])
+                np.testing.assert_array_equal(np.asarray(Image.open(directory / 'alpha-1.png')), raw)
+                undo = server.revise_mask_review({**request, 'revision': 1, 'actions': []})
+                self.assertEqual(undo['revision'], 2)
+                self.assertEqual(undo['review']['actions'], [])
+                self.assertEqual(undo['review']['action_results'], [])
+                np.testing.assert_array_equal(np.asarray(Image.open(directory / 'alpha-2.png')), raw)
+
+    def test_unsure_remains_explicitly_unresolved_without_alpha_changes(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        result = module.revise_alpha(raw, seed, [
+            {'kind': 'unsure', 'tool': 'point', 'radius': 2, 'points': [[50, 50]]},
+        ])
+        self.assertEqual(result['validation']['status'], 'needs_review')
+        self.assertIn('annotation_unsure', result['validation']['reasons'])
+        np.testing.assert_array_equal(result['alpha'], raw)
+
+    def test_initial_empty_snapshot_has_no_transaction_or_revision_file(self):
+        with self.private_review() as (server, directory, request):
+            before = (directory / 'metadata.json').read_bytes()
+            result = server.revise_mask_review({**request, 'actions': []})
+            self.assertEqual(result['revision'], 0)
+            self.assertEqual(result['review'].get('actions'), [])
+            self.assertEqual(result['review'].get('action_results'), [])
+            self.assertEqual(result['review'].get('initial_region_count'), 0)
+            self.assertEqual((directory / 'metadata.json').read_bytes(), before)
+            self.assertFalse((directory / 'alpha-1.png').exists())
+
+    def test_current_and_immediate_parent_normalized_retry_do_not_write_or_consume_revision(self):
+        action = {'kind': 'background', 'tool': 'point', 'radius': 3, 'points': [[45, 55]]}
+        with self.private_review() as (server, directory, request):
+            result = server.revise_mask_review({**request, 'actions': [action]})
+            self.assertEqual(result['revision'], 1)
+            before = (directory / 'metadata.json').read_bytes()
+            for revision in (0, 1):
+                retry = server.revise_mask_review({**request, 'revision': revision,
+                    'actions': [{**action, 'hardness': 1}]})
+                self.assertEqual(retry['revision'], 1)
+                self.assertEqual(retry['review']['actions'], [{**action, 'hardness': 1}])
+                self.assertEqual(retry['review']['action_results'][0]['status'], 'rejected')
+                self.assertEqual(retry['review']['regions'], [])
+                self.assertEqual((directory / 'metadata.json').read_bytes(), before)
+                self.assertFalse((directory / 'alpha-2.png').exists())
+            with self.assertRaises(ValueError):
+                server.revise_mask_review({**request, 'actions': []})
+
+    def test_input_and_footprint_rejections_prove_the_locked_snapshot_was_not_committed(self):
+        invalid_actions = [
+            {'kind': 'background', 'tool': 'point', 'radius': 2, 'points': [[100, 55]]},
+            {'kind': 'background', 'tool': 'brush', 'radius': 80, 'points': [[50, 55]]},
+        ]
+        with self.private_review() as (server, directory, request):
+            self.assertTrue(hasattr(server, 'MaskReviewEditRejected'), 'certain edit failures require typed proof')
+            before = (directory / 'metadata.json').read_bytes()
+            for action in invalid_actions:
+                with self.subTest(action=action), self.assertRaises(server.MaskReviewEditRejected) as caught:
+                    server.revise_mask_review({**request, 'actions': [action]})
+                error = caught.exception
+                self.assertEqual((error.job_id, error.source_sha256, error.revision),
+                                 (request['job_id'], request['source_sha256'], 0))
+                self.assertEqual((directory / 'metadata.json').read_bytes(), before)
+                self.assertFalse((directory / 'alpha-1.png').exists())
+            corrected = server.revise_mask_review({**request, 'actions': [
+                {'kind': 'background', 'tool': 'point', 'radius': 2, 'points': [[45, 55]]},
+            ]})
+            self.assertEqual(corrected['revision'], 1)
+            undo = server.revise_mask_review({**request, 'revision': 1, 'actions': []})
+            self.assertEqual(undo['revision'], 2)
+
+    def test_stale_or_file_errors_never_claim_a_definite_edit_rejection(self):
+        action = {'kind': 'background', 'tool': 'point', 'radius': 2, 'points': [[45, 55]]}
+        with self.private_review() as (server, directory, request):
+            self.assertTrue(hasattr(server, 'MaskReviewEditRejected'), 'certain edit failures require typed proof')
+            with patch.object(Image.Image, 'save', side_effect=OSError('synthetic save failure')):
+                with self.assertRaises(OSError) as caught:
+                    server.revise_mask_review({**request, 'actions': [action]})
+            self.assertNotIsInstance(caught.exception, server.MaskReviewEditRejected)
+            self.assertFalse((directory / 'alpha-1.png').exists())
+            server.revise_mask_review({**request, 'actions': [action]})
+            for stale_actions in ([], [{**action, 'points': [[100, 55]]}]):
+                with self.subTest(actions=stale_actions), self.assertRaises(ValueError) as caught:
+                    server.revise_mask_review({**request, 'actions': stale_actions})
+                self.assertNotIsInstance(caught.exception, server.MaskReviewEditRejected)
+
+    def test_http_rejected_edits_return_bound_proof_and_allow_a_corrected_snapshot(self):
+        with self.private_review() as (server, directory, request):
+            http_server = server.ThreadingHTTPServer(('127.0.0.1', 0), server.Handler)
+            thread = threading.Thread(target=http_server.serve_forever, daemon=True)
+            thread.start()
+            def post(payload):
+                connection = http.client.HTTPConnection('127.0.0.1', http_server.server_port)
+                try:
+                    connection.request('POST', '/mask-review', body=json.dumps(payload),
+                                       headers={'Content-Type': 'application/json'})
+                    response = connection.getresponse()
+                    return response.status, json.loads(response.read())
+                finally:
+                    connection.close()
+            try:
+                for action in (
+                    {'kind': 'background', 'tool': 'point', 'radius': 2, 'points': [[100, 55]]},
+                    {'kind': 'background', 'tool': 'brush', 'radius': 80, 'points': [[50, 55]]},
+                ):
+                    status, error = post({**request, 'actions': [action]})
+                    self.assertEqual(status, 400)
+                    self.assertTrue(error.get('review_edit_rejected'), error)
+                    self.assertEqual({key: error[key] for key in request}, request)
+                    self.assertEqual(set(error), {'ok', 'error', 'review_edit_rejected',
+                                                 'job_id', 'source_sha256', 'revision'})
+                    self.assertFalse((directory / 'alpha-1.png').exists())
+                action = {'kind': 'background', 'tool': 'point', 'radius': 2, 'points': [[45, 55]]}
+                status, result = post({**request, 'actions': [action]})
+                self.assertEqual((status, result['revision']), (200, 1))
+                status, error = post({**request, 'actions': []})
+                self.assertEqual(status, 400)
+                self.assertNotIn('review_edit_rejected', error)
+            finally:
+                http_server.shutdown()
+                http_server.server_close()
+                thread.join()
+
+    def test_undo_and_redo_replay_the_original_alpha_and_keep_initial_region_count(self):
+        seed, raw = self.fixture()
+        raw[30:50, 40:60] = 0
+        raw[50:54, 48:52] = 64
+        action = {'kind': 'foreground', 'tool': 'point', 'radius': 3,
+                  'hardness': .5, 'points': [[50, 52]]}
+        with self.private_review(raw) as (server, directory, request):
+            first = server.revise_mask_review({**request, 'actions': [action]})
+            repaired = np.asarray(Image.open(directory / 'alpha-1.png')).copy()
+            self.assertGreater(repaired[52, 50], raw[52, 50])
+            initial = first['review'].get('initial_region_count')
+            self.assertEqual(initial, len(self.module().validate_alpha(raw, raw, seed)['regions']))
+            undo = server.revise_mask_review({**request, 'revision': 1, 'actions': []})
+            self.assertEqual(undo['revision'], 2)
+            self.assertEqual(undo['review']['actions'], [])
+            self.assertEqual(undo['review']['action_results'], [])
+            self.assertEqual(undo['review']['initial_region_count'], initial)
+            np.testing.assert_array_equal(np.asarray(Image.open(directory / 'alpha-2.png')), raw)
+            redo = server.revise_mask_review({**request, 'revision': 2, 'actions': [action]})
+            self.assertEqual(redo['revision'], 3)
+            np.testing.assert_array_equal(np.asarray(Image.open(directory / 'alpha-3.png')), repaired)
+
+    def test_identical_snapshot_is_allowed_at_revision_limit_but_changes_remain_bounded(self):
+        action = {'kind': 'background', 'tool': 'point', 'radius': 3, 'points': [[45, 55]]}
+        with self.private_review() as (server, directory, request):
+            server.revise_mask_review({**request, 'actions': [action]})
+            metadata = json.loads((directory / 'metadata.json').read_text())
+            metadata['revision'] = 32
+            (directory / 'alpha-32.png').write_bytes((directory / 'alpha-1.png').read_bytes())
+            server.review_metadata_write(directory, metadata)
+            before = (directory / 'metadata.json').read_bytes()
+            for revision in (31, 32):
+                result = server.revise_mask_review({**request, 'revision': revision, 'actions': [action]})
+                self.assertEqual(result['revision'], 32)
+            self.assertEqual((directory / 'metadata.json').read_bytes(), before)
+            with self.assertRaises(ValueError):
+                server.revise_mask_review({**request, 'revision': 32, 'actions': []})
+            with self.assertRaises(ValueError):
+                server.revise_mask_review({**request, 'revision': 30, 'actions': [action]})
 
     def test_background_mark_on_opaque_skin_or_arm_is_rejected_without_mutation(self):
         module = self.module()

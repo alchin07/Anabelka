@@ -82,6 +82,10 @@ class ProductImagePreviewService
                 $this->writeManifest($token, $manifest);
                 return $this->reviewPayload($manifest);
             }
+            if ($review && ($review['status'] !== 'accepted' || !$this->allReviewGatesAccepted($review['gates'])
+                || !$this->allReviewActionsAccepted($review['action_results']))) {
+                throw new RuntimeException('Маска не пройшла незалежну перевірку.');
+            }
             $workerFiles = $this->generatedFiles($response);
             $data = ProductImageProcessingService::normalizeResult($source['path'], $response, $backgroundProfile, $maskMode);
             if (ProductImageProcessing::isJobAccepted($data['job_id'])) {
@@ -169,6 +173,11 @@ class ProductImagePreviewService
                 && ($this->revision($revision) !== (int) $manifest['review']['revision']
                     || (int) ($manifest['result_revision'] ?? -1) !== (int) $manifest['review']['revision'])) {
                 throw new InvalidArgumentException('Проба маски застаріла. Створіть нову пробу.');
+            }
+            if (is_array($manifest['review'] ?? null) && (($manifest['review']['status'] ?? '') !== 'accepted'
+                || !$this->allReviewGatesAccepted($manifest['review']['gates'] ?? [])
+                || !$this->allReviewActionsAccepted($manifest['review']['action_results'] ?? []))) {
+                throw new InvalidArgumentException('Маска не пройшла незалежну перевірку.');
             }
             $db->beginTransaction();
             // Lock the live gallery row against deletion or path replacement as well.
@@ -327,6 +336,14 @@ class ProductImagePreviewService
     public function reviewStart($imageId, $token)
     {
         return $this->withReview($imageId, $token, function (&$manifest) {
+            $this->requireReviewJournal($manifest['review']);
+            if (!array_key_exists('actions', $manifest['review'])) {
+                // Only an unstarted revision-zero legacy session reaches this path.
+                $manifest['review']['actions'] = [];
+                $manifest['review']['action_results'] = [];
+                $manifest['review']['accounting_required'] = false;
+            }
+            $this->recoverPendingReview($manifest);
             $manifest['review']['started'] = true;
             $manifest['state'] = 'needs_review';
             $manifest['result_revision'] = null;
@@ -340,31 +357,83 @@ class ProductImagePreviewService
         $revision = $this->revision($revision);
         return $this->withReview($imageId, $token, function (&$manifest) use ($revision, $actions) {
             $review = $manifest['review'];
-            if (empty($review['started']) || $manifest['state'] !== 'needs_review' || $revision !== (int) $review['revision']) {
+            $this->requireReviewJournal($review);
+            if (empty($review['started'])) {
+                throw new InvalidArgumentException('Версія маски застаріла. Оновіть перевірку.');
+            }
+            $actions = $this->actions($actions, $review['width'], $review['height']);
+            $this->recoverPendingReview($manifest);
+            $review = $manifest['review'];
+            $currentRevision = (int) $review['revision'];
+            $canonical = $this->actions($review['actions'] ?? [], $review['width'], $review['height']);
+            if ($actions === $canonical && ($revision === $currentRevision || $revision === ($review['parent_revision'] ?? null))) {
+                return $manifest['state'] === 'ready' ? $this->readyPayload($manifest) : $this->reviewPayload($manifest);
+            }
+            if ($manifest['state'] !== 'needs_review' || $revision !== $currentRevision) {
                 throw new InvalidArgumentException('Версія маски застаріла. Оновіть перевірку.');
             }
             if ($revision >= 32) { throw new InvalidArgumentException('Ліміт перевірок маски вичерпано. Створіть нову пробу.'); }
-            $actions = $this->actions($actions, $review['width'], $review['height']);
+            $manifest['pending_review'] = ['revision' => $revision, 'actions' => $actions];
             $this->chargeReviewTask($manifest);
-            $response = call_user_func($this->reviewWorker, 'revise', $this->workerReviewPayload($manifest) + ['actions' => $actions]);
-            $this->verifyReviewResponse($response, $manifest, $revision + 1);
-            $this->verifyImmutableReview($review);
-            $updated = $this->captureReview($response, ['sha256' => $manifest['source_sha256']]);
-            if ($updated['job_id'] !== $review['job_id'] || $updated['width'] !== $review['width'] || $updated['height'] !== $review['height']
-                || $updated['raw_alpha_sha256'] !== $review['raw_alpha_sha256'] || $updated['source_image_sha256'] !== $review['source_image_sha256']) {
-                throw new RuntimeException('Обробник змінив початкові дані маски.');
-            }
-            $updated['started'] = true;
-            $updated['preview_id'] = $manifest['preview_id'];
-            $updated['expires_at'] = $manifest['expires_at'];
-            $this->verifyReviewClaim($updated);
-            $manifest['review'] = $updated;
-            $manifest['state'] = 'needs_review';
-            $manifest['result_revision'] = null;
-            $this->verifyLiveSource($manifest);
-            $this->writeManifest($manifest['preview_id'], $manifest);
+            $this->recoverPendingReview($manifest);
             return $this->reviewPayload($manifest);
         });
+    }
+
+    private function requireReviewJournal(array $review)
+    {
+        if ((!empty($review['started']) || (int) $review['revision'] > 0) && !array_key_exists('actions', $review)) {
+            throw new InvalidArgumentException('Це проба старої версії редактора маски. Скасуйте її та створіть нову. Поточна фотографія не змінилася.');
+        }
+    }
+
+    private function recoverPendingReview(array &$manifest)
+    {
+        if (!isset($manifest['pending_review'])) { return; }
+        $pending = $manifest['pending_review'];
+        $review = $manifest['review'];
+        $revision = (int) $review['revision'];
+        if (!is_array($pending) || ($pending['revision'] ?? null) !== $revision) {
+            throw new RuntimeException('Некоректна незавершена перевірка маски.');
+        }
+        $actions = $this->actions($pending['actions'] ?? null, $review['width'], $review['height']);
+        // The task was charged when this exact journal was durably queued. A retry
+        // resolves its unknown outcome without consuming another edit or task.
+        try {
+            $response = call_user_func($this->reviewWorker, 'revise', $this->workerReviewPayload($manifest) + ['actions' => $actions]);
+        } catch (ImageProcessorException $e) {
+            $proof = $e->diagnostics;
+            if (($proof['review_edit_rejected'] ?? null) === true && ($proof['job_id'] ?? null) === $review['job_id']
+                && ($proof['source_sha256'] ?? null) === $manifest['source_sha256'] && ($proof['revision'] ?? null) === $revision) {
+                // Only an explicit unchanged-revision rejection proves this journal
+                // did not commit. Transport and unproven worker failures stay pending.
+                unset($manifest['pending_review']);
+                $this->writeManifest($manifest['preview_id'], $manifest);
+            }
+            throw $e;
+        }
+        $this->verifyReviewResponse($response, $manifest, $revision + 1);
+        $this->verifyImmutableReview($review);
+        $updated = $this->captureReview($response, ['sha256' => $manifest['source_sha256']], $review);
+        if ($updated['job_id'] !== $review['job_id'] || $updated['width'] !== $review['width'] || $updated['height'] !== $review['height']
+            || $updated['raw_alpha_sha256'] !== $review['raw_alpha_sha256'] || $updated['source_image_sha256'] !== $review['source_image_sha256']) {
+            throw new RuntimeException('Обробник змінив початкові дані маски.');
+        }
+        if (isset($response['review']['actions']) && $updated['actions'] !== $actions) {
+            throw new RuntimeException('Обробник повернув інші позначки маски.');
+        }
+        $updated['actions'] = $actions;
+        $updated['parent_revision'] = $revision;
+        $updated['started'] = true;
+        $updated['preview_id'] = $manifest['preview_id'];
+        $updated['expires_at'] = $manifest['expires_at'];
+        $this->verifyReviewClaim($updated);
+        $manifest['review'] = $updated;
+        $manifest['state'] = 'needs_review';
+        $manifest['result_revision'] = null;
+        unset($manifest['pending_review'], $manifest['result_refused_revision']);
+        $this->verifyLiveSource($manifest);
+        $this->writeManifest($manifest['preview_id'], $manifest);
     }
 
     public function reviewResult($imageId, $token, $revision)
@@ -376,6 +445,7 @@ class ProductImagePreviewService
             }
             if ($manifest['state'] === 'ready' && (int) $manifest['result_revision'] === $revision) { return $this->readyPayload($manifest); }
             if ($manifest['state'] !== 'needs_review') { throw new InvalidArgumentException('Перевірка маски недоступна.'); }
+            if (($manifest['result_refused_revision'] ?? null) === $revision) { return $this->reviewPayload($manifest); }
             $workerFiles = [];
             $temporaryFiles = [];
             try {
@@ -386,12 +456,18 @@ class ProductImagePreviewService
                 }
                 $this->verifyReviewResponse($response, $manifest, $revision, false);
                 $this->verifyImmutableReview($manifest['review']);
-                if (($response['state'] ?? '') === 'needs_review' || ($response['review']['status'] ?? '') !== 'accepted'
-                    || !$this->allReviewGatesAccepted($response['review']['gates'] ?? [])) {
+                $updated = $this->captureReview($response, ['sha256' => $manifest['source_sha256']], $manifest['review']);
+                if ($updated['width'] !== $manifest['review']['width'] || $updated['height'] !== $manifest['review']['height']
+                    || $updated['actions'] !== $this->actions($manifest['review']['actions'] ?? [], $updated['width'], $updated['height'])) {
+                    throw new RuntimeException('Результат належить іншим позначкам маски.');
+                }
+                foreach (['status', 'reasons', 'gates', 'regions', 'actions', 'action_results', 'initial_region_count', 'remaining_region_count', 'accounting_required'] as $key) {
+                    $manifest['review'][$key] = $updated[$key];
+                }
+                if (($response['state'] ?? '') === 'needs_review' || $updated['status'] !== 'accepted'
+                    || !$this->allReviewGatesAccepted($updated['gates']) || !$this->allReviewActionsAccepted($updated['action_results'])) {
                     $manifest['review']['status'] = 'needs_review';
-                    $manifest['review']['reasons'] = $this->safeReasons($response['review']['reasons'] ?? []);
-                    $manifest['review']['gates'] = $this->safeGates($response['review']['gates'] ?? []);
-                    $manifest['review']['regions'] = $this->safeRegions($response['review']['regions'] ?? [], $manifest['review']['width'], $manifest['review']['height']);
+                    $manifest['result_refused_revision'] = $revision;
                     $this->verifyLiveSource($manifest);
                     $this->writeManifest($manifest['preview_id'], $manifest);
                     return $this->reviewPayload($manifest);
@@ -428,9 +504,6 @@ class ProductImagePreviewService
                 $manifest['publication_id'] = bin2hex(random_bytes(16));
                 $manifest['state'] = 'ready';
                 $manifest['review']['status'] = 'accepted';
-                $manifest['review']['reasons'] = $this->safeReasons($response['review']['reasons'] ?? []);
-                $manifest['review']['regions'] = $this->safeRegions($response['review']['regions'] ?? [], $manifest['review']['width'], $manifest['review']['height']);
-                $manifest['review']['gates'] = $this->safeGates($response['review']['gates'] ?? []);
                 $manifest['result_revision'] = $revision;
                 $this->writeManifest($manifest['preview_id'], $manifest);
                 return $this->readyPayload($manifest);
@@ -444,12 +517,13 @@ class ProductImagePreviewService
     public function reviewFile($imageId, $token, $revision, $asset)
     {
         $revision = $this->revision($revision);
-        if (!is_string($asset) || !in_array($asset, ['source', 'alpha'], true)) {
+        if (!is_string($asset) || !in_array($asset, ['source', 'alpha', 'raw-alpha'], true)) {
             throw new InvalidArgumentException('Некоректний файл маски.');
         }
         return $this->withReview($imageId, $token, function (&$manifest) use ($revision, $asset) {
             if ($revision !== (int) $manifest['review']['revision']) { throw new InvalidArgumentException('Версія маски застаріла.'); }
-            return $this->safeFile($this->reviewPrefix($manifest['review']) . ($asset === 'source' ? 'source.png' : 'alpha-' . $revision . '.png'));
+            $name = $asset === 'source' ? 'source.png' : ($asset === 'raw-alpha' ? 'raw-alpha.png' : 'alpha-' . $revision . '.png');
+            return $this->safeFile($this->reviewPrefix($manifest['review']) . $name);
         });
     }
 
@@ -492,7 +566,7 @@ class ProductImagePreviewService
         }
     }
 
-    private function captureReview(array $response, array $source)
+    private function captureReview(array $response, array $source, array $previous = [])
     {
         $review = $response['review'] ?? null;
         $job = $response['review_job_id'] ?? ($response['job_id'] ?? null);
@@ -510,6 +584,7 @@ class ProductImagePreviewService
             'status' => in_array($review['status'] ?? '', ['accepted', 'needs_review'], true) ? $review['status'] : 'needs_review',
             'reasons' => $this->safeReasons($review['reasons'] ?? []), 'regions' => $this->safeRegions($review['regions'] ?? [], $width, $height),
             'gates' => $this->safeGates($review['gates'] ?? []), 'started' => false];
+        $result += $this->reviewAccounting($review, $width, $height, $previous);
         foreach (['raw_alpha_sha256', 'source_image_sha256', 'alpha_sha256'] as $key) {
             $hash = $review[$key] ?? null;
             if (!is_string($hash) || preg_match('/^[a-f0-9]{64}$/D', $hash) !== 1) { throw new RuntimeException('Некоректна контрольна сума маски.'); }
@@ -523,6 +598,51 @@ class ProductImagePreviewService
         }
         if ($bytes > 268435456) { throw new RuntimeException('Дані перевірки маски перевищують ліміт.'); }
         return $result;
+    }
+
+    private function reviewAccounting(array $review, $width, $height, array $previous = [])
+    {
+        $hasActions = array_key_exists('actions', $review);
+        $hasResults = array_key_exists('action_results', $review);
+        $actions = $this->actions($previous['actions'] ?? [], $width, $height);
+        $results = $previous['action_results'] ?? [];
+        if ($hasActions || $hasResults || !empty($previous['accounting_required'])) {
+            if (!$hasActions || !$hasResults) { throw new RuntimeException('Неповні дані позначок маски.'); }
+            $actions = $this->actions($review['actions'], $width, $height);
+            $rawResults = $review['action_results'];
+            if (!is_array($rawResults) || !array_is_list($rawResults) || count($rawResults) !== count($actions)) {
+                throw new RuntimeException('Некоректні результати позначок маски.');
+            }
+            $results = [];
+            foreach ($rawResults as $index => $item) {
+                $reasons = is_array($item) ? ($item['reasons'] ?? null) : null;
+                if (!is_array($item) || ($item['index'] ?? null) !== $index
+                    || !in_array($item['status'] ?? '', ['accepted', 'rejected', 'unresolved'], true)
+                    || !is_array($reasons) || !array_is_list($reasons) || count($reasons) > 32 || $this->safeReasons($reasons) !== $reasons) {
+                    throw new RuntimeException('Некоректний результат позначки маски.');
+                }
+                $safe = ['index' => $index, 'status' => $item['status'], 'reasons' => $reasons];
+                if (array_key_exists('conflicts', $item)) {
+                    if (!is_array($item['conflicts']) || !array_is_list($item['conflicts']) || count($item['conflicts']) > 64) {
+                        throw new RuntimeException('Некоректні конфлікти позначки маски.');
+                    }
+                    $safe['conflicts'] = $this->safeRegions($item['conflicts'], $width, $height);
+                }
+                $results[] = $safe;
+            }
+        }
+        $regions = $review['regions'] ?? [];
+        $regionCount = is_array($regions) && array_is_list($regions) ? count($regions) : count($this->safeRegions($regions, $width, $height));
+        $remaining = array_key_exists('remaining_region_count', $review) ? $review['remaining_region_count'] : $regionCount;
+        if (!is_int($remaining) || $remaining < 0 || $remaining > 4096) {
+            throw new RuntimeException('Некоректна кількість областей маски.');
+        }
+        $initial = array_key_exists('initial_region_count', $review) ? $review['initial_region_count'] : ($previous['initial_region_count'] ?? $regionCount);
+        if (!is_int($initial) || $initial < 0 || $initial > 4096 || (isset($previous['initial_region_count']) && $initial !== $previous['initial_region_count'])) {
+            throw new RuntimeException('Обробник змінив початкові області маски.');
+        }
+        return ['actions' => $actions, 'action_results' => $results, 'initial_region_count' => $initial, 'remaining_region_count' => $remaining,
+            'accounting_required' => $hasActions || $hasResults || !empty($previous['accounting_required'])];
     }
 
     private function verifyReviewFiles(array $review)
@@ -626,7 +746,7 @@ class ProductImagePreviewService
             }
             $pointCount += count($points);
             if ($pointCount > 2048) { throw new InvalidArgumentException('Забагато координат маски.'); }
-            $result[] = ['kind' => $action['kind'], 'tool' => $action['tool'], 'radius' => $radius, 'hardness' => $hardness, 'points' => $points];
+            $result[] = ['kind' => $action['kind'], 'tool' => $action['tool'], 'radius' => $radius, 'hardness' => (float) $hardness, 'points' => $points];
         }
         return $result;
     }
@@ -636,6 +756,14 @@ class ProductImagePreviewService
         $safe = $this->safeGates($gates);
         foreach (['component', 'local', 'thin', 'background'] as $name) {
             if (($safe[$name]['accepted'] ?? false) !== true) { return false; }
+        }
+        return true;
+    }
+
+    private function allReviewActionsAccepted(array $results)
+    {
+        foreach ($results as $item) {
+            if (($item['status'] ?? '') !== 'accepted') { return false; }
         }
         return true;
     }
@@ -689,7 +817,11 @@ class ProductImagePreviewService
             'expires_at' => gmdate('c', $manifest['expires_at']), 'review_available' => true, 'revision' => $review['revision'],
             'review' => ['width' => $review['width'], 'height' => $review['height'], 'revision' => $review['revision'], 'status' => $review['status'],
                 'reasons' => $review['reasons'], 'regions' => $review['regions'], 'gates' => $review['gates'] ?? [],
+                'actions' => $this->actions($review['actions'] ?? [], $review['width'], $review['height']),
+                'action_results' => $review['action_results'] ?? [], 'initial_region_count' => $review['initial_region_count'] ?? count($review['regions']),
+                'remaining_region_count' => $review['remaining_region_count'] ?? count($review['regions']),
                 'source_url' => '/Anabelka/admin/products/image-process-mask-file?' . $query . '&asset=source',
+                'raw_alpha_url' => '/Anabelka/admin/products/image-process-mask-file?' . $query . '&asset=raw-alpha',
                 'alpha_url' => '/Anabelka/admin/products/image-process-mask-file?' . $query . '&asset=alpha']];
     }
 
@@ -699,7 +831,8 @@ class ProductImagePreviewService
         foreach (['original_path', 'master_path', 'thumb_path', 'source_path'] as $key) { unset($processing[$key]); }
         return ['success' => true, 'state' => 'ready', 'image_id' => $manifest['image_id'], 'preview_id' => $manifest['preview_id'],
             'expires_at' => gmdate('c', $manifest['expires_at']), 'processing' => $processing, 'revision' => $manifest['review']['revision'],
-            'review_available' => true, 'preview_url' => '/Anabelka/admin/products/image-process-preview-file?image_id=' . $manifest['image_id'] . '&preview_id=' . $manifest['preview_id'] . '&revision=' . $manifest['review']['revision']];
+            'review_available' => true, 'review' => $this->reviewPayload($manifest)['review'],
+            'preview_url' => '/Anabelka/admin/products/image-process-preview-file?image_id=' . $manifest['image_id'] . '&preview_id=' . $manifest['preview_id'] . '&revision=' . $manifest['review']['revision']];
     }
 
     private function checkQuota(array $owner)

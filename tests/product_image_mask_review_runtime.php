@@ -127,7 +127,17 @@ $gateRefused = false;
 $discardUnavailable = false;
 $discardBusy = false;
 $discardCalls = 0;
-$reviewProcessor = function ($source, $background, $mode, $allowReview) use ($root, $ordinary, &$states, &$qualityRejected, &$mutateSource, &$corruptInitialHash) {
+$actionStatus = 'accepted';
+$workerReviewEdit = null;
+$workerResultEdit = null;
+$loseReviseResponse = false;
+$initialRegionCount = 1;
+$initialGateRefused = false;
+$legacyWorkerSnapshot = false;
+$workerRejectJournal = null;
+$workerRejectionProofEdit = null;
+$initialRegionsOverride = null;
+$reviewProcessor = function ($source, $background, $mode, $allowReview) use ($root, $ordinary, &$states, &$qualityRejected, &$mutateSource, &$corruptInitialHash, &$initialRegionCount, &$initialGateRefused, &$legacyWorkerSnapshot, &$initialRegionsOverride) {
     check($allowReview === true, 'preview explicitly asks for private mask review');
     $response = $qualityRejected ? ['ok'=>true,'state'=>'needs_review','job_id'=>bin2hex(random_bytes(16)),'input'=>['width'=>100,'height'=>100]] : $ordinary($source,$background,$mode);
     $job = $response['job_id'];
@@ -138,15 +148,18 @@ $reviewProcessor = function ($source, $background, $mode, $allowReview) use ($ro
     copy($dir.'/raw-alpha.png',$dir.'/alpha-0.png');
     $response['source_sha256']=hash_file('sha256',$root.'/'.$source);
     $response['review']=['revision'=>0,'status'=>$qualityRejected?'needs_review':'accepted','source_width'=>100,'source_height'=>100,'reasons'=>['mask_quality_rejected'],
-       'regions'=>[['reason'=>'local_uncertainty','bbox'=>[20,20,5,5]]],
+       'regions'=>[['reason'=>'local_uncertainty','bbox'=>[20,20,5,5]]], 'initial_region_count'=>$initialRegionCount, 'actions'=>[], 'action_results'=>[],
        'gates'=>array_fill_keys(['component','local','thin','background'],['accepted'=>true,'reasons'=>[]]),
        'raw_alpha_sha256'=>hash_file('sha256',$dir.'/raw-alpha.png'),'source_image_sha256'=>hash_file('sha256',$dir.'/source.png'),'alpha_sha256'=>hash_file('sha256',$dir.'/alpha-0.png')];
+    if ($initialGateRefused) { $response['review']['gates']['thin']['accepted']=false; }
+    if ($initialRegionsOverride!==null) { $response['review']['regions']=$initialRegionsOverride; }
     $states[$job]=$response;
     if ($corruptInitialHash) { $response['review']['raw_alpha_sha256']=str_repeat('a',64); }
     if ($mutateSource) { file_put_contents($root.'/'.$source,'changed during worker'); }
+    if ($legacyWorkerSnapshot) { unset($response['review']['actions'],$response['review']['action_results']); }
     return $response;
 };
-$reviewWorker = function ($operation,$payload) use ($root,$ordinary,&$states,&$failReview,&$reviewCalls,&$gateRefused,&$discardUnavailable,&$discardBusy,&$discardCalls) {
+$reviewWorker = function ($operation,$payload) use ($root,$ordinary,&$states,&$failReview,&$reviewCalls,&$gateRefused,&$discardUnavailable,&$discardBusy,&$discardCalls,&$actionStatus,&$workerReviewEdit,&$workerResultEdit,&$loseReviseResponse,&$legacyWorkerSnapshot,&$workerRejectJournal,&$workerRejectionProofEdit) {
     if ($operation==='discard') {
        $discardCalls++;
        if ($discardUnavailable) { throw new RuntimeException('worker unavailable'); }
@@ -163,14 +176,30 @@ $reviewWorker = function ($operation,$payload) use ($root,$ordinary,&$states,&$f
     if ($failReview) { throw new ImageProcessorException('Worker leaked /private/weights/model.onnx', ['worker_error'=>'/private/weights/model.onnx']); }
     $state=$states[$payload['job_id']];
     if ($operation==='revise') {
+       if ($workerRejectJournal!==null && $payload['actions']==$workerRejectJournal) {
+          $proof=['review_edit_rejected'=>true,'job_id'=>$payload['job_id'],'source_sha256'=>$payload['source_sha256'],'revision'=>$state['review']['revision']];
+          if ($workerRejectionProofEdit) { $proof=$workerRejectionProofEdit($proof); }
+          throw new ImageProcessorException('annotation_too_large',$proof);
+       }
+       if ($payload['revision']+1===$state['review']['revision'] && $payload['actions']===$state['review']['actions']) { return $state; }
        check($payload['revision']===$state['review']['revision'],'worker receives current revision');
        $revision=$payload['revision']+1;
        $dir=$root.'/storage/image-processor/reviews/'.$payload['job_id'];
        file_put_contents($dir.'/alpha-'.$revision.'.png',reviewPng(255-$revision));
        $state['review']['revision']=$revision;
        $state['review']['status']='accepted';
+       $state['review']['actions']=$payload['actions'];
+       $state['review']['action_results']=array_map(function($index) use ($actionStatus) {
+          return ['index'=>$index,'status'=>$actionStatus,'reasons'=>$actionStatus==='unresolved'?['annotation_unsure']:[],
+             'conflicts'=>[['reason'=>'immutable_material_loss','bbox'=>[20,20,5,5],'polygon'=>[[20,20],[24,20],[24,24]],'pixels'=>25,'private_path'=>'/private/model.onnx']],
+             'private_path'=>'/private/model.onnx'];
+       },array_keys($payload['actions']));
+       $state['review']['regions']=[];
        $state['review']['alpha_sha256']=hash_file('sha256',$dir.'/alpha-'.$revision.'.png');
        $states[$payload['job_id']]=$state;
+       if ($loseReviseResponse) { throw new ImageProcessorException('Network response lost after private revision commit'); }
+       if ($workerReviewEdit) { return $workerReviewEdit($state); }
+       if ($legacyWorkerSnapshot) { unset($state['review']['actions'],$state['review']['action_results']); }
        return $state;
     }
     $response=$ordinary('uploads/products/source.jpg',$payload['background_profile'],'auto');
@@ -178,24 +207,64 @@ $reviewWorker = function ($operation,$payload) use ($root,$ordinary,&$states,&$f
     $response['review']=$state['review'];
     $response['review_job_id']=$payload['job_id'];
     if ($gateRefused) { $response['review']['gates']['thin']['accepted']=false; }
+    if ($workerResultEdit) { return $workerResultEdit($response); }
+    if ($legacyWorkerSnapshot) { unset($response['review']['actions'],$response['review']['action_results']); }
     return $response;
 };
 $service=new ProductImagePreviewService($root,$reviewProcessor,function () use (&$clock) {return $clock;},$reviewWorker);
 $action=[['kind'=>'background','tool'=>'brush','radius'=>2,'hardness'=>.5,'points'=>[[22,22],[23,23]]]];
 try {
+    $initialGateRefused=true;
+    rejects(fn()=>$service->create(7,'studio-light','auto'),'aggregate accepted initial mask cannot bypass an independent source gate');
+    $initialGateRefused=false;
     $ready=$service->create(7,'studio-light','auto');
     check($ready['state']==='ready' && $ready['review_available'],'accepted preview retains editable raw mask');
     $started=$service->reviewStart(7,$ready['preview_id']);
     check($started['state']==='needs_review' && $started['review']['width']===100,'start returns source geometry and invalidates old result');
+    check(($started['review']['actions'] ?? null)===[] && ($started['review']['action_results'] ?? null)===[],'initial snapshot exposes the canonical empty action log and accounting');
+    check(($started['review']['initial_region_count'] ?? null)===1,'initial snapshot retains immutable defect count');
+    check(($started['review']['remaining_region_count'] ?? null)===1,'initial snapshot retains the full remaining defect count');
     check(strpos(json_encode($started),'/storage/')===false,'no worker filesystem paths exposed');
     rejects(fn()=>$service->confirm(7,$ready['preview_id']),'old confirm blocked while editor open');
     $sourcePath=$service->reviewFile(7,$ready['preview_id'],0,'source');
     $rawHash=hash_file('sha256',$sourcePath);
+    $rawAlphaPath=$service->reviewFile(7,$ready['preview_id'],0,'raw-alpha');
+    $rawAlphaHash=hash_file('sha256',$rawAlphaPath);
+    check(str_contains($started['review']['raw_alpha_url'] ?? '', '&asset=raw-alpha'),'review snapshot supplies an authenticated immutable raw-alpha URL');
     $edited=$service->reviewEdit(7,$ready['preview_id'],0,json_encode($action));
     check($edited['state']==='needs_review' && $edited['revision']===1,'revision never publishes even accepted worker mask');
+    check(($edited['review']['actions'][0]['kind'] ?? null)==='background' && ($edited['review']['action_results'][0]['status'] ?? null)==='accepted','revised snapshot exposes canonical action accounting');
+    check(($edited['review']['initial_region_count'] ?? null)===1 && $edited['review']['regions']===[],'resolved defects disappear without changing the initial defect count');
+    check(($edited['review']['remaining_region_count'] ?? null)===0,'resolved snapshot has no remaining defect regions');
+    check(!str_contains(json_encode($edited),'private') && !str_contains(json_encode($edited),'pixels'),'action metadata exposes only safe conflict geometry');
     check(Database::$db->rows===[],'review start/revise leaves DB unchanged');
     check(hash_file('sha256',$sourcePath)===$rawHash,'source PNG immutable');
-    rejects(fn()=>$service->reviewEdit(7,$ready['preview_id'],0,$action),'replayed revision rejected');
+    check($service->reviewFile(7,$ready['preview_id'],1,'raw-alpha')===$rawAlphaPath && hash_file('sha256',$rawAlphaPath)===$rawAlphaHash,'current revision can retrieve the immutable raw mask for replay');
+    rejects(fn()=>$service->reviewFile(7,$ready['preview_id'],0,'raw-alpha'),'stale revision cannot retrieve immutable raw mask');
+    $manifestFile=$root.'/storage/image-processor/previews/'.$ready['preview_id'].'/manifest.json';
+    $manifestBeforeRetry=json_decode(file_get_contents($manifestFile),true);
+    $beforeCalls=$reviewCalls;
+    check($service->reviewEdit(7,$ready['preview_id'],1,$action)===$edited,'unchanged current log returns the same cached revision');
+    check($service->reviewEdit(7,$ready['preview_id'],0,$action)===$edited,'identical immediate-parent retry returns the committed revision');
+    check($reviewCalls===$beforeCalls && json_decode(file_get_contents($manifestFile),true)['worker_attempts']===$manifestBeforeRetry['worker_attempts'],'duplicate edits neither call worker nor consume task quota');
+    $quotaManifest=$manifestBeforeRetry;
+    $quotaManifest['worker_attempts']=64;
+    file_put_contents($manifestFile,json_encode($quotaManifest));
+    check($service->reviewEdit(7,$ready['preview_id'],1,$action)===$edited,'cached duplicate remains available after worker task quota is exhausted');
+    file_put_contents($manifestFile,json_encode($manifestBeforeRetry));
+    $changedAction=$action;
+    $changedAction[0]['points']=[[30,30]];
+    $preUpgradeManifest=$manifestBeforeRetry;
+    unset($preUpgradeManifest['review']['actions'],$preUpgradeManifest['review']['action_results'],$preUpgradeManifest['review']['accounting_required']);
+    file_put_contents($manifestFile,json_encode($preUpgradeManifest));
+    $workerStateBeforeLegacy=$states[basename(dirname($sourcePath))];
+    $beforeCalls=$reviewCalls;
+    rejects(fn()=>$service->reviewStart(7,$ready['preview_id']),'pre-update revised session without a canonical journal cannot be reopened as empty');
+    rejects(fn()=>$service->reviewEdit(7,$ready['preview_id'],1,$changedAction),'pre-update revised session cannot silently replace its unknown cumulative journal');
+    check(json_decode(file_get_contents($manifestFile),true)===$preUpgradeManifest && $states[basename(dirname($sourcePath))]===$workerStateBeforeLegacy && $reviewCalls===$beforeCalls,'legacy refusal preserves both private snapshots and avoids worker mutations');
+    check(is_file($sourcePath) && is_file($rawAlphaPath),'legacy refusal preserves owned private files for cancellation');
+    file_put_contents($manifestFile,json_encode($manifestBeforeRetry));
+    rejects(fn()=>$service->reviewEdit(7,$ready['preview_id'],0,$changedAction),'changed immediate-parent log is stale');
     rejects(fn()=>$service->reviewFile(7,$ready['preview_id'],0,'alpha'),'stale file revision rejected');
     $beforeCalls=$reviewCalls;
     foreach (['{}', '{"points":[]}', [["kind"=>"background","tool"=>"point","radius"=>2,"hardness"=>true,"points"=>[[2,2]]]], [['kind'=>'background','tool'=>'brush','radius'=>81,'points'=>[[2,2]]]], [['kind'=>'background','tool'=>'point','radius'=>2,'points'=>[[100,2]]]], [['kind'=>'background','tool'=>'point','radius'=>2,'points'=>[[2.5,2]]]], [['kind'=>'background','tool'=>'point','radius'=>2,'points'=>[[2,2]],'path'=>'/etc/passwd']]] as $bad) {
@@ -204,14 +273,17 @@ try {
     check($reviewCalls===$beforeCalls,'invalid actions never reach worker');
     $job=basename(dirname($sourcePath));
     $duplicateService=new ProductImagePreviewService($root,function() use (&$states,$job) {return $states[$job];},function() use (&$clock) {return $clock;},$reviewWorker);
+    $beforeDiscardCalls=$discardCalls;
     rejects(fn()=>$duplicateService->create(7,'studio-light','auto'),'worker job cannot be reused by another private session');
     check(is_file($sourcePath),'failed duplicate claim never deletes another session source');
-    check($discardCalls===0,'failed duplicate ownership claim never asks worker to delete another session');
+    check($discardCalls===$beforeDiscardCalls,'failed duplicate ownership claim never asks worker to delete another session');
     AdminAccess::$id=10;
+    rejects(fn()=>$service->reviewFile(7,$ready['preview_id'],1,'raw-alpha'),'cross-owner immutable raw mask denied');
     rejects(fn()=>$service->reviewEdit(7,$ready['preview_id'],1,$action),'cross-owner revisions denied');
     rejects(fn()=>$service->cancel(7,$ready['preview_id']),'cross-owner cancel denied');
     AdminAccess::$id=9;
     session_id('other-review-session');
+    rejects(fn()=>$service->reviewFile(7,$ready['preview_id'],1,'raw-alpha'),'cross-session immutable raw mask denied');
     rejects(fn()=>$service->reviewFile(7,$ready['preview_id'],1,'source'),'cross-session source denied');
     session_id('test-preview-session');
     AdminAccess::$allowed=false;
@@ -230,15 +302,213 @@ try {
     check($refused['state']==='needs_review','independent thin gate refusal overrides accepted status');
     check(glob($root.'/uploads/products/processed/*/*')===[],'refused gate cleans unpublished worker files');
     $gateRefused=false;
-    $result=$service->reviewResult(7,$ready['preview_id'],1);
-    check($result['state']==='ready' && $result['revision']===1,'explicit result builds ordinary private preview');
+    $refusedManifest=json_decode(file_get_contents($manifestFile),true);
+    $refusedManifest['worker_attempts']=64;
+    file_put_contents($manifestFile,json_encode($refusedManifest));
+    $beforeCalls=$reviewCalls;
+    check($service->reviewResult(7,$ready['preview_id'],1)===$refused,'unchanged refused result returns its cached snapshot at exhausted quota');
+    check($reviewCalls===$beforeCalls,'unchanged refused result neither calls worker nor consumes quota');
+    $refusedManifest['worker_attempts']=3;
+    file_put_contents($manifestFile,json_encode($refusedManifest));
+    $service->reviewEdit(7,$ready['preview_id'],1,$changedAction);
+    $result=$service->reviewResult(7,$ready['preview_id'],2);
+    check($result['state']==='ready' && $result['revision']===2,'changed action log allows explicit result to build an ordinary private preview');
+    $readyManifest=json_decode(file_get_contents($manifestFile),true);
+    $invalidReadyManifest=$readyManifest;
+    $invalidReadyManifest['review']['gates']['background']['accepted']=false;
+    file_put_contents($manifestFile,json_encode($invalidReadyManifest));
+    rejects(fn()=>$service->confirm(7,$ready['preview_id'],2),'confirmation independently requires every source gate to remain accepted');
+    $invalidReadyManifest=$readyManifest;
+    $invalidReadyManifest['review']['action_results'][0]['status']='rejected';
+    file_put_contents($manifestFile,json_encode($invalidReadyManifest));
+    rejects(fn()=>$service->confirm(7,$ready['preview_id'],2),'confirmation independently requires every action to remain accepted');
+    file_put_contents($manifestFile,json_encode($readyManifest));
     rejects(fn()=>$service->confirm(7,$ready['preview_id']),'reviewed confirm requires revision');
     rejects(fn()=>$service->confirm(7,$ready['preview_id'],0),'stale result cannot confirm');
-    $accepted=$service->confirm(7,$ready['preview_id'],1);
+    $accepted=$service->confirm(7,$ready['preview_id'],2);
     check($accepted['status']==='ready','separate confirm publishes approved preview');
-    check($service->confirm(7,$ready['preview_id'],1)['job_id']===$accepted['job_id'],'confirmed replay idempotent');
+    check($service->confirm(7,$ready['preview_id'],2)['job_id']===$accepted['job_id'],'confirmed replay idempotent');
     $acceptedHash=hash_file('sha256',$root.'/'.$accepted['master_path']);
     $qualityRejected=true;
+    foreach (['rejected','unresolved'] as $actionStatus) {
+       $blocked=$service->create(7,'studio-light','auto');
+       $service->reviewStart(7,$blocked['preview_id']);
+       $blockedEdit=$service->reviewEdit(7,$blocked['preview_id'],0,$action);
+       check($blockedEdit['review']['action_results'][0]['status']===$actionStatus,'nonaccepted action status survives canonical revision capture');
+       $blockedResult=$service->reviewResult(7,$blocked['preview_id'],1);
+       check($blockedResult['state']==='needs_review' && $blockedResult['review']['action_results'][0]['status']===$actionStatus,'nonaccepted action blocks rendering despite aggregate accepted status and all independent gates');
+       rejects(fn()=>$service->confirm(7,$blocked['preview_id'],1),'nonaccepted action never confirms');
+       check(hash_file('sha256',$root.'/'.$accepted['master_path'])===$acceptedHash,'nonaccepted action preserves the published result');
+       $service->cancel(7,$blocked['preview_id']);
+    }
+    $actionStatus='accepted';
+    $malformedReviewChanges=[
+       function($r) { $r['action_results'][0]['index']=1; return $r; },
+       function($r) { $r['action_results'][0]['status']='approved'; return $r; },
+       function($r) { $r['action_results'][0]['reasons']=['/private/model.onnx']; return $r; },
+       function($r) { $r['action_results']=[]; return $r; },
+       function($r) { $r['action_results']=['private'=>$r['action_results'][0]]; return $r; },
+       function($r) { unset($r['action_results']); return $r; },
+       function($r) { unset($r['actions'],$r['action_results']); return $r; },
+       function($r) { $r['actions'][0]['points']=[[30,30]]; return $r; },
+       function($r) { $r['actions'][0]['private_path']='/private/model.onnx'; return $r; },
+       function($r) { $r['initial_region_count']=2; return $r; },
+       function($r) { $r['initial_region_count']=null; return $r; },
+       function($r) { $r['remaining_region_count']=null; return $r; },
+       function($r) { $r['remaining_region_count']=-1; return $r; },
+       function($r) { $r['remaining_region_count']=4097; return $r; }
+    ];
+    foreach ($malformedReviewChanges as $change) {
+       $invalid=$service->create(7,'studio-light','auto');
+       $service->reviewStart(7,$invalid['preview_id']);
+       $workerReviewEdit=function($response) use ($change) { $response['review']=$change($response['review']); return $response; };
+       rejects(fn()=>$service->reviewEdit(7,$invalid['preview_id'],0,$action),'malformed revised accounting rejects without advancing PHP snapshot');
+       $workerReviewEdit=null;
+       $invalidManifest=json_decode(file_get_contents($root.'/storage/image-processor/previews/'.$invalid['preview_id'].'/manifest.json'),true);
+       check($invalidManifest['review']['revision']===0 && $invalidManifest['state']==='needs_review','invalid worker accounting cannot replace a trusted review snapshot');
+       check(isset($invalidManifest['pending_review']),'invalid worker response retains the exact pending operation for safe recovery');
+       check($service->reviewStart(7,$invalid['preview_id'])['revision']===1,'reopening safely recovers the pending operation after a malformed response');
+       $service->cancel(7,$invalid['preview_id']);
+    }
+    foreach ($malformedReviewChanges as $change) {
+       $invalid=$service->create(7,'studio-light','auto');
+       $service->reviewStart(7,$invalid['preview_id']);
+       $service->reviewEdit(7,$invalid['preview_id'],0,$action);
+       $workerResultEdit=function($response) use ($change) { $response['review']=$change($response['review']); return $response; };
+       rejects(fn()=>$service->reviewResult(7,$invalid['preview_id'],1),'malformed result accounting cannot create a ready preview');
+       $workerResultEdit=null;
+       $validResult=$service->reviewResult(7,$invalid['preview_id'],1);
+       check($validResult['state']==='ready','malformed result response remains retryable when complete worker snapshot is restored');
+       $service->cancel(7,$invalid['preview_id']);
+    }
+    $lost=$service->create(7,'studio-light','auto');
+    $service->reviewStart(7,$lost['preview_id']);
+    $loseReviseResponse=true;
+    rejects(fn()=>$service->reviewEdit(7,$lost['preview_id'],0,$action),'network loss after worker commit leaves PHP retryable');
+    $lostManifestFile=$root.'/storage/image-processor/previews/'.$lost['preview_id'].'/manifest.json';
+    $lostManifest=json_decode(file_get_contents($lostManifestFile),true);
+    check(($lostManifest['pending_review']['revision'] ?? null)===0 && ($lostManifest['pending_review']['actions'][0]['points'] ?? null)===$action[0]['points'],'unknown worker outcome durably retains the exact submitted journal');
+    $lostManifest['worker_attempts']=64;
+    file_put_contents($lostManifestFile,json_encode($lostManifest));
+    $loseReviseResponse=false;
+    $reopened=$service->reviewStart(7,$lost['preview_id']);
+    check($reopened['revision']===1 && $reopened['review']['actions'][0]['points']===$action[0]['points'],'reopening after lost response recovers the exact pending journal before returning a snapshot');
+    check(!isset(json_decode(file_get_contents($lostManifestFile),true)['pending_review']),'verified recovered snapshot clears pending journal');
+    $recoveredManifest=json_decode(file_get_contents($lostManifestFile),true);
+    check($recoveredManifest['worker_attempts']===64,'unknown-outcome recovery reuses its previously charged task at exhausted quota');
+    $recoveredManifest['worker_attempts']=1;
+    file_put_contents($lostManifestFile,json_encode($recoveredManifest));
+    $recovered=$service->reviewEdit(7,$lost['preview_id'],0,$action);
+    check($recovered['revision']===1 && $recovered['review']['actions'][0]['points']===$action[0]['points'],'identical lost-response retry captures the committed worker revision');
+    $undone=$service->reviewEdit(7,$lost['preview_id'],1,[]);
+    check($undone['revision']===2 && $undone['review']['actions']===[] && $undone['review']['action_results']===[],'empty cumulative log is a legitimate undo revision');
+    rejects(fn()=>$service->reviewEdit(7,$lost['preview_id'],0,[]),'older ancestor cannot replay the current canonical log');
+    check($service->reviewEdit(7,$lost['preview_id'],1,[])===$undone,'empty-log immediate-parent retry is idempotent');
+    $service->cancel(7,$lost['preview_id']);
+    $initialRegionCount=128;
+    $initialRegionsOverride=array_map(fn($index)=>['reason'=>'local_uncertainty','bbox'=>[($index%16)*5,intdiv($index,16)*5,1,1]],range(0,127));
+    $manyRegions=$service->create(7,'studio-light','auto');
+    check(count($manyRegions['review']['regions'])===64 && $manyRegions['review']['initial_region_count']===128 && ($manyRegions['review']['remaining_region_count'] ?? null)===128,'bounded region display preserves the full unchanged remaining count');
+    $service->reviewStart(7,$manyRegions['preview_id']);
+    $manyEdited=$service->reviewEdit(7,$manyRegions['preview_id'],0,$action);
+    check($manyEdited['review']['initial_region_count']===128,'full initial count remains valid when bounded defect display omits regions');
+    $service->cancel(7,$manyRegions['preview_id']);
+    $initialRegionCount=1;
+    $initialRegionsOverride=null;
+    $unit=$service->create(7,'studio-light','auto');
+    $service->reviewStart(7,$unit['preview_id']);
+    $unitAction=[['kind'=>'background','tool'=>'point','radius'=>2,'points'=>[[30,30]]]];
+    $unitEdited=$service->reviewEdit(7,$unit['preview_id'],0,$unitAction);
+    check($unitEdited['review']['actions'][0]['hardness']===1.0,'omitted hardness uses the same float canonical value as the Python worker');
+    $unitAction[0]['hardness']=1;
+    check($service->reviewEdit(7,$unit['preview_id'],1,$unitAction)===$unitEdited,'integer unit hardness retries the identical canonical float journal');
+    $unitAction[0]['hardness']=1.0;
+    check($service->reviewEdit(7,$unit['preview_id'],0,$unitAction)===$unitEdited,'float unit hardness retries the identical canonical parent journal');
+    $service->cancel(7,$unit['preview_id']);
+    $legacyWorkerSnapshot=true;
+    $legacy=$service->create(7,'studio-light','auto');
+    $service->reviewStart(7,$legacy['preview_id']);
+    $service->reviewEdit(7,$legacy['preview_id'],0,$unitAction);
+    check($service->reviewResult(7,$legacy['preview_id'],1)['state']==='ready','legacy workers without either accounting field retain normalized-journal compatibility');
+    $service->cancel(7,$legacy['preview_id']);
+    $legacyWorkerSnapshot=false;
+    $legacyWorkerSnapshot=true;
+    $upgraded=$service->create(7,'studio-light','auto');
+    $service->reviewStart(7,$upgraded['preview_id']);
+    $service->reviewEdit(7,$upgraded['preview_id'],0,$unitAction);
+    $legacyWorkerSnapshot=false;
+    check($service->reviewResult(7,$upgraded['preview_id'],1)['state']==='ready','result can supply complete accounting for a legacy private session');
+    $service->reviewStart(7,$upgraded['preview_id']);
+    $workerReviewEdit=function($response) { unset($response['review']['actions'],$response['review']['action_results']); return $response; };
+    rejects(fn()=>$service->reviewEdit(7,$upgraded['preview_id'],1,$changedAction),'complete accounting learned from a result cannot later be removed');
+    $workerReviewEdit=null;
+    $service->cancel(7,$upgraded['preview_id']);
+    $overbroadAction=[['kind'=>'background','tool'=>'brush','radius'=>20,'hardness'=>1,'points'=>[[50,50]]]];
+    $precommit=$service->create(7,'studio-light','auto');
+    $service->reviewStart(7,$precommit['preview_id']);
+    $workerRejectJournal=$overbroadAction;
+    rejects(fn()=>$service->reviewEdit(7,$precommit['preview_id'],0,$overbroadAction),'definitive unchanged-revision worker validation rejects overbroad annotation');
+    $precommitManifest=json_decode(file_get_contents($root.'/storage/image-processor/previews/'.$precommit['preview_id'].'/manifest.json'),true);
+    check(!isset($precommitManifest['pending_review']) && $precommitManifest['review']['revision']===0,'verified precommit rejection clears pending without advancing canonical journal');
+    check($service->reviewStart(7,$precommit['preview_id'])['revision']===0,'reopening after definitive rejection does not replay an invalid journal');
+    check($service->reviewEdit(7,$precommit['preview_id'],0,[])['revision']===0,'corrected empty journal is immediately available after definitive rejection');
+    $workerRejectJournal=null;
+    check($service->reviewEdit(7,$precommit['preview_id'],0,$action)['revision']===1,'valid corrected journal can be submitted after definitive rejection');
+    $service->cancel(7,$precommit['preview_id']);
+    foreach ([
+       function($proof) { $proof['review_edit_rejected']=false; return $proof; },
+       function($proof) { $proof['job_id']=str_repeat('f',32); return $proof; },
+       function($proof) { $proof['source_sha256']=str_repeat('f',64); return $proof; },
+       function($proof) { $proof['revision']=1; return $proof; }
+    ] as $workerRejectionProofEdit) {
+       $unproven=$service->create(7,'studio-light','auto');
+       $service->reviewStart(7,$unproven['preview_id']);
+       $workerRejectJournal=$action;
+       rejects(fn()=>$service->reviewEdit(7,$unproven['preview_id'],0,$action),'mismatched rejection proof retains an uncertain outcome');
+       $unprovenManifest=json_decode(file_get_contents($root.'/storage/image-processor/previews/'.$unproven['preview_id'].'/manifest.json'),true);
+       check(isset($unprovenManifest['pending_review']),'unproven rejection cannot discard pending journal');
+       $workerRejectJournal=null;
+       check($service->reviewStart(7,$unproven['preview_id'])['revision']===1,'uncertain rejection still recovers the original pending journal');
+       $service->cancel(7,$unproven['preview_id']);
+    }
+    $workerRejectionProofEdit=null;
+    $oldUnstarted=$service->create(7,'studio-light','auto');
+    $oldUnstartedFile=$root.'/storage/image-processor/previews/'.$oldUnstarted['preview_id'].'/manifest.json';
+    $oldUnstartedManifest=json_decode(file_get_contents($oldUnstartedFile),true);
+    unset($oldUnstartedManifest['review']['actions'],$oldUnstartedManifest['review']['action_results'],$oldUnstartedManifest['review']['accounting_required']);
+    file_put_contents($oldUnstartedFile,json_encode($oldUnstartedManifest));
+    $initialized=$service->reviewStart(7,$oldUnstarted['preview_id']);
+    check($initialized['revision']===0 && $initialized['review']['actions']===[] && $initialized['review']['action_results']===[],'safe unstarted legacy revision zero initializes an empty canonical journal');
+    $initializedManifest=json_decode(file_get_contents($oldUnstartedFile),true);
+    check(($initializedManifest['review']['actions'] ?? null)===[] && ($initializedManifest['review']['action_results'] ?? null)===[],'legacy empty journal is persisted before marking the editor started');
+    check($service->reviewEdit(7,$oldUnstarted['preview_id'],0,$unitAction)['revision']===1,'initialized unstarted legacy session accepts its first valid cumulative journal');
+    $service->cancel(7,$oldUnstarted['preview_id']);
+    $oldUnknown=$service->create(7,'studio-light','auto');
+    $service->reviewStart(7,$oldUnknown['preview_id']);
+    $oldUnknownFile=$root.'/storage/image-processor/previews/'.$oldUnknown['preview_id'].'/manifest.json';
+    $oldUnknownManifest=json_decode(file_get_contents($oldUnknownFile),true);
+    $oldUnknownDir=dirname($service->reviewFile(7,$oldUnknown['preview_id'],0,'source'));
+    $reviewWorker('revise',['job_id'=>$oldUnknownManifest['review']['job_id'],'source_sha256'=>$oldUnknownManifest['source_sha256'],'revision'=>0,'actions'=>$unitAction]);
+    unset($oldUnknownManifest['review']['actions'],$oldUnknownManifest['review']['action_results'],$oldUnknownManifest['review']['accounting_required']);
+    file_put_contents($oldUnknownFile,json_encode($oldUnknownManifest));
+    $beforeCalls=$reviewCalls;
+    rejects(fn()=>$service->reviewStart(7,$oldUnknown['preview_id']),'pre-update started revision zero cannot conceal an unknown committed worker journal');
+    rejects(fn()=>$service->reviewEdit(7,$oldUnknown['preview_id'],0,[]),'legacy unknown outcome cannot be inferred as an empty journal');
+    check($reviewCalls===$beforeCalls && is_file($oldUnknownDir.'/alpha-1.png'),'legacy unknown-outcome refusal preserves the committed private revision');
+    $service->cancel(7,$oldUnknown['preview_id']);
+    check(!is_dir($oldUnknownDir),'refused legacy session can still be explicitly cancelled');
+    $bounded=$service->create(7,'studio-light','auto');
+    $service->reviewStart(7,$bounded['preview_id']);
+    for ($revision=0;$revision<32;$revision++) {
+       $boundedAction=[['kind'=>'background','tool'=>'point','radius'=>2,'points'=>[[$revision+1,30]]]];
+       $lastBounded=$service->reviewEdit(7,$bounded['preview_id'],$revision,$boundedAction);
+    }
+    $beforeCalls=$reviewCalls;
+    check($service->reviewEdit(7,$bounded['preview_id'],32,$boundedAction)===$lastBounded,'unchanged current log remains cached at maximum revision');
+    check($service->reviewEdit(7,$bounded['preview_id'],31,$boundedAction)===$lastBounded,'identical parent retry remains cached at maximum revision');
+    rejects(fn()=>$service->reviewEdit(7,$bounded['preview_id'],32,[]),'changed log cannot exceed revision cap');
+    check($reviewCalls===$beforeCalls,'maximum-revision duplicate requests never call worker');
+    $service->cancel(7,$bounded['preview_id']);
     $beforeReviewDirs=glob($root.'/storage/image-processor/reviews/*',GLOB_ONLYDIR);
     $corruptInitialHash=true;
     rejects(fn()=>$service->create(7,'studio-light','auto'),'invalid initial raw alpha rejects claimed private session');
@@ -249,9 +519,12 @@ try {
     rejects(fn()=>$service->confirm(7,$rejected['preview_id'],0),'needs_review never confirms');
     check(hash_file('sha256',$root.'/'.$accepted['master_path'])===$acceptedHash,'quality failure preserves current publication');
     $service->reviewStart(7,$rejected['preview_id']);
-    $reset=$service->reviewEdit(7,$rejected['preview_id'],0,[]);
-    check($reset['revision']===1,'empty cumulative action log restores immutable raw mask');
-    $jobDir=dirname($service->reviewFile(7,$rejected['preview_id'],1,'source'));
+    $unchanged=$service->reviewEdit(7,$rejected['preview_id'],0,[]);
+    check($unchanged['revision']===0,'initial empty cumulative log is already the immutable raw mask');
+    $service->reviewEdit(7,$rejected['preview_id'],0,$action);
+    $reset=$service->reviewEdit(7,$rejected['preview_id'],1,[]);
+    check($reset['revision']===2,'empty cumulative action log restores immutable raw mask');
+    $jobDir=dirname($service->reviewFile(7,$rejected['preview_id'],2,'source'));
     $service->cancel(7,$rejected['preview_id']);
     check(!is_dir($jobDir),'cancel removes owned review artifacts');
     check(is_file($root.'/'.$accepted['master_path']),'cancel preserves accepted result');

@@ -330,6 +330,24 @@
     }
 
 
+    function maskActionsSignature(actions)
+    {
+        return JSON.stringify(actions.map(function (action) {
+            return {kind: action.kind, tool: action.tool, radius: action.radius,
+                hardness: action.hardness === undefined ? 1 : action.hardness, points: action.points};
+        }));
+    }
+
+    function maskReviewCanRender(review)
+    {
+        return review && review.status === 'accepted' && Array.isArray(review.actions)
+            && Array.isArray(review.action_results) && review.actions.length === review.action_results.length
+            && review.action_results.every(function (result, index) {return result.index === index && result.status === 'accepted';})
+            && ['component', 'local', 'thin', 'background'].every(function (name) {
+                return review.gates && review.gates[name] && review.gates[name].accepted === true;
+            });
+    }
+
     function maskReviewConfig(data, preview)
     {
         const review = data && data.review;
@@ -345,6 +363,13 @@
         }
         return {imageId: preview.imageId, previewId: preview.previewId,
             sourceUrl: review.source_url, alphaUrl: review.alpha_url,
+            rawAlphaUrl: valueOrEmpty(review.raw_alpha_url).startsWith('/Anabelka/admin/products/image-process-mask-file?') ? review.raw_alpha_url : null,
+            actions: Array.isArray(review.actions) ? review.actions : [],
+            actionResults: Array.isArray(review.action_results) ? review.action_results : [],
+            initialRegionCount: Number.isSafeInteger(review.initial_region_count) ? review.initial_region_count : null,
+            remainingRegionCount: Number.isSafeInteger(review.remaining_region_count) ? review.remaining_region_count : null,
+            reviewStatus: review.status,
+            retryResult: Number(review.revision) > 0 && maskReviewCanRender(review),
             width: Number(review.width), height: Number(review.height),
             regions: Array.isArray(review.regions) ? review.regions : [], revision: Number(review.revision),
             reasons: Array.isArray(review.reasons) ? review.reasons.filter(function (reason) {
@@ -419,7 +444,7 @@
         preview.reviewAvailable = true;
         preview.revision = config.revision;
         syncImageMaskControls(preview);
-        const session = {image: image, preview: preview, config: config, validating: false};
+        const session = {image: image, preview: preview, config: config, validating: false, acceptedEdit: null};
         activeMaskReview = session;
         const opened = module.open(config, {
             onAuxiliary: function (open) {
@@ -449,6 +474,10 @@
                 requireLiveReview();
                 session.validating = true;
                 try {
+                    if (!Array.isArray(edit.actions)) {
+                        throw new Error('Некоректні позначки маски.');
+                    }
+                    const signature = maskActionsSignature(edit.actions);
                     // A refused first candidate opens immediately; start its
                     // private review job before submitting the first edit.
                     if (!preview.maskStarted) {
@@ -460,25 +489,42 @@
                         if (Number(edit.revision) !== preview.revision) {
                             // A previous network error may have hidden a
                             // completed edit. Resync before applying the log.
+                            started.review.resynced = true;
+                            session.acceptedEdit = null;
+                            if (maskReviewCanRender(started.review)) {
+                                started.review.retry_result = true;
+                                session.acceptedEdit = {revision: preview.revision,
+                                    signature: maskActionsSignature(started.review.actions), response: started};
+                            }
                             return started;
                         }
                     }
                     if (Number(edit.revision) !== preview.revision || !Array.isArray(edit.actions)) {
                         throw new Error('Версія маски застаріла. Оновіть перевірку.');
                     }
-                    const payload = imagePreviewPayload(preview);
-                    payload.set('revision', String(preview.revision));
-                    payload.append('actions', JSON.stringify(edit.actions));
-                    const revised = await imageProcessingRequest('mask-edit', payload, {signal: signal});
-                    requireLiveReview();
-                    const updated = maskReviewConfig(revised, preview);
-                    if (updated.width !== config.width || updated.height !== config.height
-                        || updated.revision !== preview.revision + 1) {
-                        throw new Error('Сервер повернув застарілу версію маски.');
-                    }
-                    preview.revision = updated.revision;
-                    if (revised.review.status !== 'accepted') {
-                        return revised;
+                    let revised;
+                    if (edit.retryResult === true && session.acceptedEdit
+                        && session.acceptedEdit.revision === preview.revision && session.acceptedEdit.signature === signature) {
+                        revised = session.acceptedEdit.response;
+                    } else {
+                        const payload = imagePreviewPayload(preview);
+                        payload.set('revision', String(preview.revision));
+                        payload.append('actions', JSON.stringify(edit.actions));
+                        revised = await imageProcessingRequest('mask-edit', payload, {signal: signal});
+                        requireLiveReview();
+                        const updated = maskReviewConfig(revised, preview);
+                        if (updated.width !== config.width || updated.height !== config.height
+                            || (updated.revision !== preview.revision + 1 && updated.revision !== preview.revision)) {
+                            throw new Error('Сервер повернув застарілу версію маски.');
+                        }
+                        preview.revision = updated.revision;
+                        session.acceptedEdit = null;
+                        if (revised.review.status !== 'accepted' || updated.actionResults.some(function (result) {
+                            return result.status !== 'accepted';
+                        })) {
+                            return revised;
+                        }
+                        session.acceptedEdit = {revision: preview.revision, signature: signature, response: revised};
                     }
                     let result;
                     try {
@@ -488,12 +534,12 @@
                         // The edit succeeded even if rendering failed. Return
                         // its revision so the editor can retry without losing
                         // annotations or becoming stuck on an older version.
-                        preview.maskStarted = false;
                         imageMaskNotice('error', error.message || 'Не вдалося підготувати порівняння. Повторіть перевірку.');
-                        return revised;
+                        return Object.assign({}, revised, {review: Object.assign({}, revised.review, {retry_result: true})});
                     }
                     requireLiveReview();
                     if (result.state === 'needs_review') {
+                        session.acceptedEdit = null;
                         const refused = maskReviewConfig(result, preview);
                         if (refused.revision !== preview.revision) {
                             throw new Error('Сервер повернув застарілу версію маски.');

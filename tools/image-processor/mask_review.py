@@ -125,14 +125,15 @@ def _integer(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def action_weights(actions: Any, shape: tuple[int, int]):
+def normalize_actions(actions: Any, shape: tuple[int, int]) -> list[dict[str, Any]]:
+    """Validate the journal and give equivalent default-valued requests one form."""
     if not isinstance(actions, list) or len(actions) > MAX_ACTIONS:
         raise ValueError('Забагато дій редагування маски.')
     height, width = shape
     if max(shape) > MAX_SOURCE_EDGE or height * width > MAX_SOURCE_PIXELS:
         raise ValueError('Фотографія завелика для редактора маски.')
     total_points = 0
-    annotated = np.zeros(shape, dtype=bool)
+    normalized = []
     for action in actions:
         if not isinstance(action, dict) or set(action) - {'kind', 'tool', 'radius', 'hardness', 'points'}:
             raise ValueError('Некоректна дія редактора маски.')
@@ -157,6 +158,16 @@ def action_weights(actions: Any, shape: tuple[int, int]):
             if (not isinstance(point, list) or len(point) != 2 or not all(_integer(value) for value in point)
                     or not 0 <= point[0] < width or not 0 <= point[1] < height):
                 raise ValueError('Точка знаходиться поза вихідною фотографією.')
+        normalized.append({'kind': kind, 'tool': tool, 'radius': radius,
+                           'hardness': float(hardness), 'points': [point.copy() for point in points]})
+    return normalized
+
+
+def action_weights(actions: Any, shape: tuple[int, int]):
+    height, width = shape
+    annotated = np.zeros(shape, dtype=bool)
+    for action in normalize_actions(actions, shape):
+        kind, radius, hardness, points = (action[name] for name in ('kind', 'radius', 'hardness', 'points'))
         # Distance from an exact native-coordinate path; feather stays inside the circle.
         path = np.ones(shape, dtype=np.uint8)
         for point in points:
@@ -175,6 +186,7 @@ def action_weights(actions: Any, shape: tuple[int, int]):
 
 def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                  *, source_rgb: np.ndarray | None = None) -> dict[str, Any]:
+    actions = normalize_actions(actions, raw.shape)
     alpha = raw.copy()
     native_seed = None if seed is None else _resize(seed, (raw.shape[1], raw.shape[0]))
     # A coarse colour seed alone cannot license repainting a broad supplier-background gap.
@@ -197,9 +209,11 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                 if len(pixels) >= 8:
                     palette.append(np.median(pixels, axis=0))
     refusals = []
-    refusal_regions = []
-    for kind, weights in action_weights(actions, raw.shape):
+    action_results = []
+    for index, (kind, weights) in enumerate(action_weights(actions, raw.shape)):
         if kind == 'unsure':
+            refusals.append('annotation_unsure')
+            action_results.append({'index': index, 'status': 'unresolved', 'reasons': ['annotation_unsure']})
             continue
         changed = weights > 0
         if kind == 'background':
@@ -223,8 +237,14 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
             reason = 'unsupported_foreground_annotation'
         if np.any(unsafe):
             refusals.append(reason)
-            refusal_regions.extend(regions_from_mask(unsafe, reason))
+            # A whole stroke is rejected. One focus box keeps its accounting
+            # bounded even when overlapping strokes hit many separate details.
+            conflict = {'reason': reason, 'bbox': list(cv2.boundingRect(unsafe.astype(np.uint8))),
+                        'pixels': int(np.count_nonzero(unsafe))}
+            action_results.append({'index': index, 'status': 'rejected', 'reasons': [reason],
+                                   'conflicts': [conflict]})
             continue
+        action_results.append({'index': index, 'status': 'accepted', 'reasons': []})
         target = 255 if kind == 'foreground' else 0
         alpha = np.rint(alpha.astype(np.float32) * (1 - weights) + target * weights).astype(np.uint8)
     validation = validate_alpha(alpha, raw, seed)
@@ -233,5 +253,4 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
             validation['reasons'].append(reason)
     if refusals:
         validation['status'] = 'needs_review'
-        validation['regions'].extend(refusal_regions)
-    return {'alpha': alpha, 'validation': validation}
+    return {'alpha': alpha, 'validation': validation, 'actions': actions, 'action_results': action_results}

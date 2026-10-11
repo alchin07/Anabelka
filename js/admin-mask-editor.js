@@ -8,6 +8,7 @@
     let generation = 0;
     const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
     const clone = value => JSON.parse(JSON.stringify(value));
+    const signature = actions => JSON.stringify(actions);
     const refusalLabels = {
         invalid_alpha_area: 'Неправильна площа моделі в масці.',
         source_component_loss: 'Частину моделі потрібно зберегти.',
@@ -17,7 +18,8 @@
         source_background_retained: 'На позначеній ділянці залишився фон.',
         source_evidence_unavailable: 'Не вдалося перевірити оригінал. Фото не змінено.',
         unsafe_background_annotation: 'Позначка фону зачіпає модель.',
-        unsupported_foreground_annotation: 'Не вдалося безпечно підтвердити цю ділянку моделі. Фото не змінено.'
+        unsupported_foreground_annotation: 'Ця позначка моделі виходить за підтверджений матеріал. Зменште її або позначте фон.',
+        annotation_unsure: 'Неясна позначка не змінює маску. Уточніть її як фон або модель.'
     };
     const gateLabels = {component: 'Частини моделі', local: 'Матеріал', thin: 'Тонкі деталі', background: 'Фон'};
     const icons = {
@@ -58,9 +60,15 @@
             this.config = safeConfig(config);
             this.callbacks = callbacks || {};
             this.id = ++generation;
-            this.actions = [];
+            this.actions = clone(Array.isArray(config.actions) ? config.actions : []);
             this.hasEdited = false;
+            this.undo = this.actions.map((_, index) => clone(this.actions.slice(0, index)));
             this.redo = [];
+            this.reviewedActions = clone(this.actions);
+            this.reviewedSignature = signature(this.actions);
+            this.actionResults = clone(config.actionResults || config.action_results || []);
+            this.retryResult = false;
+            this.editingIndex = null;
             this.kind = 'background';
             this.tool = 'point';
             this.radius = 24;
@@ -97,7 +105,7 @@
             node.innerHTML = '<header class="mask-editor-header">' + button('data-mask-close', 'Закрити маску', 'close') + '<h2 id="mask-editor-title">Розумна маска</h2><div class="mask-editor-zoom">' + button('data-mask-zoom-out', 'Зменшити', 'minus') + button('data-mask-zoom-in', 'Збільшити', 'plus') + button('data-mask-fit', 'Умістити фото', 'fit') + '</div></header>'
                 + '<div class="mask-editor-stage" data-mask-stage data-zoom="1" tabindex="0" aria-label="Фото з піксельною маскою. Два пальці — масштаб і рух."><canvas class="mask-editor-canvas" aria-hidden="true"></canvas><canvas class="mask-editor-magnifier" width="160" height="160" hidden aria-hidden="true"></canvas><div class="mask-editor-loading" role="status">Завантаження маски…</div></div>'
                 + '<nav class="mask-editor-regions" aria-label="Перевірка ділянок">' + button('data-mask-previous', 'Попередня ділянка', 'previous') + '<span data-mask-count aria-live="polite"></span>' + button('data-mask-next', 'Наступна ділянка', 'next') + button('data-mask-help', 'Пензель і підказка', 'help') + '</nav>'
-                + '<footer class="mask-editor-footer"><div class="mask-editor-modes" role="group" aria-label="Позначити точку">' + button('data-mask-kind="background"', 'Тут фон', null, 'Фон') + button('data-mask-kind="foreground"', 'Тут модель', null, 'Модель') + button('data-mask-kind="unsure"', 'Тут неясно', null, 'Неясно') + '</div><div class="mask-editor-tools" role="group" aria-label="Інструменти">' + button('data-mask-tool="brush" data-mask-brush="foreground"', 'Пензель зберегти модель', 'save', 'Зберегти') + button('data-mask-tool="brush" data-mask-brush="background"', 'Пензель видалити фон', 'erase', 'Видалити') + button('data-mask-tool="pan"', 'Рух без малювання', 'pan', 'Рух') + button('data-mask-undo', 'Скасувати штрих', 'undo') + button('data-mask-redo', 'Повторити штрих', 'redo') + button('data-mask-reset', 'Скинути всі штрихи', 'reset') + '</div><p class="mask-editor-status" data-mask-status role="status" aria-live="polite">Позначайте лише потрібні пікселі. Фото не змінюється.</p><div class="mask-editor-actions">' + button('data-mask-cancel', 'Скасувати редагування', null, 'Скасувати') + button('data-mask-validate class="mask-editor-primary"', 'Перевірити і порівняти', null, 'Перевірити і порівняти') + '</div></footer>';
+                + '<footer class="mask-editor-footer"><div class="mask-editor-conflicts" data-mask-conflicts hidden aria-label="Відхилені позначки"></div><div class="mask-editor-modes" role="group" aria-label="Позначити точку">' + button('data-mask-kind="background"', 'Тут фон', null, 'Фон') + button('data-mask-kind="foreground"', 'Тут модель', null, 'Модель') + button('data-mask-kind="unsure"', 'Тут неясно', null, 'Неясно') + '</div><div class="mask-editor-tools" role="group" aria-label="Інструменти">' + button('data-mask-tool="brush" data-mask-brush="foreground"', 'Пензель зберегти модель', 'save', 'Зберегти') + button('data-mask-tool="brush" data-mask-brush="background"', 'Пензель видалити фон', 'erase', 'Видалити') + button('data-mask-tool="pan"', 'Рух без малювання', 'pan', 'Рух') + button('data-mask-undo', 'Скасувати штрих', 'undo') + button('data-mask-redo', 'Повторити штрих', 'redo') + button('data-mask-reset', 'Скинути всі штрихи', 'reset') + '</div><p class="mask-editor-status" data-mask-status role="status" aria-live="polite">Позначайте лише потрібні пікселі. Фото не змінюється.</p><div class="mask-editor-actions">' + button('data-mask-cancel', 'Скасувати редагування', null, 'Скасувати') + button('data-mask-validate class="mask-editor-primary"', 'Перевірити і порівняти', null, 'Перевірити і порівняти') + '</div></footer>';
             this.node = node;
             this.stage = node.querySelector('[data-mask-stage]');
             this.canvas = node.querySelector('.mask-editor-canvas');
@@ -148,24 +156,17 @@
             this.node.querySelector('.mask-editor-loading').hidden = false;
             this.update();
             try {
-                const [source, alpha] = await Promise.all([this.source ? Promise.resolve(this.source) : this.loadImage(this.config.sourceUrl), this.loadImage(this.config.alphaUrl)]);
+                const alphaRequest = this.loadImage(this.config.alphaUrl);
+                const [source, alpha, raw] = await Promise.all([this.source ? Promise.resolve(this.source) : this.loadImage(this.config.sourceUrl), alphaRequest,
+                    this.baselineAlpha ? Promise.resolve(null) : this.config.rawAlphaUrl ? this.loadImage(this.config.rawAlphaUrl) : alphaRequest]);
                 if (!this.current() || serial !== this.loadSerial) return;
                 if (source.naturalWidth !== this.config.width || source.naturalHeight !== this.config.height || alpha.naturalWidth !== this.config.width || alpha.naturalHeight !== this.config.height) throw new Error('Розміри фото та маски не збігаються.');
                 this.source = source;
-                const tint = document.createElement('canvas');
-                tint.width = this.config.width;
-                tint.height = this.config.height;
-                const ctx = tint.getContext('2d', {willReadFrequently: true});
-                ctx.drawImage(alpha, 0, 0);
-                const data = ctx.getImageData(0, 0, tint.width, tint.height);
-                for (let index = 0; index < data.data.length; index += 4) {
-                    const opacity = Math.round((255 - data.data[index]) * .48);
-                    data.data[index] = 138; data.data[index + 1] = 43; data.data[index + 2] = 226; data.data[index + 3] = opacity;
-                }
-                ctx.putImageData(data, 0, 0);
-                if (this.alpha && this.alpha !== this.baselineAlpha) this.alpha.width = this.alpha.height = 0;
-                this.alpha = tint;
-                if (!this.baselineAlpha) this.baselineAlpha = tint;
+                if (raw && (raw.naturalWidth !== this.config.width || raw.naturalHeight !== this.config.height)) throw new Error('Розміри початкової маски не збігаються.');
+                if (this.reviewedAlpha && this.reviewedAlpha !== this.baselineAlpha) this.reviewedAlpha.width = this.reviewedAlpha.height = 0;
+                this.reviewedAlpha = this.tint(alpha);
+                if (!this.baselineAlpha) this.baselineAlpha = raw === alpha ? this.reviewedAlpha : this.tint(raw);
+                this.restoreBaseline();
                 this.ready = true;
                 this.node.dataset.ready = 'true';
                 this.node.querySelector('.mask-editor-loading').hidden = true;
@@ -180,6 +181,19 @@
                 this.status(error.message, 'error');
                 this.node.querySelector('.mask-editor-loading').textContent = 'Маска недоступна. Закрийте редактор і повторіть.';
             }
+        }
+        tint(image) {
+            const canvas = document.createElement('canvas');
+            canvas.width = this.config.width; canvas.height = this.config.height;
+            const ctx = canvas.getContext('2d', {willReadFrequently: true});
+            ctx.drawImage(image, 0, 0);
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            for (let index = 0; index < data.data.length; index += 4) {
+                const opacity = Math.round((255 - data.data[index]) * .48);
+                data.data[index] = 138; data.data[index + 1] = 43; data.data[index + 2] = 226; data.data[index + 3] = opacity;
+            }
+            ctx.putImageData(data, 0, 0);
+            return canvas;
         }
         resize() {
             if (!this.current()) return;
@@ -275,7 +289,10 @@
                 ctx.fillStyle = 'rgba(238,165,29,.09)';
                 ctx.fill(); ctx.stroke();
             });
-            this.actions.forEach(action => this.paintAction(ctx, action));
+            this.actions.forEach((action, index) => {
+                const outcome = this.outcome(index);
+                if (this.alpha !== this.reviewedAlpha || signature(this.actions) !== this.reviewedSignature || !outcome || outcome.status !== 'accepted') this.paintAction(ctx, action);
+            });
             if (this.provisional) this.paintAction(ctx, this.provisional);
             if (showCursor && this.cursor && this.tool !== 'pan') {
                 ctx.beginPath();
@@ -388,13 +405,49 @@
             this.render();
         }
         add(action) {
-            const actions = this.actions.concat([action]);
+            const actions = clone(this.actions);
+            if (this.editingIndex !== null) actions[this.editingIndex] = clone(action);
+            else actions.push(clone(action));
             if (actions.length > limits.actions || actions.reduce((sum, item) => sum + item.points.length, 0) > limits.points || new Blob([JSON.stringify(actions)]).size > limits.bytes) {
                 this.status('Забагато позначок. Скасуйте зайві штрихи або почніть знову.', 'warning'); return;
             }
-            this.actions.push(clone(action)); this.redo = [];
-            this.hasEdited = true;
-            this.update();
+            this.changeActions(actions);
+        }
+        changeActions(actions) {
+            this.undo.push(clone(this.actions));
+            if (this.undo.length > limits.actions) this.undo.shift();
+            this.actions = clone(actions); this.redo = []; this.editingIndex = null;
+            this.hasEdited = true; this.restoreBaseline(); this.update(); this.render();
+        }
+        outcome(index) {
+            const key = signature(this.actions[index]);
+            const occurrence = this.actions.slice(0, index).filter(action => signature(action) === key).length;
+            const matches = this.reviewedActions.map((action, reviewedIndex) => signature(action) === key ? reviewedIndex : -1).filter(index => index >= 0);
+            const reviewedIndex = matches[occurrence];
+            return this.actionResults.find(result => result.index === reviewedIndex) || null;
+        }
+        canValidate() {
+            return !this.busy && this.ready && typeof this.callbacks.onValidate === 'function'
+                && (signature(this.actions) !== this.reviewedSignature || this.retryResult);
+        }
+        updateConflicts() {
+            const container = this.node.querySelector('[data-mask-conflicts]');
+            container.replaceChildren();
+            this.actions.forEach((action, index) => {
+                const outcome = this.outcome(index);
+                if (!outcome || !['rejected', 'unresolved'].includes(outcome.status)) return;
+                const row = document.createElement('div'); row.dataset.maskConflict = String(index);
+                const text = document.createElement('p');
+                const reasons = (outcome.reasons || []).map(reason => refusalLabels[reason]).filter(Boolean);
+                text.textContent = 'Позначка ' + (index + 1) + ': ' + (reasons.join(' ') || 'Позначка не підтверджена. Зменште її або змініть тип.');
+                row.append(text);
+                const controls = document.createElement('div');
+                controls.innerHTML = button('data-mask-replace-action="' + index + '"', 'Виправити позначку ' + (index + 1), null, 'Виправити')
+                    + button('data-mask-delete-action="' + index + '"', 'Видалити позначку ' + (index + 1), null, 'Видалити');
+                controls.querySelectorAll('button').forEach(button => {button.disabled = this.busy || !this.ready;});
+                row.append(controls); container.append(row);
+            });
+            container.hidden = !container.children.length;
         }
         focusRegion(direction) {
             const regions = this.config.regions;
@@ -417,12 +470,19 @@
             if (control.hasAttribute('data-mask-keep')) {this.closeAuxiliary(); return;}
             if (control.hasAttribute('data-mask-discard')) {this.destroy({discarded: true, reason: 'cancel'}); return;}
             if (control.hasAttribute('data-mask-helper-close')) {this.closeAuxiliary(); return;}
-            if (control.hasAttribute('data-mask-confirm-reset')) {this.actions = []; this.redo = []; this.restoreBaseline(); this.closeAuxiliary(); this.status('Позначки скинуто. Перевірте початкову маску перед порівнянням.'); this.update(); this.render(); return;}
+            if (control.hasAttribute('data-mask-confirm-reset')) {this.changeActions([]); this.closeAuxiliary(); this.status('Позначки скинуто. Перевірте початкову маску перед порівнянням.'); return;}
             if (this.busy || this.auxiliary) return;
             if (control.dataset.maskKind) {this.kind = control.dataset.maskKind; this.tool = 'point'; this.cursor = null; this.update(); this.render();}
             else if (control.dataset.maskTool) {this.tool = control.dataset.maskTool; if (control.dataset.maskBrush) this.kind = control.dataset.maskBrush; this.cursor = null; this.update(); this.render();}
-            else if (control.hasAttribute('data-mask-undo')) {if (this.actions.length) this.redo.push(this.actions.pop()); this.restoreBaseline(); this.update(); this.render();}
-            else if (control.hasAttribute('data-mask-redo')) {if (this.redo.length) this.actions.push(this.redo.pop()); this.update(); this.render();}
+            else if (control.hasAttribute('data-mask-undo')) {if (this.undo.length) {this.redo.push(clone(this.actions)); this.actions = this.undo.pop(); this.hasEdited = true;} this.editingIndex = null; this.restoreBaseline(); this.update(); this.render();}
+            else if (control.hasAttribute('data-mask-redo')) {if (this.redo.length) {this.undo.push(clone(this.actions)); this.actions = this.redo.pop(); this.hasEdited = true;} this.editingIndex = null; this.restoreBaseline(); this.update(); this.render();}
+            else if (control.hasAttribute('data-mask-delete-action')) {const index = Number(control.dataset.maskDeleteAction); if (Number.isSafeInteger(index) && this.actions[index]) this.changeActions(this.actions.filter((_, position) => position !== index));}
+            else if (control.hasAttribute('data-mask-replace-action')) {
+                const index = Number(control.dataset.maskReplaceAction), action = this.actions[index];
+                if (!action) return;
+                this.editingIndex = index; this.kind = action.kind; this.tool = action.tool; this.radius = action.radius; this.hardness = action.hardness;
+                this.status('Виправляєте позначку ' + (index + 1) + '. Оберіть фон або модель і намалюйте її заново. Інші позначки збережено.'); this.update();
+            }
             else if (control.hasAttribute('data-mask-reset')) {if (this.actions.length || this.redo.length) this.showAuxiliary('reset');}
             else if (control.hasAttribute('data-mask-previous')) this.focusRegion(-1);
             else if (control.hasAttribute('data-mask-next')) this.focusRegion(1);
@@ -436,14 +496,15 @@
             this.node.querySelectorAll('[data-mask-kind]').forEach(button => button.setAttribute('aria-pressed', String(this.tool === 'point' && button.dataset.maskKind === this.kind)));
             this.node.querySelectorAll('[data-mask-tool]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.maskTool === this.tool && (!button.dataset.maskBrush || button.dataset.maskBrush === this.kind))));
             this.node.querySelector('[data-mask-count]').textContent = this.config.regions.length ? (this.region + 1) + ' із ' + this.config.regions.length + ' ділянок' : 'Ділянок для перевірки немає';
-            this.node.querySelector('[data-mask-undo]').disabled = this.busy || !this.ready || !this.actions.length;
+            this.node.querySelector('[data-mask-undo]').disabled = this.busy || !this.ready || !this.undo.length;
             this.node.querySelector('[data-mask-redo]').disabled = this.busy || !this.ready || !this.redo.length;
             this.node.querySelector('[data-mask-reset]').disabled = this.busy || !this.ready || (!this.actions.length && !this.redo.length);
-            this.node.querySelector('[data-mask-validate]').disabled = this.busy || !this.ready || (!this.actions.length && !this.hasEdited) || typeof this.callbacks.onValidate !== 'function';
+            this.node.querySelector('[data-mask-validate]').disabled = !this.canValidate();
             this.node.querySelector('[data-mask-previous]').disabled = this.busy || !this.config.regions.length;
             this.node.querySelector('[data-mask-next]').disabled = this.busy || !this.config.regions.length;
             this.node.setAttribute('aria-busy', String(this.busy));
             this.node.dataset.tool = this.tool;
+            this.updateConflicts();
         }
         status(message, type) {
             this.node.querySelector('[data-mask-status]').textContent = message;
@@ -500,8 +561,7 @@
         }
         restoreBaseline() {
             if (!this.baselineAlpha) return;
-            if (this.alpha && this.alpha !== this.baselineAlpha) this.alpha.width = this.alpha.height = 0;
-            this.alpha = this.baselineAlpha;
+            this.alpha = signature(this.actions) === this.reviewedSignature && this.reviewedAlpha ? this.reviewedAlpha : this.baselineAlpha;
         }
         key(event) {
             if (!this.current()) return;
@@ -516,11 +576,11 @@
             }
         }
         async validate() {
-            if (this.busy || !this.ready || (!this.actions.length && !this.hasEdited) || typeof this.callbacks.onValidate !== 'function') return;
+            if (!this.canValidate()) return;
             const controller = new AbortController();
             this.controller = controller; this.busy = true; this.provisional = null; this.update();
             this.status('Перевірка пікселів і безпеки маски…');
-            const payload = {imageId: this.config.imageId, previewId: this.config.previewId, revision: this.config.revision, width: this.config.width, height: this.config.height, actions: clone(this.actions)};
+            const payload = {imageId: this.config.imageId, previewId: this.config.previewId, revision: this.config.revision, width: this.config.width, height: this.config.height, actions: clone(this.actions), retryResult: this.retryResult && signature(this.actions) === this.reviewedSignature};
             try {
                 const result = await this.callbacks.onValidate(payload, {signal: controller.signal});
                 if (!this.current() || controller.signal.aborted) return;
@@ -536,14 +596,22 @@
                 }
                 if (result.state !== 'needs_review') throw new Error('Маску не підтверджено. Фото не змінено.');
                 const review = result.review || {};
+                this.reviewedActions = clone(Array.isArray(review.actions) ? review.actions : payload.actions);
+                this.reviewedSignature = signature(this.reviewedActions);
+                this.actionResults = clone(Array.isArray(review.action_results) ? review.action_results : []);
+                this.retryResult = review.retry_result === true && review.status === 'accepted';
                 if (Number.isSafeInteger(Number(review.revision))) this.config.revision = Number(review.revision);
                 if (Array.isArray(review.regions)) {this.config.regions = review.regions.slice(0, 100); this.region = 0;}
                 if (review.gates && typeof review.gates === 'object') this.config.gates = review.gates;
                 const reasons = Array.isArray(review.reasons) ? [...new Set(review.reasons.map(reason => refusalLabels[reason]).filter(Boolean))].slice(0, 2) : [];
-                this.status('Маска потребує уточнення. ' + (reasons.length ? reasons.join(' ') : 'Перевірте позначені ділянки та повторіть.'), 'warning');
+                this.status(review.resynced ? 'Версію маски оновлено. Ваші локальні позначки збережено; перевірте зміни перед повторною перевіркою.'
+                    : this.retryResult ? 'Маску підтверджено. Повторіть підготовку порівняння.'
+                    : 'Маска потребує уточнення. ' + (reasons.length ? reasons.join(' ') : 'Виправте відхилені позначки або додайте уточнення.'), 'warning');
                 const alpha = review.alphaUrl || review.alpha_url;
                 const source = review.sourceUrl || review.source_url;
                 if (source) this.config.sourceUrl = sameOriginImage(source);
+                const raw = review.rawAlphaUrl || review.raw_alpha_url;
+                if (raw) this.config.rawAlphaUrl = sameOriginImage(raw);
                 if (alpha) {this.config.alphaUrl = sameOriginImage(alpha); this.load();}
                 this.render();
             } catch (error) {
@@ -566,9 +634,9 @@
             this.pointers.clear(); this.provisional = this.gesture = this.cursor = null;
             this.node.remove();
             this.canvas.width = this.canvas.height = this.magnifier.width = this.magnifier.height = 0;
-            if (this.alpha) this.alpha.width = this.alpha.height = 0;
+            if (this.reviewedAlpha) this.reviewedAlpha.width = this.reviewedAlpha.height = 0;
             if (this.baselineAlpha) this.baselineAlpha.width = this.baselineAlpha.height = 0;
-            this.source = this.alpha = this.baselineAlpha = null;
+            this.source = this.alpha = this.baselineAlpha = this.reviewedAlpha = null;
             this.inert.forEach(item => {if (!item.node.isConnected) return; item.node.inert = item.inert; if (item.aria === null) item.node.removeAttribute('aria-hidden'); else item.node.setAttribute('aria-hidden', item.aria);});
             document.body.style.overflow = this.bodyOverflow;
             if (this.focusBefore && this.focusBefore.isConnected) this.focusBefore.focus({preventScroll: true});

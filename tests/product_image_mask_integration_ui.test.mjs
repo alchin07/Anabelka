@@ -136,6 +136,70 @@ function pressKey(h, key, target = h.window.document.activeElement, options = {}
 
 
 const reviewData = () => ({success:true,state:'needs_review',image_id:17,preview_id:'review-1',review_available:true,review:{revision:0,width:2500,height:3250,regions:[{id:1,bbox:[100,200,80,160]}],reasons:['source_local_material_loss'],source_url:'/Anabelka/admin/products/image-process-mask-file?asset=source',alpha_url:'/Anabelka/admin/products/image-process-mask-file?asset=alpha'}});
+const mark = {kind:'background',tool:'point',radius:5,hardness:1,points:[[102,208]]};
+
+test('review config carries the canonical journal and authenticated immutable alpha', async t => {
+    const h = await harness(t);
+    const data = reviewData();
+    data.review = {...data.review, actions:[mark], initial_region_count:21,
+        action_results:[{index:0,status:'rejected',reasons:['unsafe_background_annotation']}],
+        raw_alpha_url:'/Anabelka/admin/products/image-process-mask-file?asset=raw-alpha'};
+    await h.start(data);
+    assert.deepEqual(JSON.parse(JSON.stringify(h.mask.opened.actions)), [mark]);
+    assert.equal(h.mask.opened.initialRegionCount,21);
+    assert.equal(h.mask.opened.actionResults[0].status,'rejected');
+    assert.equal(h.mask.opened.rawAlphaUrl,data.review.raw_alpha_url);
+});
+
+test('cached unchanged refusal keeps the same revision without requesting comparison', async t => {
+    const h = await harness(t); await h.start(reviewData());
+    h.queued.push(response(reviewData())); // start private review
+    h.queued.push(response({...reviewData(),review:{...reviewData().review,status:'needs_review',actions:[mark]}}));
+    const result = await h.mask.callbacks.onValidate({revision:0,actions:[mark]},{});
+    assert.equal(result.review.revision,0);
+    assert.equal(h.calls.some(x=>x.url.endsWith('image-process-mask-result')),false);
+});
+
+test('transient result failure retries the accepted revision without a second edit', async t => {
+    const h=await harness(t); await h.start(reviewData());
+    h.queued.push(response(reviewData()));
+    h.queued.push(response({...reviewData(),review:{...reviewData().review,revision:1,status:'accepted',actions:[mark]}}));
+    h.queued.push(Promise.reject(new Error('network render failure')));
+    const refused=await h.mask.callbacks.onValidate({revision:0,actions:[mark]},{});
+    assert.equal(refused.review.retry_result,true);
+    h.queued.push(response({...preview('review-1'),state:'ready',revision:1}));
+    const result=await h.mask.callbacks.onValidate({revision:1,actions:[mark],retryResult:true},{});
+    assert.equal(result.state,'ready');
+    assert.equal(h.calls.filter(x=>x.url.endsWith('image-process-mask-edit')).length,1);
+    assert.equal(h.calls.filter(x=>x.url.endsWith('image-process-mask-result')).length,2);
+});
+
+test('a lost edit response resynchronizes the server journal before any replay', async t => {
+    const h=await harness(t); await h.start(reviewData());
+    h.queued.push(response(reviewData()));
+    h.queued.push(Promise.reject(new Error('lost edit response')));
+    await assert.rejects(h.mask.callbacks.onValidate({revision:0,actions:[mark]},{}),/lost edit/);
+    h.queued.push(response({...reviewData(),review:{...reviewData().review,revision:1,actions:[mark]}}));
+    const result=await h.mask.callbacks.onValidate({revision:0,actions:[mark]},{});
+    assert.equal(result.review.resynced,true);
+    assert.deepEqual(JSON.parse(JSON.stringify(result.review.actions)),[mark]);
+    assert.equal(h.calls.filter(x=>x.url.endsWith('image-process-mask-edit')).length,1);
+});
+
+test('accepted network resynchronization can render its exact journal without another edit', async t => {
+    const h=await harness(t); await h.start(reviewData());
+    h.queued.push(response(reviewData()));
+    h.queued.push(Promise.reject(new Error('lost accepted edit')));
+    await assert.rejects(h.mask.callbacks.onValidate({revision:0,actions:[mark]},{}),/lost accepted/);
+    h.queued.push(response({...reviewData(),review:{...reviewData().review,revision:1,status:'accepted',actions:[mark],
+        action_results:[{index:0,status:'accepted',reasons:[]}],gates:Object.fromEntries(['component','local','thin','background'].map(name=>[name,{accepted:true}]))}}));
+    const resynced=await h.mask.callbacks.onValidate({revision:0,actions:[mark]},{});
+    assert.equal(resynced.review.retry_result,true);
+    h.queued.push(response({...preview('review-1'),state:'ready',revision:1}));
+    const ready=await h.mask.callbacks.onValidate({revision:1,actions:[mark],retryResult:true},{});
+    assert.equal(ready.state,'ready');
+    assert.equal(h.calls.filter(x=>x.url.endsWith('image-process-mask-edit')).length,1);
+});
 
 test('quality refusal opens the mask editor without replacing the live photo or permitting confirmation', async t => {
     const h = await harness(t);

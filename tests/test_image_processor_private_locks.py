@@ -200,7 +200,9 @@ class PrivateReviewLockTests(unittest.TestCase):
                         result = server.create_mask_review(job, original, image, capture, {}, 'uploads/products/synthetic.png')
                         self.assertEqual(result['revision'], 0)
                         payload = {'job_id': job, 'source_sha256': server.sha256_file(original),
-                                   'revision': 0, 'actions': []}
+                                   'revision': 0, 'actions': [
+                                       {'kind': 'background', 'tool': 'point', 'radius': 3, 'points': [[45, 55]]},
+                                   ]}
                         self.assertEqual(server.revise_mask_review(payload)['revision'], 1)
                         self.assertFalse((review_root / 'jobs.lock').exists())
                         self.assertFalse((review_root / job / 'review.lock').exists())
@@ -510,7 +512,7 @@ class PrivateReviewLockTests(unittest.TestCase):
                 self.assertTrue(directory.is_dir())
                 self.assertTrue((directory / 'raw-alpha.png').is_file())
 
-    def test_two_concurrent_revision_processes_accept_only_one_identical_revision(self):
+    def test_two_concurrent_identical_revision_processes_share_one_transaction(self):
         server = self.server()
         self.require_path_locks(server)
         with tempfile.TemporaryDirectory() as temporary:
@@ -520,7 +522,8 @@ class PrivateReviewLockTests(unittest.TestCase):
             with review_patch, lock_patch:
                 job = 'f' * 32
                 server.create_mask_review(job, original, image, capture, {}, 'uploads/products/synthetic.png')
-                payload = {'job_id': job, 'source_sha256': server.sha256_file(original), 'revision': 0, 'actions': []}
+                payload = {'job_id': job, 'source_sha256': server.sha256_file(original), 'revision': 0,
+                           'actions': [{'kind': 'background', 'tool': 'point', 'radius': 3, 'points': [[45, 55]]}]}
                 begin, finish = root / 'begin', root / 'finish'
                 workers = []
                 for index in range(2):
@@ -543,8 +546,8 @@ class PrivateReviewLockTests(unittest.TestCase):
                 for process, parameters in workers:
                     outcomes.append(self.await_marker(Path(parameters['result']), process))
                     self.finish_worker(process)
-                self.assertEqual(sum(outcome['accepted'] for outcome in outcomes), 1, outcomes)
-                self.assertEqual([outcome['revision'] for outcome in outcomes if outcome['accepted']], [1])
+                self.assertEqual(sum(outcome['accepted'] for outcome in outcomes), 2, outcomes)
+                self.assertEqual([outcome['revision'] for outcome in outcomes if outcome['accepted']], [1, 1])
                 self.assertEqual(sum(Path(parameters['entered']).exists() for _, parameters in workers), 1)
                 metadata = json.loads((server.REVIEW_ROOT / job / 'metadata.json').read_text())
                 self.assertEqual(metadata['revision'], 1)

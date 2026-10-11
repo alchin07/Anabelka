@@ -163,8 +163,22 @@ class ImageProcessorClient
 
             $diagnostics = is_array($data['normalization'] ?? null)
                 ? $data['normalization'] : [];
+            if ($path === '/mask-review') {
+                foreach (['review_edit_rejected', 'job_id', 'source_sha256', 'revision'] as $key) { unset($diagnostics[$key]); }
+            }
             foreach (['mask_mode_requested', 'mask_method', 'processor_version', 'worker_error'] as $key) {
                 if (array_key_exists($key, $data)) {
+                    $diagnostics[$key] = $data[$key];
+                }
+            }
+            // Only this complete, endpoint-specific proof licenses dropping a
+            // queued journal. Transport errors and generic HTTP failures may
+            // have occurred after the worker committed its revision.
+            if ($path === '/mask-review' && $status === 400 && ($data['review_edit_rejected'] ?? null) === true
+                && is_string($data['job_id'] ?? null) && preg_match('/^[a-f0-9]{32}$/D', $data['job_id']) === 1
+                && is_string($data['source_sha256'] ?? null) && preg_match('/^[a-f0-9]{64}$/D', $data['source_sha256']) === 1
+                && is_int($data['revision'] ?? null) && $data['revision'] >= 0 && $data['revision'] <= 32) {
+                foreach (['review_edit_rejected', 'job_id', 'source_sha256', 'revision'] as $key) {
                     $diagnostics[$key] = $data[$key];
                 }
             }
