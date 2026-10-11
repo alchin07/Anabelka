@@ -441,6 +441,7 @@
 .product-editor-body {
     min-height: 0;
     display: grid;
+    align-content: start;
     gap: 11px;
     flex: 1;
     overflow-y: auto;
@@ -451,9 +452,10 @@
 .product-form-section {
     margin: 0;
     padding: 14px;
-    border: 1px solid var(--product-admin-border);
+    border: 1px solid #eadcf7;
     border-radius: 14px;
     background: #fff;
+    color: #20202a;
 }
 
 details.product-form-section > summary {
@@ -461,36 +463,53 @@ details.product-form-section > summary {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+    min-height: 72px;
     margin: -14px;
     padding: 14px;
     cursor: pointer;
     list-style: none;
+    border-radius: inherit;
+    touch-action: manipulation;
 }
 
 details.product-form-section > summary::-webkit-details-marker {
     display: none;
 }
 
-details.product-form-section > summary::after {
-    content: "+";
-    width: 25px;
-    height: 25px;
+details.product-form-section > summary:focus-visible {
+    outline: 3px solid #8A2BE2;
+    outline-offset: 3px;
+}
+
+.product-section-toggle {
+    width: 44px;
+    height: 44px;
     display: grid;
     place-items: center;
     flex: 0 0 auto;
     border-radius: 8px;
-    background: var(--product-admin-soft);
-    color: var(--product-admin-purple);
-    font-size: 18px;
+    border: 1px solid #eadcf7;
+    background: #f4eaff;
+    color: #8A2BE2;
+    font-size: 25px;
+    line-height: 1;
 }
 
-details.product-form-section[open] > summary::after {
+.product-section-toggle::before {
+    content: "+";
+}
+
+details.product-form-section[open] > summary .product-section-toggle::before {
     content: "−";
 }
 
-details.product-form-section > summary > span,
+details.product-form-section > summary > span:first-child,
 .product-section-heading > span {
-    font-weight: 850;
+    min-width: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
 }
 
 details.product-form-section > summary small {
@@ -509,6 +528,7 @@ details.product-form-section > summary small {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    flex-wrap: wrap;
     margin-bottom: 13px;
 }
 

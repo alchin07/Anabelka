@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=13">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=14">
 </head>
 <body>
 
@@ -409,10 +409,11 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
                 </section>
 
-                <details class="product-form-section" open>
+                <details class="product-form-section">
                     <summary>
                         <span>Ціни</span>
                         <small>Основна, стара та персональні</small>
+                        <span class="product-section-toggle" aria-hidden="true"></span>
                     </summary>
 
                     <div class="product-form-grid product-details-content">
@@ -445,10 +446,11 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
                 </details>
 
-                <details class="product-form-section" open>
+                <details class="product-form-section">
                     <summary>
                         <span>Залишки та розміри</span>
                         <small>Загальний склад або окремо за розмірами</small>
+                        <span class="product-section-toggle" aria-hidden="true"></span>
                     </summary>
 
                     <div class="product-details-content">
@@ -485,10 +487,11 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
                 </details>
 
-                <details class="product-form-section" open data-product-colors-section>
+                <details class="product-form-section" data-product-colors-section>
                     <summary>
                         <span>Кольори</span>
                         <small>Не залежать від фотографій</small>
+                        <span class="product-section-toggle" aria-hidden="true"></span>
                     </summary>
 
                     <div class="product-details-content">
@@ -519,6 +522,7 @@ require __DIR__ . '/../../partials/header.php';
                     <summary>
                         <span>Матеріал</span>
                         <small>Склад для сторінки товару</small>
+                        <span class="product-section-toggle" aria-hidden="true"></span>
                     </summary>
 
                     <div class="product-form-grid product-details-content">
@@ -535,10 +539,11 @@ require __DIR__ . '/../../partials/header.php';
                     </div>
                 </details>
 
-                <details class="product-form-section" open>
+                <details class="product-form-section">
                     <summary>
                         <span>Фотографії</span>
                         <small>Головне фото та перемикання кольорів</small>
+                        <span class="product-section-toggle" aria-hidden="true"></span>
                     </summary>
 
                     <div class="product-details-content">
@@ -569,6 +574,7 @@ require __DIR__ . '/../../partials/header.php';
                     <summary>
                         <span>Виробник</span>
                         <small>Необов’язкові дані</small>
+                        <span class="product-section-toggle" aria-hidden="true"></span>
                     </summary>
 
                     <div class="product-form-grid product-details-content">
@@ -588,6 +594,7 @@ require __DIR__ . '/../../partials/header.php';
                     <summary>
                         <span>Переклади</span>
                         <small>ШІ-переклад і ручна перевірка</small>
+                        <span class="product-section-toggle" aria-hidden="true"></span>
                     </summary>
 
                     <div class="product-details-content">
@@ -809,7 +816,7 @@ require __DIR__ . '/../../partials/header.php';
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message" role="status"></div>
-<script src="/Anabelka/js/admin-products.js?v=26"></script>
+<script src="/Anabelka/js/admin-products.js?v=27"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>

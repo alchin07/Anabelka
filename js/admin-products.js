@@ -168,6 +168,36 @@
     }
 
 
+    function revealEditorField(input)
+    {
+        let parent = input && input.parentElement;
+
+        while (parent && parent !== form) {
+            if (parent.tagName === 'DETAILS') {
+                parent.open = true;
+            }
+            parent = parent.parentElement;
+        }
+    }
+
+
+    function focusRequestedEditorField(input)
+    {
+        if (!input) {
+            return;
+        }
+
+        input.scrollIntoView({ block: 'center' });
+        const policy = window.AdminUiFocusPolicy;
+
+        if (policy && typeof policy.focusRequestedField === 'function') {
+            policy.focusRequestedField(input);
+        } else {
+            input.focus();
+        }
+    }
+
+
     function imageActionIcon(name)
     {
         const paths = {
@@ -1347,13 +1377,7 @@
             return;
         }
 
-        const details = duplicate.input.closest(
-            'details.product-form-section'
-        );
-
-        if (details) {
-            details.open = true;
-        }
+        revealEditorField(duplicate.input);
 
         showMessage(
             'Розмір «'
@@ -1362,11 +1386,7 @@
         );
 
         window.setTimeout(function () {
-            duplicate.input.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
-            duplicate.input.focus();
+            focusRequestedEditorField(duplicate.input);
             duplicate.input.select();
         }, 30);
     }
@@ -1432,13 +1452,7 @@
             );
         }
 
-        const details = fields.sizeList.closest(
-            'details.product-form-section'
-        );
-
-        if (details) {
-            details.open = true;
-        }
+        revealEditorField(input || fields.sizeList);
 
         showMessage(
             message
@@ -1450,8 +1464,7 @@
                 return;
             }
 
-            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            input.focus();
+            focusRequestedEditorField(input);
         }, 30);
     }
 
@@ -2119,7 +2132,7 @@
             return;
         }
 
-        fields.translationDetails.open = true;
+        revealEditorField(section);
         section.classList.add('is-translation-focus');
         const name = section.querySelector('.product-translation-name');
         const description = section.querySelector(
@@ -2133,7 +2146,7 @@
             section.scrollIntoView({ block: 'center' });
 
             if (target) {
-                target.focus();
+                focusRequestedEditorField(target);
             }
         }, 80);
     }
@@ -2205,11 +2218,7 @@
         updateStockMode();
 
         form.querySelectorAll('details.product-form-section').forEach(function (details) {
-            details.open = details.hasAttribute('data-translation-details')
-                ? false
-                : details.querySelector('[data-total-stock-field]') !== null
-                    || details.querySelector('#product-image-list') !== null
-                    || details.querySelector('#product-edit-price') !== null;
+            details.open = false;
         });
 
         editor.hidden = false;
@@ -2506,6 +2515,39 @@
             }
         });
     });
+
+    let validationFocusPending = false;
+
+    form.addEventListener('invalid', function (event) {
+        if (editor.hidden) {
+            return;
+        }
+
+        // The browser validates before submit; reveal the field before focus.
+        event.preventDefault();
+
+        if (validationFocusPending) {
+            return;
+        }
+
+        const input = event.target;
+        validationFocusPending = true;
+        revealEditorField(input);
+        const label = input.closest('label');
+        const caption = label && label.querySelector('span');
+        const message = input.validity.valueMissing
+            ? 'Заповніть це поле.'
+            : input.validationMessage;
+        showMessage((caption ? caption.textContent.trim() + ': ' : '') + message);
+
+        window.setTimeout(function () {
+            validationFocusPending = false;
+
+            if (!editor.hidden && input.isConnected) {
+                focusRequestedEditorField(input);
+            }
+        }, 30);
+    }, true);
 
     form.addEventListener('submit', async function (event) {
         event.preventDefault();

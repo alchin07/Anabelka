@@ -17,8 +17,11 @@ assert.match(
     /\$image\['processing'\]\s*=/
 );
 
-assert.match(view, /admin-products\.css\?v=13/);
-assert.match(view, /admin-products\.js\?v=26/);
+for (const extension of ['css', 'js']) {
+    const resource = view.match(new RegExp(`/Anabelka/${extension}/admin-products\\.${extension}\\?v=([0-9]+)`));
+    assert.ok(resource && Number(resource[1]) > 0, 'The editor resource has a cache version.');
+    assert.ok(fs.existsSync(`${extension}/admin-products.${extension}`), 'The editor resource exists.');
+}
 
 assert.match(script, /data-product-image-process/);
 assert.match(
