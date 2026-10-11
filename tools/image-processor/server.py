@@ -2248,6 +2248,34 @@ def build_undetected_seed_mask(image: Image.Image) -> np.ndarray | None:
     return seed
 
 
+def _closeup_corner_has_bounded_illumination(patch: np.ndarray) -> bool:
+    """Corroborate a near-uniform top sample without treating texture as light."""
+    samples = patch.reshape(-1, 3)
+    # At most one extra 8-bit code value per RGB channel after resampling.
+    # This bound alone is insufficient: require a smooth achromatic trend
+    # and keep the original residual-spread limit after removing that trend.
+    limit = 4 + np.sqrt(3)
+    if np.percentile(np.linalg.norm(samples - np.median(samples, axis=0), axis=1), 90) > limit:
+        return False
+    adjacent = np.concatenate((np.linalg.norm(np.diff(patch, axis=0), axis=2).ravel(),
+                               np.linalg.norm(np.diff(patch, axis=1), axis=2).ravel()))
+    if np.percentile(adjacent, 99) > limit:
+        return False  # abrupt two-tone edges, including slanted ones
+    # Suppress isolated quantization noise only for this additional check.
+    # A coherent small step can fit a plane yet remains an edge after filtering.
+    denoised = cv2.medianBlur(patch.astype(np.uint8), 3).astype(np.float32)
+    if any(np.max(np.linalg.norm(np.diff(denoised, axis=axis), axis=2)) > 4
+           for axis in (0, 1)):
+        return False
+    height, width = patch.shape[:2]
+    x, y = np.meshgrid(np.linspace(-1, 1, width), np.linspace(-1, 1, height))
+    design = np.column_stack((np.ones(x.size), x.ravel(), y.ravel()))
+    illumination = design @ np.linalg.lstsq(design, samples.mean(axis=1), rcond=None)[0]
+    corrected = samples - illumination[:, None]  # same change in all RGB channels
+    residual = corrected - np.median(corrected, axis=0)
+    return bool(np.percentile(np.linalg.norm(residual, axis=1), 90) <= 4)
+
+
 def build_closeup_validation_seed_mask(image: Image.Image) -> np.ndarray | None:
     """Source evidence for a ready MODNet mask, never GrabCut training labels.
 
@@ -2266,6 +2294,11 @@ def build_closeup_validation_seed_mask(image: Image.Image) -> np.ndarray | None:
     centers = [np.median(patch, axis=0) for patch in patches]
     uniform = [float(np.percentile(np.linalg.norm(patch - center, axis=1), 90)) <= 4
                for patch, center in zip(patches, centers)]
+    # Validation-only top corroboration; lower ownership and GrabCut's strict
+    # samples keep their original rules. No source pixels or alpha are changed.
+    for index in (0, 1):
+        if not uniform[index]:
+            uniform[index] = _closeup_corner_has_bounded_illumination(pixels[corners[index]])
     chroma = np.stack((pixels[:, :, 0] - pixels[:, :, 1],
                        pixels[:, :, 1] - pixels[:, :, 2]), axis=2)
     center_chroma = [np.array((c[0] - c[1], c[1] - c[2])) for c in centers]
