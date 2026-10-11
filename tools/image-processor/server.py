@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import hashlib
+import errno
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import threading
@@ -47,6 +49,9 @@ SOURCE_ROOT = (PROJECT_ROOT / "uploads" / "products").resolve()
 WORK_ROOT = (PROJECT_ROOT / "storage" / "image-processor").resolve()
 ORIGINAL_ROOT = WORK_ROOT / "originals"
 REVIEW_ROOT = WORK_ROOT / "reviews"
+# Persistent native storage: Android's /storage/emulated/0 does not support flock.
+# All workers use this namespace, including platforms where project flock works.
+REVIEW_LOCK_ROOT = Path.home() / ".anabelka-image-processor-locks"
 REVIEW_TTL_SECONDS = 1800
 MAX_REVIEW_JOBS = 24
 MAX_ACTIVE_REQUESTS = 2
@@ -5351,39 +5356,98 @@ def review_metadata_write(directory: Path, metadata: dict[str, Any]) -> None:
     os.replace(temporary, directory / "metadata.json")
 
 
-@contextmanager
-def private_file_lock(handle, *, blocking: bool = True):
-    acquired = False
+def private_lock_path(logical_path: Path) -> Path:
+    namespace = hashlib.sha256(os.fsencode(os.path.normcase(str(REVIEW_ROOT.resolve())))).hexdigest()
+    logical = os.path.normcase(str(Path(logical_path).resolve()))
+    name = ("jobs" if logical == os.path.normcase(str((REVIEW_ROOT / "jobs.lock").resolve()))
+            else "review-" + str(int.from_bytes(hashlib.sha256(os.fsencode(logical)).digest()[:2], "big") % 256))
+    return REVIEW_LOCK_ROOT / namespace / (name + ".lock")
+
+
+def private_lock_validate(path: Path, fd: int) -> None:
+    info = os.fstat(fd)
+    current = path.lstat()
+    if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or path.is_symlink()
+            or (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino)
+            or (os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077))):
+        raise ValueError("Некоректний файл блокування маски.")
+
+
+def private_lock_open(logical_path: Path):
+    path = private_lock_path(logical_path)
+    # Do not silently select a second backend/directory if this one is unavailable.
+    for directory in (REVIEW_LOCK_ROOT, path.parent):
+        directory.mkdir(mode=0o700, exist_ok=True)
+        info = directory.lstat()
+        if (not stat.S_ISDIR(info.st_mode) or directory.is_symlink()
+                or (os.name != "nt" and (info.st_uid != os.getuid() or info.st_mode & 0o077))):
+            raise ValueError("Некоректний приватний каталог блокувань маски.")
+    if REVIEW_LOCK_ROOT.resolve().is_relative_to(PROJECT_ROOT.resolve()):
+        raise ValueError("Каталог блокувань має бути поза файловою системою проєкту.")
+    if path.is_symlink():
+        raise ValueError("Некоректний файл блокування маски.")
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
+        private_lock_validate(path, fd)
+        return os.fdopen(fd, "r+b")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+@contextmanager
+def private_file_lock(logical_path: Path, *, blocking: bool = True):
+    """Stable kernel lock; never unlink it, reclaim by age, or fall back unprotected."""
+    if _fcntl is None and _msvcrt is None:
+        raise ValueError("Системне блокування сеансів маски недоступне.")
+    acquired = False
+    handle = None
+    try:
+        handle = private_lock_open(logical_path)
         if _fcntl is not None:
             try:
                 _fcntl.flock(handle.fileno(), _fcntl.LOCK_EX | (0 if blocking else _fcntl.LOCK_NB))
                 acquired = True
-            except (BlockingIOError, PermissionError):
+            except OSError as error:
+                if error.errno not in (errno.EAGAIN, errno.EACCES):
+                    raise
                 if blocking:
-                    raise ValueError("Сеанс маски зайнятий іншим запитом.")
-        elif _msvcrt is not None:
-            handle.seek(0, os.SEEK_END)
-            if handle.tell() == 0:
-                handle.write(b"0")
-                handle.flush()
+                    raise ValueError("Сеанс маски зайнятий іншим запитом.") from error
+        else:
+            # CRT supports locking beyond EOF. No write before lock acquisition.
             handle.seek(0)
             try:
                 _msvcrt.locking(handle.fileno(), _msvcrt.LK_LOCK if blocking else _msvcrt.LK_NBLCK, 1)
                 acquired = True
-            except OSError:
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                    raise
                 if blocking:
-                    raise ValueError("Сеанс маски зайнятий іншим запитом.")
-        else:
-            raise ValueError("Системне блокування сеансів маски недоступне.")
+                    raise ValueError("Сеанс маски зайнятий іншим запитом.") from error
+        if acquired:
+            # A waiter must not enter if someone replaced/unlinked its inode.
+            private_lock_validate(private_lock_path(logical_path), handle.fileno())
+    except OSError as error:
+        if handle is not None:
+            handle.close()
+        raise ValueError("Безпечне системне блокування маски недоступне (errno="
+                         + str(error.errno) + ").") from error
+    except BaseException:
+        if handle is not None:
+            handle.close()
+        raise
+    try:
         yield acquired
     finally:
-        if acquired:
-            if _fcntl is not None:
-                _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
-            else:
-                handle.seek(0)
-                _msvcrt.locking(handle.fileno(), _msvcrt.LK_UNLCK, 1)
+        try:
+            if acquired:
+                if _fcntl is not None:
+                    _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+                else:
+                    handle.seek(0)
+                    _msvcrt.locking(handle.fileno(), _msvcrt.LK_UNLCK, 1)
+        finally:
+            handle.close()
 
 
 def safe_review_directory(directory: Path) -> bool:
@@ -5403,28 +5467,33 @@ def cleanup_expired_mask_reviews() -> None:
         lock_path = directory / "review.lock"
         if lock_path.is_symlink():
             continue
-        removed = False
         try:
-            with lock_path.open("a+b") as handle, private_file_lock(handle, blocking=False) as acquired:
+            with private_file_lock(lock_path, blocking=False) as acquired:
                 if not acquired:
+                    continue
+                if not safe_review_directory(directory):
                     continue
                 metadata_path = directory / "metadata.json"
                 created = directory.stat().st_mtime
                 if metadata_path.is_file() and not metadata_path.is_symlink() and metadata_path.stat().st_size <= MAX_JSON_BYTES * 4:
                     try:
                         metadata = json.loads(metadata_path.read_text("utf-8"))
+                        if not isinstance(metadata, dict):
+                            continue
                         value = metadata.get("created_at")
                         if isinstance(value, (int, float)) and not isinstance(value, bool) and np.isfinite(value):
                             created = value
                     except (ValueError, TypeError):
                         pass
                 claim_path = directory / "php-owner.json"
-                if claim_path.exists():
+                if claim_path.exists() or claim_path.is_symlink():
                     # Unknown ownership is protected; PHP alone resolves malformed claims.
                     if claim_path.is_symlink() or claim_path.stat().st_size > 2048:
                         continue
                     try:
                         claim = json.loads(claim_path.read_text("utf-8"))
+                        if not isinstance(claim, dict):
+                            continue
                         expires = claim.get("expires_at")
                         if (not isinstance(claim.get("preview_id"), str)
                                 or re.fullmatch(r"[a-f0-9]{64}", claim["preview_id"]) is None
@@ -5436,17 +5505,8 @@ def cleanup_expired_mask_reviews() -> None:
                         continue
                 if now - created <= REVIEW_TTL_SECONDS:
                     continue
-                # Keep the open lock file until release for Windows portability.
-                for child in directory.iterdir():
-                    if child.name == "review.lock":
-                        continue
-                    if child.is_dir() and not child.is_symlink():
-                        shutil.rmtree(child)
-                    else:
-                        child.unlink()
-                removed = True
-            if removed and safe_review_directory(directory):
-                shutil.rmtree(directory, ignore_errors=True)
+                # The persistent native lock is outside this tree, including on Windows.
+                shutil.rmtree(directory)
         except OSError:
             # Another cleanup may already have removed the expired directory.
             continue
@@ -5464,9 +5524,56 @@ def review_public(metadata: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def discard_mask_review(payload: dict[str, Any]) -> dict[str, Any]:
+    """Delete exactly the PHP-owned temporary review, never ongoing worker data."""
+    job_id, preview_id = payload.get("job_id"), payload.get("preview_id")
+    if (not isinstance(job_id, str) or re.fullmatch(r"[a-f0-9]{32}", job_id) is None
+            or not isinstance(preview_id, str) or re.fullmatch(r"[a-f0-9]{64}", preview_id) is None):
+        raise ValueError("Некоректний власник сеансу маски.")
+    directory = REVIEW_ROOT / job_id
+    with private_file_lock(directory / "review.lock", blocking=False) as acquired:
+        if not acquired:
+            return {"ok": True, "removed": False}
+        if directory.is_symlink():
+            raise ValueError("Некоректний сеанс перевірки маски.")
+        if not directory.exists():
+            return {"ok": True, "removed": True}
+        if not safe_review_directory(directory):
+            raise ValueError("Некоректний сеанс перевірки маски.")
+        claim_path = directory / "php-owner.json"
+        if claim_path.is_symlink() or not claim_path.is_file() or claim_path.stat().st_size > 2048:
+            raise ValueError("Власник сеансу маски не підтверджений.")
+        claim = json.loads(claim_path.read_text("utf-8"))
+        if not isinstance(claim, dict) or claim.get("preview_id") != preview_id:
+            raise ValueError("Сеанс маски належить іншій пробі.")
+        # Preserve the ownership proof until removal completes so an I/O error
+        # never makes a still-owned tree look like an unclaimed orphan.
+        for child in directory.iterdir():
+            if child.name == "php-owner.json":
+                continue
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+        claim_path.unlink()
+        directory.rmdir()
+        return {"ok": True, "removed": True}
+
+
 def create_mask_review(job_id: str, original: Path, image: Image.Image,
                        capture: dict[str, Any], normalization: dict[str, Any],
                        source_value: str) -> dict[str, Any]:
+    if not isinstance(job_id, str) or re.fullmatch(r"[a-f0-9]{32}", job_id) is None:
+        raise ValueError("Некоректний сеанс перевірки маски.")
+    # Includes directory reservation, writes and exception cleanup; a stalled creator
+    # must never look like an expired orphan to a different worker's sweep.
+    with private_file_lock(REVIEW_ROOT / job_id / "review.lock"):
+        return create_locked_mask_review(job_id, original, image, capture, normalization, source_value)
+
+
+def create_locked_mask_review(job_id: str, original: Path, image: Image.Image,
+                              capture: dict[str, Any], normalization: dict[str, Any],
+                              source_value: str) -> dict[str, Any]:
     if max(image.size) > MAX_SOURCE_EDGE or image.width * image.height > MAX_SOURCE_PIXELS:
         raise ValueError("Фотографія завелика для редактора маски.")
     alpha = capture.get("alpha")
@@ -5476,7 +5583,7 @@ def create_mask_review(job_id: str, original: Path, image: Image.Image,
     registry = REVIEW_ROOT / "jobs.lock"
     if registry.is_symlink():
         raise ValueError("Некоректне блокування сеансів маски.")
-    with registry.open("a+b") as handle, private_file_lock(handle):
+    with private_file_lock(registry):
         cleanup_expired_mask_reviews()
         # Include unclaimed jobs in the quota, so a lost HTTP response cannot leak unbounded masks.
         if sum(safe_review_directory(path) for path in REVIEW_ROOT.iterdir()) >= MAX_REVIEW_JOBS:
@@ -5528,7 +5635,9 @@ def locked_mask_review(payload: dict[str, Any]):
     lock_path = directory / "review.lock"
     if lock_path.is_symlink():
         raise ValueError("Некоректне блокування сеансу маски.")
-    with lock_path.open("a+b") as lock, private_file_lock(lock):
+    with private_file_lock(lock_path):
+            if not safe_review_directory(directory):
+                raise ValueError("Сеанс перевірки маски не знайдено.")
             metadata_path = directory / "metadata.json"
             if metadata_path.is_symlink() or metadata_path.stat().st_size > MAX_JSON_BYTES * 4:
                 raise ValueError("Некоректні дані сеансу маски.")
@@ -5810,8 +5919,11 @@ def process_image(
         shutil.rmtree(original_dir, ignore_errors=True)
         shutil.rmtree(processed_dir, ignore_errors=True)
         review_directory = REVIEW_ROOT / job_id
-        if review_created and safe_review_directory(review_directory) and not (review_directory / "php-owner.json").exists():
-            shutil.rmtree(review_directory, ignore_errors=True)
+        if review_created:
+            with private_file_lock(review_directory / "review.lock", blocking=False) as acquired:
+                if (acquired and safe_review_directory(review_directory)
+                        and not (review_directory / "php-owner.json").exists()):
+                    shutil.rmtree(review_directory, ignore_errors=True)
         raise
 
 
@@ -5885,7 +5997,7 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def do_POST(self) -> None:
-        if self.path not in ("/process", "/mask-review", "/mask-review-result", "/mask-review-preview"):
+        if self.path not in ("/process", "/mask-review", "/mask-review-result", "/mask-review-preview", "/mask-review-delete"):
             self.send_json(
                 404,
                 {"ok": False, "error": "Маршрут не знайдено."},
@@ -5926,6 +6038,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = render_mask_review(payload)
             elif self.path == "/mask-review-preview":
                 result = mask_review_preview(payload)
+            elif self.path == "/mask-review-delete":
+                result = discard_mask_review(payload)
             else:
                 result = process_image(
                     payload.get("source"), payload.get("background_profile"),

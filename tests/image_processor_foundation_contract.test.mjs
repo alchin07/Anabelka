@@ -66,7 +66,7 @@ assert.match(
 assert.match(server, /HOST = "127\.0\.0\.1"/);
 assert.doesNotMatch(server, /0\.0\.0\.0/);
 assert.match(server, /self\.path != "\/health"/);
-assert.match(server, /self\.path not in \("\/process", "\/mask-review", "\/mask-review-result", "\/mask-review-preview"\)/);
+assert.match(server, /self\.path not in \("\/process", "\/mask-review", "\/mask-review-result", "\/mask-review-preview", "\/mask-review-delete"\)/);
 assert.match(server, /SOURCE_ROOT/);
 assert.match(server, /uploads/);
 assert.match(server, /products/);

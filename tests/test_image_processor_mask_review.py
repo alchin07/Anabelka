@@ -240,10 +240,9 @@ class MaskReviewTests(unittest.TestCase):
                 (outside / 'sentinel').write_text('keep')
                 (root / 'reviews' / ('d' * 32)).symlink_to(outside, target_is_directory=True)
                 active = root / 'reviews' / ('c' * 32)
-                with (active / 'review.lock').open('a+b') as handle:
-                    with server.private_file_lock(handle):
-                        server.cleanup_expired_mask_reviews()
-                        self.assertTrue(active.is_dir())
+                with server.private_file_lock(active / 'review.lock'):
+                    server.cleanup_expired_mask_reviews()
+                    self.assertTrue(active.is_dir())
                 self.assertFalse((root / 'reviews' / ('a' * 32)).exists())
                 self.assertTrue(claimed.is_dir())
                 self.assertEqual((outside / 'sentinel').read_text(), 'keep')
@@ -275,13 +274,42 @@ class MaskReviewTests(unittest.TestCase):
         calls = []
         windows = SimpleNamespace(LK_LOCK=1, LK_NBLCK=2, LK_UNLCK=3,
                                   locking=lambda fd, mode, count: calls.append((mode, count)))
-        with tempfile.TemporaryFile('a+b') as handle:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'reviews' / 'jobs.lock'
             with patch.object(server, '_fcntl', None), patch.object(server, '_msvcrt', windows):
-                with server.private_file_lock(handle) as acquired:
+                with server.private_file_lock(path) as acquired:
                     self.assertTrue(acquired)
                 self.assertEqual(calls, [(1, 1), (3, 1)])
-                handle.seek(0)
-                self.assertEqual(handle.read(), b'0')
+                self.assertEqual(server.private_lock_path(path).read_bytes(), b'')
+
+    def test_owned_discard_skips_active_work_checks_claim_and_retries(self):
+        server = self.server()
+        self.assertTrue(hasattr(server, 'discard_mask_review'), 'owned worker cleanup is required')
+        seed, raw = self.fixture()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'photo.png'
+            image = Image.new('RGB', (100, 120), (200, 140, 100))
+            image.save(source)
+            job, token = 'a' * 32, 'b' * 64
+            with (patch.object(server, 'REVIEW_ROOT', root / 'reviews'),
+                  patch.object(server, 'REVIEW_LOCK_ROOT', root / 'native-locks')):
+                server.create_mask_review(job, source, image,
+                    {'alpha': Image.fromarray(raw), 'seed': seed,
+                     'geometry': {'crop_box': None, 'crop_strategy': 'preserve-source-frame'}}, {}, 'photo.png')
+                directory = root / 'reviews' / job
+                claim = directory / 'php-owner.json'
+                claim.write_text(json.dumps({'preview_id': token, 'expires_at': int(time.time()) + 1800}))
+                request = {'job_id': job, 'preview_id': token}
+                with self.assertRaises(ValueError):
+                    server.discard_mask_review({**request, 'preview_id': 'c' * 64})
+                with server.private_file_lock(directory / 'review.lock'):
+                    self.assertFalse(server.discard_mask_review(request)['removed'])
+                    self.assertTrue((directory / 'raw-alpha.png').is_file())
+                    self.assertTrue(claim.is_file())
+                self.assertTrue(server.discard_mask_review(request)['removed'])
+                self.assertFalse(directory.exists())
+                self.assertTrue(server.discard_mask_review(request)['removed'])
 
     def test_local_soft_foreground_repairs_only_circle_and_preserves_raw(self):
         module = self.module()

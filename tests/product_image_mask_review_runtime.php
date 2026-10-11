@@ -124,6 +124,9 @@ $mutateSource = false;
 $reviewCalls = 0;
 $corruptInitialHash = false;
 $gateRefused = false;
+$discardUnavailable = false;
+$discardBusy = false;
+$discardCalls = 0;
 $reviewProcessor = function ($source, $background, $mode, $allowReview) use ($root, $ordinary, &$states, &$qualityRejected, &$mutateSource, &$corruptInitialHash) {
     check($allowReview === true, 'preview explicitly asks for private mask review');
     $response = $qualityRejected ? ['ok'=>true,'state'=>'needs_review','job_id'=>bin2hex(random_bytes(16)),'input'=>['width'=>100,'height'=>100]] : $ordinary($source,$background,$mode);
@@ -143,7 +146,19 @@ $reviewProcessor = function ($source, $background, $mode, $allowReview) use ($ro
     if ($mutateSource) { file_put_contents($root.'/'.$source,'changed during worker'); }
     return $response;
 };
-$reviewWorker = function ($operation,$payload) use ($root,$ordinary,&$states,&$failReview,&$reviewCalls,&$gateRefused) {
+$reviewWorker = function ($operation,$payload) use ($root,$ordinary,&$states,&$failReview,&$reviewCalls,&$gateRefused,&$discardUnavailable,&$discardBusy,&$discardCalls) {
+    if ($operation==='discard') {
+       $discardCalls++;
+       if ($discardUnavailable) { throw new RuntimeException('worker unavailable'); }
+       if ($discardBusy) { return ['ok'=>true,'removed'=>false]; }
+       $dir=$root.'/storage/image-processor/reviews/'.$payload['job_id'];
+       if (!is_dir($dir)) { return ['ok'=>true,'removed'=>true]; }
+       $claim=json_decode(file_get_contents($dir.'/php-owner.json'),true);
+       if (($claim['preview_id'] ?? null)!==$payload['preview_id']) { throw new RuntimeException('different review owner'); }
+       foreach (glob($dir.'/*') ?: [] as $file) { unlink($file); }
+       rmdir($dir);
+       return ['ok'=>true,'removed'=>true];
+    }
     $reviewCalls++;
     if ($failReview) { throw new ImageProcessorException('Worker leaked /private/weights/model.onnx', ['worker_error'=>'/private/weights/model.onnx']); }
     $state=$states[$payload['job_id']];
@@ -191,6 +206,7 @@ try {
     $duplicateService=new ProductImagePreviewService($root,function() use (&$states,$job) {return $states[$job];},function() use (&$clock) {return $clock;},$reviewWorker);
     rejects(fn()=>$duplicateService->create(7,'studio-light','auto'),'worker job cannot be reused by another private session');
     check(is_file($sourcePath),'failed duplicate claim never deletes another session source');
+    check($discardCalls===0,'failed duplicate ownership claim never asks worker to delete another session');
     AdminAccess::$id=10;
     rejects(fn()=>$service->reviewEdit(7,$ready['preview_id'],1,$action),'cross-owner revisions denied');
     rejects(fn()=>$service->cancel(7,$ready['preview_id']),'cross-owner cancel denied');
@@ -239,6 +255,34 @@ try {
     $service->cancel(7,$rejected['preview_id']);
     check(!is_dir($jobDir),'cancel removes owned review artifacts');
     check(is_file($root.'/'.$accepted['master_path']),'cancel preserves accepted result');
+    $offline=$service->create(7,'studio-light','auto');
+    $offlineDir=dirname($service->reviewFile(7,$offline['preview_id'],0,'source'));
+    $offlineClaim=file_get_contents($offlineDir.'/php-owner.json');
+    $discardUnavailable=true;
+    $service->cancel(7,$offline['preview_id']);
+    check(is_file($offlineDir.'/source.png') && file_get_contents($offlineDir.'/php-owner.json')===$offlineClaim,'unavailable worker keeps owned review artifacts and ownership proof');
+    $discardUnavailable=false;
+    $service->cancel(7,$offline['preview_id']);
+    check(!is_dir($offlineDir),'cancel retries retained review deletion after worker recovers');
+    $busy=$service->create(7,'studio-light','auto');
+    $busyDir=dirname($service->reviewFile(7,$busy['preview_id'],0,'source'));
+    $busyClaim=file_get_contents($busyDir.'/php-owner.json');
+    $discardBusy=true;
+    $service->cancel(7,$busy['preview_id']);
+    check(is_file($busyDir.'/raw-alpha.png') && file_get_contents($busyDir.'/php-owner.json')===$busyClaim,'busy worker keeps in-progress review artifacts and ownership proof');
+    $discardBusy=false;
+    $service->cancel(7,$busy['preview_id']);
+    check(!is_dir($busyDir),'cancel retries review deletion after active worker releases session');
+    $mismatched=$service->create(7,'studio-light','auto');
+    $mismatchedDir=dirname($service->reviewFile(7,$mismatched['preview_id'],0,'source'));
+    $matchingClaim=file_get_contents($mismatchedDir.'/php-owner.json');
+    file_put_contents($mismatchedDir.'/php-owner.json',json_encode(['preview_id'=>str_repeat('f',64),'expires_at'=>$clock+1800]));
+    $beforeDiscardCalls=$discardCalls;
+    $service->cancel(7,$mismatched['preview_id']);
+    check(is_file($mismatchedDir.'/source.png') && $discardCalls===$beforeDiscardCalls,'mismatched ownership blocks deletion before contacting worker');
+    file_put_contents($mismatchedDir.'/php-owner.json',$matchingClaim);
+    $service->cancel(7,$mismatched['preview_id']);
+    check(!is_dir($mismatchedDir),'owned deletion can retry after ownership proof is restored');
     $expired=$service->create(7,'studio-light','auto');
     $clock+=1801;
     rejects(fn()=>$service->reviewFile(7,$expired['preview_id'],0,'source'),'expired review denied');

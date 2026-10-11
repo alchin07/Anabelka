@@ -19,7 +19,7 @@ class ProductImagePreviewService
         $this->processor = $processor ?? [ImageProcessorClient::class, 'processProductImage'];
         $this->clock = $clock ?? 'time';
         $this->reviewWorker = $reviewWorker ?? function ($operation, array $payload) {
-            $methods = ['revise' => 'reviseMask', 'result' => 'renderMask', 'asset' => 'maskAsset'];
+            $methods = ['revise' => 'reviseMask', 'result' => 'renderMask', 'asset' => 'maskAsset', 'discard' => 'discardMask'];
             return call_user_func([ImageProcessorClient::class, $methods[$operation]], $payload);
         };
     }
@@ -747,17 +747,13 @@ class ProductImagePreviewService
     {
         if (!is_array($review) || empty($review['preview_id'])) { return; }
         try { $this->verifyReviewClaim($review); } catch (Throwable $e) { return; }
-        $directory = $this->root . '/' . rtrim($this->reviewPrefix($review), '/');
-        if (!is_dir($directory) || is_link($directory) || realpath($directory) !== $directory) { return; }
-        $claim = $directory . '/php-owner.json';
-        foreach (glob($directory . '/*') ?: [] as $file) {
-            if ($file !== $claim && (is_file($file) || is_link($file)) && dirname($file) === $directory) { @unlink($file); }
-        }
-        // Keep the ownership proof until every other temporary file is gone so failed cleanup can be retried.
-        $remaining = array_values(array_filter(glob($directory . '/*') ?: [], function ($file) use ($claim) { return $file !== $claim; }));
-        if ($remaining) { return; }
-        @unlink($claim);
-        @rmdir($directory);
+        // A timed-out HTTP request may still hold the worker's review lock.
+        // The worker alone deletes under that lock; failed/busy deletion retains the claim for TTL cleanup.
+        try {
+            call_user_func($this->reviewWorker, 'discard', [
+                'job_id' => $review['job_id'], 'preview_id' => $review['preview_id']
+            ]);
+        } catch (Throwable $e) { return; }
     }
 
     private function owner()

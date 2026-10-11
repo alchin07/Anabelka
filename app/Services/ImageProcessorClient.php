@@ -76,6 +76,11 @@ class ImageProcessorClient
         return self::request('POST', '/mask-review-preview', $payload, 30);
     }
 
+    public static function discardMask(array $payload)
+    {
+        return self::request('POST', '/mask-review-delete', $payload, 5);
+    }
+
 
     private static function request(
         $method,
