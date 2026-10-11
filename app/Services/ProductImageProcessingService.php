@@ -9,7 +9,7 @@ class ProductImageProcessingService
     ) {
         // Legacy clients accept immediately, through the same safe publication path.
         $service = new ProductImagePreviewService();
-        $preview = $service->create($imageId, $backgroundProfile, $maskMode);
+        $preview = $service->create($imageId, $backgroundProfile, $maskMode, false);
         return $service->confirm($imageId, $preview['preview_id']);
     }
 

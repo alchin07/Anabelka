@@ -367,7 +367,7 @@ class AdminAccess
             $path = '/';
         }
 
-        if ($path === '/admin/products/image-process-preview-file') {
+        if ($path === '/admin/products/image-process-preview-file' || $path === '/admin/products/image-process-mask-file') {
             return 'products.manage';
         }
 

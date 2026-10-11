@@ -151,6 +151,8 @@ async function harness(t, width = 390, height = 640) {
     });
     await page.goto(origin + '/Anabelka/admin/products');
     await page.locator('[data-product-edit]').click();
+    // A new editor starts with photo settings collapsed; follow the user's flow.
+    await page.locator('.product-form-section > summary').click();
     await page.locator('.product-image-manage').first().waitFor();
     const first = selector => page.locator('.product-image-manage').first().locator(selector);
     return {

@@ -4,9 +4,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -21,6 +23,16 @@ import PIL
 from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 
 from mp_persondet import MPPersonDet
+from mask_review import MAX_SOURCE_EDGE, MAX_SOURCE_PIXELS, revise_alpha, validate_alpha
+
+try:
+    import fcntl as _fcntl
+except ImportError:  # Windows 11 KSWEB/native-Python installation.
+    _fcntl = None
+try:
+    import msvcrt as _msvcrt
+except ImportError:
+    _msvcrt = None
 
 
 HOST = "127.0.0.1"
@@ -34,6 +46,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = (PROJECT_ROOT / "uploads" / "products").resolve()
 WORK_ROOT = (PROJECT_ROOT / "storage" / "image-processor").resolve()
 ORIGINAL_ROOT = WORK_ROOT / "originals"
+REVIEW_ROOT = WORK_ROOT / "reviews"
+REVIEW_TTL_SECONDS = 1800
+MAX_REVIEW_JOBS = 24
+MAX_ACTIVE_REQUESTS = 2
+_request_slots = threading.BoundedSemaphore(MAX_ACTIVE_REQUESTS)
 PROCESSED_ROOT = (SOURCE_ROOT / "processed").resolve()
 
 MASTER_SIZE = (1200, 1800)
@@ -4295,6 +4312,7 @@ def custom_background_master(
     *,
     mask_mode: str = "auto",
     diagnostics: dict[str, Any] | None = None,
+    review_capture: dict[str, Any] | None = None,
     timings: dict[str, Any],
 ) -> tuple[Image.Image, float, str] | None:
     mask_mode = normalize_mask_mode(mask_mode)
@@ -4324,8 +4342,18 @@ def custom_background_master(
     foreground_ratio = None
     modnet_applied = False
     modnet_attempted = False
+    if review_capture is not None:
+        review_capture["geometry"] = {
+            "bbox": list(bbox) if bbox is not None else None,
+            "crop_box": list(crop_box) if crop_box is not None else None,
+            "crop_strategy": crop_strategy, "zoom_scale": zoom_scale,
+            "torso_center": list(torso_center) if torso_center is not None else None,
+            "shoulder_center": list(shoulder_center) if shoulder_center is not None else None,
+        }
 
     def checked_subject(result, method):
+        if result is not None and review_capture is not None:
+            review_capture.update(alpha=result[0].getchannel("A").copy(), mask_method=method)
         if result is None or bbox is not None:
             return result
         quality: dict[str, Any] = {}
@@ -4336,7 +4364,21 @@ def custom_background_master(
                              allow_closeup_evidence=method == "modnet"):
             if diagnostics is not None:
                 diagnostics["failure_reason"] = "mask_quality_rejected"
+            if review_capture is not None:
+                review_capture["quality_reason"] = quality.get("reason", "invalid_alpha")
+                probe = flattened_rgb(image).copy()
+                probe.thumbnail((512, 512), Image.Resampling.BILINEAR)
+                review_capture["seed"] = (build_closeup_validation_seed_mask(probe)
+                    if quality.get("source_evidence") == "closeup_corner_samples"
+                    else build_undetected_seed_mask(probe))
             return None
+        if review_capture is not None:
+            review_capture.pop("quality_reason", None)
+            probe = flattened_rgb(image).copy()
+            probe.thumbnail((512, 512), Image.Resampling.BILINEAR)
+            review_capture["seed"] = (build_closeup_validation_seed_mask(probe)
+                if quality.get("source_evidence") == "closeup_corner_samples"
+                else build_undetected_seed_mask(probe))
         if diagnostics is not None:
             diagnostics.pop("failure_reason", None)
         return (result[0], quality["actual_foreground_ratio"], *result[2:])
@@ -4513,6 +4555,10 @@ def custom_background_master(
                     diagnostics.update(fallback_status="error", fallback_reason=stage + "_error",
                                        worker_error=("fallback-check:" + type(error).__name__ + ":" + str(error))[:200])
 
+    if review_capture is not None:
+        review_capture.update(alpha=subject.getchannel("A").copy(),
+                              mask_method="modnet" if modnet_applied else "opencv-grabcut")
+        review_capture.pop("quality_reason", None)
     if (
         crop_strategy == "torso-zoom-out"
         and zoom_scale is not None
@@ -4903,6 +4949,7 @@ def normalized_master(
     source_path: Path | None = None,
     *,
     mask_mode: str = "auto",
+    review_capture: dict[str, Any] | None = None,
     timings: dict[str, Any],
 ) -> tuple[Image.Image, dict[str, Any]]:
     background_profile = normalize_background_profile(
@@ -4969,7 +5016,8 @@ def normalized_master(
             try:
                 result = measured_call(timings, "custom_background", custom_background_master,
                     image, None, None, "preserve-source-frame", None, None, None,
-                    background_profile, source_path, mask_mode=mask_mode, diagnostics=selection)
+                    background_profile, source_path, mask_mode=mask_mode, diagnostics=selection,
+                    **({"review_capture": review_capture} if review_capture is not None else {}))
             except MaskProcessingError as error:
                 diagnostics.update(reason_code=error.reason, worker_error=selection.get("worker_error", ""),
                                    background_fallback=False)
@@ -5166,6 +5214,7 @@ def normalized_master(
                 source_path,
                 mask_mode=mask_mode,
                 diagnostics=mask_selection,
+                **({"review_capture": review_capture} if review_capture is not None else {}),
             )
         except MaskProcessingError as error:
             diagnostics["worker_error"] = mask_selection.get("worker_error", "")
@@ -5287,12 +5336,363 @@ def save_webp(image: Image.Image, target: Path, quality: int) -> None:
     )
 
 
+def review_source_seed(image: Image.Image) -> np.ndarray | None:
+    probe = flattened_rgb(image).copy()
+    probe.thumbnail((512, 512), Image.Resampling.BILINEAR)
+    seed = build_undetected_seed_mask(probe)
+    if seed is None:
+        seed = build_closeup_validation_seed_mask(probe)
+    return seed
+
+
+def review_metadata_write(directory: Path, metadata: dict[str, Any]) -> None:
+    temporary = directory / ("metadata-" + uuid.uuid4().hex + ".tmp")
+    temporary.write_bytes(json_bytes(metadata))
+    os.replace(temporary, directory / "metadata.json")
+
+
+@contextmanager
+def private_file_lock(handle, *, blocking: bool = True):
+    acquired = False
+    try:
+        if _fcntl is not None:
+            try:
+                _fcntl.flock(handle.fileno(), _fcntl.LOCK_EX | (0 if blocking else _fcntl.LOCK_NB))
+                acquired = True
+            except (BlockingIOError, PermissionError):
+                if blocking:
+                    raise ValueError("Сеанс маски зайнятий іншим запитом.")
+        elif _msvcrt is not None:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"0")
+                handle.flush()
+            handle.seek(0)
+            try:
+                _msvcrt.locking(handle.fileno(), _msvcrt.LK_LOCK if blocking else _msvcrt.LK_NBLCK, 1)
+                acquired = True
+            except OSError:
+                if blocking:
+                    raise ValueError("Сеанс маски зайнятий іншим запитом.")
+        else:
+            raise ValueError("Системне блокування сеансів маски недоступне.")
+        yield acquired
+    finally:
+        if acquired:
+            if _fcntl is not None:
+                _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+            else:
+                handle.seek(0)
+                _msvcrt.locking(handle.fileno(), _msvcrt.LK_UNLCK, 1)
+
+
+def safe_review_directory(directory: Path) -> bool:
+    return (re.fullmatch(r"[a-f0-9]{32}", directory.name) is not None
+            and not directory.is_symlink() and directory.is_dir()
+            and directory.resolve().parent == REVIEW_ROOT.resolve())
+
+
+def cleanup_expired_mask_reviews() -> None:
+    """Bound orphan storage without deleting claimed or in-progress sessions."""
+    if not REVIEW_ROOT.is_dir():
+        return
+    now = time.time()
+    for directory in REVIEW_ROOT.iterdir():
+        if not safe_review_directory(directory):
+            continue
+        lock_path = directory / "review.lock"
+        if lock_path.is_symlink():
+            continue
+        removed = False
+        try:
+            with lock_path.open("a+b") as handle, private_file_lock(handle, blocking=False) as acquired:
+                if not acquired:
+                    continue
+                metadata_path = directory / "metadata.json"
+                created = directory.stat().st_mtime
+                if metadata_path.is_file() and not metadata_path.is_symlink() and metadata_path.stat().st_size <= MAX_JSON_BYTES * 4:
+                    try:
+                        metadata = json.loads(metadata_path.read_text("utf-8"))
+                        value = metadata.get("created_at")
+                        if isinstance(value, (int, float)) and not isinstance(value, bool) and np.isfinite(value):
+                            created = value
+                    except (ValueError, TypeError):
+                        pass
+                claim_path = directory / "php-owner.json"
+                if claim_path.exists():
+                    # Unknown ownership is protected; PHP alone resolves malformed claims.
+                    if claim_path.is_symlink() or claim_path.stat().st_size > 2048:
+                        continue
+                    try:
+                        claim = json.loads(claim_path.read_text("utf-8"))
+                        expires = claim.get("expires_at")
+                        if (not isinstance(claim.get("preview_id"), str)
+                                or re.fullmatch(r"[a-f0-9]{64}", claim["preview_id"]) is None
+                                or not isinstance(expires, int) or isinstance(expires, bool)):
+                            continue
+                        if expires > now:
+                            continue
+                    except (ValueError, TypeError):
+                        continue
+                if now - created <= REVIEW_TTL_SECONDS:
+                    continue
+                # Keep the open lock file until release for Windows portability.
+                for child in directory.iterdir():
+                    if child.name == "review.lock":
+                        continue
+                    if child.is_dir() and not child.is_symlink():
+                        shutil.rmtree(child)
+                    else:
+                        child.unlink()
+                removed = True
+            if removed and safe_review_directory(directory):
+                shutil.rmtree(directory, ignore_errors=True)
+        except OSError:
+            # Another cleanup may already have removed the expired directory.
+            continue
+
+
+def review_public(metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **metadata["validation"],
+        "revision": metadata["revision"],
+        "source_width": metadata["input"]["width"],
+        "source_height": metadata["input"]["height"],
+        "source_image_sha256": metadata["source_image_sha256"],
+        "raw_alpha_sha256": metadata["raw_alpha_sha256"],
+        "alpha_sha256": metadata["alpha_sha256"],
+    }
+
+
+def create_mask_review(job_id: str, original: Path, image: Image.Image,
+                       capture: dict[str, Any], normalization: dict[str, Any],
+                       source_value: str) -> dict[str, Any]:
+    if max(image.size) > MAX_SOURCE_EDGE or image.width * image.height > MAX_SOURCE_PIXELS:
+        raise ValueError("Фотографія завелика для редактора маски.")
+    alpha = capture.get("alpha")
+    if not isinstance(alpha, Image.Image) or alpha.mode != "L" or alpha.size != image.size:
+        raise ValueError("Маска для ручної перевірки недоступна.")
+    REVIEW_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    registry = REVIEW_ROOT / "jobs.lock"
+    if registry.is_symlink():
+        raise ValueError("Некоректне блокування сеансів маски.")
+    with registry.open("a+b") as handle, private_file_lock(handle):
+        cleanup_expired_mask_reviews()
+        # Include unclaimed jobs in the quota, so a lost HTTP response cannot leak unbounded masks.
+        if sum(safe_review_directory(path) for path in REVIEW_ROOT.iterdir()) >= MAX_REVIEW_JOBS:
+            raise ValueError("Забагато активних сеансів перевірки маски.")
+        directory = REVIEW_ROOT / job_id
+        directory.mkdir(mode=0o700, exist_ok=False)
+    try:
+        source_path = directory / "source.png"
+        flattened_rgb(image).save(source_path, "PNG")
+        alpha.save(directory / "raw-alpha.png", "PNG")
+        alpha.save(directory / "alpha-0.png", "PNG")
+        original_name = "original" + original.suffix.lower()
+        shutil.copy2(original, directory / original_name)
+        seed = capture["seed"] if "seed" in capture else review_source_seed(image)
+        if seed is not None:
+            Image.fromarray(seed).save(directory / "source-seed.png", "PNG")
+        validation = validate_alpha(np.asarray(alpha), np.asarray(alpha), seed)
+        metadata = {
+            "job_id": job_id, "created_at": time.time(), "revision": 0,
+            "source": source_value, "source_sha256": sha256_file(original),
+            "original_name": original_name,
+            "input": {"width": image.width, "height": image.height},
+            "source_image_sha256": sha256_file(source_path),
+            "raw_alpha_sha256": sha256_file(directory / "raw-alpha.png"),
+            "alpha_sha256": sha256_file(directory / "alpha-0.png"),
+            "seed_sha256": sha256_file(directory / "source-seed.png") if seed is not None else None,
+            "geometry": capture["geometry"], "mask_method": capture.get("mask_method", "modnet"),
+            "normalization": normalization, "validation": validation, "actions": [],
+        }
+        review_metadata_write(directory, metadata)
+        return review_public(metadata)
+    except Exception:
+        shutil.rmtree(directory, ignore_errors=True)
+        raise
+
+
+@contextmanager
+def locked_mask_review(payload: dict[str, Any]):
+    job_id = payload.get("job_id")
+    revision = payload.get("revision")
+    source_hash = payload.get("source_sha256")
+    if (not isinstance(job_id, str) or re.fullmatch(r"[a-f0-9]{32}", job_id) is None
+            or not isinstance(revision, int) or isinstance(revision, bool) or not 0 <= revision <= 32
+            or not isinstance(source_hash, str) or re.fullmatch(r"[a-f0-9]{64}", source_hash) is None):
+        raise ValueError("Некоректний сеанс перевірки маски.")
+    directory = REVIEW_ROOT / job_id
+    if directory.is_symlink() or not directory.is_dir() or directory.resolve().parent != REVIEW_ROOT.resolve():
+        raise ValueError("Сеанс перевірки маски не знайдено.")
+    lock_path = directory / "review.lock"
+    if lock_path.is_symlink():
+        raise ValueError("Некоректне блокування сеансу маски.")
+    with lock_path.open("a+b") as lock, private_file_lock(lock):
+            metadata_path = directory / "metadata.json"
+            if metadata_path.is_symlink() or metadata_path.stat().st_size > MAX_JSON_BYTES * 4:
+                raise ValueError("Некоректні дані сеансу маски.")
+            metadata = json.loads(metadata_path.read_text("utf-8"))
+            if (metadata["job_id"] != job_id or metadata["source_sha256"] != source_hash
+                    or metadata["revision"] != revision):
+                raise ValueError("Сеанс або версія маски змінилися.")
+            if time.time() - metadata["created_at"] > REVIEW_TTL_SECONDS:
+                raise ValueError("Термін сеансу перевірки маски завершився.")
+            for filename, expected in (
+                ("source.png", metadata["source_image_sha256"]),
+                ("raw-alpha.png", metadata["raw_alpha_sha256"]),
+                ("alpha-" + str(revision) + ".png", metadata["alpha_sha256"]),
+                (metadata["original_name"], source_hash),
+                ("source-seed.png", metadata["seed_sha256"]),
+            ):
+                if expected is None:
+                    continue
+                path = directory / filename
+                if path.is_symlink() or path.resolve().parent != directory.resolve() or sha256_file(path) != expected:
+                    raise ValueError("Незмінний оригінал або маска змінилися.")
+            with Image.open(directory / "raw-alpha.png") as opened:
+                raw = np.asarray(opened.convert("L")).copy()
+            seed = None
+            if metadata["seed_sha256"] is not None:
+                with Image.open(directory / "source-seed.png") as opened:
+                    seed = np.asarray(opened.convert("L")).copy()
+            if raw.shape != (metadata["input"]["height"], metadata["input"]["width"]):
+                raise ValueError("Розмір маски змінився.")
+            yield directory, metadata, raw, seed
+
+
+def review_response(metadata: dict[str, Any]) -> dict[str, Any]:
+    return {"ok": True, "state": metadata["validation"]["status"],
+            "job_id": metadata["job_id"], "source_sha256": metadata["source_sha256"],
+            "revision": metadata["revision"], "input": metadata["input"],
+            "review": review_public(metadata), "normalization": metadata["normalization"]}
+
+
+def revise_mask_review(payload: dict[str, Any]) -> dict[str, Any]:
+    with locked_mask_review(payload) as (directory, metadata, raw, seed):
+        if metadata["revision"] >= 32:
+            raise ValueError("Завершено ліміт редагувань маски.")
+        with Image.open(directory / "source.png") as opened:
+            rgb = np.asarray(opened.convert("RGB")).copy()
+        result = revise_alpha(raw, seed, payload.get("actions"), source_rgb=rgb)
+        revision = metadata["revision"] + 1
+        path = directory / ("alpha-" + str(revision) + ".png")
+        if path.exists():
+            raise ValueError("Версія маски вже існує.")
+        Image.fromarray(result["alpha"]).save(path, "PNG")
+        metadata.update(revision=revision, alpha_sha256=sha256_file(path),
+                        validation=result["validation"], actions=payload["actions"])
+        review_metadata_write(directory, metadata)
+        return review_response(metadata)
+
+
+@timed_function
+def render_mask_review(payload: dict[str, Any], *, timings: dict[str, Any]) -> dict[str, Any]:
+    with locked_mask_review(payload) as (directory, metadata, raw, seed):
+        with Image.open(directory / "source.png") as opened:
+            rgb = np.asarray(opened.convert("RGB")).copy()
+        replay = revise_alpha(raw, seed, metadata["actions"], source_rgb=rgb)
+        with Image.open(directory / ("alpha-" + str(metadata["revision"]) + ".png")) as opened:
+            current = np.asarray(opened.convert("L")).copy()
+        if not np.array_equal(current, replay["alpha"]):
+            raise ValueError("Маска не відповідає локальним діям редагування.")
+        metadata["validation"] = replay["validation"]
+        if replay["validation"]["status"] != "accepted":
+            return review_response(metadata)
+        background_profile = normalize_background_profile(payload.get("background_profile"))
+        if background_profile == BACKGROUND_PROFILE_ORIGINAL:
+            raise ValueError("Оберіть фон Studio Light або Anabelka Brand для результату маски.")
+        with Image.open(directory / "source.png") as opened:
+            subject = opened.convert("RGBA")
+        subject.putalpha(Image.fromarray(current))
+        geometry = metadata["geometry"]
+        if (geometry.get("crop_strategy") == "torso-zoom-out" and geometry.get("zoom_scale") is not None
+                and geometry.get("torso_center") is not None and geometry.get("shoulder_center") is not None):
+            subject_canvas = transparent_zoom_out_canvas(
+                subject, tuple(geometry["torso_center"]), tuple(geometry["shoulder_center"]), geometry["zoom_scale"])
+            if subject_canvas is None:
+                raise ValueError("Не вдалося відтворити геометрію фотографії.")
+        elif geometry.get("crop_box") is not None:
+            subject_canvas = transparent_standard_canvas(subject.crop(tuple(geometry["crop_box"])), MASTER_SIZE)
+        else:
+            subject_canvas = transparent_standard_canvas(subject, MASTER_SIZE)
+        master = compose_subject_on_background(subject_canvas, background_profile)
+        thumb = master.resize(THUMB_SIZE, Image.Resampling.LANCZOS)
+        output_job_id = uuid.uuid4().hex
+        original_dir = ORIGINAL_ROOT / output_job_id
+        processed_dir = PROCESSED_ROOT / output_job_id
+        original_dir.mkdir(parents=True, exist_ok=False)
+        processed_dir.mkdir(parents=True, exist_ok=False)
+        try:
+            original = original_dir / metadata["original_name"]
+            shutil.copy2(directory / metadata["original_name"], original)
+            master_path, thumb_path = processed_dir / "master.webp", processed_dir / "thumb.webp"
+            save_webp(master, master_path, 92)
+            save_webp(thumb, thumb_path, 86)
+            normalization = dict(metadata["normalization"])
+            normalization.update(background_profile=background_profile, background_fallback=False,
+                                 subject_mask_applied=True, shadow_applied=True,
+                                 mask_method=metadata["mask_method"],
+                                 mask_foreground_ratio=replay["validation"]["actual_foreground_ratio"],
+                                 mask_review_revision=metadata["revision"], mask_review=replay["validation"])
+            return {"ok": True, "state": "accepted", "processor_version": VERSION, "profile": PROFILE,
+                    "timings_ms": timings, "background_profile": background_profile,
+                    "job_id": output_job_id, "review_job_id": metadata["job_id"],
+                    "source": metadata["source"], "source_sha256": metadata["source_sha256"],
+                    "revision": metadata["revision"], "input": metadata["input"],
+                    "normalization": normalization, "review": review_public(metadata),
+                    "original": {"path": project_relative(original), "sha256": metadata["source_sha256"],
+                                 "bytes": original.stat().st_size, "immutable_by_service": True},
+                    "master": {"path": project_relative(master_path), "width": master.width,
+                               "height": master.height, "bytes": master_path.stat().st_size, "format": "webp"},
+                    "thumb": {"path": project_relative(thumb_path), "width": thumb.width,
+                              "height": thumb.height, "bytes": thumb_path.stat().st_size, "format": "webp"}}
+        except Exception:
+            shutil.rmtree(original_dir, ignore_errors=True)
+            shutil.rmtree(processed_dir, ignore_errors=True)
+            raise
+
+
+def mask_review_preview(payload: dict[str, Any]) -> dict[str, Any]:
+    asset = payload.get("asset")
+    if asset not in ("source", "alpha", "overlay", "composite"):
+        raise ValueError("Некоректний вид попереднього перегляду маски.")
+    with locked_mask_review(payload) as (directory, metadata, raw, seed):
+        revision = metadata["revision"]
+        if asset == "source":
+            path = directory / "source.png"
+        elif asset == "alpha":
+            path = directory / ("alpha-" + str(revision) + ".png")
+        else:
+            path = directory / ("preview-" + asset + "-" + str(revision) + ".png")
+            if not path.exists():
+                with Image.open(directory / "source.png") as opened:
+                    source = opened.convert("RGB")
+                with Image.open(directory / ("alpha-" + str(revision) + ".png")) as opened:
+                    alpha = opened.convert("L")
+                if asset == "composite":
+                    subject = source.convert("RGBA")
+                    subject.putalpha(alpha)
+                    preview = Image.new("RGB", source.size, CANVAS_BACKGROUND)
+                    preview.paste(subject, (0, 0), subject)
+                else:
+                    tint = Image.new("RGB", source.size, (220, 45, 110))
+                    strength = Image.fromarray(np.rint((255 - np.asarray(alpha)) * .45).astype(np.uint8))
+                    preview = Image.composite(tint, source, strength)
+                preview.save(path, "PNG")
+        if path.is_symlink() or path.resolve().parent != directory.resolve():
+            raise ValueError("Некоректний шлях перегляду маски.")
+        return {"ok": True, "path": project_relative(path), "mime": "image/png",
+                "revision": revision, "source_sha256": metadata["source_sha256"]}
+
+
 @timed_function
 def process_image(
     source_value: Any,
     background_profile_value: Any = None,
     mask_mode: Any = None,
     *,
+    allow_review: bool = False,
     timings: dict[str, Any],
 ) -> dict[str, Any]:
     source = measured_call(timings, "source_validation", safe_source_path, source_value)
@@ -5300,6 +5700,8 @@ def process_image(
         background_profile_value
     )
     mask_mode = normalize_mask_mode(mask_mode)
+    if not isinstance(allow_review, bool):
+        raise ValueError("Некоректний режим перевірки маски.")
     job_id = uuid.uuid4().hex
 
     original_dir = ORIGINAL_ROOT / job_id
@@ -5308,6 +5710,7 @@ def process_image(
     processed_dir.mkdir(parents=True, exist_ok=False)
 
     original = original_dir / source.name
+    review_created = False
 
     try:
         measured_call(timings, "copy_original", shutil.copy2, source, original)
@@ -5317,12 +5720,39 @@ def process_image(
         image = measured_call(timings, "decode", normalized_image, original, detail=decode_timings)
         width, height = image.size
 
-        master, normalization = measured_call(timings, "normalization", normalized_master,
-            image,
-            background_profile,
-            source_path=original,
-            mask_mode=mask_mode,
-        )
+        capture: dict[str, Any] | None = {} if allow_review and background_profile != BACKGROUND_PROFILE_ORIGINAL else None
+        try:
+            master, normalization = measured_call(timings, "normalization", normalized_master,
+                image, background_profile, source_path=original, mask_mode=mask_mode,
+                **({"review_capture": capture} if capture is not None else {}))
+        except MaskProcessingError as error:
+            if (capture is None or "alpha" not in capture or capture.get("quality_reason") not in
+                    {"source_component_loss", "source_local_material_loss", "source_thin_material_loss",
+                     "source_background_retained", "source_evidence_unavailable"}):
+                raise
+            review = create_mask_review(job_id, original, image, capture, error.normalization, project_relative(source))
+            review_created = True
+            shutil.rmtree(original_dir, ignore_errors=True)
+            shutil.rmtree(processed_dir, ignore_errors=True)
+            return {"ok": True, "state": "needs_review", "job_id": job_id,
+                    "source_sha256": original_hash, "source": project_relative(source),
+                    "revision": 0, "input": {"width": width, "height": height},
+                    "normalization": error.normalization, "review": review,
+                    "processor_version": VERSION, "profile": PROFILE}
+        review = None
+        if capture is not None and "alpha" in capture:
+            review = create_mask_review(job_id, original, image, capture, normalization, project_relative(source))
+            review_created = True
+            if (capture.get("quality_reason") in {"source_component_loss", "source_local_material_loss",
+                    "source_thin_material_loss", "source_background_retained", "source_evidence_unavailable"}
+                    and review["status"] == "needs_review"):
+                shutil.rmtree(original_dir, ignore_errors=True)
+                shutil.rmtree(processed_dir, ignore_errors=True)
+                return {"ok": True, "state": "needs_review", "job_id": job_id,
+                        "source_sha256": original_hash, "source": project_relative(source),
+                        "revision": 0, "input": {"width": width, "height": height},
+                        "normalization": normalization, "review": review,
+                        "processor_version": VERSION, "profile": PROFILE}
         thumb = measured_call(timings, "thumbnail_resize", master.resize,
             THUMB_SIZE,
             Image.Resampling.LANCZOS,
@@ -5340,6 +5770,8 @@ def process_image(
             "decode_timings_ms": decode_timings,
             "processor_version": VERSION,
             "profile": PROFILE,
+            **({"review": review, "revision": 0, "source_sha256": original_hash,
+                "state": "accepted"} if review is not None else {}),
             "background_profile": (
                 normalization.get(
                     "background_profile",
@@ -5377,6 +5809,9 @@ def process_image(
     except Exception:
         shutil.rmtree(original_dir, ignore_errors=True)
         shutil.rmtree(processed_dir, ignore_errors=True)
+        review_directory = REVIEW_ROOT / job_id
+        if review_created and safe_review_directory(review_directory) and not (review_directory / "php-owner.json").exists():
+            shutil.rmtree(review_directory, ignore_errors=True)
         raise
 
 
@@ -5450,7 +5885,7 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def do_POST(self) -> None:
-        if self.path != "/process":
+        if self.path not in ("/process", "/mask-review", "/mask-review-result", "/mask-review-preview"):
             self.send_json(
                 404,
                 {"ok": False, "error": "Маршрут не знайдено."},
@@ -5471,6 +5906,7 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
+        request_slot = False
         try:
             payload = json.loads(
                 self.rfile.read(length).decode("utf-8")
@@ -5479,11 +5915,21 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 raise ValueError("Некоректний JSON.")
 
-            result = process_image(
-                payload.get("source"),
-                payload.get("background_profile"),
-                mask_mode=payload.get("mask_mode"),
-            )
+            request_slot = _request_slots.acquire(blocking=False)
+            if not request_slot:
+                self.send_json(503, {"ok": False, "error": "Обробник зайнятий. Повторіть запит пізніше."})
+                return
+
+            if self.path == "/mask-review":
+                result = revise_mask_review(payload)
+            elif self.path == "/mask-review-result":
+                result = render_mask_review(payload)
+            elif self.path == "/mask-review-preview":
+                result = mask_review_preview(payload)
+            else:
+                result = process_image(
+                    payload.get("source"), payload.get("background_profile"),
+                    mask_mode=payload.get("mask_mode"), allow_review=payload.get("allow_review", False))
             self.send_json(200, result)
         except MaskProcessingError as error:
             self.send_json(
@@ -5514,6 +5960,9 @@ class Handler(BaseHTTPRequestHandler):
                     "error": "Внутрішня помилка обробника зображень.",
                 },
             )
+        finally:
+            if request_slot:
+                _request_slots.release()
 
     def send_json(
         self,

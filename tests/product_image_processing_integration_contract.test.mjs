@@ -58,7 +58,7 @@ assert.match(
     previewService,
     /ImageProcessorClient::class, 'processProductImage'/
 );
-assert.match(processingService, /\$service->create\(\$imageId, \$backgroundProfile, \$maskMode\)/);
+assert.match(processingService, /\$service->create\(\$imageId, \$backgroundProfile, \$maskMode, false\)/);
 assert.match(processingService, /\$service->confirm\(\$imageId, \$preview\['preview_id'\]\)/);
 assert.doesNotMatch(processingService, /ProductImageProcessing::mark(?:Processing|Error)/);
 assert.match(previewService, /ProductImageProcessing::markReady/);

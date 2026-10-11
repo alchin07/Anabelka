@@ -16,7 +16,7 @@ test('real processing routes require admin CSRF and products.manage', () => {
     assert.equal(run(), 'product image preview security runtime passed\n');
 });
 
-for (const action of ['preview', 'confirm', 'cancel', 'legacy']) {
+for (const action of ['preview', 'confirm', 'cancel', 'legacy', 'mask-start', 'mask-edit', 'mask-result']) {
     test(action + ' rejects invalid CSRF before DB access or controller action', () => {
         const output = run([action]);
         assert.match(output, /\nHTTP_STATUS=403\n$/);

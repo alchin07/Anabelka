@@ -433,6 +433,29 @@ $router->post(
     ['csrf' => true, 'csrf_family' => 'admin']
 );
 
+$router->post(
+    '/admin/products/image-process-mask-start',
+    'AdminImageProcessorController@maskStart',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/products/image-process-mask-edit',
+    'AdminImageProcessorController@maskEdit',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
+    '/admin/products/image-process-mask-result',
+    'AdminImageProcessorController@maskResult',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->get(
+    '/admin/products/image-process-mask-file',
+    'AdminImageProcessorController@maskFile'
+);
+
 $router->get(
     '/admin/products/image-process-preview-file',
     'AdminImageProcessorController@previewFile'

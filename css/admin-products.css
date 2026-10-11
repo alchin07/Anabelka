@@ -1973,6 +1973,26 @@ body.product-image-compare-open {
     cursor: pointer;
 }
 
+.product-image-mask-edit {
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border: 1px solid #eadcf7;
+    border-radius: 10px;
+    background: #f4eaff;
+    color: #8A2BE2;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.product-image-mask-edit:disabled {
+    opacity: .55;
+    cursor: wait;
+}
+
 .product-image-compare-stage {
     --compare-split: 50%;
     position: relative;

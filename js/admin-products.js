@@ -57,6 +57,8 @@
     const imageCompareHistoryKey = '__anabelkaProductImageCompare';
     const imageCompareDetailsHistoryKey =
         '__anabelkaProductImageCompareDetails';
+    const imageMaskHistoryKey = '__anabelkaProductImageMask';
+    const imageMaskAuxHistoryKey = '__anabelkaProductImageMaskAuxiliary';
 
 
     function currentProductEditorUrl()
@@ -76,6 +78,8 @@
         delete state[productEditorHistoryKey];
         delete state[imageCompareHistoryKey];
         delete state[imageCompareDetailsHistoryKey];
+        delete state[imageMaskHistoryKey];
+        delete state[imageMaskAuxHistoryKey];
 
         return state;
     }
@@ -120,9 +124,7 @@
 
         productEditorHistoryArmed = false;
         const state = history.state || {};
-        const comparisonDepth = state[imageCompareDetailsHistoryKey]
-            ? 2
-            : (state[imageCompareHistoryKey] ? 1 : 0);
+        const comparisonDepth = imageOverlayHistoryDepth(state);
         unwindImageComparisonHistory(comparisonDepth + 1);
     }
 
@@ -251,6 +253,345 @@
     let imageCompareHistorySettled = Promise.resolve();
     let settleImageCompareHistory = null;
     let imageCompareHistoryPendingDepth = 0;
+    let activeMaskReview = null;
+    let maskHistorySettling = false;
+    let maskPopHandling = false;
+
+
+    function imageOverlayHistoryDepth(state)
+    {
+        return (state[imageCompareDetailsHistoryKey] ? 2
+            : (state[imageCompareHistoryKey] ? 1 : 0))
+            + (state[imageMaskHistoryKey] ? 1 : 0)
+            + (state[imageMaskAuxHistoryKey] ? 1 : 0);
+    }
+
+
+    function settleImageHistoryTraversal()
+    {
+        const settle = settleImageCompareHistory;
+        settleImageCompareHistory = null;
+        if (settle) {
+            settle();
+        }
+    }
+
+
+    function unwindMaskHistory(depth)
+    {
+        if (depth < 1) {
+            return;
+        }
+        maskHistorySettling = true;
+        unwindImageComparisonHistory(depth);
+        const settled = imageCompareHistorySettled;
+        settled.then(function () {
+            if (settled === imageCompareHistorySettled) {
+                maskHistorySettling = false;
+            }
+        });
+    }
+
+
+    function maskEditor()
+    {
+        return window.AnabelkaMaskEditor;
+    }
+
+
+    function imageMaskNotice(type, message)
+    {
+        if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
+            window.AnabelkaNotify.show(type, message);
+        } else {
+            showMessage(message);
+        }
+    }
+
+
+    function liveImagePreview(preview)
+    {
+        return preview && !preview.dismissed && !editor.hidden
+            && activeImagePreview === preview
+            && preview.generation === imagePreviewGeneration
+            && preview.editorToken === productEditorHistoryToken;
+    }
+
+
+    function readyImagePreview(data, preview)
+    {
+        return data && data.success === true
+            && Number(data.image_id) === preview.imageId
+            && data.preview_id === preview.previewId
+            && data.processing && data.processing.status === 'ready'
+            && valueOrEmpty(data.preview_url).startsWith(
+                '/Anabelka/admin/products/image-process-preview-file?'
+            );
+    }
+
+
+    function maskReviewConfig(data, preview)
+    {
+        const review = data && data.review;
+        if (!data || data.success !== true || data.state !== 'needs_review'
+            || Number(data.image_id) !== preview.imageId || data.preview_id !== preview.previewId
+            || !review || !Number.isSafeInteger(Number(review.revision))
+            || Number(review.revision) < 0 || !Number.isSafeInteger(Number(review.width))
+            || !Number.isSafeInteger(Number(review.height)) || review.width < 1 || review.height < 1
+            || review.width * review.height > 20000000
+            || !valueOrEmpty(review.source_url).startsWith('/Anabelka/admin/products/image-process-mask-file?')
+            || !valueOrEmpty(review.alpha_url).startsWith('/Anabelka/admin/products/image-process-mask-file?')) {
+            throw new Error('Сервер повернув некоректні дані перевірки маски.');
+        }
+        return {imageId: preview.imageId, previewId: preview.previewId,
+            sourceUrl: review.source_url, alphaUrl: review.alpha_url,
+            width: Number(review.width), height: Number(review.height),
+            regions: Array.isArray(review.regions) ? review.regions : [], revision: Number(review.revision),
+            reasons: Array.isArray(review.reasons) ? review.reasons.filter(function (reason) {
+                return typeof reason === 'string' && /^[a-z_]{1,80}$/.test(reason);
+            }).slice(0, 20) : [],
+            gates: ['component', 'local', 'thin', 'background'].reduce(function (gates, name) {
+                const gate = review.gates && review.gates[name];
+                if (gate && typeof gate.accepted === 'boolean') {
+                    gates[name] = {accepted: gate.accepted};
+                }
+                return gates;
+            }, {})};
+    }
+
+
+    function syncImageMaskControls(preview)
+    {
+        if (preview && typeof preview.syncMaskControls === 'function') {
+            preview.syncMaskControls();
+        }
+    }
+
+
+    function closeImageMaskForNavigation()
+    {
+        const module = maskEditor();
+        if (activeMaskReview && module && module.isOpen()) {
+            module.close({force: true, discarded: true, reason: 'navigation'});
+        }
+    }
+
+
+    async function startImageMaskReview(image, preview)
+    {
+        if (!liveImagePreview(preview) || preview.confirming || preview.maskStarting
+            || !maskEditor() || maskEditor().isOpen()) {
+            return;
+        }
+        // Starting review invalidates the previous candidate on the server.
+        preview.needsReview = true;
+        preview.maskStarting = true;
+        syncImageMaskControls(preview);
+        try {
+            const data = await imageProcessingRequest('mask-start', imagePreviewPayload(preview));
+            if (!liveImagePreview(preview)) {
+                return;
+            }
+            preview.maskStarted = true;
+            openImageMaskReview(image, preview, data);
+        } catch (error) {
+            if (liveImagePreview(preview)) {
+                imageMaskNotice('error', error.message || 'Не вдалося відкрити маску. Повторіть перевірку.');
+            }
+        } finally {
+            preview.maskStarting = false;
+            syncImageMaskControls(preview);
+        }
+    }
+
+
+    function openImageMaskReview(image, preview, data)
+    {
+        const module = maskEditor();
+        if (!module || typeof module.open !== 'function') {
+            throw new Error('Редактор маски ще завантажується. Спробуйте ще раз.');
+        }
+        if (!liveImagePreview(preview)) {
+            return;
+        }
+        const config = maskReviewConfig(data, preview);
+        preview.needsReview = true;
+        preview.reviewAvailable = true;
+        preview.revision = config.revision;
+        syncImageMaskControls(preview);
+        const session = {image: image, preview: preview, config: config, validating: false};
+        activeMaskReview = session;
+        const opened = module.open(config, {
+            onAuxiliary: function (open) {
+                if (activeMaskReview !== session) {
+                    return;
+                }
+                if (open) {
+                    const state = Object.assign({}, history.state || {});
+                    if (!state[imageMaskAuxHistoryKey]) {
+                        state[imageMaskHistoryKey] = preview.generation;
+                        state[imageMaskAuxHistoryKey] = true;
+                        history.pushState(state, '', currentProductEditorUrl());
+                    }
+                } else if (!maskPopHandling && history.state && history.state[imageMaskAuxHistoryKey]) {
+                    unwindMaskHistory(1);
+                }
+            },
+            onValidate: async function (edit, options) {
+                const signal = options && options.signal;
+                function requireLiveReview()
+                {
+                    if (!liveImagePreview(preview) || activeMaskReview !== session
+                        || (signal && signal.aborted)) {
+                        throw new Error('Редагування маски вже закрито.');
+                    }
+                }
+                requireLiveReview();
+                session.validating = true;
+                try {
+                    // A refused first candidate opens immediately; start its
+                    // private review job before submitting the first edit.
+                    if (!preview.maskStarted) {
+                        const started = await imageProcessingRequest('mask-start', imagePreviewPayload(preview), {signal: signal});
+                        requireLiveReview();
+                        const startedConfig = maskReviewConfig(started, preview);
+                        preview.maskStarted = true;
+                        preview.revision = startedConfig.revision;
+                        if (Number(edit.revision) !== preview.revision) {
+                            // A previous network error may have hidden a
+                            // completed edit. Resync before applying the log.
+                            return started;
+                        }
+                    }
+                    if (Number(edit.revision) !== preview.revision || !Array.isArray(edit.actions)) {
+                        throw new Error('Версія маски застаріла. Оновіть перевірку.');
+                    }
+                    const payload = imagePreviewPayload(preview);
+                    payload.set('revision', String(preview.revision));
+                    payload.append('actions', JSON.stringify(edit.actions));
+                    const revised = await imageProcessingRequest('mask-edit', payload, {signal: signal});
+                    requireLiveReview();
+                    const updated = maskReviewConfig(revised, preview);
+                    if (updated.width !== config.width || updated.height !== config.height
+                        || updated.revision !== preview.revision + 1) {
+                        throw new Error('Сервер повернув застарілу версію маски.');
+                    }
+                    preview.revision = updated.revision;
+                    if (revised.review.status !== 'accepted') {
+                        return revised;
+                    }
+                    let result;
+                    try {
+                        result = await imageProcessingRequest('mask-result', imagePreviewPayload(preview), {signal: signal});
+                    } catch (error) {
+                        requireLiveReview();
+                        // The edit succeeded even if rendering failed. Return
+                        // its revision so the editor can retry without losing
+                        // annotations or becoming stuck on an older version.
+                        preview.maskStarted = false;
+                        imageMaskNotice('error', error.message || 'Не вдалося підготувати порівняння. Повторіть перевірку.');
+                        return revised;
+                    }
+                    requireLiveReview();
+                    if (result.state === 'needs_review') {
+                        const refused = maskReviewConfig(result, preview);
+                        if (refused.revision !== preview.revision) {
+                            throw new Error('Сервер повернув застарілу версію маски.');
+                        }
+                        return result;
+                    }
+                    if (result.state !== 'ready' || !readyImagePreview(result, preview)
+                        || Number(result.revision) !== preview.revision) {
+                        throw new Error('Маску не підтверджено. Фото не змінено.');
+                    }
+                    return result;
+                } catch (error) {
+                    if (liveImagePreview(preview) && activeMaskReview === session) {
+                        preview.maskStarted = false;
+                    }
+                    throw error;
+                } finally {
+                    session.validating = false;
+                }
+            },
+            onClose: function (result) {
+                if (activeMaskReview !== session) {
+                    return;
+                }
+                activeMaskReview = null;
+                const state = history.state || {};
+                if (!maskPopHandling) {
+                    unwindMaskHistory((state[imageMaskHistoryKey] ? 1 : 0)
+                        + (state[imageMaskAuxHistoryKey] ? 1 : 0));
+                }
+                if (result && result.reason === 'compare') {
+                    return;
+                }
+                if (!activeImageCompareModal) {
+                    cancelImagePreview(preview);
+                } else if (liveImagePreview(preview) && (!result || result.reason !== 'navigation')) {
+                    imageMaskNotice('info', 'Маску не підтверджено. Повторіть перевірку або скасуйте попередній перегляд.');
+                }
+            },
+            onCompare: function (result) {
+                if (!liveImagePreview(preview) || result.state !== 'ready'
+                    || !readyImagePreview(result, preview) || Number(result.revision) !== preview.revision) {
+                    return;
+                }
+                preview.processing = result.processing;
+                preview.previewUrl = result.preview_url;
+                preview.needsReview = false;
+                imageCompareHistorySettled.then(function () {
+                    if (liveImagePreview(preview)) {
+                        openImageComparison(image, preview, {reuseHistory: Boolean(activeImageCompareModal)});
+                    }
+                });
+            }
+        });
+        if (opened === false) {
+            activeMaskReview = null;
+            throw new Error('Не вдалося відкрити редактор маски. Фото не змінено.');
+        }
+        const state = Object.assign({}, history.state || {});
+        state[imageMaskHistoryKey] = preview.generation;
+        delete state[imageMaskAuxHistoryKey];
+        history.pushState(state, '', currentProductEditorUrl());
+    }
+
+
+    // Capture before the shared Back guard and the underlying comparison/editor.
+    window.addEventListener('popstate', function (event) {
+        const module = maskEditor();
+        if (maskHistorySettling && (!module || !module.isOpen())) {
+            event.stopImmediatePropagation();
+            settleImageHistoryTraversal();
+            return;
+        }
+        if (!activeMaskReview || !module || !module.isOpen()) {
+            return;
+        }
+        event.stopImmediatePropagation();
+        const state = event.state || {};
+        maskPopHandling = true;
+        try {
+            if (module.hasAuxiliary() && !state[imageMaskAuxHistoryKey]) {
+                module.closeAuxiliary();
+            } else if (!state[imageMaskHistoryKey]) {
+                if ((typeof module.isDirty === 'function' && module.isDirty())
+                    || activeMaskReview.validating) {
+                    // Back already left the mask. Restore its own entry before
+                    // the dirty confirmation helper takes the next entry.
+                    const restored = Object.assign({}, state);
+                    restored[imageMaskHistoryKey] = activeMaskReview.preview.generation;
+                    history.pushState(restored, '', currentProductEditorUrl());
+                }
+                module.handleBack();
+            }
+        } finally {
+            maskPopHandling = false;
+            settleImageHistoryTraversal();
+        }
+    }, true);
 
 
     function unwindImageComparisonHistory(depth)
@@ -284,13 +625,14 @@
     }
 
 
-    async function imageProcessingRequest(action, payload)
+    async function imageProcessingRequest(action, payload, options)
     {
         const response = await fetch(
             '/Anabelka/admin/products/image-process-' + action,
             {
                 method: 'POST',
                 body: payload,
+                signal: options && options.signal,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
@@ -322,6 +664,9 @@
         payload.append('_csrf', preview.csrf);
         payload.append('image_id', String(preview.imageId));
         payload.append('preview_id', preview.previewId);
+        if (Number.isSafeInteger(preview.revision) && preview.revision >= 0) {
+            payload.append('revision', String(preview.revision));
+        }
         return payload;
     }
 
@@ -330,6 +675,10 @@
     {
         if (!preview) {
             return;
+        }
+
+        if (activeMaskReview && activeMaskReview.preview === preview) {
+            closeImageMaskForNavigation();
         }
 
         preview.dismissed = true;
@@ -361,6 +710,8 @@
         const state = Object.assign({}, source || {});
         delete state[imageCompareHistoryKey];
         delete state[imageCompareDetailsHistoryKey];
+        delete state[imageMaskHistoryKey];
+        delete state[imageMaskAuxHistoryKey];
         return state;
     }
 
@@ -416,6 +767,7 @@
             ? options
             : {};
 
+        closeImageMaskForNavigation();
         if (!activeImageCompareModal) {
             return;
         }
@@ -437,9 +789,7 @@
         imageCompareReturnFocus = null;
 
         const state = history.state || {};
-        const depth = state[imageCompareDetailsHistoryKey]
-            ? 2
-            : (state[imageCompareHistoryKey] ? 1 : 0);
+        const depth = imageOverlayHistoryDepth(state);
 
         if (options.syncHistory !== false && depth > 0) {
             unwindImageComparisonHistory(depth);
@@ -447,8 +797,9 @@
     }
 
 
-    function openImageComparison(image, preview)
+    function openImageComparison(image, preview, options)
     {
+        const reuseHistory = options && options.reuseHistory === true;
         if (!preview) {
             cancelImagePreview(activeImagePreview);
             imagePreviewGeneration += 1;
@@ -457,7 +808,7 @@
         if (imageCompareHistoryUnwinding) {
             imageCompareHistorySettled.then(function () {
                 if (!editor.hidden && (!preview || !preview.dismissed)) {
-                    openImageComparison(image, preview);
+                    openImageComparison(image, preview, options);
                 }
             });
             return;
@@ -477,9 +828,13 @@
         }
 
         if (activeImageCompareModal) {
-            closeImageComparison();
-            openImageComparison(image, preview);
-            return;
+            if (reuseHistory) {
+                closeImageComparison({cancelPreview: false, syncHistory: false});
+            } else {
+                closeImageComparison();
+                openImageComparison(image, preview);
+                return;
+            }
         }
 
         const processing = preview ? preview.processing : (image.processing || {});
@@ -513,6 +868,19 @@
         close.title = 'Закрити порівняння';
 
         header.appendChild(title);
+        let maskEdit;
+        if (preview && preview.reviewAvailable) {
+            maskEdit = document.createElement('button');
+            maskEdit.type = 'button';
+            maskEdit.className = 'product-image-mask-edit';
+            maskEdit.dataset.productMaskEdit = '';
+            maskEdit.textContent = 'Виправити маску';
+            maskEdit.setAttribute('aria-haspopup', 'dialog');
+            maskEdit.addEventListener('click', function () {
+                startImageMaskReview(image, preview);
+            });
+            header.appendChild(maskEdit);
+        }
         header.appendChild(close);
 
         const stage = document.createElement('div');
@@ -1022,6 +1390,7 @@
             apply.type = 'button';
             apply.dataset.productImagePreviewConfirm = '';
             apply.textContent = 'Застосувати';
+            apply.disabled = Boolean(preview.needsReview || preview.maskStarting);
 
             const cancel = document.createElement('button');
             cancel.type = 'button';
@@ -1034,7 +1403,8 @@
             });
 
             apply.addEventListener('click', async function () {
-                if (preview.confirming || preview.dismissed || preview.committed) {
+                if (preview.confirming || preview.dismissed || preview.committed
+                    || preview.needsReview || preview.maskStarting) {
                     return;
                 }
 
@@ -1086,7 +1456,7 @@
                     if (preview.dismissed) {
                         cancelImagePreview(preview);
                     } else {
-                        apply.disabled = false;
+                        apply.disabled = Boolean(preview.needsReview || preview.maskStarting);
                         cancel.disabled = false;
                         apply.textContent = 'Застосувати';
                         showMessage(error.message || 'Не вдалося застосувати обробку.');
@@ -1097,6 +1467,12 @@
             actions.appendChild(apply);
             actions.appendChild(cancel);
             dialog.appendChild(actions);
+            preview.syncMaskControls = function () {
+                apply.disabled = Boolean(preview.confirming || preview.needsReview || preview.maskStarting);
+                if (maskEdit) {
+                    maskEdit.disabled = Boolean(preview.confirming || preview.maskStarting);
+                }
+            };
         }
 
         modal.appendChild(dialog);
@@ -1119,11 +1495,9 @@
         );
         delete historyState[imageCompareDetailsHistoryKey];
         historyState[imageCompareHistoryKey] = true;
-        history.pushState(
-            historyState,
-            '',
-            currentProductEditorUrl()
-        );
+        if (!reuseHistory) {
+            history.pushState(historyState, '', currentProductEditorUrl());
+        }
 
         close.addEventListener('click', function () {
             closeImageComparison();
@@ -1168,15 +1542,14 @@
         }
 
         if (imageCompareHistoryUnwinding) {
-            const settle = settleImageCompareHistory;
-            settleImageCompareHistory = null;
-            if (settle) {
-                settle();
-            }
+            settleImageHistoryTraversal();
         }
     });
 
     document.addEventListener('keydown', function (event) {
+        if (maskEditor() && maskEditor().isOpen()) {
+            return;
+        }
         if (event.key === 'Escape' && activeImageCompareModal) {
             event.preventDefault();
             event.stopImmediatePropagation();
@@ -1728,6 +2101,9 @@
                 editorToken: productEditorHistoryToken,
                 returnFocus: button,
                 previewId: '',
+                revision: null,
+                needsReview: false,
+                maskStarted: false,
                 dismissed: false,
                 confirming: false,
                 committed: false,
@@ -1763,15 +2139,14 @@
                 if (
                     Number(data.image_id) !== imageId
                     || !preview.previewId
-                    || !data.processing
-                    || typeof data.processing !== 'object'
-                    || !valueOrEmpty(data.preview_url).startsWith(
-                        '/Anabelka/admin/products/image-process-preview-file?'
-                    )
+                    || (data.state !== 'needs_review' && !readyImagePreview(data, preview))
                 ) {
                     throw new Error('Сервер повернув некоректну відповідь.');
                 }
 
+                preview.reviewAvailable = data.review_available === true;
+                preview.revision = data.revision !== null && typeof data.revision !== 'undefined'
+                    && Number.isSafeInteger(Number(data.revision)) ? Number(data.revision) : null;
                 preview.processing = data.processing;
                 preview.previewUrl = data.preview_url;
                 await imageCompareHistorySettled;
@@ -1787,7 +2162,11 @@
                 }
 
                 preview.setBusy(false);
-                openImageComparison(image, preview);
+                if (data.state === 'needs_review') {
+                    openImageMaskReview(image, preview, data);
+                } else {
+                    openImageComparison(image, preview);
+                }
             } catch (error) {
                 if (!preview.dismissed && activeImagePreview === preview) {
                     showMessage(error.message || 'Не вдалося отримати попередній перегляд.');
@@ -2326,6 +2705,9 @@
         }
 
         if (event.key === 'Escape' && !editor.hidden) {
+            if (maskEditor() && maskEditor().isOpen()) {
+                return;
+            }
             closeEditor();
         }
     });

@@ -31,7 +31,8 @@ class ImageProcessorClient
     public static function processProductImage(
         $path,
         $backgroundProfile = 'original-canvas',
-        $maskMode = 'auto'
+        $maskMode = 'auto',
+        $allowReview = false
     ) {
         $relativePath = self::normalizeProductImagePath($path);
         $backgroundProfile = self::normalizeBackgroundProfile(
@@ -52,10 +53,27 @@ class ImageProcessorClient
             [
                 'source' => $relativePath,
                 'background_profile' => $backgroundProfile,
-                'mask_mode' => $maskMode
+                'mask_mode' => $maskMode,
+                'allow_review' => $allowReview === true
             ],
             180
         );
+    }
+
+
+    public static function reviseMask(array $payload)
+    {
+        return self::request('POST', '/mask-review', $payload, 180);
+    }
+
+    public static function renderMask(array $payload)
+    {
+        return self::request('POST', '/mask-review-result', $payload, 180);
+    }
+
+    public static function maskAsset(array $payload)
+    {
+        return self::request('POST', '/mask-review-preview', $payload, 30);
     }
 
 
@@ -94,6 +112,8 @@ class ImageProcessorClient
         }
 
         $options['header'] = implode("\r\n", $headers);
+        $options['follow_location'] = 0;
+        $options['max_redirects'] = 0;
         $context = stream_context_create([
             'http' => $options
         ]);
@@ -101,7 +121,9 @@ class ImageProcessorClient
         $body = @file_get_contents(
             self::endpoint() . $path,
             false,
-            $context
+            $context,
+            0,
+            1048577
         );
 
         $receivedHeaders = function_exists('http_get_last_response_headers')
@@ -115,6 +137,9 @@ class ImageProcessorClient
             );
         }
 
+        if (strlen($body) > 1048576) {
+            throw new RuntimeException('Відповідь обробника перевищує допустимий розмір.');
+        }
         $status = self::statusCode($responseHeaders);
         $data = json_decode((string) $body, true);
 

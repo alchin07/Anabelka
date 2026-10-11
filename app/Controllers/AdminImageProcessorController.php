@@ -60,7 +60,8 @@ class AdminImageProcessorController extends Controller
         $this->operation(function () {
             $result = (new ProductImagePreviewService())->confirm(
                 $_POST['image_id'] ?? 0,
-                $_POST['preview_id'] ?? ''
+                $_POST['preview_id'] ?? '',
+                $_POST['revision'] ?? null
             );
             $this->auditAccepted($result);
             return ['success' => true, 'image_id' => (int) $result['image_id'], 'processing' => $result];
@@ -79,12 +80,55 @@ class AdminImageProcessorController extends Controller
     }
 
 
+    public function maskStart()
+    {
+        $this->operation(function () {
+            return (new ProductImagePreviewService())->reviewStart($_POST['image_id'] ?? 0, $_POST['preview_id'] ?? '');
+        });
+    }
+
+    public function maskEdit()
+    {
+        $this->operation(function () {
+            if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 196608) { throw new InvalidArgumentException('Позначки маски перевищують ліміт.'); }
+            return (new ProductImagePreviewService())->reviewEdit($_POST['image_id'] ?? 0, $_POST['preview_id'] ?? '', $_POST['revision'] ?? null, $_POST['actions'] ?? null);
+        });
+    }
+
+    public function maskResult()
+    {
+        $this->operation(function () {
+            return (new ProductImagePreviewService())->reviewResult($_POST['image_id'] ?? 0, $_POST['preview_id'] ?? '', $_POST['revision'] ?? null);
+        });
+    }
+
+    public function maskFile()
+    {
+        try {
+            $path = (new ProductImagePreviewService())->reviewFile($_GET['image_id'] ?? 0, $_GET['preview_id'] ?? '', $_GET['revision'] ?? null, $_GET['asset'] ?? '');
+            $stream = @fopen($path, 'rb');
+            if (!$stream) { throw new InvalidArgumentException('Маска недоступна.'); }
+            header('Content-Type: image/png');
+            header('Cache-Control: private, no-store');
+            header('Pragma: no-cache');
+            header('X-Content-Type-Options: nosniff');
+            header('Content-Length: ' . fstat($stream)['size']);
+            fpassthru($stream);
+            fclose($stream);
+            exit;
+        } catch (Throwable $e) {
+            $this->json(['success' => false, 'message' => 'Маска недоступна.'], 404);
+        }
+    }
+
+
     public function previewFile()
     {
         try {
             $path = (new ProductImagePreviewService())->previewFile(
                 $_GET['image_id'] ?? 0,
-                $_GET['preview_id'] ?? ''
+                $_GET['preview_id'] ?? '',
+                $_GET['revision'] ?? null
             );
             $stream = @fopen($path, 'rb');
             if (!$stream) { throw new InvalidArgumentException('Проба фотографії недоступна.'); }
@@ -230,6 +274,8 @@ class AdminImageProcessorController extends Controller
     {
         http_response_code((int) $status);
         header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: private, no-store');
+        header('X-Content-Type-Options: nosniff');
         echo json_encode(
             $payload,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
