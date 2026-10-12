@@ -3169,10 +3169,14 @@
 
             const savedMessage = typeof data.message === 'string' && data.message.trim()
                 ? data.message.trim() : 'Товар збережено.';
-            if (window.AnabelkaNotify && typeof window.AnabelkaNotify.store === 'function') {
-                window.AnabelkaNotify.store('success', savedMessage);
+            // Display the success once on the destination page, not both
+            // before and after the existing redirect/reload.
+            const stored = window.AnabelkaNotify
+                && typeof window.AnabelkaNotify.store === 'function'
+                && window.AnabelkaNotify.store('success', savedMessage);
+            if (!stored) {
+                showMessage(savedMessage, 'success');
             }
-            showMessage(savedMessage, 'success');
 
             window.setTimeout(function () {
                 const returnUrl = translationReturnUrl();

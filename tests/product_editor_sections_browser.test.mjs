@@ -25,6 +25,7 @@ let server;
 let origin;
 let html;
 const saves = [];
+let nextSaveResponse = null;
 before(async () => {
     html = productEditorFixture();
     browser = await playwright.chromium.launch({headless: true,
@@ -46,7 +47,9 @@ before(async () => {
             for await (const chunk of req) chunks.push(chunk);
             saves.push(Buffer.concat(chunks).toString());
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({success: false, message: 'Перевірка збереження завершена'}));
+            const reply = nextSaveResponse || {success: false, message: 'Перевірка збереження завершена'};
+            nextSaveResponse = null;
+            res.end(JSON.stringify(reply));
         } else if (pathname.includes('/uploads/products/')) {
             res.setHeader('Content-Type', 'image/svg+xml');
             res.end('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#f4eaff"/></svg>');
@@ -204,6 +207,23 @@ test('translation target URL expands translations and focuses its field', async 
     const h = await harness(t, 390, 844, '?highlight=1&focus_language=en');
     await h.page.waitForFunction(() => document.activeElement.matches('.product-translation-description'));
     assert.deepEqual(await openLabels(h.page), ['Переклади']);
+});
+
+test('product save success is queued once across reload without premature toast', async t => {
+    const h = await harness(t);
+    const text = 'Товар збережено один раз.';
+    nextSaveResponse = {success: true, product_id: 1, message: text};
+    const navigation = h.page.waitForNavigation({waitUntil: 'load'});
+    await h.page.locator('.product-editor-save').click();
+    await navigation;
+    await h.page.waitForFunction(message => document.querySelector('#site-message')?.textContent === message
+        && document.querySelector('#site-message')?.classList.contains('show'), text);
+    assert.equal(await h.page.locator('#site-message').evaluate(node => node.classList.contains('is-success')), true);
+    assert.equal(await h.page.evaluate(() => sessionStorage.getItem('anabelka-notify-flash')), null,
+        'Success flash must be consumed after navigation.');
+    await h.page.reload();
+    assert.equal(await h.page.locator('#site-message.show').count(), 0,
+        'Consumed success must not show again after another reload.');
 });
 
 test('closed section values retain their names and reach the existing save flow', async t => {
