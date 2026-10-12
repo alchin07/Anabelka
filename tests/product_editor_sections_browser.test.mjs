@@ -260,6 +260,7 @@ for (const [width, height] of [
             await title.evaluate((node, text) => { node.textContent = text; }, value);
             const layout = await h.page.evaluate(() => {
                 const editor = document.querySelector('.product-editor-window');
+                const header = document.querySelector('.product-editor-head');
                 const heading = document.querySelector('#product-editor-title');
                 const close = document.querySelector('.product-editor-close');
                 const panel = editor.getBoundingClientRect();
@@ -274,7 +275,7 @@ for (const [width, height] of [
                     closeInViewport: action.left >= -1 && action.right <= innerWidth + 1,
                     titleBesideClose: text.right <= action.left + 1,
                     closeWidth: action.width, closeHeight: action.height,
-                    pageOverflow: document.documentElement.scrollWidth > innerWidth + 1
+                    headerOverflow: header.scrollWidth > header.clientWidth + 1
                 };
             });
             assert.equal(layout.textNotClipped, true, JSON.stringify(layout));
@@ -283,7 +284,7 @@ for (const [width, height] of [
             assert.equal(layout.closeInViewport, true, JSON.stringify(layout));
             assert.equal(layout.titleBesideClose, true, JSON.stringify(layout));
             assert.ok(layout.closeWidth >= 44 && layout.closeHeight >= 44, JSON.stringify(layout));
-            assert.equal(layout.pageOverflow, false, JSON.stringify(layout));
+            assert.equal(layout.headerOverflow, false, JSON.stringify(layout));
         }
 
         const close = h.page.locator('.product-editor-close');
