@@ -84,6 +84,29 @@
     color: #913748;
 }
 
+/* Field-level guidance reuses the existing solid-purple notification palette. */
+#product-editor-form .product-field-error.anabelka-notify-inline {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 2px;
+    color: var(--notify-success-text, #fff);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+#product-editor-form .is-invalid,
+#product-editor-form .anabelka-select-trigger[aria-invalid="true"] {
+    border-color: var(--notify-success-border, #8A2BE2);
+    outline: 2px solid var(--notify-success-border, #8A2BE2);
+    outline-offset: 1px;
+}
+
+#product-editor-form .is-invalid:focus-visible,
+#product-editor-form .anabelka-select-trigger[aria-invalid="true"]:focus-visible {
+    box-shadow: 0 0 0 4px rgba(138, 43, 226, 0.16);
+}
+
 .admin-product-tabs {
     display: flex;
     gap: 7px;

@@ -143,22 +143,153 @@
     }
 
 
-    function showMessage(text)
+    function showMessage(text, type)
     {
-        const message = document.getElementById('site-message');
+        const level = ['success', 'error', 'warning', 'info'].includes(type)
+            ? type : 'info';
+        if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
+            return window.AnabelkaNotify.show(level, text);
+        }
 
-        if (!message) {
-            window.alert(text);
+        // Compatibility only: never block the editor with a native alert.
+        const element = document.getElementById('site-message');
+        if (!element) {
+            return false;
+        }
+        element.textContent = text;
+        ['success', 'error', 'warning', 'info'].forEach(function (kind) {
+            element.classList.remove('is-' + kind);
+        });
+        element.classList.add('is-' + level, 'show');
+        clearTimeout(window.adminProductMessageTimer);
+        window.adminProductMessageTimer = window.setTimeout(function () {
+            element.classList.remove('show');
+        }, 3500);
+        return true;
+    }
+
+
+    const editorFieldErrors = new Map();
+    let editorErrorSequence = 0;
+
+    function showEditorFieldError(input, message)
+    {
+        if (!input || !input.isConnected) {
+            return false;
+        }
+
+        let entry = editorFieldErrors.get(input);
+        if (!entry) {
+            const error = document.createElement('span');
+            do {
+                editorErrorSequence += 1;
+                error.id = 'product-field-error-' + editorErrorSequence;
+            } while (document.getElementById(error.id));
+            error.className = 'product-field-error anabelka-notify-inline is-validation';
+
+            const label = input.closest('label');
+            if (label && form.contains(label)) {
+                label.appendChild(error);
+            } else {
+                input.insertAdjacentElement('afterend', error);
+            }
+
+            const wrapper = input.closest('.anabelka-select');
+            const trigger = wrapper && wrapper.querySelector('.anabelka-select-trigger');
+            const controls = (trigger && trigger !== input ? [input, trigger] : [input])
+                .map(function (node) {
+                    return {node: node, invalid: node.getAttribute('aria-invalid')};
+                });
+            entry = {message: error, controls: controls};
+            editorFieldErrors.set(input, entry);
+            input.classList.add('is-invalid');
+            controls.forEach(function (control) {
+                const ids = (control.node.getAttribute('aria-describedby') || '')
+                    .split(/\s+/).filter(Boolean);
+                ids.push(error.id);
+                control.node.setAttribute('aria-describedby', ids.join(' '));
+                control.node.setAttribute('aria-invalid', 'true');
+            });
+        }
+
+        if (entry.message.textContent !== message) {
+            entry.message.textContent = message;
+        }
+        return true;
+    }
+
+
+    function clearEditorFieldError(input)
+    {
+        const entry = editorFieldErrors.get(input);
+        if (!entry) {
             return;
         }
 
-        message.textContent = text;
-        message.classList.add('show');
+        entry.controls.forEach(function (control) {
+            const ids = (control.node.getAttribute('aria-describedby') || '')
+                .split(/\s+/).filter(function (id) {
+                    return id && id !== entry.message.id;
+                });
+            if (ids.length) {
+                control.node.setAttribute('aria-describedby', ids.join(' '));
+            } else {
+                control.node.removeAttribute('aria-describedby');
+            }
+            if (control.invalid === null) {
+                control.node.removeAttribute('aria-invalid');
+            } else {
+                control.node.setAttribute('aria-invalid', control.invalid);
+            }
+        });
+        input.classList.remove('is-invalid');
+        entry.message.remove();
+        editorFieldErrors.delete(input);
+    }
 
-        clearTimeout(window.adminProductMessageTimer);
-        window.adminProductMessageTimer = window.setTimeout(function () {
-            message.classList.remove('show');
-        }, 3500);
+
+    function clearEditorFieldErrors()
+    {
+        Array.from(editorFieldErrors.keys()).forEach(clearEditorFieldError);
+    }
+
+
+    function refreshEditorFieldError(input)
+    {
+        if (!editorFieldErrors.has(input)) {
+            return;
+        }
+        if (!input.isConnected || !input.validity) {
+            clearEditorFieldError(input);
+        } else if (input.validity.valid
+            && !(input.matches('[data-size-name]') && !input.value.trim())) {
+            clearEditorFieldError(input);
+        } else if (!input.validity.valid) {
+            showEditorFieldError(input, input.validationMessage);
+        }
+    }
+
+
+    form.addEventListener('reset', clearEditorFieldErrors);
+    ['input', 'change'].forEach(function (type) {
+        form.addEventListener(type, function (event) {
+            refreshEditorFieldError(event.target);
+            if (event.target.matches && event.target.matches('[data-size-name]')) {
+                Array.from(editorFieldErrors.keys()).forEach(refreshEditorFieldError);
+            }
+        });
+    });
+
+    const serverFlash = document.getElementById('admin-product-legacy-flash');
+    if (serverFlash) {
+        try {
+            const payload = JSON.parse(serverFlash.textContent || '{}');
+            if (payload && typeof payload.message === 'string' && payload.message.trim()) {
+                showMessage(payload.message, payload.type === 'error' ? 'error' : 'success');
+            }
+        } catch (error) {
+            // Invalid old-session notifications must not interrupt the editor.
+        }
     }
 
 
@@ -304,7 +435,7 @@
         if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
             window.AnabelkaNotify.show(type, message);
         } else {
-            showMessage(message);
+            showMessage(message, type);
         }
     }
 
@@ -868,7 +999,7 @@
         if (!originalUrl || !processedUrl) {
             cancelImagePreview(preview);
             showMessage(
-                'Для порівняння потрібна готова оброблена фотографія.'
+                'Для порівняння потрібна готова оброблена фотографія.', 'warning'
             );
             return;
         }
@@ -1494,7 +1625,7 @@
                         closeImageComparison({ cancelPreview: false });
                     }
 
-                    showMessage('Обробку фотографії застосовано.');
+                    showMessage('Обробку фотографії застосовано.', 'success');
                 } catch (error) {
                     preview.confirming = false;
                     preview.setBusy(false);
@@ -1505,7 +1636,7 @@
                         apply.disabled = Boolean(preview.needsReview || preview.maskStarting);
                         cancel.disabled = false;
                         apply.textContent = 'Застосувати';
-                        showMessage(error.message || 'Не вдалося застосувати обробку.');
+                        showMessage(error.message || 'Не вдалося застосувати обробку.', 'error');
                     }
                 }
             });
@@ -1798,9 +1929,9 @@
 
         revealEditorField(duplicate.input);
 
-        showMessage(
-            'Розмір «'
-            + duplicate.name
+        showEditorFieldError(
+            duplicate.input,
+            'Розмір «' + duplicate.name
             + '» додано двічі. Видаліть дублікат або вкажіть інший розмір.'
         );
 
@@ -1873,10 +2004,13 @@
 
         revealEditorField(input || fields.sizeList);
 
-        showMessage(
-            message
-            || 'Вкажіть розмір товару, наприклад 75B. Для товару без розміру — «Універсальний».'
-        );
+        const guidance = message
+            || 'Вкажіть розмір товару, наприклад 75B. Для товару без розміру — «Універсальний».';
+        if (input) {
+            showEditorFieldError(input, guidance);
+        } else {
+            showMessage(guidance, 'warning');
+        }
 
         window.setTimeout(function () {
             if (!input) {
@@ -2215,7 +2349,7 @@
                 }
             } catch (error) {
                 if (!preview.dismissed && activeImagePreview === preview) {
-                    showMessage(error.message || 'Не вдалося отримати попередній перегляд.');
+                    showMessage(error.message || 'Не вдалося отримати попередній перегляд.', 'error');
                 }
                 cancelImagePreview(preview);
             } finally {
@@ -2681,6 +2815,7 @@
         closeImageComparison({ syncHistory: false });
         imagePreviewGeneration += 1;
         editor.hidden = true;
+        clearEditorFieldErrors();
         document.body.classList.remove('product-editor-open');
 
         if (syncHistory) {
@@ -2893,7 +3028,7 @@
             || !window.AnabelkaAITranslation
             || typeof window.AnabelkaAITranslation.suggest !== 'function'
         ) {
-            showMessage('Система ШІ-перекладу ще завантажується. Спробуйте ще раз.');
+            showMessage('Система ШІ-перекладу ще завантажується. Спробуйте ще раз.', 'warning');
             return;
         }
 
@@ -2914,9 +3049,9 @@
             section.querySelector('.product-translation-description').value =
                 translation.description || '';
             setTranslationWorkflow(section, 'ai', 'draft');
-            showMessage('ШІ-переклад отримано. Перевірте його перед збереженням.');
+            showMessage('ШІ-переклад отримано. Перевірте його перед збереженням.', 'success');
         } catch (error) {
-            showMessage(error.message || 'Не вдалося отримати ШІ-переклад.');
+            showMessage(error.message || 'Не вдалося отримати ШІ-переклад.', 'error');
         } finally {
             button.disabled = false;
             button.textContent = originalText;
@@ -2954,19 +3089,22 @@
         // The browser validates before submit; reveal the field before focus.
         event.preventDefault();
 
-        if (validationFocusPending) {
-            return;
-        }
-
         const input = event.target;
-        validationFocusPending = true;
-        revealEditorField(input);
         const label = input.closest('label');
         const caption = label && label.querySelector('span');
         const message = input.validity.valueMissing
             ? 'Заповніть це поле.'
             : input.validationMessage;
-        showMessage((caption ? caption.textContent.trim() + ': ' : '') + message);
+        showEditorFieldError(
+            input, (caption ? caption.textContent.trim() + ': ' : '') + message
+        );
+
+        if (validationFocusPending) {
+            return;
+        }
+
+        validationFocusPending = true;
+        revealEditorField(input);
 
         window.setTimeout(function () {
             validationFocusPending = false;
@@ -3021,11 +3159,20 @@
                 );
             }
 
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Не вдалося зберегти товар.');
+            if (!data || typeof data !== 'object' || Array.isArray(data)
+                || !response.ok || data.success !== true) {
+                throw new Error(
+                    data && typeof data.message === 'string' && data.success === false
+                        ? data.message : 'Не вдалося зберегти товар.'
+                );
             }
 
-            showMessage(data.message || 'Товар збережено.');
+            const savedMessage = typeof data.message === 'string' && data.message.trim()
+                ? data.message.trim() : 'Товар збережено.';
+            if (window.AnabelkaNotify && typeof window.AnabelkaNotify.store === 'function') {
+                window.AnabelkaNotify.store('success', savedMessage);
+            }
+            showMessage(savedMessage, 'success');
 
             window.setTimeout(function () {
                 const returnUrl = translationReturnUrl();
@@ -3051,7 +3198,7 @@
             if (message.indexOf('Додайте хоча б один розмір') !== -1) {
                 focusSizeEditor(message);
             } else {
-                showMessage(message);
+                showMessage(message, 'error');
             }
 
             fields.save.disabled = false;

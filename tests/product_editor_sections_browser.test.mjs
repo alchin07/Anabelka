@@ -124,6 +124,18 @@ test('size, color, photo and translation updates keep the current expanded secti
     assert.deepEqual(await openLabels(h.page), [...state, 'Переклади']);
 });
 
+test('product inline validation clears immediately after correction', async t => {
+    const h = await harness(t);
+    await h.page.locator('#product-edit-price').fill('');
+    await h.page.locator('.product-editor-save').click();
+    const notice = h.page.locator('#product-edit-price').locator('..').locator('.product-field-error');
+    assert.equal(await notice.count(), 1);
+    assert.equal(await h.page.locator('#product-edit-price').getAttribute('aria-invalid'), 'true');
+    await h.page.locator('#product-edit-price').fill('49.50');
+    assert.equal(await notice.count(), 0);
+    assert.notEqual(await h.page.locator('#product-edit-price').getAttribute('aria-invalid'), 'true');
+});
+
 test('native validation reveals and focuses an invalid field in a collapsed section', async t => {
     const h = await harness(t);
     await h.page.evaluate(() => {
@@ -133,7 +145,11 @@ test('native validation reveals and focuses an invalid field in a collapsed sect
     await h.page.locator('.product-editor-save').click();
     await h.page.waitForFunction(() => document.activeElement.id === 'product-edit-price');
     assert.equal(await h.section('Ціни').evaluate(node => node.open), true);
-    assert.equal(await h.page.locator('#site-message').innerText() !== '', true, 'A useful validation message is visible');
+    const guidance = h.page.locator('#product-edit-price').locator('..').locator('.product-field-error');
+    assert.match(await guidance.innerText(), /Заповніть це поле/);
+    assert.equal(await guidance.evaluate(node => node.parentElement.querySelector('input')?.id), 'product-edit-price');
+    assert.equal(await h.page.locator('#site-message.show').count(), 0,
+        'Field validation must not display a global toast.');
     assert.equal(await h.page.locator('#product-editor').getAttribute('hidden'), null);
 });
 
@@ -195,6 +211,8 @@ test('closed section values retain their names and reach the existing save flow'
     const start = saves.length;
     await h.page.locator('.product-editor-save').click();
     await h.page.waitForFunction(() => document.querySelector('#site-message').textContent === 'Перевірка збереження завершена');
+    assert.equal(await h.page.locator('#site-message').evaluate(node => node.classList.contains('is-error')), true);
+    assert.equal(await h.page.locator('#site-message').getAttribute('role'), 'alert');
     assert.equal(saves.length, start + 1);
     const submitted = saves.at(-1);
     for (const [name, value] of [['category_id', '7'], ['sku', 'SET-1'], ['price', '49.50'], ['rank_price[2]', '45.00'],

@@ -102,8 +102,9 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=15">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=16">
     <link rel="stylesheet" href="/Anabelka/css/admin-mask-editor.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=4">
 </head>
 <body>
 
@@ -132,13 +133,20 @@ require __DIR__ . '/../../partials/header.php';
         <?php endif; ?>
     </section>
 
-    <?php if (!empty($flash)): ?>
-        <div
-            class="admin-product-flash <?= ($flash['type'] ?? '') === 'error' ? 'is-error' : 'is-success' ?>"
-            role="status"
-        >
-            <?= $escape($flash['message'] ?? '') ?>
-        </div>
+    <?php if (!empty($flash) && trim((string) ($flash['message'] ?? '')) !== ''): ?>
+        <script id="admin-product-legacy-flash" type="application/json"><?=
+            json_encode([
+                'type' => ($flash['type'] ?? '') === 'error' ? 'error' : 'success',
+                'message' => (string) $flash['message']
+            ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                | JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE) ?: '{}'
+        ?></script>
+        <noscript>
+            <div
+                class="admin-product-flash <?= ($flash['type'] ?? '') === 'error' ? 'is-error' : 'is-success' ?>"
+                role="status"
+            ><?= $escape($flash['message'] ?? '') ?></div>
+        </noscript>
     <?php endif; ?>
 
     <?php if ($productsError !== ''): ?>
@@ -816,9 +824,10 @@ require __DIR__ . '/../../partials/header.php';
 </template>
 
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
-<div id="site-message" class="site-message" role="status"></div>
+<div id="site-message" class="site-message anabelka-notify" role="status" aria-live="polite" aria-atomic="true"></div>
+<script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script src="/Anabelka/js/admin-mask-editor.js?v=2"></script>
-<script src="/Anabelka/js/admin-products.js?v=29"></script>
+<script src="/Anabelka/js/admin-products.js?v=30"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>
