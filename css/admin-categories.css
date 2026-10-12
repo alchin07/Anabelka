@@ -422,19 +422,16 @@
     outline-color: var(--purple, #8A2BE2);
 }
 
-.category-field-error {
-    box-sizing: border-box;
-    max-width: 100%;
-    margin: 7px 0 0;
-    padding: 7px 10px;
-    border-left: 3px solid var(--purple, #8A2BE2);
-    border-radius: 8px;
-    /* Keep the approved, high-contrast palette in light and dark themes. */
-    background: var(--purple-light, #F4EAFF);
-    color: var(--purple-dark, #6519B9);
-    font-size: 13px;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
+.category-form-errors {
+    margin-top: 12px;
+}
+
+.category-form-errors .category-field-error {
+    margin: 0;
+}
+
+.category-form-errors .category-field-error + .category-field-error {
+    margin-top: 8px;
 }
 
 .category-check-grid {

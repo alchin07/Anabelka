@@ -115,3 +115,45 @@
     border: 1px solid var(--notify-warning-border);
     border-left-width: 4px;
 }
+
+/*
+ * Inline notices reuse the exact toast surface, but remain in document flow.
+ * Field-validation guidance intentionally uses the established brand-purple
+ * success surface, never the systemic error-red token.
+ */
+.anabelka-notify-inline {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--notify-info-border);
+    border-left-width: 4px;
+    border-radius: 12px;
+    background: var(--notify-info-bg);
+    color: var(--notify-info-text);
+    box-shadow: var(--notify-shadow);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.anabelka-notify-inline.is-success,
+.anabelka-notify-inline.is-validation {
+    background: var(--notify-success-bg);
+    color: var(--notify-success-text);
+    border-color: var(--notify-success-border);
+}
+
+.anabelka-notify-inline.is-error {
+    background: var(--notify-error-bg);
+    color: var(--notify-error-text);
+    border-color: var(--notify-error-border);
+}
+
+.anabelka-notify-inline.is-warning {
+    background: var(--notify-warning-bg);
+    color: var(--notify-warning-text);
+    border-color: var(--notify-warning-border);
+}

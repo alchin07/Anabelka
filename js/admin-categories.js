@@ -20,6 +20,7 @@
     const departmentById = new Map();
     let lastTrigger = null;
     const formErrors = new WeakMap();
+    const formErrorHosts = new WeakMap();
     let errorSequence = 0;
 
     categories.forEach(function (category) {
@@ -343,6 +344,20 @@
     }
 
 
+    function formErrorHost(form)
+    {
+        let host = formErrorHosts.get(form);
+        if (!host) {
+            host = document.createElement('div');
+            host.className = 'category-form-errors anabelka-notify-inline is-validation';
+            // One form-level banner, in document flow after the form itself.
+            form.insertAdjacentElement('afterend', host);
+            formErrorHosts.set(form, host);
+        }
+        return host;
+    }
+
+
     function clearFieldError(form, field)
     {
         const errors = formErrors.get(form);
@@ -367,6 +382,13 @@
         field.classList.remove('is-invalid');
         entry.message.remove();
         errors.delete(field);
+        if (errors.size === 0) {
+            const host = formErrorHosts.get(form);
+            if (host) {
+                host.remove();
+                formErrorHosts.delete(form);
+            }
+        }
     }
 
 
@@ -375,6 +397,11 @@
         const errors = formErrors.get(form);
         if (errors) {
             Array.from(errors.keys()).forEach(function (field) { clearFieldError(form, field); });
+        }
+        const host = formErrorHosts.get(form);
+        if (host) {
+            host.remove();
+            formErrorHosts.delete(form);
         }
     }
 
@@ -398,7 +425,7 @@
             errors.set(field, entry);
             // Described text is announced with focus; no second live-region announcement.
             error.textContent = message;
-            (field.closest('.anabelka-select') || field).insertAdjacentElement('afterend', error);
+            formErrorHost(form).appendChild(error);
             field.classList.add('is-invalid');
             controls.forEach(function (item) {
                 const ids = (item.node.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
