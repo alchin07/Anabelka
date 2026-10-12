@@ -494,6 +494,6 @@ require __DIR__ . '/../../partials/header.php';
 <script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
 <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-categories.js?v=12"></script>
+<script src="/Anabelka/js/admin-categories.js?v=13"></script>
 </body>
 </html>
