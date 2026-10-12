@@ -69,6 +69,19 @@
 .site-message.show {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+.anabelka-notify:focus-visible {
+    outline: 3px solid var(--notify-info-text);
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .anabelka-notify,
+    .site-message {
+        transition: none;
+    }
 }
 
 .anabelka-notify.is-success,

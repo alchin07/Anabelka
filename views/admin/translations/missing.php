@@ -26,7 +26,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/anabelka-notify.css?v=1"
+        href="/Anabelka/css/anabelka-notify.css?v=3"
     >
 </head>
 <body>
@@ -439,7 +439,7 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
     role="status"
     aria-live="polite"
 ></div>
-<script src="/Anabelka/js/anabelka-notify.js?v=1"></script>
+<script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
 
 </body>

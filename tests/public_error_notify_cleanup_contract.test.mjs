@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import {phpJson} from './helpers/php-probe.mjs';
 import {fileURLToPath} from 'node:url';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -47,13 +48,13 @@ test('front controller globally installs notification assets and host', () => {
     assert.match(index, /NotificationBootstrap::register/);
     assert.equal(fs.existsSync(bootstrapPath), true);
 
-    const bootstrap = fs.readFileSync(bootstrapPath, 'utf8');
-    assert.match(bootstrap, /anabelka-notify\.css\?v=/);
-    assert.match(bootstrap, /anabelka-notify\.js\?v=/);
-    assert.match(bootstrap, /id=["']site-message["']/);
-    assert.match(bootstrap, /aria-atomic=\\?["']true\\?["']/);
-    assert.match(bootstrap, /<\/head>/i);
-    assert.match(bootstrap, /<body/i);
+    const [html] = phpJson("require 'tests/fixtures/anabelka_notify_document.php';");
+    assert.equal((html.match(/src="\/Anabelka\/js\/anabelka-notify\.js\?v=/g) || []).length, 1);
+    assert.equal((html.match(/href="\/Anabelka\/css\/anabelka-notify\.css\?v=/g) || []).length, 1);
+    assert.equal((html.match(/id="site-message"/g) || []).length, 1);
+    assert.match(html, /aria-atomic="true"/);
+    assert.ok(html.indexOf('anabelka-notify.js') < html.indexOf('</head>'));
+    assert.ok(html.indexOf('<body>') < html.indexOf('id="site-message"'));
 });
 
 test('notification accessibility escalates errors and keeps other messages polite', () => {

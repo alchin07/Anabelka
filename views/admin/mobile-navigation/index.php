@@ -33,7 +33,7 @@ foreach ($languages as $language) {
     <title>Мобільне меню — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=3">
     <link rel="stylesheet" href="/Anabelka/css/admin-mobile-navigation.css?v=3">
 </head>
 <body>
@@ -403,7 +403,7 @@ require __DIR__ . '/../partials/header.php';
     role="status"
     aria-live="polite"
 ></div>
-<script src="/Anabelka/js/anabelka-notify.js?v=1"></script>
+<script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script src="/Anabelka/js/admin-mobile-navigation.js?v=1"></script>
 </body>
 </html>

@@ -178,6 +178,83 @@ test('show honors a custom duration', function () {
     assertShown(page, 'warning', 'Зачекайте.', 1234);
 });
 
+test('distinct notifications are FIFO and a success never replaces an error', () => {
+    const page = loadNotify();
+    const api = page.window.AnabelkaNotify;
+    api.error('Не збережено.');
+    api.success('Іншу дію збережено.');
+    api.warning('Перевірте дані.');
+    assertShown(page, 'error', 'Не збережено.', 4800);
+    assert.equal(page.timers.length, 1);
+    page.timers[0].callback();
+    assertShown(page, 'success', 'Іншу дію збережено.', 2800);
+    page.timers[1].callback();
+    assertShown(page, 'warning', 'Перевірте дані.', 4200);
+    page.timers[2].callback();
+    assert.equal(page.element.classList.contains('show'), false);
+    assert.equal(page.element.textContent, '');
+});
+
+test('duplicates of active and queued notifications do not restart or extend display', () => {
+    const page = loadNotify();
+    const api = page.window.AnabelkaNotify;
+    api.error('Помилка.');
+    api.error('  Помилка.  ');
+    api.success('Готово.');
+    api.success('Готово.');
+    assertShown(page, 'error', 'Помилка.', 4800);
+    assert.equal(page.timers.length, 1);
+    page.timers[0].callback();
+    assertShown(page, 'success', 'Готово.', 2800);
+    page.timers[1].callback();
+    assert.equal(page.element.classList.contains('show'), false);
+    assert.equal(page.timers.length, 2);
+    // A later distinct operation may legitimately use the same copy.
+    assert.equal(api.success('Готово.'), true);
+    assertShown(page, 'success', 'Готово.', 2800);
+});
+
+test('store appends distinct messages, deduplicates and preserves errors across reload', () => {
+    const values = new Map();
+    const first = loadNotify({values, element: null});
+    const api = first.window.AnabelkaNotify;
+    api.store('error', 'Не збережено.');
+    api.store('success', 'Готово.');
+    api.store('success', ' Готово. ');
+    assert.equal(JSON.parse(values.get(storageKey)).length, 2);
+    const next = loadNotify({values});
+    assertShown(next, 'error', 'Не збережено.', 4800);
+    assert.equal(values.has(storageKey), false);
+    assert.equal(next.window.AnabelkaNotify.consume(), false);
+    next.timers[0].callback();
+    assertShown(next, 'success', 'Готово.', 2800);
+});
+
+test('a store-before-redirect retains a visible or pending error ahead of success', () => {
+    const values = new Map();
+    const page = loadNotify({values});
+    page.window.AnabelkaNotify.error('Важлива помилка.');
+    page.window.AnabelkaNotify.store('success', 'Іншу дію збережено.');
+    const next = loadNotify({values});
+    assertShown(next, 'error', 'Важлива помилка.', 4800);
+    next.timers[0].callback();
+    assertShown(next, 'success', 'Іншу дію збережено.', 2800);
+});
+
+test('the legacy single-object flash remains readable and can be appended to', () => {
+    const values = new Map([[storageKey, JSON.stringify({type: 'warning', message: 'Старе.', options: {}})]]);
+    const page = loadNotify({values});
+    assertShown(page, 'warning', 'Старе.', 4200);
+    assert.equal(values.has(storageKey), false);
+});
+
+test('untrusted notification markup remains literal text', () => {
+    const page = loadNotify();
+    const text = '<img src=x onerror=alert(1)></script>';
+    page.window.AnabelkaNotify.error(text);
+    assert.equal(page.element.textContent, text);
+});
+
 test('store survives a simulated reload and auto-consume displays it', function () {
     const values = new Map();
     const firstPage = loadNotify({values, element: null});
@@ -190,11 +267,11 @@ test('store survives a simulated reload and auto-consume displays it', function 
         ),
         true
     );
-    assert.deepEqual(JSON.parse(values.get(storageKey)), {
+    assert.deepEqual(JSON.parse(values.get(storageKey)), [{
         type: 'success',
         message: 'Категорію створено.',
         options: {duration: 1600}
-    });
+    }]);
 
     const reloadedPage = loadNotify({values});
 
@@ -249,7 +326,7 @@ test('unknown notification type safely falls back to info', function () {
     assertShown(page, 'info', 'Невідомий тип.', 3500);
 
     page.window.AnabelkaNotify.store('danger', 'Збережений тип.');
-    assert.equal(JSON.parse(values.get(storageKey)).type, 'info');
+    assert.equal(JSON.parse(values.get(storageKey))[0].type, 'info');
 });
 
 test('empty messages are ignored and never enter storage', function () {
@@ -304,7 +381,7 @@ test('AdminFlashMessage remains a compatibility wrapper over AnabelkaNotify', fu
         'Категорію оновлено.'
     ]);
     assertShown(page, 'error', 'Операцію не виконано.', 4800);
-    assert.equal(JSON.parse(page.values.get(storageKey)).type, 'success');
+    assert.deepEqual(JSON.parse(page.values.get(storageKey)).map(entry => entry.type), ['error', 'success']);
 });
 
 test('category reload and translation-return pages load the shared module once before the wrapper', function () {
@@ -314,16 +391,16 @@ test('category reload and translation-return pages load the shared module once b
     ];
 
     views.forEach(function (view) {
-        const moduleMatches = view.match(/js\/anabelka-notify\.js\?v=1/g) || [];
+        const moduleMatches = view.match(/js\/anabelka-notify\.js\?v=3/g) || [];
         const wrapperMatches = view.match(/js\/admin-flash-message\.js\?v=2/g) || [];
 
         assert.equal(moduleMatches.length, 1);
         assert.equal(wrapperMatches.length, 1);
         assert.ok(
-            view.indexOf('js/anabelka-notify.js?v=1')
+            view.indexOf('js/anabelka-notify.js?v=3')
                 < view.indexOf('js/admin-flash-message.js?v=2')
         );
-        assert.match(view, /css\/anabelka-notify\.css\?v=1/);
+        assert.match(view, /css\/anabelka-notify\.css\?v=3/);
         assert.doesNotMatch(view, /css\/admin-flash-message\.css/);
     });
 
