@@ -167,9 +167,19 @@ test('a successful retry carries its unread error through reload before success'
 
 for (const [name, response, message] of [
     ['JSON validation', {status: 422, body: {success: false, message: 'Таку категорію вже створено.'}}, 'Таку категорію вже створено.'],
+    ['HTTP 200 refusal', {body: {success: false, message: 'Операцію відхилено.'}}, 'Операцію відхилено.'],
+    ['HTTP 200 refusal without message', {body: {success: false}}, 'Операцію не виконано.'],
     ['malformed JSON', {status: 200, body: '{broken'}, 'Сервер повернув некоректну відповідь.'],
+    ['JSON null', {body: null}, 'Сервер повернув некоректну відповідь.'],
+    ['JSON array', {body: [{success: true}]}, 'Сервер повернув некоректну відповідь.'],
+    ['missing success flag', {body: {message: 'Неповна відповідь.'}}, 'Сервер повернув некоректну відповідь.'],
+    ['string success flag', {body: {success: 'true', message: 'Небезпечна відповідь.'}}, 'Сервер повернув некоректну відповідь.'],
+    ['HTML 401', {status: 401, body: '<h1>Sign in</h1>'}, 'Сеанс завершено. Увійдіть знову та повторіть дію.'],
+    ['HTML 403', {status: 403, body: '<h1>CSRF expired</h1>'}, 'Доступ заборонено. Оновіть сторінку та перевірте права доступу.'],
+    ['HTML 429', {status: 429, body: '<h1>Rate limited</h1>'}, 'Забагато запитів. Спробуйте трохи пізніше.'],
     ['HTML 500', {status: 500, body: '<h1>Помилка PHP</h1>'}, 'Помилка сервера. Перевірте журнал KSWEB.'],
-    ['network failure', {network: true}, 'Failed to fetch'],
+    ['inconsistent HTTP 503', {status: 503, body: {success: true, message: 'Збережено.'}}, 'Помилка сервера. Перевірте журнал KSWEB.'],
+    ['network failure', {network: true}, 'Немає зв’язку із сервером. Перевірте з’єднання та спробуйте ще раз.'],
 ]) {
     test(`${name} shows shared error, preserves entered form data and restores submit`, async t => {
         const h = await harness(t);
@@ -191,6 +201,34 @@ for (const [name, response, message] of [
         assert.equal((await toast(h.page)).role, 'alert');
     });
 }
+
+test('create failure retains unsaved values, open modal and retry control', async t => {
+    const h = await harness(t);
+    await h.page.locator('[data-category-create].is-root').first().click();
+    await h.page.locator('#category-create-name').fill('Нова незбережена категорія');
+    fixture.responses.push({status: 500, body: {success: false, message: 'Не вдалося створити категорію.'}});
+    const visits = fixture.visits();
+    await h.page.locator('#category-create-form [type="submit"]').click();
+    await h.page.waitForFunction(() => document.querySelector('#site-message').classList.contains('show'));
+    await expectToast(h.page, 'error', 'Не вдалося створити категорію.');
+    assert.equal(fixture.visits(), visits);
+    assert.equal(await h.page.locator('#category-create-name').inputValue(), 'Нова незбережена категорія');
+    assert.equal(await h.page.locator('#category-create-modal').isVisible(), true);
+    assert.equal(await h.page.locator('#category-create-form [type="submit"]').isEnabled(), true);
+});
+
+test('delete refusal keeps confirmation open without a spurious success reload', async t => {
+    const h = await harness(t);
+    await h.page.locator('[data-category-delete="3"]').click();
+    fixture.responses.push({status: 422, body: {success: false, message: 'Категорія вже містить товари.'}});
+    const visits = fixture.visits();
+    await h.page.locator('#category-delete-form [type="submit"]').click();
+    await h.page.waitForFunction(() => document.querySelector('#site-message').classList.contains('show'));
+    await expectToast(h.page, 'error', 'Категорія вже містить товари.');
+    assert.equal(fixture.visits(), visits);
+    assert.equal(await h.page.locator('#category-delete-modal').isVisible(), true);
+    assert.equal(await h.page.locator('#category-delete-form [type="submit"]').isEnabled(), true);
+});
 
 test('a rejected toggle reenables its trigger, keeps the page and renders server text literally', async t => {
     const h = await harness(t);

@@ -179,16 +179,46 @@
     }
 
 
+    function responseFailureMessage(response)
+    {
+        if (response.status === 401) {
+            return 'Сеанс завершено. Увійдіть знову та повторіть дію.';
+        }
+        if (response.status === 403) {
+            return 'Доступ заборонено. Оновіть сторінку та перевірте права доступу.';
+        }
+        if (response.status === 429) {
+            return 'Забагато запитів. Спробуйте трохи пізніше.';
+        }
+        if (response.status >= 500) {
+            return 'Помилка сервера. Перевірте журнал KSWEB.';
+        }
+        return 'Операцію не виконано. Оновіть сторінку та спробуйте ще раз.';
+    }
+
+
     async function request(url, body)
     {
-        const response = await fetch(url, {
-            method: 'POST',
-            body: body,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        const text = await response.text();
+        let response;
+        let text;
+
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                body: body,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            text = await response.text();
+        } catch (error) {
+            // Browser-specific network failures must not appear as raw
+            // "Failed to fetch" messages in administrator notifications.
+            throw new Error(
+                'Немає зв’язку із сервером. Перевірте з’єднання та спробуйте ще раз.'
+            );
+        }
+
         let result;
 
         try {
@@ -197,13 +227,41 @@
             throw new Error(
                 response.ok
                     ? 'Сервер повернув некоректну відповідь.'
-                    : 'Помилка сервера. Перевірте журнал KSWEB.'
+                    : responseFailureMessage(response)
             );
         }
 
-        if (!response.ok || !result.success) {
-            throw new Error(result.message || 'Операцію не виконано.');
+        if (!result || typeof result !== 'object' || Array.isArray(result)) {
+            throw new Error(
+                response.ok
+                    ? 'Сервер повернув некоректну відповідь.'
+                    : responseFailureMessage(response)
+            );
         }
+
+        // HTTP status wins, even if a proxy sends an inconsistent JSON body.
+        if (!response.ok) {
+            const serverMessage = result.success === false
+                && typeof result.message === 'string'
+                ? result.message.trim() : '';
+            throw new Error(serverMessage || responseFailureMessage(response));
+        }
+
+        if (result.success === false) {
+            throw new Error(
+                typeof result.message === 'string' && result.message.trim()
+                    ? result.message.trim()
+                    : 'Операцію не виконано.'
+            );
+        }
+
+        if (result.success !== true) {
+            throw new Error('Сервер повернув некоректну відповідь.');
+        }
+
+        // Never render a malformed message as "[object Object]".
+        result.message = typeof result.message === 'string'
+            ? result.message.trim() : '';
 
         return result;
     }

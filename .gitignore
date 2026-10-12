@@ -7,3 +7,5 @@ uploads/products/*
 storage/full-backups/
 storage/deploy-backups/
 storage/image-processor/
+**/__pycache__/
+*.py[cod]

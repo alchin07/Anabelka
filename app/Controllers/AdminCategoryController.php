@@ -52,13 +52,12 @@ class AdminCategoryController extends Controller
 
     public function update()
     {
-
-        // Both helpers may perform legacy CREATE TABLE IF NOT EXISTS work.
-        // Resolve it before CategoryManager starts the data transaction.
-        $activeLanguages = Language::active();
-        CategoryTranslator::getForCategory(0);
-
         try {
+            // Both helpers may perform legacy CREATE TABLE IF NOT EXISTS work.
+            // Resolve it before CategoryManager starts the data transaction.
+            $activeLanguages = Language::active();
+            CategoryTranslator::getForCategory(0);
+
             CategoryManager::update(
                 (int) ($_POST['category_id'] ?? 0),
                 $_POST,
@@ -196,9 +195,9 @@ class AdminCategoryController extends Controller
 
     public function delete()
     {
-        CategoryTranslator::getForCategory(0);
-
         try {
+            CategoryTranslator::getForCategory(0);
+
             CategoryManager::delete(
                 (int) ($_POST['category_id'] ?? 0)
             );
