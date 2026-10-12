@@ -7,22 +7,17 @@
 (function () {
     'use strict';
 
-    function showMessage(text)
+    function showMessage(text, type)
     {
-        const message = document.getElementById('site-message');
-
-        if (!message) {
-            window.alert(text);
-            return;
+        if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
+            return window.AnabelkaNotify.show(type, text);
         }
 
-        message.textContent = text;
-        message.classList.add('show');
+        if (window.AdminFlashMessage && typeof window.AdminFlashMessage.show === 'function') {
+            return window.AdminFlashMessage.show(text, type === 'error');
+        }
 
-        clearTimeout(window.categoryAiMessageTimer);
-        window.categoryAiMessageTimer = setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
+        return false;
     }
 
 
@@ -183,7 +178,8 @@
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
                 showMessage(
-                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
+                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.',
+                    'warning'
                 );
                 return;
             }
@@ -234,12 +230,14 @@
                 }
 
                 showMessage(
-                    'ШІ-переклад отримано. «Зберегти» підтвердить переклад.'
+                    'ШІ-переклад отримано. «Зберегти» підтвердить переклад.',
+                    'success'
                 );
 
             } catch (error) {
                 showMessage(
-                    error.message || 'Не вдалося отримати ШІ-переклад.'
+                    error.message || 'Не вдалося отримати ШІ-переклад.',
+                    'error'
                 );
             } finally {
                 button.disabled = false;

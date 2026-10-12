@@ -29,60 +29,29 @@
 
     function showMessage(message, isError)
     {
-        if (
-            window.AnabelkaNotify
-            && typeof window.AnabelkaNotify.show === 'function'
-        ) {
-            window.AnabelkaNotify.show(
-                isError ? 'error' : 'success',
-                message
-            );
-            return;
+        if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
+            return window.AnabelkaNotify.show(isError ? 'error' : 'success', message);
         }
 
-        if (
-            window.AdminFlashMessage
-            && typeof window.AdminFlashMessage.show === 'function'
-        ) {
-            window.AdminFlashMessage.show(message, isError);
-            return;
+        if (window.AdminFlashMessage && typeof window.AdminFlashMessage.show === 'function') {
+            return window.AdminFlashMessage.show(message, isError);
         }
 
-        const element = document.getElementById('site-message');
-
-        if (!element) {
-            return;
-        }
-
-        element.textContent = String(message || '');
-        element.classList.toggle('is-error', Boolean(isError));
-        element.classList.add('show');
-        window.clearTimeout(window.categoryManagerMessageTimer);
-        window.categoryManagerMessageTimer = window.setTimeout(function () {
-            element.classList.remove('show');
-        }, isError ? 4800 : 2800);
+        return false;
     }
 
 
     function storeSuccessMessage(message)
     {
-        if (
-            window.AnabelkaNotify
-            && typeof window.AnabelkaNotify.store === 'function'
-        ) {
-            window.AnabelkaNotify.store(
-                'success',
-                message || 'Збережено.'
-            );
-            return;
+        if (window.AnabelkaNotify && typeof window.AnabelkaNotify.store === 'function') {
+            return window.AnabelkaNotify.store('success', message || 'Збережено.');
         }
 
-        if (
-            window.AdminFlashMessage
-            && typeof window.AdminFlashMessage.storeSuccess === 'function'
-        ) {
-            window.AdminFlashMessage.storeSuccess(message);
+        if (window.AdminFlashMessage && typeof window.AdminFlashMessage.storeSuccess === 'function') {
+            return window.AdminFlashMessage.storeSuccess(message);
         }
+
+        return false;
     }
 
 

@@ -94,7 +94,7 @@ assert.doesNotMatch(
     categoryView,
     /admin-product-category-thumbnails\.js/
 );
-assert.match(categoryView, /admin-categories\.js\?v=10/);
+assert.match(categoryView, /admin-categories\.js\?v=11/);
 
 assert.match(
     routes,

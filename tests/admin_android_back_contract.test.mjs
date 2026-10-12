@@ -62,7 +62,7 @@ const dialogIndex = header.indexOf('anabelka-dialog.js?v=3');
 assert.ok(backIndex >= 0);
 assert.ok(selectIndex > backIndex);
 assert.ok(dialogIndex > backIndex);
-assert.match(header, /admin-nav\.js\?v=27/);
+assert.match(header, /admin-nav\.js\?v=28/);
 
 assert.match(productView, /admin-products\.js\?v=10/);
 assert.match(
@@ -73,7 +73,7 @@ assert.doesNotMatch(
     productView,
     /admin-product-category-thumbnails\.js/
 );
-assert.match(categoryView, /admin-categories\.js\?v=10/);
+assert.match(categoryView, /admin-categories\.js\?v=11/);
 assert.doesNotMatch(
     categoryView,
     /admin-product-category-thumbnails\.js/

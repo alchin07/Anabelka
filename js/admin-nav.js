@@ -234,7 +234,7 @@
 
         if (path === '/Anabelka/admin/categories') {
             appendScript(
-                '/Anabelka/js/admin-category-ai-translation.js?v=5',
+                '/Anabelka/js/admin-category-ai-translation.js?v=6',
                 'data-admin-category-ai'
             );
 

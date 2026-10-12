@@ -114,6 +114,20 @@ export async function expectToast(page, type, text) {
     assert.equal(value.type, type);
 }
 
+export async function waitForDocumentLoad(page, action) {
+    const marker = await page.evaluate(() => {
+        const value = crypto.randomUUID();
+        window.__anabelkaBrowserDocument = value;
+        return value;
+    });
+    // Closing a modal can traverse its history guard before reload/replace.
+    // waitForNavigation also accepts that same-document traversal; require a
+    // new document's load event before reading the one-shot flash instead.
+    await Promise.all([page.waitForEvent('load'), action()]);
+    assert.notEqual(await page.evaluate(() => window.__anabelkaBrowserDocument), marker,
+        'The action must load a new document, not only traverse modal history.');
+}
+
 export function contrast(foreground, background, backdrop = 'rgb(255, 255, 255)') {
     const rgba = color => {
         const values = color.match(/[\d.]+/g).map(Number);
