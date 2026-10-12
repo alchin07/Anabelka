@@ -423,6 +423,11 @@
     background: #fff;
 }
 
+.product-editor-head > div {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 .product-editor-head span {
     display: block;
     margin-bottom: 2px;
@@ -434,17 +439,20 @@
 }
 
 .product-editor-head h2 {
-    overflow: hidden;
     margin: 0;
     font-size: 21px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .product-editor-close {
-    width: 40px;
-    height: 40px;
-    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    align-self: flex-start;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
     border: 0;
     border-radius: 10px;
     background: #f7f3fa;
@@ -1540,6 +1548,7 @@ body.product-color-picker-open {
 
     .product-editor-head {
         min-height: 60px;
+        gap: 10px;
         padding: 9px 12px;
     }
 
@@ -1548,8 +1557,8 @@ body.product-color-picker-open {
     }
 
     .product-editor-close {
-        width: 36px;
-        height: 36px;
+        width: 44px;
+        height: 44px;
         font-size: 24px;
     }
 

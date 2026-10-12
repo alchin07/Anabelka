@@ -243,6 +243,57 @@ test('closed section values retain their names and reach the existing save flow'
     assert.equal(await h.page.locator('.product-editor-save').isEnabled(), true);
 });
 
+// Long translated product titles must never displace the close control on Android.
+for (const [width, height] of [
+    [320, 640], [360, 800], [390, 844], [412, 915], [430, 932],
+    [640, 320], [1024, 768]
+]) {
+    test(`long product title and close button remain visible at ${width}x${height}`, async t => {
+        const h = await harness(t, width, height);
+        const title = h.page.locator('#product-editor-title');
+        const examples = [
+            'Бюстгальтер «push-up» з формованими чашками та мереживом для повсякденного носіння',
+            'Бюстгальтер' + 'НадзвичайноДовгаУкраїнськаНазваТовару'.repeat(3)
+        ];
+
+        for (const value of examples) {
+            await title.evaluate((node, text) => { node.textContent = text; }, value);
+            const layout = await h.page.evaluate(() => {
+                const editor = document.querySelector('.product-editor-window');
+                const heading = document.querySelector('#product-editor-title');
+                const close = document.querySelector('.product-editor-close');
+                const panel = editor.getBoundingClientRect();
+                const text = heading.getBoundingClientRect();
+                const action = close.getBoundingClientRect();
+                const style = getComputedStyle(heading);
+                return {
+                    textNotClipped: heading.scrollWidth <= heading.clientWidth + 1
+                        && heading.scrollHeight <= heading.clientHeight + 1,
+                    allowsWrapping: style.whiteSpace !== 'nowrap' && style.textOverflow !== 'ellipsis',
+                    closeInPanel: action.left >= panel.left - 1 && action.right <= panel.right + 1,
+                    closeInViewport: action.left >= -1 && action.right <= innerWidth + 1,
+                    titleBesideClose: text.right <= action.left + 1,
+                    closeWidth: action.width, closeHeight: action.height,
+                    pageOverflow: document.documentElement.scrollWidth > innerWidth + 1
+                };
+            });
+            assert.equal(layout.textNotClipped, true, JSON.stringify(layout));
+            assert.equal(layout.allowsWrapping, true, JSON.stringify(layout));
+            assert.equal(layout.closeInPanel, true, JSON.stringify(layout));
+            assert.equal(layout.closeInViewport, true, JSON.stringify(layout));
+            assert.equal(layout.titleBesideClose, true, JSON.stringify(layout));
+            assert.ok(layout.closeWidth >= 44 && layout.closeHeight >= 44, JSON.stringify(layout));
+            assert.equal(layout.pageOverflow, false, JSON.stringify(layout));
+        }
+
+        const close = h.page.locator('.product-editor-close');
+        assert.equal(await close.getAttribute('aria-label'), 'Закрити редактор');
+        await close.click();
+        assert.equal(await h.page.locator('#product-editor').isHidden(), true,
+            'The visible close button must still close the editor.');
+    });
+}
+
 for (const [width, height] of [[320, 640], [360, 800], [390, 844], [412, 915], [768, 1024],
     [640, 320], [800, 360], [844, 390], [915, 412], [1024, 768]]) {
     test(`section cards fit ${width}x${height}, support keyboard toggling and expose 44px targets`, async t => {

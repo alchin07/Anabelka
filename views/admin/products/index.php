@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=16">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=17">
     <link rel="stylesheet" href="/Anabelka/css/admin-mask-editor.css?v=2">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=4">
 </head>
@@ -347,7 +347,7 @@ require __DIR__ . '/../../partials/header.php';
                 <span id="product-editor-kicker">Товар</span>
                 <h2 id="product-editor-title">Новий товар</h2>
             </div>
-            <button type="button" class="product-editor-close" data-product-close>×</button>
+            <button type="button" class="product-editor-close" data-product-close aria-label="Закрити редактор">×</button>
         </header>
 
         <form
