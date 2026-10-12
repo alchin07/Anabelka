@@ -141,10 +141,10 @@ test('branded required-field validation keeps the modal open and prevents HTTP r
     assert.equal(await h.page.evaluate(() => window.nativeInvalidSeen), undefined, 'Inline category validation avoids the browser native popup.');
     assert.equal(await h.page.locator('#category-create-form').evaluate(node => node.noValidate), true);
     assert.equal(await h.page.locator('#category-create-name').getAttribute('aria-invalid'), 'true');
-    const guidance = h.page.locator('#category-create-modal .category-form-errors');
-    assert.equal(await guidance.locator('.category-field-error').innerText(), 'Будь ласка, заповніть назву категорії');
-    assert.equal(await guidance.evaluate(node => node.previousElementSibling.id), 'category-create-form');
-    assert.equal(await h.page.locator('#category-create-form .category-field-error').count(), 0);
+    const guidance = h.page.locator('#category-create-form .category-field-error');
+    assert.equal(await guidance.innerText(), 'Будь ласка, заповніть назву категорії');
+    assert.equal(await guidance.evaluate(node => node.previousElementSibling.id), 'category-create-name');
+    assert.equal(await guidance.evaluate(node => node.closest('.category-form-group') !== null), true);
     assert.equal(await h.page.locator('#category-create-modal').isVisible(), true);
     assert.equal(await h.page.locator('#category-create-form [type="submit"]').isEnabled(), true);
 });

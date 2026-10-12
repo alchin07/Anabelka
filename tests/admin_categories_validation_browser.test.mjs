@@ -45,12 +45,12 @@ async function errorFor(page, selector) {
     });
 }
 
-test('validation banner shares success-toast colors and sits below its form', async t => {
+test('field validation matches branded success toast styling and sits directly below its field', async t => {
     const page = await harness(t, {width: 320});
     await open(page, 'create');
     await submit(page, 'create');
-    const banner = page.locator('#category-create-modal .category-form-errors');
-    const appearance = await banner.evaluate(node => {
+    const fieldError = page.locator('#category-create-form .category-field-error');
+    const appearance = await fieldError.evaluate(node => {
         const toast = document.getElementById('site-message');
         toast.classList.add('is-success');
         const surface = element => {
@@ -60,19 +60,20 @@ test('validation banner shares success-toast colors and sits below its form', as
                 radius: style.borderTopLeftRadius, padding: style.paddingTop,
                 fontSize: style.fontSize, fontWeight: style.fontWeight, shadow: style.boxShadow};
         };
-        const result = {banner: surface(node), toast: surface(toast),
-            belowForm: node.previousElementSibling?.id === 'category-create-form',
-            withinForm: Boolean(node.closest('form')), hasLiveRegion: node.hasAttribute('aria-live')};
+        const result = {inline: surface(node), toast: surface(toast),
+            directlyUnderField: node.previousElementSibling?.id === 'category-create-name',
+            withinForm: node.closest('form')?.id === 'category-create-form',
+            hasLiveRegion: node.hasAttribute('aria-live')};
         toast.classList.remove('is-success');
         return result;
     });
-    assert.deepEqual(appearance.banner, appearance.toast);
-    assert.equal(appearance.belowForm, true);
-    assert.equal(appearance.withinForm, false);
+    assert.deepEqual(appearance.inline, appearance.toast);
+    assert.equal(appearance.directlyUnderField, true);
+    assert.equal(appearance.withinForm, true);
     assert.equal(appearance.hasLiveRegion, false);
-    assert.equal(await page.locator('#category-create-form .category-field-error').count(), 0);
+    assert.equal(await page.locator('#category-create-modal .category-form-errors').count(), 0);
     await page.locator('#category-create-name').fill('Виправлена назва');
-    assert.equal(await banner.count(), 0, 'Correcting the last invalid field removes the banner.');
+    assert.equal(await fieldError.count(), 0, 'Correcting the invalid field removes its individual notice.');
 });
 
 test('empty category name uses branded inline validation and never invokes native reporting', async t => {
@@ -238,7 +239,7 @@ test('disabled, hidden and readonly controls with willValidate false cannot bloc
     await submit(page, 'create');
     await page.waitForFunction(() => document.querySelector('#site-message').classList.contains('show'));
     assert.equal(fixture.requests.length, count + 1);
-    assert.equal(await page.locator('#category-create-modal .category-form-errors .category-field-error').count(), 0);
+    assert.equal(await page.locator('#category-create-form .category-field-error').count(), 0);
     assert.equal(fixture.requests.at(-1).body.includes('name="department_id"'), false);
 });
 
@@ -263,10 +264,10 @@ test('each inline error has its own id and preserves pre-existing describedby re
     assert.equal(source.errors.length, 1);
     assert.equal(translation.errors.length, 1);
     assert.notEqual(source.errors[0].id, translation.errors[0].id);
-    assert.equal(await page.locator('#category-edit-modal .category-form-errors').count(), 1);
-    assert.equal(await page.locator('#category-edit-modal .category-form-errors .category-field-error').count(), 2);
-    assert.equal(await page.locator('#category-edit-modal .category-form-errors').evaluate(node => node.previousElementSibling.id),
-        'category-edit-form');
+    assert.equal(await page.locator('#category-edit-form .category-field-error').count(), 2);
+    assert.equal(await page.locator('#category-edit-name + .category-field-error').count(), 1);
+    assert.equal(await page.locator('.category-translation-name + .category-field-error').count(), 1);
+    assert.equal(await page.locator('#category-edit-modal .category-form-errors').count(), 0);
     assert.ok(source.errors[0].id && translation.errors[0].id);
     assert.ok(source.ids.includes('source-name-hint'));
     assert.ok(translation.ids.includes('translation-name-hint'));
@@ -277,8 +278,8 @@ test('each inline error has its own id and preserves pre-existing describedby re
         node.setCustomValidity('');
         node.dispatchEvent(new Event('change', {bubbles: true}));
     });
-    assert.equal(await page.locator('#category-edit-modal .category-form-errors').count(), 0,
-        'Correcting all invalid fields removes the grouped banner.');
+    assert.equal(await page.locator('#category-edit-form .category-field-error').count(), 0,
+        'Correcting all invalid fields removes the individual notices.');
     for (const [selector, hint] of [['#category-edit-name', 'source-name-hint'], ['.category-translation-name', 'translation-name-hint']]) {
         const state = await errorFor(page, selector);
         assert.notEqual(state.invalid, 'true');
@@ -291,7 +292,7 @@ test('an unchanged repeated invalid submission creates no repeated error mutatio
     const page = await harness(t);
     await open(page, 'create');
     await submit(page, 'create');
-    assert.equal(await page.locator('#category-create-modal .category-form-errors .category-field-error').count(), 1);
+    assert.equal(await page.locator('#category-create-form .category-field-error').count(), 1);
     await page.evaluate(() => {
         window.repeatedErrorMutations = [];
         window.validationObserver = new MutationObserver(records => {
@@ -304,7 +305,7 @@ test('an unchanged repeated invalid submission creates no repeated error mutatio
                 if (errorChanged || ariaChanged) window.repeatedErrorMutations.push(record.type + ':' + (record.attributeName || ''));
             }
         });
-        window.validationObserver.observe(document.querySelector('#category-create-modal .category-modal-window'),
+        window.validationObserver.observe(document.querySelector('#category-create-form'),
             {subtree: true, childList: true, characterData: true, attributes: true});
     });
     const count = fixture.requests.length;
@@ -329,7 +330,7 @@ test('form reset and opening another category clear field validation state', asy
     await page.locator('#category-edit-form').evaluate(form => form.reset());
     await page.clock.runFor(1);
     assert.notEqual((await errorFor(page, '#category-edit-name')).invalid, 'true');
-    assert.equal(await page.locator('#category-edit-modal .category-form-errors .category-field-error').count(), 0);
+    assert.equal(await page.locator('#category-edit-form .category-field-error').count(), 0);
     await submit(page, 'edit');
     assert.equal((await errorFor(page, '#category-edit-name')).invalid, 'true');
     await page.keyboard.press('Escape');
@@ -338,7 +339,7 @@ test('form reset and opening another category clear field validation state', asy
     await page.clock.runFor(30);
     assert.equal(await page.locator('#category-edit-name').inputValue(), 'Інша');
     assert.notEqual((await errorFor(page, '#category-edit-name')).invalid, 'true');
-    assert.equal(await page.locator('#category-edit-modal .category-form-errors .category-field-error').count(), 0);
+    assert.equal(await page.locator('#category-edit-form .category-field-error').count(), 0);
 });
 
 test('real Android Back history handler closes an invalid modal and restores its trigger focus', async t => {
@@ -359,19 +360,19 @@ test('real Android Back history handler closes an invalid modal and restores its
     assert.equal(await page.evaluate(() => document.body.style.overflow), '');
     await open(page, 'create');
     assert.notEqual((await errorFor(page, '#category-create-name')).invalid, 'true');
-    assert.equal(await page.locator('#category-create-modal .category-form-errors .category-field-error').count(), 0);
+    assert.equal(await page.locator('#category-create-form .category-field-error').count(), 0);
 });
 
 for (const selector of ['#category-edit-name', '.category-translation-name']) {
-    test(`short edit viewport focuses ${selector} and keeps form-level notice scrollable`, async t => {
+    test(`short edit viewport scrolls ${selector} and its inline guidance into view`, async t => {
         const page = await harness(t, {width: 360, height: 480});
         await open(page, 'edit');
         await page.locator(selector).evaluate(node => {
             if (node.id === 'category-edit-name') node.value = '';
             else node.value = 'T'.repeat(256);
         });
-        const modalWindow = page.locator('#category-edit-modal .category-modal-window');
-        await modalWindow.evaluate(node => { node.scrollTop = node.scrollHeight; });
+        const window = page.locator('#category-edit-modal .category-modal-window');
+        await window.evaluate(node => { node.scrollTop = node.scrollHeight; });
         await submit(page, 'edit');
         await page.clock.runFor(300);
         const result = await page.locator(selector).evaluate(field => {
@@ -379,21 +380,14 @@ for (const selector of ['#category-edit-name', '.category-translation-name']) {
             const rect = field.getBoundingClientRect();
             const error = (field.getAttribute('aria-describedby') || '').split(/\s+/)
                 .map(id => document.getElementById(id)).find(node => node?.classList.contains('category-field-error'));
+            const guidance = error?.getBoundingClientRect();
             return {focused: field === document.activeElement, fieldTop: rect.top, fieldBottom: rect.bottom,
-                belowForm: error?.closest('.category-form-errors')?.previousElementSibling === field.form,
-                modalTop: modal.top, modalBottom: modal.bottom};
+                errorTop: guidance?.top, errorBottom: guidance?.bottom, modalTop: modal.top,
+                modalBottom: modal.bottom, viewport: innerHeight};
         });
         assert.equal(result.focused, true);
         assert.ok(result.fieldTop >= result.modalTop && result.fieldBottom <= result.modalBottom, JSON.stringify(result));
-        assert.equal(result.belowForm, true);
-        const summary = page.locator('#category-edit-modal .category-form-errors');
-        await summary.scrollIntoViewIfNeeded();
-        const reachable = await summary.evaluate(node => {
-            const panel = node.getBoundingClientRect();
-            const modal = node.closest('.category-modal-window').getBoundingClientRect();
-            return panel.top >= modal.top && panel.bottom <= Math.min(modal.bottom, innerHeight);
-        });
-        assert.equal(reachable, true, 'The form-level notice remains reachable in a short Android viewport.');
+        assert.ok(result.errorTop >= result.modalTop && result.errorBottom <= Math.min(result.modalBottom, result.viewport), JSON.stringify(result));
     });
 }
 
@@ -495,7 +489,7 @@ for (const [label, status, message] of [['server validation', 422, 'Таку к�
         assert.equal(fixture.visits(), visits);
         assert.equal(await page.locator('#category-edit-name').inputValue(), 'Незбережена назва');
         assert.equal(await page.locator('#category-edit-modal').isVisible(), true);
-        assert.equal(await page.locator('#category-edit-modal .category-form-errors .category-field-error').count(), 0);
+        assert.equal(await page.locator('#category-edit-form .category-field-error').count(), 0);
         assert.equal(await page.locator('#category-edit-form [type="submit"]').isEnabled(), true);
         await page.clock.runFor(10000);
         assert.equal(fixture.requests.length, count + 1);
@@ -552,9 +546,9 @@ for (const width of [320, 360, 375, 390, 412, 430]) {
         const count = fixture.requests.length;
         await submit(page, 'create');
         assert.equal(fixture.requests.length, count);
-        assert.equal(await page.locator('#category-create-modal .category-form-errors .category-field-error').count(), 1);
+        assert.equal(await page.locator('#category-create-form .category-field-error').count(), 1);
         assert.equal((await errorFor(page, '#category-create-name')).errors[0]?.text, message);
-        const metrics = await page.locator('#category-create-modal .category-form-errors .category-field-error').evaluate(node => {
+        const metrics = await page.locator('#category-create-form .category-field-error').evaluate(node => {
             const rect = node.getBoundingClientRect();
             const modal = node.closest('.category-modal-window');
             return {left: rect.left, right: rect.right, scroll: node.scrollWidth, width: node.clientWidth,
@@ -577,8 +571,8 @@ for (const theme of ['light', 'dark']) {
         await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
         await open(page, 'create');
         await submit(page, 'create');
-        assert.equal(await page.locator('#category-create-modal .category-form-errors .category-field-error').count(), 1);
-        const colors = await page.locator('#category-create-modal .category-form-errors .category-field-error').evaluate(node => {
+        assert.equal(await page.locator('#category-create-form .category-field-error').count(), 1);
+        const colors = await page.locator('#category-create-form .category-field-error').evaluate(node => {
             const style = getComputedStyle(node);
             let background = node;
             while (background.parentElement && ['rgba(0, 0, 0, 0)', 'transparent'].includes(getComputedStyle(background).backgroundColor)) {
@@ -588,8 +582,8 @@ for (const theme of ['light', 'dark']) {
                 stripe: style.borderLeftColor,
                 size: style.fontSize, display: style.display, visibility: style.visibility};
         });
-        assert.equal(colors.background, 'rgb(244, 234, 255)', 'Guidance keeps the approved lavender background in both themes.');
-        assert.equal(colors.foreground, 'rgb(101, 25, 185)', 'Guidance uses the approved dark purple text.');
+        assert.equal(colors.background, 'rgb(138, 43, 226)', 'Inline guidance uses the branded solid-purple toast surface.');
+        assert.equal(colors.foreground, 'rgb(255, 255, 255)', 'Inline guidance uses the branded white toast text.');
         assert.equal(colors.stripe, 'rgb(138, 43, 226)', 'The accent stripe uses the approved brand purple.');
         assert.ok(contrast(colors.foreground, colors.background) >= 4.5, `${theme}: ${JSON.stringify(colors)}`);
         assert.notEqual(colors.display, 'none');

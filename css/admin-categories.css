@@ -422,16 +422,9 @@
     outline-color: var(--purple, #8A2BE2);
 }
 
-.category-form-errors {
-    margin-top: 12px;
-}
-
-.category-form-errors .category-field-error {
-    margin: 0;
-}
-
-.category-form-errors .category-field-error + .category-field-error {
-    margin-top: 8px;
+.category-field-error {
+    max-width: 100%;
+    margin: 7px 0 0;
 }
 
 .category-check-grid {

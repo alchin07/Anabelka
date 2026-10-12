@@ -190,7 +190,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
     <title>Категорії — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=7">
+    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=4">
 </head>
 <body>
@@ -494,6 +494,6 @@ require __DIR__ . '/../../partials/header.php';
 <script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
 <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-categories.js?v=14"></script>
+<script src="/Anabelka/js/admin-categories.js?v=15"></script>
 </body>
 </html>
