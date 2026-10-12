@@ -19,6 +19,8 @@
     const categoryById = new Map();
     const departmentById = new Map();
     let lastTrigger = null;
+    const formErrors = new WeakMap();
+    let errorSequence = 0;
 
     categories.forEach(function (category) {
         categoryById.set(Number(category.id || 0), category);
@@ -29,6 +31,10 @@
 
     function showMessage(message, isError)
     {
+        if (isError && window.AnabelkaNotify && typeof window.AnabelkaNotify.error === 'function') {
+            return window.AnabelkaNotify.error(message);
+        }
+
         if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
             return window.AnabelkaNotify.show(isError ? 'error' : 'success', message);
         }
@@ -58,6 +64,7 @@
     function openModal(modal, trigger, focusField)
     {
         closeModals(false);
+        modal.querySelectorAll('form').forEach(clearFormErrors);
         lastTrigger = trigger || null;
         modal.hidden = false;
         document.body.style.overflow = 'hidden';
@@ -238,10 +245,183 @@
     }
 
 
+    function fieldErrorMessage(field)
+    {
+        // willValidate also excludes hidden/read-only fields and disabled fieldsets.
+        if (!field.willValidate || !field.validity) {
+            return '';
+        }
+
+        const validity = field.validity;
+        const value = typeof field.value === 'string' ? field.value : '';
+        if (validity.valueMissing || (field.required && field.type === 'text' && !value.trim())) {
+            if (field.name === 'name') {
+                return 'Будь ласка, заповніть назву категорії';
+            }
+            return field.tagName === 'SELECT'
+                ? 'Будь ласка, оберіть підрозділ.'
+                : 'Будь ласка, заповніть це поле.';
+        }
+
+        // Browsers can leave tooLong false for values assigned by JS (including AI).
+        // Keep the existing HTML maxlength semantics without changing FormData.
+        if (validity.tooLong || (field.maxLength >= 0 && value.length > field.maxLength)) {
+            return 'Введіть не більше ' + field.maxLength + ' символів.';
+        }
+        if (validity.tooShort) {
+            return 'Введіть щонайменше ' + field.minLength + ' символів.';
+        }
+        if (validity.customError) {
+            return field.validationMessage;
+        }
+        return validity.valid ? '' : 'Перевірте значення цього поля.';
+    }
+
+
+    function fieldControl(field)
+    {
+        const wrapper = field.closest('.anabelka-select');
+        return wrapper ? wrapper.querySelector('.anabelka-select-trigger') || field : field;
+    }
+
+
+    function clearFieldError(form, field)
+    {
+        const errors = formErrors.get(form);
+        const entry = errors && errors.get(field);
+        if (!entry) {
+            return;
+        }
+        entry.controls.forEach(function (control) {
+            const describedBy = (control.node.getAttribute('aria-describedby') || '')
+                .split(/\s+/).filter(function (id) { return id && id !== entry.message.id; });
+            if (describedBy.length) {
+                control.node.setAttribute('aria-describedby', describedBy.join(' '));
+            } else {
+                control.node.removeAttribute('aria-describedby');
+            }
+            if (control.invalid === null) {
+                control.node.removeAttribute('aria-invalid');
+            } else {
+                control.node.setAttribute('aria-invalid', control.invalid);
+            }
+        });
+        field.classList.remove('is-invalid');
+        entry.message.remove();
+        errors.delete(field);
+    }
+
+
+    function clearFormErrors(form)
+    {
+        const errors = formErrors.get(form);
+        if (errors) {
+            Array.from(errors.keys()).forEach(function (field) { clearFieldError(form, field); });
+        }
+    }
+
+
+    function showFieldError(form, field, message)
+    {
+        const errors = formErrors.get(form);
+        let entry = errors.get(field);
+        if (!entry) {
+            const error = document.createElement('p');
+            do {
+                errorSequence += 1;
+                error.id = form.id + '-error-' + errorSequence;
+            } while (document.getElementById(error.id));
+            error.className = 'category-field-error';
+            const control = fieldControl(field);
+            const controls = (control === field ? [field] : [field, control]).map(function (node) {
+                return {node: node, invalid: node.getAttribute('aria-invalid')};
+            });
+            entry = {message: error, controls: controls};
+            errors.set(field, entry);
+            // Described text is announced with focus; no second live-region announcement.
+            error.textContent = message;
+            (field.closest('.anabelka-select') || field).insertAdjacentElement('afterend', error);
+            field.classList.add('is-invalid');
+            controls.forEach(function (item) {
+                const ids = (item.node.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+                ids.push(error.id);
+                item.node.setAttribute('aria-describedby', ids.join(' '));
+                item.node.setAttribute('aria-invalid', 'true');
+            });
+        } else if (entry.message.textContent !== message) {
+            // An unchanged error stays untouched on repeated submits (including Enter).
+            entry.message.textContent = message;
+        }
+    }
+
+
+    function validateForm(form)
+    {
+        let firstInvalid = null;
+        Array.from(form.elements).forEach(function (field) {
+            const message = fieldErrorMessage(field);
+            if (message) {
+                showFieldError(form, field, message);
+                firstInvalid = firstInvalid || field;
+            } else {
+                clearFieldError(form, field);
+            }
+        });
+        if (firstInvalid) {
+            const control = fieldControl(firstInvalid);
+            if (control === firstInvalid && window.AdminUiFocusPolicy
+                && typeof window.AdminUiFocusPolicy.focusRequestedField === 'function') {
+                window.AdminUiFocusPolicy.focusRequestedField(control);
+            } else {
+                control.focus({preventScroll: true});
+            }
+            const entry = formErrors.get(form).get(firstInvalid);
+            const group = firstInvalid.closest('.category-form-group') || entry.message;
+            group.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'instant'});
+        }
+        return !firstInvalid;
+    }
+
+
+    function refreshFieldError(form, field)
+    {
+        const errors = formErrors.get(form);
+        if (!errors || !errors.has(field)) {
+            return;
+        }
+        const message = fieldErrorMessage(field);
+        if (message) {
+            showFieldError(form, field, message);
+        } else {
+            clearFieldError(form, field);
+        }
+    }
+
+
+    function bindCategoryForm(form, submitButton, returnUrl)
+    {
+        formErrors.set(form, new Map());
+        form.addEventListener('submit', submitAndReload(form, submitButton, returnUrl));
+        form.addEventListener('reset', function () { clearFormErrors(form); });
+        function refreshError(event) {
+            refreshFieldError(form, event.target);
+        }
+        form.addEventListener('input', refreshError);
+        form.addEventListener('change', refreshError);
+        // Only opt out after all handlers are installed; raw HTML retains native validation.
+        form.noValidate = true;
+    }
+
+
     function submitAndReload(form, submitButton, returnUrl)
     {
+        let pending = false;
         return async function (event) {
             event.preventDefault();
+            if (pending || !validateForm(form)) {
+                return;
+            }
+            pending = true;
 
             if (submitButton) {
                 submitButton.disabled = true;
@@ -258,6 +438,7 @@
                     window.location.reload();
                 }
             } catch (error) {
+                pending = false;
                 showMessage(error.message || 'Операцію не виконано.', true);
 
                 if (submitButton) {
@@ -308,6 +489,11 @@
             }
         }
         section.dataset.translationStatus = normalizedStatus;
+        // AI writes values directly, then calls this existing workflow hook.
+        // Refresh guidance without an input event that would mark AI text manual.
+        section.querySelectorAll(
+            '.category-translation-name, .category-translation-description'
+        ).forEach(function (field) { refreshFieldError(field.form, field); });
     }
 
     window.setCategoryTranslationWorkflow = setCategoryTranslationWorkflow;
@@ -695,13 +881,10 @@
         : '';
 
     if (editForm) {
-        editForm.addEventListener(
-            'submit',
-            submitAndReload(
-                editForm,
-                editForm.querySelector('[type="submit"]'),
-                editReturnUrl
-            )
+        bindCategoryForm(
+            editForm,
+            editForm.querySelector('[type="submit"]'),
+            editReturnUrl
         );
     }
 
@@ -737,12 +920,9 @@
     });
 
     if (createForm) {
-        createForm.addEventListener(
-            'submit',
-            submitAndReload(
-                createForm,
-                createForm.querySelector('[type="submit"]')
-            )
+        bindCategoryForm(
+            createForm,
+            createForm.querySelector('[type="submit"]')
         );
     }
 
@@ -975,12 +1155,9 @@
     });
 
     if (moveForm) {
-        moveForm.addEventListener(
-            'submit',
-            submitAndReload(
-                moveForm,
-                moveForm.querySelector('[type="submit"]')
-            )
+        bindCategoryForm(
+            moveForm,
+            moveForm.querySelector('[type="submit"]')
         );
     }
 
@@ -1009,12 +1186,9 @@
     });
 
     if (deleteForm) {
-        deleteForm.addEventListener(
-            'submit',
-            submitAndReload(
-                deleteForm,
-                deleteForm.querySelector('[type="submit"]')
-            )
+        bindCategoryForm(
+            deleteForm,
+            deleteForm.querySelector('[type="submit"]')
         );
     }
 

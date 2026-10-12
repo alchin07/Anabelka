@@ -190,7 +190,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
     <title>Категорії — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=5">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=3">
 </head>
 <body>
@@ -374,12 +374,12 @@ require __DIR__ . '/../../partials/header.php';
                         </label>
                     </div>
                     <div class="category-form-group">
-                        <label>Назва перекладу</label>
-                        <input type="text" name="translation_name[<?= $escape($code) ?>]" class="category-translation-name" maxlength="255" autocomplete="off">
+                        <label for="category-translation-name-<?= $escape($code) ?>">Назва перекладу</label>
+                        <input type="text" name="translation_name[<?= $escape($code) ?>]" id="category-translation-name-<?= $escape($code) ?>" class="category-translation-name" maxlength="255" autocomplete="off">
                     </div>
                     <div class="category-form-group">
-                        <label>Опис перекладу</label>
-                        <textarea name="translation_description[<?= $escape($code) ?>]" class="category-translation-description" rows="3"></textarea>
+                        <label for="category-translation-description-<?= $escape($code) ?>">Опис перекладу</label>
+                        <textarea name="translation_description[<?= $escape($code) ?>]" id="category-translation-description-<?= $escape($code) ?>" class="category-translation-description" rows="3"></textarea>
                     </div>
                 </section>
             <?php endforeach; ?>
@@ -494,6 +494,6 @@ require __DIR__ . '/../../partials/header.php';
 <script id="category-manager-data" type="application/json"><?= $json ?: '{"categories":[],"departments":[]}' ?></script>
 <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
-<script src="/Anabelka/js/admin-categories.js?v=11"></script>
+<script src="/Anabelka/js/admin-categories.js?v=12"></script>
 </body>
 </html>

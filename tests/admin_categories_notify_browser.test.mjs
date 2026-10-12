@@ -127,7 +127,7 @@ for (const direction of ['up', 'down']) {
     });
 }
 
-test('native required-field validation keeps the modal open and prevents HTTP requests', async t => {
+test('branded required-field validation keeps the modal open and prevents HTTP requests', async t => {
     const h = await harness(t);
     await h.page.locator('[data-category-create].is-root').first().click();
     await h.page.clock.runFor(30);
@@ -138,7 +138,10 @@ test('native required-field validation keeps the modal open and prevents HTTP re
     await h.page.locator('#category-create-form [type="submit"]').click();
     assert.equal(fixture.requests.length, count);
     assert.equal(await h.page.locator('#category-create-name').evaluate(node => node.validity.valueMissing), true);
-    assert.equal(await h.page.evaluate(() => window.nativeInvalidSeen), true, 'Browser native constraint validation remains active.');
+    assert.equal(await h.page.evaluate(() => window.nativeInvalidSeen), undefined, 'Inline category validation avoids the browser native popup.');
+    assert.equal(await h.page.locator('#category-create-form').evaluate(node => node.noValidate), true);
+    assert.equal(await h.page.locator('#category-create-name').getAttribute('aria-invalid'), 'true');
+    assert.equal(await h.page.locator('#category-create-form .category-field-error').innerText(), 'Будь ласка, заповніть назву категорії');
     assert.equal(await h.page.locator('#category-create-modal').isVisible(), true);
     assert.equal(await h.page.locator('#category-create-form [type="submit"]').isEnabled(), true);
 });
