@@ -407,8 +407,8 @@
 
 .category-modal .is-invalid,
 .category-modal .anabelka-select-trigger[aria-invalid="true"] {
-    border-color: #b63e48;
-    outline: 2px solid #b63e48;
+    border-color: var(--purple, #8A2BE2);
+    outline: 2px solid var(--purple, #8A2BE2);
     outline-offset: 1px;
 }
 
@@ -419,7 +419,7 @@
 
 .category-modal .is-invalid:focus-visible,
 .category-modal .anabelka-select-trigger[aria-invalid="true"]:focus-visible {
-    outline-color: #8A2BE2;
+    outline-color: var(--purple, #8A2BE2);
 }
 
 .category-field-error {
@@ -427,20 +427,14 @@
     max-width: 100%;
     margin: 7px 0 0;
     padding: 7px 10px;
-    border-left: 3px solid #b63e48;
+    border-left: 3px solid var(--purple, #8A2BE2);
     border-radius: 8px;
-    background: #f4eaff;
-    color: #20202a;
+    /* Keep the approved, high-contrast palette in light and dark themes. */
+    background: var(--purple-light, #F4EAFF);
+    color: var(--purple-dark, #6519B9);
     font-size: 13px;
     line-height: 1.45;
     overflow-wrap: anywhere;
-}
-
-[data-theme="dark"] .category-field-error,
-.theme-dark .category-field-error {
-    border-color: #b63e48;
-    background: #241a2d;
-    color: #f4eaff;
 }
 
 .category-check-grid {

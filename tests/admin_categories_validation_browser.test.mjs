@@ -103,11 +103,13 @@ test('Enter in the empty name runs the same branded validation', async t => {
         const style = getComputedStyle(node);
         return {visible: node.matches(':focus-visible'), outline: style.outlineColor,
             outlineWidth: style.outlineWidth, outlineStyle: style.outlineStyle, border: style.borderColor,
+            shadow: style.boxShadow,
             background: getComputedStyle(node.closest('.category-modal-window')).backgroundColor};
     });
     assert.equal(focus.visible, true);
-    assert.equal(focus.border, 'rgb(182, 62, 72)', 'The invalid border still identifies the error.');
-    assert.notEqual(focus.outline, focus.border, 'Keyboard focus remains distinguishable from an unfocused invalid border.');
+    assert.equal(focus.border, 'rgb(138, 43, 226)', 'The invalid border uses the approved brand purple.');
+    assert.equal(focus.outline, focus.border, 'Focus must not combine outlines of different colors.');
+    assert.notEqual(focus.shadow, 'none', 'The focus halo remains visible around the invalid field.');
     assert.equal(focus.outlineStyle, 'solid');
     assert.ok(parseFloat(focus.outlineWidth) >= 2);
     assert.ok(contrast(focus.outline, focus.background) >= 3, JSON.stringify(focus));
@@ -540,8 +542,12 @@ for (const theme of ['light', 'dark']) {
                 background = background.parentElement;
             }
             return {foreground: style.color, background: getComputedStyle(background).backgroundColor,
+                stripe: style.borderLeftColor,
                 size: style.fontSize, display: style.display, visibility: style.visibility};
         });
+        assert.equal(colors.background, 'rgb(244, 234, 255)', 'Guidance keeps the approved lavender background in both themes.');
+        assert.equal(colors.foreground, 'rgb(101, 25, 185)', 'Guidance uses the approved dark purple text.');
+        assert.equal(colors.stripe, 'rgb(138, 43, 226)', 'The accent stripe uses the approved brand purple.');
         assert.ok(contrast(colors.foreground, colors.background) >= 4.5, `${theme}: ${JSON.stringify(colors)}`);
         assert.notEqual(colors.display, 'none');
         assert.equal(colors.visibility, 'visible');

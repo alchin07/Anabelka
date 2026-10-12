@@ -190,7 +190,7 @@ $renderNodes = function (array $nodes, $level = 0) use (
     <title>Категорії — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=5">
+    <link rel="stylesheet" href="/Anabelka/css/admin-categories.css?v=6">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=3">
 </head>
 <body>
