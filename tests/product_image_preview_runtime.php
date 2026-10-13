@@ -167,7 +167,7 @@ try {
     AdminAccess::$allowed = true;
     // An actively locked preview must not be cancelled by the bulk operation.
     $busyToken = $ownedDrafts[0]['preview_id'];
-    $busyLockFile = $root . '/storage/image-processor/previews/locks/token-' . substr($busyToken, 0, 1) . '.lock';
+    $busyLockFile = $root . '/storage/image-processor/previews/locks/token-' . substr($busyToken, 0, 2) . '.lock';
     $busyLock = fopen($busyLockFile, 'c+b');
     check(flock($busyLock, LOCK_EX), 'test holds a real token stripe lock');
     $firstPass = $service->cancelAll();
@@ -177,9 +177,23 @@ try {
     flock($busyLock, LOCK_UN);
     fclose($busyLock);
 
-    $closed = $service->cancelAll();
+    // Simulate Android's LOCK_NB failure with wouldBlock=1 even when no lock
+    // is held. A fresh probe must detect the incompatibility and use LOCK_EX.
+    $androidService = new class($root, $processor, function () use (&$clock) { return $clock; }) extends ProductImagePreviewService {
+        protected function fileLock($handle, $operation, &$wouldBlock)
+        {
+            if (($operation & LOCK_NB) !== 0) {
+                $wouldBlock = 1;
+                return false;
+            }
+            return parent::fileLock($handle, $operation, $wouldBlock);
+        }
+    };
+    $closed = $androidService->cancelAll();
     check($firstPass['cancelled'] + $closed['cancelled'] === 4
-        && $closed['skipped_busy'] === 0 && $closed['failed'] === 0, 'bulk cancel closes all drafts after lock release');
+        && $closed['skipped_busy'] === 0 && $closed['failed'] === 0, 'bulk cancel closes drafts after lock release on Android');
+    check(glob($root . '/storage/image-processor/previews/locks/probe-*.lock') === [],
+        'nonblocking lock capability probes are cleaned up');
     check($service->cancelAll()['cancelled'] === 0, 'bulk cancel is idempotent');
     foreach ($ownedDrafts as $draft) {
         $directory = $root . '/storage/image-processor/previews/' . $draft['preview_id'];

@@ -8,6 +8,7 @@ class ProductImagePreviewService
     private $processor;
     private $clock;
     private $reviewWorker;
+    private $nonBlockingFlockSupported = null;
 
     public function __construct($projectRoot = null, ?callable $processor = null, ?callable $clock = null, ?callable $reviewWorker = null)
     {
@@ -1189,6 +1190,45 @@ class ProductImagePreviewService
         }
     }
 
+    /**
+     * Test whether this filesystem actually supports nonblocking locks.
+     * LOCK_NB failures on Android may set wouldBlock=1 even for an unlocked file.
+     * A fresh, exclusively created file cannot be locked by another request.
+     */
+    private function nonBlockingLockSupported($directory)
+    {
+        if ($this->nonBlockingFlockSupported !== null) {
+            return $this->nonBlockingFlockSupported;
+        }
+
+        $path = $directory . '/probe-' . bin2hex(random_bytes(12)) . '.lock';
+        $probe = @fopen($path, 'x+b');
+        if (!$probe) {
+            throw new RuntimeException('Не вдалося перевірити підтримку блокувань фотографій.');
+        }
+        try {
+            $wouldBlock = 0;
+            $supported = $this->fileLock($probe, LOCK_EX | LOCK_NB, $wouldBlock);
+            if (!$supported) {
+                // Do not run without a lock when neither mode is supported.
+                $wouldBlock = 0;
+                if (!$this->fileLock($probe, LOCK_EX, $wouldBlock)) {
+                    throw new RuntimeException('Файлова система не підтримує блокування фотографій.');
+                }
+            }
+            $this->nonBlockingFlockSupported = (bool) $supported;
+            return $this->nonBlockingFlockSupported;
+        } finally {
+            fclose($probe); // Releases any acquired lock.
+            @unlink($path);
+        }
+    }
+
+    protected function fileLock($handle, $operation, &$wouldBlock)
+    {
+        return @flock($handle, $operation, $wouldBlock);
+    }
+
     private function lock($name, $blocking = true)
     {
         // Stable stripes avoid accumulating one permanent inode for each expired token.
@@ -1200,18 +1240,28 @@ class ProductImagePreviewService
         if (is_link($path)) { throw new RuntimeException('Некоректний файл блокування.'); }
         $handle = @fopen($path, 'c+b');
         if (!$handle) { throw new RuntimeException('Не вдалося заблокувати пробу фотографії.'); }
-        // KSWEB on Android can reject LOCK_NB on emulated storage even when
-        // an ordinary exclusive flock is supported. Keep mutual exclusion:
-        // never proceed without a successfully acquired exclusive lock.
+
+        $wouldBlock = 0;
         if ($blocking) {
-            $locked = @flock($handle, LOCK_EX);
+            $locked = $this->fileLock($handle, LOCK_EX, $wouldBlock);
         } else {
-            $wouldBlock = 0;
-            $locked = @flock($handle, LOCK_EX | LOCK_NB, $wouldBlock);
-            if (!$locked && $wouldBlock !== 1) {
-                // Only retry when the OS did NOT report lock contention.
-                // Otherwise skip the busy preview without waiting for it.
-                $locked = @flock($handle, LOCK_EX);
+            $locked = $this->fileLock($handle, LOCK_EX | LOCK_NB, $wouldBlock);
+            if (!$locked) {
+                try {
+                    $supported = $this->nonBlockingLockSupported($directory);
+                } catch (Throwable $e) {
+                    fclose($handle);
+                    throw $e;
+                }
+                if (!$supported) {
+                    // LOCK_NB is unsupported here; acquire an actual exclusive
+                    // lock rather than treating every idle preview as busy.
+                    $wouldBlock = 0;
+                    $locked = $this->fileLock($handle, LOCK_EX, $wouldBlock);
+                } elseif ($wouldBlock !== 1) {
+                    fclose($handle);
+                    throw new RuntimeException('Не вдалося перевірити блокування проби фотографії.');
+                }
             }
         }
         if (!$locked) {
