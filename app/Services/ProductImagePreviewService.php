@@ -287,6 +287,65 @@ class ProductImagePreviewService
         } finally { $this->unlock($lock); }
     }
 
+    /**
+     * Close this administrator's unfinished previews across browser sessions.
+     * A preview can be cancelled only after its private manifest has been written.
+     */
+    public function cancelAll()
+    {
+        $owner = $this->owner();
+        $cancelled = 0;
+        $skippedBusy = 0;
+        $failed = 0;
+
+        if (!is_dir($this->temporary) || is_link($this->temporary)) {
+            return ['success' => true, 'cancelled' => 0, 'skipped_busy' => 0, 'failed' => 0];
+        }
+
+        foreach (glob($this->temporary . '/*', GLOB_ONLYDIR) ?: [] as $directory) {
+            $token = basename($directory);
+            if (is_link($directory) || preg_match('/^[a-f0-9]{64}$/D', $token) !== 1) { continue; }
+            $manifestPath = $directory . '/manifest.json';
+            if (!is_file($manifestPath) || is_link($manifestPath)) { continue; }
+
+            // A preliminary owner check avoids locking or reporting other admins' previews.
+            $snapshot = json_decode(@file_get_contents($manifestPath), true);
+            if (!is_array($snapshot) || ($snapshot['preview_id'] ?? null) !== $token
+                || (int) ($snapshot['owner_id'] ?? 0) !== $owner['id']
+                || in_array($snapshot['state'] ?? '', ['confirmed', 'cancelled'], true)) { continue; }
+
+            try {
+                $lock = $this->lock('token-' . $token, false);
+            } catch (Throwable $e) {
+                error_log('Image preview bulk cancel lock: ' . $e->getMessage());
+                $failed++;
+                continue;
+            }
+            if (!$lock) { $skippedBusy++; continue; }
+
+            try {
+                // Recheck under the token lock: confirm/cancel may have completed meanwhile.
+                $manifest = $this->readManifest($token);
+                if ((int) ($manifest['owner_id'] ?? 0) !== $owner['id']
+                    || in_array($manifest['state'] ?? '', ['confirmed', 'cancelled'], true)) { continue; }
+
+                $manifest['state'] = 'cancelled';
+                $this->writeManifest($token, $manifest);
+                // Never touch product originals or published processed files.
+                $this->removeStagedFiles($token);
+                $this->removeReviewFiles($manifest['review'] ?? null);
+                $cancelled++;
+            } catch (Throwable $e) {
+                error_log('Image preview bulk cancel: ' . $e->getMessage());
+                $failed++;
+            } finally {
+                $this->unlock($lock);
+            }
+        }
+
+        return ['success' => true, 'cancelled' => $cancelled, 'skipped_busy' => $skippedBusy, 'failed' => $failed];
+    }
+
     public function previewFile($imageId, $token, $revision = null)
     {
         $owner = $this->owner();

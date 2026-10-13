@@ -835,6 +835,46 @@
     }
 
 
+    const cleanupPreviewsButton = editor.querySelector('[data-product-image-previews-cancel-all]');
+    if (cleanupPreviewsButton) {
+        cleanupPreviewsButton.addEventListener('click', async function () {
+            if (cleanupPreviewsButton.disabled) { return; }
+            if (activeImagePreview && !activeImagePreview.dismissed) {
+                showMessage('Спочатку закрийте поточну пробу фотографії.', 'warning');
+                return;
+            }
+            if (!window.confirm('Закрити всі ваші незавершені проби фотографій? Незбережені правки масок буде втрачено.')) {
+                return;
+            }
+            const csrf = form.querySelector('input[name="_csrf"]');
+            if (!csrf || !csrf.value) {
+                showMessage('Не вдалося підтвердити запит. Оновіть сторінку.', 'error');
+                return;
+            }
+            const payload = new FormData();
+            payload.append('_csrf', csrf.value);
+            const label = cleanupPreviewsButton.textContent;
+            cleanupPreviewsButton.disabled = true;
+            cleanupPreviewsButton.textContent = 'Закриття проб…';
+            try {
+                const result = await imageProcessingRequest('cancel-all', payload);
+                const closed = Number(result.cancelled || 0);
+                const pending = Number(result.skipped_busy || 0) + Number(result.failed || 0);
+                showMessage(
+                    'Закрито проб: ' + closed + '.'
+                        + (pending ? ' Деякі проби зайняті або недоступні; спробуйте ще раз.'
+                            : (closed ? ' Можна повторити обробку.' : ' Незавершених проб немає.')),
+                    pending ? 'warning' : (closed ? 'success' : 'info')
+                );
+            } catch (error) {
+                showMessage(error.message || 'Не вдалося закрити проби фотографій.', 'error');
+            } finally {
+                cleanupPreviewsButton.textContent = label;
+                cleanupPreviewsButton.disabled = false;
+            }
+        });
+    }
+
     function imagePreviewPayload(preview)
     {
         const payload = new FormData();

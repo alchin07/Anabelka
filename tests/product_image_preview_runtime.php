@@ -136,6 +136,53 @@ try {
     $acceptedRows = Database::$db->rows;
     $acceptedFiles = glob($root . '/uploads/products/processed/*/*');
     $acceptedHash = hash_file('sha256', $root . '/' . $accepted['master_path']);
+    // Bulk cleanup includes this admin's other browser sessions, not another admin.
+    $originalHash = hash_file('sha256', $root . '/uploads/products/source.jpg');
+    $ownedDrafts = [];
+    for ($n = 0; $n < 3; $n++) {
+        $draft = $service->create(7, 'studio-light', 'auto');
+        $path = $root . '/storage/image-processor/previews/' . $draft['preview_id'] . '/manifest.json';
+        $manifest = json_decode(file_get_contents($path), true);
+        // Simulate a private preview currently awaiting mask review.
+        $manifest['state'] = 'needs_review';
+        $manifest['review'] = ['preview_id' => $draft['preview_id'], 'job_id' => bin2hex(random_bytes(16))];
+        file_put_contents($path, json_encode($manifest));
+        $ownedDrafts[] = $draft;
+    }
+    session_id('another-session-same-admin');
+    $draft = $service->create(7, 'studio-light', 'auto');
+    $path = $root . '/storage/image-processor/previews/' . $draft['preview_id'] . '/manifest.json';
+    $manifest = json_decode(file_get_contents($path), true);
+    $manifest['state'] = 'needs_review';
+    $manifest['review'] = ['preview_id' => $draft['preview_id'], 'job_id' => bin2hex(random_bytes(16))];
+    file_put_contents($path, json_encode($manifest));
+    $ownedDrafts[] = $draft;
+    session_id('test-preview-session');
+    AdminAccess::$id = 10;
+    $foreignDraft = $service->create(7, 'studio-light', 'auto');
+    AdminAccess::$id = 9;
+    rejects(function () use ($service) { $service->create(7, 'studio-light', 'auto'); }, 'four unresolved previews enforce quota');
+    AdminAccess::$allowed = false;
+    rejects(function () use ($service) { $service->cancelAll(); }, 'view-only admin cannot bulk cancel');
+    AdminAccess::$allowed = true;
+    $closed = $service->cancelAll();
+    check($closed['cancelled'] === 4 && $closed['skipped_busy'] === 0 && $closed['failed'] === 0, 'bulk cancel closes exactly the current admin drafts');
+    check($service->cancelAll()['cancelled'] === 0, 'bulk cancel is idempotent');
+    foreach ($ownedDrafts as $draft) {
+        $directory = $root . '/storage/image-processor/previews/' . $draft['preview_id'];
+        $manifest = json_decode(file_get_contents($directory . '/manifest.json'), true);
+        check($manifest['state'] === 'cancelled' && !is_file($directory . '/master.webp'), 'unfinished draft is private and no longer confirmable');
+        rejects(function () use ($service, $draft) { $service->confirm(7, $draft['preview_id']); }, 'cancelled draft cannot be published');
+    }
+    check(hash_file('sha256', $root . '/uploads/products/source.jpg') === $originalHash, 'bulk cancel leaves source original unchanged');
+    check(Database::$db->rows === $acceptedRows && glob($root . '/uploads/products/processed/*/*') === $acceptedFiles
+        && hash_file('sha256', $root . '/' . $accepted['master_path']) === $acceptedHash, 'bulk cancel preserves published DB row and accepted photo');
+    AdminAccess::$id = 10;
+    check(is_file($service->previewFile(7, $foreignDraft['preview_id'])), 'other admin preview stays available');
+    $service->cancel(7, $foreignDraft['preview_id']);
+    AdminAccess::$id = 9;
+    $freshAfterCleanup = $service->create(7, 'studio-light', 'auto');
+    $service->cancel(7, $freshAfterCleanup['preview_id']);
     $previewManifests = glob($root . '/storage/image-processor/previews/*/manifest.json');
     foreach (['subject-not-detected', 'grabcut_mask_unavailable', 'modnet_worker_failed', 'mask_quality_rejected', 'background_fallback'] as $reason) {
         $processorError = new ImageProcessorException('Mask processing failed: ' . $reason, [

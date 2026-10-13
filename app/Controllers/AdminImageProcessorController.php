@@ -80,6 +80,13 @@ class AdminImageProcessorController extends Controller
     }
 
 
+    public function cancelAll()
+    {
+        $this->operation(function () {
+            return (new ProductImagePreviewService())->cancelAll();
+        });
+    }
+
     public function maskStart()
     {
         $this->operation(function () {

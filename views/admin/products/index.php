@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=17">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=18">
     <link rel="stylesheet" href="/Anabelka/css/admin-mask-editor.css?v=2">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=4">
 </head>
@@ -561,6 +561,12 @@ require __DIR__ . '/../../partials/header.php';
                             Якщо фото вже є, натисніть «Вибрати колір» біля потрібної фотографії.
                         </p>
 
+                        <div class="product-image-preview-cleanup">
+                            <button type="button" data-product-image-previews-cancel-all>
+                                Закрити мої незавершені проби
+                            </button>
+                            <small>Лише незбережені проби: оригінали й збережені фото залишаться без змін.</small>
+                        </div>
                         <div id="product-image-list" class="product-image-list"></div>
 
                         <label class="product-upload-field">
@@ -827,7 +833,7 @@ require __DIR__ . '/../../partials/header.php';
 <div id="site-message" class="site-message anabelka-notify" role="status" aria-live="polite" aria-atomic="true"></div>
 <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script src="/Anabelka/js/admin-mask-editor.js?v=2"></script>
-<script src="/Anabelka/js/admin-products.js?v=30"></script>
+<script src="/Anabelka/js/admin-products.js?v=31"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>

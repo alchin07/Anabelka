@@ -17,7 +17,7 @@ require __DIR__ . '/../routes/Web.php';
 
 $suffix = $argv[1] ?? '';
 if ($suffix !== '') {
-    securityCheck(in_array($suffix, ['preview', 'confirm', 'cancel', 'legacy', 'mask-start', 'mask-edit', 'mask-result'], true), 'Unknown fixture');
+    securityCheck(in_array($suffix, ['preview', 'confirm', 'cancel', 'cancel-all', 'legacy', 'mask-start', 'mask-edit', 'mask-result'], true), 'Unknown fixture');
     $_POST['_csrf'] = 'invalid-token';
     register_shutdown_function(function () {
         echo "\nHTTP_STATUS=" . http_response_code() . "\n";
@@ -43,7 +43,7 @@ unset($_SERVER['HTTP_X_CSRF_TOKEN']);
 $match = new ReflectionMethod(Router::class, 'matchRoute');
 $required = new ReflectionMethod(Router::class, 'requiresCsrf');
 $family = new ReflectionMethod(Router::class, 'csrfFamily');
-foreach (['preview', 'confirm', 'cancel', 'legacy', 'mask-start', 'mask-edit', 'mask-result'] as $suffix) {
+foreach (['preview', 'confirm', 'cancel', 'cancel-all', 'legacy', 'mask-start', 'mask-edit', 'mask-result'] as $suffix) {
     $path = '/admin/products/image-process' . ($suffix === 'legacy' ? '' : '-' . $suffix);
     $route = $match->invoke($router, $path, 'POST');
     securityCheck($route !== null, 'Missing processing POST route');

@@ -434,6 +434,12 @@ $router->post(
 );
 
 $router->post(
+    '/admin/products/image-process-cancel-all',
+    'AdminImageProcessorController@cancelAll',
+    ['csrf' => true, 'csrf_family' => 'admin']
+);
+
+$router->post(
     '/admin/products/image-process-mask-start',
     'AdminImageProcessorController@maskStart',
     ['csrf' => true, 'csrf_family' => 'admin']

@@ -60,6 +60,7 @@ async function harness(t, images = [{id: 17, path: 'uploads/products/original.jp
         <input data-size-stock><button data-size-remove></button></div></template>
         <button type="button" data-size-add>Add size</button><div id="product-image-list"></div>
         <input type="file" id="product-image-input"><div id="product-upload-preview"></div>
+        <button type="button" data-product-image-previews-cancel-all>Close unfinished previews</button>
         <button class="product-editor-save">Save</button></form></section>
         </body></html>`, {url: 'https://example.test/Anabelka/admin/products', runScripts: 'outside-only'});
     t.after(() => dom.window.close());
@@ -107,6 +108,41 @@ async function harness(t, images = [{id: 17, path: 'uploads/products/original.jp
         }
     };
 }
+
+test('unfinished preview cleanup is confirmed, CSRF-protected and does not alter accepted photos', async t => {
+    const h = await harness(t);
+    const button = h.q('[data-product-image-previews-cancel-all]');
+    const saved = h.snapshot();
+    h.window.confirm = () => false;
+    h.click(button);
+    await pause();
+    assert.equal(h.calls.length, 0, 'Declined confirmation must not call the server');
+
+    h.window.confirm = () => true;
+    const pending = deferred();
+    h.queued.push(pending.promise);
+    h.click(button);
+    assert.equal(button.disabled, true, 'Cleanup action is disabled during request');
+    h.click(button);
+    pending.resolve(response({success: true, cancelled: 3, skipped_busy: 0, failed: 0}));
+    await pause();
+    const cleanups = h.calls.filter(call => call.url.endsWith('image-process-cancel-all'));
+    assert.equal(cleanups.length, 1, 'Double click does not cancel twice');
+    assert.deepEqual(cleanups[0].body, {_csrf: 'csrf-token'});
+    assert.equal(h.snapshot(), saved, 'Already accepted image remains intact');
+    assert.equal(button.disabled, false);
+});
+
+test('failed unfinished preview cleanup allows retry', async t => {
+    const h = await harness(t);
+    h.window.confirm = () => true;
+    const button = h.q('[data-product-image-previews-cancel-all]');
+    h.queued.push(response({success: false, message: 'Cleanup refused'}));
+    h.click(button);
+    await pause();
+    assert.equal(button.disabled, false);
+    assert.equal(h.calls.filter(call => call.url.endsWith('image-process-cancel-all')).length, 1);
+});
 
 function selectProcessing(h, profile = 'studio-light', mode = 'modnet', card = h.q('.product-image-manage')) {
     const profileSelect = card.querySelector('[data-product-image-background-profile]');
