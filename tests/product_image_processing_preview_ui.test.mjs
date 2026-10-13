@@ -144,6 +144,29 @@ test('failed unfinished preview cleanup allows retry', async t => {
     assert.equal(h.calls.filter(call => call.url.endsWith('image-process-cancel-all')).length, 1);
 });
 
+test('manual mask editor absent: safe automatic previews have no edit action', async t => {
+    const h = await harness(t);
+    await h.start({...preview(), review_available: true});
+    assert.equal(h.q('[data-product-mask-edit]'), null,
+        'No manual mask controls when the optional editor is not loaded');
+    assert.ok(h.q('[data-product-image-preview-confirm]'),
+        'Safe automatically processed photo still has an apply action');
+});
+
+test('manual mask editor absent: needs_review cancels without publishing', async t => {
+    const h = await harness(t);
+    const before = h.snapshot();
+    await h.start({
+        success: true, state: 'needs_review', image_id: 17,
+        preview_id: 'disabled-manual-review', review_available: true
+    });
+    assert.equal(h.q('[data-product-mask-edit]'), null);
+    assert.equal(h.q('[data-product-image-preview-confirm]'), null);
+    assert.ok(h.calls.some(call => call.url.endsWith('image-process-cancel')
+        && call.body.preview_id === 'disabled-manual-review'));
+    assert.equal(h.snapshot(), before, 'Rejected result cannot replace the accepted photo');
+});
+
 function selectProcessing(h, profile = 'studio-light', mode = 'modnet', card = h.q('.product-image-manage')) {
     const profileSelect = card.querySelector('[data-product-image-background-profile]');
     const modeSelect = card.querySelector('[data-product-image-mask-mode]');

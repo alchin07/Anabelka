@@ -2367,7 +2367,8 @@
                     throw new Error('Сервер повернув некоректну відповідь.');
                 }
 
-                preview.reviewAvailable = data.review_available === true;
+                // A stale review-capable response must not expose the disabled editor.
+                preview.reviewAvailable = data.review_available === true && Boolean(maskEditor());
                 preview.revision = data.revision !== null && typeof data.revision !== 'undefined'
                     && Number.isSafeInteger(Number(data.revision)) ? Number(data.revision) : null;
                 preview.processing = data.processing;
@@ -2386,6 +2387,9 @@
 
                 preview.setBusy(false);
                 if (data.state === 'needs_review') {
+                    if (!maskEditor()) {
+                        throw new Error('Автоматична маска потребує уточнення. Ручний редактор тимчасово вимкнено.');
+                    }
                     openImageMaskReview(image, preview, data);
                 } else {
                     openImageComparison(image, preview);

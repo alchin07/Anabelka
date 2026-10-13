@@ -90,6 +90,7 @@ class AdminImageProcessorController extends Controller
     public function maskStart()
     {
         $this->operation(function () {
+            $this->requireManualMaskReview();
             return (new ProductImagePreviewService())->reviewStart($_POST['image_id'] ?? 0, $_POST['preview_id'] ?? '');
         });
     }
@@ -97,6 +98,7 @@ class AdminImageProcessorController extends Controller
     public function maskEdit()
     {
         $this->operation(function () {
+            $this->requireManualMaskReview();
             if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 196608) { throw new InvalidArgumentException('Позначки маски перевищують ліміт.'); }
             return (new ProductImagePreviewService())->reviewEdit($_POST['image_id'] ?? 0, $_POST['preview_id'] ?? '', $_POST['revision'] ?? null, $_POST['actions'] ?? null);
         });
@@ -105,6 +107,7 @@ class AdminImageProcessorController extends Controller
     public function maskResult()
     {
         $this->operation(function () {
+            $this->requireManualMaskReview();
             return (new ProductImagePreviewService())->reviewResult($_POST['image_id'] ?? 0, $_POST['preview_id'] ?? '', $_POST['revision'] ?? null);
         });
     }
@@ -112,6 +115,7 @@ class AdminImageProcessorController extends Controller
     public function maskFile()
     {
         try {
+            $this->requireManualMaskReview();
             $path = (new ProductImagePreviewService())->reviewFile($_GET['image_id'] ?? 0, $_GET['preview_id'] ?? '', $_GET['revision'] ?? null, $_GET['asset'] ?? '');
             $stream = @fopen($path, 'rb');
             if (!$stream) { throw new InvalidArgumentException('Маска недоступна.'); }
@@ -151,6 +155,13 @@ class AdminImageProcessorController extends Controller
         }
     }
 
+
+    private function requireManualMaskReview(): void
+    {
+        if (!ProductImageProcessingService::manualMaskReviewEnabled()) {
+            throw new InvalidArgumentException('Ручний редактор маски тимчасово вимкнено.');
+        }
+    }
 
     private function auditAccepted(array $result)
     {

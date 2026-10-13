@@ -2,6 +2,14 @@
 
 class ProductImageProcessingService
 {
+    // Temporary feature switch. Keep the manual editor code for future experiments.
+    private const MANUAL_MASK_REVIEW_ENABLED = false;
+
+    public static function manualMaskReviewEnabled(): bool
+    {
+        return self::MANUAL_MASK_REVIEW_ENABLED;
+    }
+
     public static function process(
         $imageId,
         $backgroundProfile = 'original-canvas',
@@ -16,7 +24,9 @@ class ProductImageProcessingService
 
     public static function preview($imageId, $backgroundProfile = 'original-canvas', $maskMode = 'auto')
     {
-        return (new ProductImagePreviewService())->create($imageId, $backgroundProfile, $maskMode);
+        return (new ProductImagePreviewService())->create(
+            $imageId, $backgroundProfile, $maskMode, self::manualMaskReviewEnabled()
+        );
     }
 
 

@@ -103,7 +103,9 @@ $productsJson = json_encode(
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=18">
+    <?php if (ProductImageProcessingService::manualMaskReviewEnabled()): ?>
     <link rel="stylesheet" href="/Anabelka/css/admin-mask-editor.css?v=2">
+    <?php endif; ?>
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=4">
 </head>
 <body>
@@ -832,8 +834,10 @@ require __DIR__ . '/../../partials/header.php';
 <script id="admin-products-data" type="application/json"><?= $productsJson ?: '[]' ?></script>
 <div id="site-message" class="site-message anabelka-notify" role="status" aria-live="polite" aria-atomic="true"></div>
 <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
+<?php if (ProductImageProcessingService::manualMaskReviewEnabled()): ?>
 <script src="/Anabelka/js/admin-mask-editor.js?v=2"></script>
-<script src="/Anabelka/js/admin-products.js?v=32"></script>
+<?php endif; ?>
+<script src="/Anabelka/js/admin-products.js?v=33"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>
