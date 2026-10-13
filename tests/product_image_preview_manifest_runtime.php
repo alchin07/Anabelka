@@ -187,6 +187,7 @@ $processor = function ($sourcePath, $background, $mode) use ($root, &$calls) {
 };
 session_id('manifest-runtime-session');
 $service = new ProductImagePreviewService($root, $processor, function () { return 100000; });
+$lockRoot = (new \ReflectionProperty(ProductImagePreviewService::class, 'lockDirectory'))->getValue($service);
 $write = new ReflectionMethod(ProductImagePreviewService::class, 'writeManifest');
 $manifest = ['preview_id' => $token, 'state' => 'cancelled', 'label' => 'Проба / фотографії'];
 
@@ -217,7 +218,7 @@ try {
         check(glob($root . '/uploads/products/processed/*/*.webp') === [], 'worker public output is removed');
         check(glob($root . '/storage/image-processor/originals/*/*') === [], 'worker original output is removed');
         if ($scenario === 'create-failure') { check(glob($root . '/storage/image-processor/previews/*/manifest*') === [], 'failed preview leaves no manifest or temporary file'); }
-        foreach (glob($root . '/storage/image-processor/previews/locks/*.lock') as $path) {
+        foreach (glob($lockRoot . '/*.lock') ?: [] as $path) {
             $handle = \fopen($path, 'c+b');
             check(\flock($handle, LOCK_EX | LOCK_NB), 'operation locks are released');
             \flock($handle, LOCK_UN); \fclose($handle);
@@ -261,4 +262,8 @@ try {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
     foreach ($iterator as $path) { $path->isDir() ? \rmdir($path->getPathname()) : \unlink($path->getPathname()); }
     \rmdir($root);
+    if (is_dir($lockRoot) && !is_link($lockRoot)) {
+        foreach (glob($lockRoot . '/*') ?: [] as $file) { if (is_file($file) && !is_link($file)) { \unlink($file); } }
+        \rmdir($lockRoot);
+    }
 }

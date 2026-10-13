@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawn, spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {access, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {access, mkdtemp, readFile, realpath, rm, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -132,6 +132,10 @@ for (const scenario of ['success', 'rollback']) {
                 if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); }
             }
             await Promise.all(children.map(({closed}) => closed));
+            const nativeRoot = await realpath(tmpdir());
+            const projectRoot = await realpath(root);
+            const lockId = createHash('sha256').update(projectRoot).digest('hex').slice(0, 24);
+            await rm(join(nativeRoot, 'anabelka-preview-locks-' + lockId), {recursive: true, force: true});
             await rm(root, {recursive: true, force: true});
         }
     });

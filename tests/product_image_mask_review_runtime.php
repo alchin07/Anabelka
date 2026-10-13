@@ -212,6 +212,7 @@ $reviewWorker = function ($operation,$payload) use ($root,$ordinary,&$states,&$f
     return $response;
 };
 $service=new ProductImagePreviewService($root,$reviewProcessor,function () use (&$clock) {return $clock;},$reviewWorker);
+$lockRoot=(new ReflectionProperty(ProductImagePreviewService::class,'lockDirectory'))->getValue($service);
 $action=[['kind'=>'background','tool'=>'brush','radius'=>2,'hardness'=>.5,'points'=>[[22,22],[23,23]]]];
 try {
     $initialGateRefused=true;
@@ -588,4 +589,8 @@ try {
     $iterator=new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);
     foreach($iterator as $path) { $path->isDir()?rmdir($path->getPathname()):unlink($path->getPathname()); }
     rmdir($root);
+    if (is_dir($lockRoot) && !is_link($lockRoot)) {
+        foreach (glob($lockRoot . '/*') ?: [] as $file) { if (is_file($file) && !is_link($file)) { unlink($file); } }
+        rmdir($lockRoot);
+    }
 }

@@ -5,6 +5,7 @@ class ProductImagePreviewService
     private const TTL = 1800;
     private $root;
     private $temporary;
+    private $lockDirectory;
     private $processor;
     private $clock;
     private $reviewWorker;
@@ -17,6 +18,16 @@ class ProductImagePreviewService
             throw new RuntimeException('Каталог фотографій недоступний.');
         }
         $this->temporary = $this->root . '/storage/image-processor/previews';
+        // Only lock files live on PHP's native filesystem. Android shared
+        // storage (/storage/emulated/0) does not support flock().
+        $nativeTemp = realpath(sys_get_temp_dir());
+        if ($nativeTemp === false || !is_dir($nativeTemp)) {
+            throw new RuntimeException('Недоступний приватний каталог блокувань фотографій.');
+        }
+        // All PHP processes for this project use the same lock namespace,
+        // while separate project copies cannot interfere with each other.
+        $this->lockDirectory = rtrim($nativeTemp, '/\\') . '/anabelka-preview-locks-'
+            . substr(hash('sha256', $this->root), 0, 24);
         $this->processor = $processor ?? [ImageProcessorClient::class, 'processProductImage'];
         $this->clock = $clock ?? 'time';
         $this->reviewWorker = $reviewWorker ?? function ($operation, array $payload) {
@@ -1234,7 +1245,7 @@ class ProductImagePreviewService
         // Stable stripes avoid accumulating one permanent inode for each expired token.
         if (strpos($name, 'token-') === 0) { $name = substr($name, 0, 8); }
         if (strpos($name, 'image-') === 0) { $name = 'image-' . ((int) substr($name, 6) % 256); }
-        $directory = $this->temporary . '/locks';
+        $directory = $this->lockDirectory;
         $this->mkdir($directory);
         $path = $directory . '/' . $name . '.lock';
         if (is_link($path)) { throw new RuntimeException('Некоректний файл блокування.'); }

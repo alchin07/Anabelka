@@ -109,10 +109,17 @@ $processor = function ($source, $background, $mode) use ($root, &$calls, &$respo
 };
 session_id('test-preview-session');
 $service = new ProductImagePreviewService($root, $processor, function () use (&$clock) { return $clock; });
+$lockRoot = (new ReflectionProperty(ProductImagePreviewService::class, 'lockDirectory'))->getValue($service);
 
 try {
     $preview = $service->create(7, 'studio-light', 'modnet');
     check($calls === 1, 'preview runs one inference');
+    check(strpos($lockRoot, rtrim(realpath(sys_get_temp_dir()), '/\\') . '/') === 0,
+        'preview locks reside under the PHP native temp directory');
+    check(is_dir($lockRoot) && !is_link($lockRoot),
+        'native lock namespace is a real private directory');
+    check(!is_dir($root . '/storage/image-processor/previews/locks'),
+        'shared project storage never hosts flock files');
     check(Database::$db->rows === [], 'preview does not create or mutate processing DB rows');
     check($preview['processing']['normalization']['mask_method'] === 'modnet', 'preview exposes normalized diagnostics');
     check(strpos($preview['preview_url'], 'image-process-preview-file') !== false, 'preview URL is protected controller route');
@@ -167,7 +174,7 @@ try {
     AdminAccess::$allowed = true;
     // An actively locked preview must not be cancelled by the bulk operation.
     $busyToken = $ownedDrafts[0]['preview_id'];
-    $busyLockFile = $root . '/storage/image-processor/previews/locks/token-' . substr($busyToken, 0, 2) . '.lock';
+    $busyLockFile = $lockRoot . '/token-' . substr($busyToken, 0, 2) . '.lock';
     $busyLock = fopen($busyLockFile, 'c+b');
     check(flock($busyLock, LOCK_EX), 'test holds a real token stripe lock');
     $firstPass = $service->cancelAll();
@@ -192,7 +199,7 @@ try {
     $closed = $androidService->cancelAll();
     check($firstPass['cancelled'] + $closed['cancelled'] === 4
         && $closed['skipped_busy'] === 0 && $closed['failed'] === 0, 'bulk cancel closes drafts after lock release on Android');
-    check(glob($root . '/storage/image-processor/previews/locks/probe-*.lock') === [],
+    check(glob($lockRoot . '/probe-*.lock') === [],
         'nonblocking lock capability probes are cleaned up');
     check($service->cancelAll()['cancelled'] === 0, 'bulk cancel is idempotent');
     foreach ($ownedDrafts as $draft) {
@@ -321,7 +328,7 @@ try {
     file_put_contents($expiredFinalDirectory . '/master.webp', 'interrupted bytes');
     $clock += 1801;
     rejects(function () use ($service, $expired) { $service->previewFile(7, $expired['preview_id']); }, 'expired preview denied');
-    $busyImageLock = fopen($root . '/storage/image-processor/previews/locks/image-7.lock', 'c+b');
+    $busyImageLock = fopen($lockRoot . '/image-7.lock', 'c+b');
     flock($busyImageLock, LOCK_EX);
     $service->cleanupExpired();
     check(is_file($expiredDirectory . '/manifest.json'), 'expiry cleanup defers manifest deletion while image lock is busy');
@@ -442,4 +449,8 @@ try {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
     foreach ($iterator as $path) { $path->isDir() ? rmdir($path->getPathname()) : unlink($path->getPathname()); }
     rmdir($root);
+    if (is_dir($lockRoot) && !is_link($lockRoot)) {
+        foreach (glob($lockRoot . '/*') ?: [] as $file) { if (is_file($file) && !is_link($file)) { unlink($file); } }
+        rmdir($lockRoot);
+    }
 }
