@@ -138,6 +138,50 @@ class MaskReviewTests(unittest.TestCase):
                 with self.assertRaises(server.MaskProcessingError):
                     server.process_image('uploads/products/photo.png', 'studio-light', 'modnet')
 
+
+    def test_successful_segmentation_with_rejected_review_gates_enters_manual_review(self):
+        server = self.server()
+        seed, raw = self.fixture()
+        # The segmentation itself reports no quality error, but it retains
+        # known source background. The independent source gate must still win.
+        raw[:8, :] = 255
+        self.assertEqual(self.module().validate_alpha(raw, raw, seed)['status'], 'needs_review')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'photo.png'
+            Image.new('RGB', (100, 120), (200, 140, 100)).save(source)
+
+            def successful_segmentation(image, background_profile, source_path=None,
+                                        mask_mode='auto', review_capture=None):
+                if review_capture is not None:
+                    review_capture.update(
+                        alpha=Image.fromarray(raw), seed=seed,
+                        geometry={'crop_box': None,
+                                  'crop_strategy': 'preserve-source-frame'})
+                # This successful return intentionally lacks quality_reason.
+                return Image.new('RGB', server.MASTER_SIZE), {
+                    'background_profile': background_profile}
+
+            with (patch.object(server, 'ORIGINAL_ROOT', root / 'originals'),
+                  patch.object(server, 'PROCESSED_ROOT', root / 'processed'),
+                  patch.object(server, 'REVIEW_ROOT', root / 'reviews'),
+                  patch.object(server, 'REVIEW_LOCK_ROOT', root / 'locks'),
+                  patch.object(server, 'safe_source_path', return_value=source),
+                  patch.object(server, 'project_relative',
+                               side_effect=lambda path: path.relative_to(root).as_posix()),
+                  patch.object(server, 'normalized_master',
+                               side_effect=successful_segmentation)):
+                result = server.process_image(
+                    'uploads/products/photo.png', 'studio-light', 'auto',
+                    allow_review=True)
+                self.assertEqual(result['state'], 'needs_review')
+                self.assertFalse(result['review']['gates']['background']['accepted'])
+                self.assertNotIn('master', result)
+                self.assertNotIn('thumb', result)
+                self.assertTrue(
+                    (root / 'reviews' / result['job_id'] / 'raw-alpha.png').is_file())
+                self.assertEqual(list((root / 'processed').iterdir()), [])
+
     def test_result_revalidates_and_uses_existing_composition_without_inference(self):
         server = self.server()
         self.assertTrue(hasattr(server, 'render_mask_review'), 'review render endpoint is required')

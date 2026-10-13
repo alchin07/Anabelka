@@ -5893,9 +5893,11 @@ def process_image(
         if capture is not None and "alpha" in capture:
             review = create_mask_review(job_id, original, image, capture, normalization, project_relative(source))
             review_created = True
-            if (capture.get("quality_reason") in {"source_component_loss", "source_local_material_loss",
-                    "source_thin_material_loss", "source_background_retained", "source_evidence_unavailable"}
-                    and review["status"] == "needs_review"):
+            # The independent immutable-source gates may reject a mask even
+            # when the earlier segmentation check did not report quality_reason.
+            # Route every validated review refusal to the private mask editor;
+            # never return public master/thumb for a nonaccepted review.
+            if review["status"] == "needs_review":
                 shutil.rmtree(original_dir, ignore_errors=True)
                 shutil.rmtree(processed_dir, ignore_errors=True)
                 return {"ok": True, "state": "needs_review", "job_id": job_id,
