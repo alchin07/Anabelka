@@ -165,8 +165,21 @@ try {
     AdminAccess::$allowed = false;
     rejects(function () use ($service) { $service->cancelAll(); }, 'view-only admin cannot bulk cancel');
     AdminAccess::$allowed = true;
+    // An actively locked preview must not be cancelled by the bulk operation.
+    $busyToken = $ownedDrafts[0]['preview_id'];
+    $busyLockFile = $root . '/storage/image-processor/previews/locks/token-' . substr($busyToken, 0, 1) . '.lock';
+    $busyLock = fopen($busyLockFile, 'c+b');
+    check(flock($busyLock, LOCK_EX), 'test holds a real token stripe lock');
+    $firstPass = $service->cancelAll();
+    check($firstPass['skipped_busy'] >= 1 && $firstPass['failed'] === 0, 'bulk cleanup skips actual lock contention');
+    $busyManifest = json_decode(file_get_contents($root . '/storage/image-processor/previews/' . $busyToken . '/manifest.json'), true);
+    check($busyManifest['state'] === 'needs_review', 'locked preview stays unchanged');
+    flock($busyLock, LOCK_UN);
+    fclose($busyLock);
+
     $closed = $service->cancelAll();
-    check($closed['cancelled'] === 4 && $closed['skipped_busy'] === 0 && $closed['failed'] === 0, 'bulk cancel closes exactly the current admin drafts');
+    check($firstPass['cancelled'] + $closed['cancelled'] === 4
+        && $closed['skipped_busy'] === 0 && $closed['failed'] === 0, 'bulk cancel closes all drafts after lock release');
     check($service->cancelAll()['cancelled'] === 0, 'bulk cancel is idempotent');
     foreach ($ownedDrafts as $draft) {
         $directory = $root . '/storage/image-processor/previews/' . $draft['preview_id'];

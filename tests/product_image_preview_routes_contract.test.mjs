@@ -17,4 +17,8 @@ assert.match(controller, /mask_mode_requested/);
 assert.match(controller, /worker_error/);
 assert.match(controller, /Cache-Control: private, no-store/);
 assert.match(fs.readFileSync('app/Core/App.php', 'utf8'), /Services\/ProductImagePreviewService\.php/);
+const previewService = fs.readFileSync('app/Services/ProductImagePreviewService.php', 'utf8');
+assert.match(previewService, /flock\(\$handle, LOCK_EX \| LOCK_NB, \$wouldBlock\)/);
+assert.match(previewService, /if \(!\$locked && \$wouldBlock !== 1\)[\s\S]*?flock\(\$handle, LOCK_EX\)/);
+assert.match(previewService, /if \(!\$locked\)\s*\{\s*fclose\(\$handle\);\s*return null;/);
 process.stdout.write('product image preview route contract passed\n');

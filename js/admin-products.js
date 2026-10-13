@@ -859,12 +859,15 @@
             try {
                 const result = await imageProcessingRequest('cancel-all', payload);
                 const closed = Number(result.cancelled || 0);
-                const pending = Number(result.skipped_busy || 0) + Number(result.failed || 0);
+                const busy = Number(result.skipped_busy || 0);
+                const failed = Number(result.failed || 0);
                 showMessage(
                     'Закрито проб: ' + closed + '.'
-                        + (pending ? ' Деякі проби зайняті або недоступні; спробуйте ще раз.'
+                        + (busy ? ' Зайняті: ' + busy + '.' : '')
+                        + (failed ? ' Помилки: ' + failed + '.' : '')
+                        + (busy || failed ? ' Спробуйте ще раз або перевірте php.log.'
                             : (closed ? ' Можна повторити обробку.' : ' Незавершених проб немає.')),
-                    pending ? 'warning' : (closed ? 'success' : 'info')
+                    busy || failed ? 'warning' : (closed ? 'success' : 'info')
                 );
             } catch (error) {
                 showMessage(error.message || 'Не вдалося закрити проби фотографій.', 'error');

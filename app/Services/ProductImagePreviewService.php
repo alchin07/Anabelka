@@ -1200,7 +1200,21 @@ class ProductImagePreviewService
         if (is_link($path)) { throw new RuntimeException('Некоректний файл блокування.'); }
         $handle = @fopen($path, 'c+b');
         if (!$handle) { throw new RuntimeException('Не вдалося заблокувати пробу фотографії.'); }
-        if (!flock($handle, LOCK_EX | ($blocking ? 0 : LOCK_NB))) {
+        // KSWEB on Android can reject LOCK_NB on emulated storage even when
+        // an ordinary exclusive flock is supported. Keep mutual exclusion:
+        // never proceed without a successfully acquired exclusive lock.
+        if ($blocking) {
+            $locked = @flock($handle, LOCK_EX);
+        } else {
+            $wouldBlock = 0;
+            $locked = @flock($handle, LOCK_EX | LOCK_NB, $wouldBlock);
+            if (!$locked && $wouldBlock !== 1) {
+                // Only retry when the OS did NOT report lock contention.
+                // Otherwise skip the busy preview without waiting for it.
+                $locked = @flock($handle, LOCK_EX);
+            }
+        }
+        if (!$locked) {
             fclose($handle);
             return null;
         }
