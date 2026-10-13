@@ -224,7 +224,7 @@ class ProductImagePreviewService
                 if (!is_dir($destinationDirectory)) {
                     $this->mkdir($destinationDirectory, false);
                     $newDirectories[] = $destinationDirectory;
-                } elseif (is_link($destinationDirectory) || realpath($destinationDirectory) !== $destinationDirectory) {
+                } elseif (!$this->isCanonicalUnlinkedPath($destinationDirectory)) {
                     throw new RuntimeException('Небезпечний каталог результату фотографії.');
                 }
                 if ($key === 'master') { chmod($destinationDirectory, 0755); }
@@ -924,7 +924,7 @@ class ProductImagePreviewService
     private function claimReview(array $review)
     {
         $directory = $this->root . '/' . rtrim($this->reviewPrefix($review), '/');
-        if (!is_dir($directory) || is_link($directory) || realpath($directory) !== $directory) {
+        if (!is_dir($directory) || !$this->isCanonicalUnlinkedPath($directory)) {
             throw new RuntimeException('Небезпечний каталог перевірки маски.');
         }
         $path = $directory . '/php-owner.json';
@@ -1039,14 +1039,23 @@ class ProductImagePreviewService
         return ['path' => $path, 'sha256' => hash_file('sha256', $file), 'product_id' => (int) $image['product_id']];
     }
 
+    // realpath() uses native separators on Windows while our paths contain '/'.
+    // Resolve and compare the physical path, retaining link/junction protection.
+    private function isCanonicalUnlinkedPath($path)
+    {
+        if (is_link($path)) { return false; }
+        $resolved = realpath($path);
+        return $resolved !== false
+            && str_replace('\\', '/', $resolved) === str_replace('\\', '/', $path);
+    }
+
     private function safeFile($relative)
     {
         if (!is_string($relative) || strpos($relative, "\0") !== false || strpos($relative, '..') !== false || strpos($relative, '\\') !== false || strpos($relative, '/') === 0) {
             throw new RuntimeException('Небезпечний шлях до файла обробки.');
         }
         $absolute = $this->root . '/' . $relative;
-        $real = realpath($absolute);
-        if (!$real || $real !== $absolute || !is_file($absolute) || is_link($absolute)) {
+        if (!is_file($absolute) || !$this->isCanonicalUnlinkedPath($absolute)) {
             throw new RuntimeException('Файл обробки недоступний.');
         }
         return $absolute;
@@ -1189,7 +1198,7 @@ class ProductImagePreviewService
     {
         $parent = dirname($directory);
         if (!is_dir($parent)) { $this->mkdir($parent); }
-        if (is_link($parent) || realpath($parent) !== $parent) {
+        if (!$this->isCanonicalUnlinkedPath($parent)) {
             throw new RuntimeException('Небезпечний каталог результату фотографії.');
         }
         if ($recursive && is_dir($directory) && !is_link($directory)) { return; }
