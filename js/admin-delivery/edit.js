@@ -957,6 +957,11 @@
                         if (deleteButton) {
                             deleteButton.dataset.name = editName.value;
                         }
+
+                        const toggleForm = row.querySelector('.toggle-form');
+                        if (toggleForm) {
+                            toggleForm.dataset.name = editName.value;
+                        }
                     }
 
                     editButton.dataset.name = editName.value;

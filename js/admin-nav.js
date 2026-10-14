@@ -208,7 +208,7 @@
 
         if (!document.querySelector('script[data-admin-ai-translation]')) {
             const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=12';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=13';
             script.dataset.adminAiTranslation = '1';
             document.body.appendChild(script);
         }

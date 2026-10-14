@@ -48,6 +48,21 @@
                 );
         }
 
+        if (path === '/Anabelka/admin/delivery') {
+            const editModal = document.getElementById('delivery-edit-modal');
+            const editType = document.getElementById('edit-type');
+            const editingMethodOrService = Boolean(
+                editModal && !editModal.hidden && editType
+                && ['method', 'service'].includes(editType.value)
+            );
+            const addMethod = document.getElementById('delivery-add-modal');
+            const addService = document.getElementById('delivery-add-service-modal');
+
+            return editingMethodOrService
+                || Boolean(addMethod && !addMethod.hidden)
+                || Boolean(addService && !addService.hidden);
+        }
+
         return true;
     }
 
@@ -134,6 +149,22 @@
                 'toggle',
                 syncSwitcherVisibility
             );
+        }
+        if (path === '/Anabelka/admin/delivery') {
+            [
+                'delivery-edit-modal',
+                'delivery-add-modal',
+                'delivery-add-service-modal'
+            ].forEach(function (id) {
+                const modal = document.getElementById(id);
+                if (!modal) {
+                    return;
+                }
+                new MutationObserver(syncSwitcherVisibility).observe(modal, {
+                    attributes: true,
+                    attributeFilter: ['hidden']
+                });
+            });
         }
     }
 

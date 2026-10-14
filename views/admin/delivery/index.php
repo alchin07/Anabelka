@@ -199,11 +199,11 @@
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/toggle.js?v=2"
+        src="/Anabelka/js/admin-delivery/toggle.js?v=3"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/edit.js?v=8"
+        src="/Anabelka/js/admin-delivery/edit.js?v=9"
     ></script>
 
     <script

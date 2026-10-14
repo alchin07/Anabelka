@@ -144,12 +144,15 @@ document
                         }
 
 
-                        const itemName =
-                            form.dataset.name
-                            || 'Элемент';
+                        const itemName = (form.dataset.name || '').trim()
+                            || (row.querySelector('.delivery-name')?.textContent || '').trim()
+                            || 'Елемент доставки';
 
-
-                        showMessage(itemName + (isActive ? ' включён' : ' выключен'), 'success');
+                        showMessage(
+                            '«' + itemName + '»: '
+                                + (isActive ? 'увімкнено' : 'вимкнено'),
+                            'success'
+                        );
 
                     } catch (error) {
 

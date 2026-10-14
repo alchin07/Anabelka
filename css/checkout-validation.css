@@ -1,0 +1,32 @@
+/* Підказки оформлення замовлення — лише фірмові фіолетові кольори. */
+.checkout-validation-message {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid #8A2BE2;
+    border-left-width: 4px;
+    border-radius: 10px;
+    background: #F4EAFF;
+    color: #6519B9;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.checkout-validation-invalid:not([type="radio"]) {
+    border-color: #8A2BE2 !important;
+    box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.15) !important;
+}
+.checkout-validation-group-invalid {
+    outline: 2px solid #8A2BE2;
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+[data-theme="dark"] .checkout-validation-message,
+.theme-dark .checkout-validation-message {
+    border-color: #A966EF;
+    background: #30213D;
+    color: #F0E3FF;
+}

@@ -554,7 +554,7 @@ $canVipPriceViews = $adminCan('vip_prices.view');
 <script defer src="/Anabelka/js/admin-product-variant-stock.js?v=18"></script>
 <script defer src="/Anabelka/js/admin-product-editor-fixes.js?v=3"></script>
 <script defer src="/Anabelka/js/admin-order-variants.js?v=1"></script>
-<script src="/Anabelka/js/admin-nav.js?v=28"></script>
+<script src="/Anabelka/js/admin-nav.js?v=29"></script>
 
 <?php if ($currentAdmin): ?>
     <script
