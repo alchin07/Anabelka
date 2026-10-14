@@ -79,3 +79,48 @@ test('backup ZIP files remain untracked in Git; Git ignore is not used as HTTP p
     assert.match(ignore, /^storage\/deploy-backups\/$/m);
     assert.match(ignore, /^storage\/full-backups\/$/m);
 });
+
+
+test('the complete database directory is private over HTTP, including SQL migrations', () => {
+    const matches = directives.filter(line => /^RewriteRule\s/.test(line)
+        && line.includes('^database'));
+    assert.equal(matches.length, 1, 'A single database guard must exist');
+    const parsed = matches[0].match(/^RewriteRule\s+(\S+)\s+-\s+\[([^\]]+)\]$/);
+    assert.ok(parsed, 'The directive must not rewrite SQL requests to index.php');
+    const flags = parsed[2].split(',');
+    assert.ok(flags.includes('F'), 'Apache must return HTTP 403');
+    assert.ok(flags.includes('L'), 'The SQL download must stop rewriting');
+    assert.ok(flags.includes('NC'), 'Case variations must be blocked');
+    const pattern = new RegExp(parsed[1], 'i');
+
+    for (const name of [
+        'database',
+        'database/',
+        'database/migrations/2026-09-13_category_manager.sql',
+        'database/preflight/check.sql',
+        'database/postflight/check.sql',
+        'DATABASE/migrations/secret.sql',
+        'database/dumps/production.sql'
+    ]) {
+        assert.match(name, pattern, 'Database path must be private: ' + name);
+    }
+
+    for (const name of [
+        'database-public/guide.txt',
+        'databases/schema.sql',
+        'assets/style.css',
+        'admin/system/backup/download',
+        'catalog',
+        'index.php',
+        'storage/deploy-backups/backup.zip'
+    ]) {
+        assert.doesNotMatch(name, pattern, 'A non-database path must not be blocked: ' + name);
+    }
+
+    const blockAt = htaccess.indexOf(matches[0]);
+    const existingFilesAt = htaccess.indexOf('RewriteCond %{REQUEST_FILENAME} !-f');
+    const fallbackAt = htaccess.indexOf('RewriteRule ^ index.php [L]');
+    assert.ok(blockAt >= 0 && existingFilesAt > blockAt,
+        'The guard must run before Apache serves an existing SQL file');
+    assert.ok(fallbackAt > existingFilesAt, 'The normal site router must remain active');
+});

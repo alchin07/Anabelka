@@ -9,6 +9,10 @@ RewriteRule ^storage/(?:deploy-backups|full-backups)(?:/|$) - [F,L,NC]
 # Originals, preview manifests and locks are served only through authorized controllers.
 RewriteRule ^storage/image-processor/ - [F,L]
 
+# SQL migrations, diagnostics and schema files must not be served directly.
+# PHP/MariaDB still read these files from disk as usual.
+RewriteRule ^database(?:/|$) - [F,L,NC]
+
 # Если файл или папка существуют физически —
 # Apache обслуживает их напрямую.
 RewriteCond %{REQUEST_FILENAME} !-f
