@@ -1095,7 +1095,7 @@ updateAddressFieldByOption();
 
 </script>
 
-<script src="/Anabelka/js/checkout-validation.js?v=1"></script>
+<script src="/Anabelka/js/checkout-validation.js?v=2"></script>
 
 </body>
 

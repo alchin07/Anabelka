@@ -5,7 +5,8 @@
 (function () {
     'use strict';
 
-    const form = document.querySelector('form[action="/Anabelka/checkout"]');
+    const form = document.querySelector('form[action="/Anabelka/checkout"]')
+        || document.querySelector('form[action="/Anabelka/quick-order"]');
     if (!form) return;
 
     let translations = {};
