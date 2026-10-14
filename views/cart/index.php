@@ -55,9 +55,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
         </p>
 
 
-        <?php if (empty($items)): ?>
-
-            <p id="empty-cart-message">
+        <p id="empty-cart-message"<?= empty($items) ? '' : ' hidden' ?>>
                 <?= htmlspecialchars(
                     Translator::t(
                         'cart.empty',
@@ -66,7 +64,8 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                 ) ?>
             </p>
 
-        <?php else: ?>
+        <?php if (!empty($items)): ?>
+            <div id="cart-filled-content">
 
             <div id="cart-items">
 
@@ -289,6 +288,8 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                     )
                 ) ?>
             </a>
+
+            </div>
 
         <?php endif; ?>
 
@@ -597,24 +598,17 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
         function announceRemoved()
         {
-            const notify = window.AnabelkaNotify;
-
             if (!document.querySelector('.cart-item')) {
-                // Re-render the established server-side empty-cart state.
-                // The success toast survives the reload exactly once.
-                if (notify && typeof notify.store === 'function'
-                    && notify.store('success', cartMessages.removed)) {
-                    window.location.reload();
-                    return;
-                }
+                const populated = document.getElementById('cart-filled-content');
+                const empty = document.getElementById('empty-cart-message');
 
-                showMessage(cartMessages.removed, 'success');
-                window.setTimeout(function () {
-                    window.location.reload();
-                }, 350);
-                return;
+                if (populated && empty) {
+                    populated.hidden = true;
+                    empty.hidden = false;
+                }
             }
 
+            // Keep the message visible: no page reload or sessionStorage needed.
             showMessage(cartMessages.removed, 'success');
         }
 
