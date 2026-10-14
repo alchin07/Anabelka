@@ -40,7 +40,7 @@ $quickValidationMessages = [
         rel="stylesheet"
         href="/Anabelka/css/catalog.css?v=4"
     >
-    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=2">
 </head>
 
 <body>
@@ -236,7 +236,7 @@ $quickValidationMessages = [
     JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
         | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE
 ) ?: '{}' ?></script>
-<script src="/Anabelka/js/checkout-validation.js?v=2"></script>
+<script src="/Anabelka/js/checkout-validation.js?v=3"></script>
 
 </body>
 </html>

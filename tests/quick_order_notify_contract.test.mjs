@@ -15,13 +15,14 @@ test('both order forms use one native validator without bypassing HTML5 constrai
     assert.match(script,/form\[action="\/Anabelka\/checkout"\]/);
     assert.match(script,/form\[action="\/Anabelka\/quick-order"\]/);
     assert.match(script,/addEventListener\('invalid',[\s\S]*?, true\)/);
-    assert.doesNotMatch(script,/preventDefault\(\)|noValidate/);
+    assert.match(script, /event\.preventDefault\(\)/);
+    assert.doesNotMatch(script, /form\.noValidate|novalidate/);
     assert.match(quick,/name="customer_name"[\s\S]*?required/);
     assert.match(quick,/name="customer_phone"[\s\S]*?required/);
     assert.doesNotMatch(quick,/\bnovalidate\b/);
-    assert.match(quick,/checkout-validation\.js\?v=2/);
-    assert.match(checkout,/checkout-validation\.js\?v=2/);
-    assert.match(quick,/checkout-validation\.css\?v=1/);
+    assert.match(quick,/checkout-validation\.js\?v=3/);
+    assert.match(checkout,/checkout-validation\.js\?v=3/);
+    assert.match(quick,/checkout-validation\.css\?v=2/);
     assert.match(quick,/JSON_HEX_TAG/);
 });
 
@@ -56,13 +57,18 @@ test('quick order empty phone displays a branded inline error and one toast', ()
     };
     const window={setTimeout(callback){timers.push(callback)},
         AnabelkaNotify:{warning(text){toasts.push(text)}}};
+    let focused = 0;
+    phone.focus=function () {focused++;};
     vm.runInNewContext(script,{document,window});
-    events.invalid({target:phone});
+    let prevented = false;
+    events.invalid({target:phone,preventDefault(){prevented=true;}});
+    assert.equal(prevented,true);
     assert.equal(children.length,1);
     assert.equal(children[0].textContent,'Заповніть поле «Номер телефону».');
     assert.equal(phone.getAttribute('aria-invalid'),'true');
     assert.equal(toasts.length,0);
     timers.shift()();
+    assert.equal(focused,1);
     assert.deepEqual(toasts,['Заповніть поле «Номер телефону».']);
     phone.validity.valid=true;
     events.input({target:phone});

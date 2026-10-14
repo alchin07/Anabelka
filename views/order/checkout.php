@@ -96,7 +96,7 @@ $checkoutValidationMessages = [
         href="/Anabelka/css/catalog.css?v=4"
     >
 
-    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=2">
 </head>
 
 <body>
@@ -1095,7 +1095,7 @@ updateAddressFieldByOption();
 
 </script>
 
-<script src="/Anabelka/js/checkout-validation.js?v=2"></script>
+<script src="/Anabelka/js/checkout-validation.js?v=3"></script>
 
 </body>
 

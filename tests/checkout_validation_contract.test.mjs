@@ -28,11 +28,12 @@ test('invalid native fields show adjacent notes and only one toast per attempt',
     assert.match(view,/name="customer_email"[\s\S]{0,110}required/);
     assert.match(view,/name="delivery_address"[\s\S]{0,500}required/);
     assert.match(view,/id="checkout-validation-messages"/);
-    assert.match(view,/checkout-validation\.js\?v=1/);
-    assert.match(view,/checkout-validation\.css\?v=1/);
+    assert.match(view,/checkout-validation\.js\?v=3/);
+    assert.match(view,/checkout-validation\.css\?v=2/);
     const script=read('js/checkout-validation.js');
     assert.match(script,/addEventListener\('invalid',[\s\S]+?, true\)/);
-    assert.doesNotMatch(script,/form\.noValidate\s*=|preventDefault\(\)/);
+    assert.match(script,/event\.preventDefault\(\)/);
+    assert.doesNotMatch(script,/form\.noValidate\s*=|novalidate/);
     const events={},timers=[],warnings=[],emailBox=parent(),cityBox=parent();
     const email=field('customer_email',emailBox),city=field('delivery_city',cityBox);
     const form={querySelector:()=>null,addEventListener:(name,fn)=>{events[name]=fn;}};
@@ -46,7 +47,10 @@ test('invalid native fields show adjacent notes and only one toast per attempt',
     const window={setTimeout:callback=>timers.push(callback),
         AnabelkaNotify:{warning:msg=>warnings.push(msg)}};
     vm.runInNewContext(script,{document,window},{filename:'js/checkout-validation.js'});
-    events.invalid({target:email});events.invalid({target:city});
+    let preventedCount=0;
+    const invalidEvent=target=>({target,preventDefault(){preventedCount++;}});
+    events.invalid(invalidEvent(email));events.invalid(invalidEvent(city));
+    assert.equal(preventedCount,2);
     assert.equal(emailBox.children.length,1);assert.equal(cityBox.children.length,1);
     assert.equal(emailBox.children[0].textContent,'Заповніть поле «Email».');
     assert.equal(warnings.length,0);

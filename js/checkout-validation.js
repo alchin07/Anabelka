@@ -1,6 +1,7 @@
 /*
  * Фірмова підказка до нативних required/email перевірок оформлення.
- * Подія invalid перехоплюється на capture без відміни захисту браузера.
+ * Подія invalid перехоплюється на capture. Скасовуємо тільки нативну
+ * бульбашку браузера: required/email і блокування submit залишаються.
  */
 (function () {
     'use strict';
@@ -140,19 +141,37 @@
         }
     }
 
-    // HTML5 забороняє відправку невалідної форми; показуємо текст,
-    // не викликаючи preventDefault та не встановлюючи novalidate.
+    // invalid cancelable: прибираємо лише браузерний tooltip на Android.
+    // HTML5 усе одно не відправить форму, доки поля некоректні.
     form.addEventListener('invalid', function (event) {
         const field = event.target;
         if (!field || !field.name || !field.willValidate) return;
+
+        event.preventDefault();
         const message = show(field);
         if (!message || pendingAnnouncement) return;
+
         firstAnnouncement = message;
         pendingAnnouncement = true;
         window.setTimeout(function () {
             pendingAnnouncement = false;
             const text = firstAnnouncement;
             firstAnnouncement = '';
+
+            // Після скасування стандартної підказки браузер може не
+            // переводити фокус. Підсвічуємо перше проблемне поле.
+            if (typeof field.focus === 'function') {
+                try {
+                    field.focus({preventScroll: true});
+                } catch (error) {
+                    field.focus();
+                }
+            }
+            const container = containerFor(field);
+            if (container && typeof container.scrollIntoView === 'function') {
+                container.scrollIntoView({block: 'center', behavior: 'smooth'});
+            }
+
             if (window.AnabelkaNotify
                 && typeof window.AnabelkaNotify.warning === 'function') {
                 window.AnabelkaNotify.warning(text);
