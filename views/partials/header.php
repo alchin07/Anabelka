@@ -696,7 +696,7 @@ if (
     ></script>
 
     <script
-        src="/Anabelka/js/cart-legacy-color.js?v=2"
+        src="/Anabelka/js/cart-legacy-color.js?v=3"
         defer
     ></script>
 

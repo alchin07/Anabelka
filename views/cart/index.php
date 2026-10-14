@@ -296,7 +296,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
     <div
         id="site-message"
-        class="site-message"
+        class="site-message anabelka-notify" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true" tabindex="-1"
     ></div>
 
 
@@ -323,6 +323,11 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                     'Не вдалося видалити товар.'
                 ),
                 JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ) ?>,
+            removed: <?= json_encode(
+                Translator::t('cart.removed', 'Товар видалено з кошика.'),
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
             ) ?>
         };
 
@@ -526,6 +531,9 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
                             recalculateCart();
                             updateHeaderCartCount();
+                            if (currentQuantity <= 1) {
+                                announceRemoved();
+                            }
 
                         } catch (error) {
                             showMessage(
@@ -562,6 +570,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
                             recalculateCart();
                             updateHeaderCartCount();
+                            announceRemoved();
 
                         } catch (error) {
                             showMessage(
@@ -574,28 +583,36 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
             });
 
 
-        function showMessage(text)
+        function showMessage(text, type = 'error')
         {
-            const message =
-                document.getElementById(
-                    'site-message'
-                );
+            const notify = window.AnabelkaNotify;
+            return Boolean(
+                notify && typeof notify.show === 'function'
+                    && notify.show(type, text)
+            );
+        }
 
-            if (!message) {
+        function announceRemoved()
+        {
+            const notify = window.AnabelkaNotify;
+
+            if (!document.querySelector('.cart-item')) {
+                // Re-render the established server-side empty-cart state.
+                // The success toast survives the reload exactly once.
+                if (notify && typeof notify.store === 'function'
+                    && notify.store('success', cartMessages.removed)) {
+                    window.location.reload();
+                    return;
+                }
+
+                showMessage(cartMessages.removed, 'success');
+                window.setTimeout(function () {
+                    window.location.reload();
+                }, 350);
                 return;
             }
 
-            message.textContent = text;
-            message.classList.add('show');
-
-            clearTimeout(
-                window.siteMessageTimer
-            );
-
-            window.siteMessageTimer =
-                setTimeout(() => {
-                    message.classList.remove('show');
-                }, 2200);
+            showMessage(cartMessages.removed, 'success');
         }
 
     </script>
