@@ -28,8 +28,9 @@ test('invalid native fields show adjacent notes and only one toast per attempt',
     assert.match(view,/name="customer_email"[\s\S]{0,110}required/);
     assert.match(view,/name="delivery_address"[\s\S]{0,500}required/);
     assert.match(view,/id="checkout-validation-messages"/);
+    assert.ok(view.includes('<body class="checkout-validation-page">'));
     assert.match(view,/checkout-validation\.js\?v=3/);
-    assert.match(view,/checkout-validation\.css\?v=2/);
+    assert.match(view,/checkout-validation\.css\?v=3/);
     const script=read('js/checkout-validation.js');
     assert.match(script,/addEventListener\('invalid',[\s\S]+?, true\)/);
     assert.match(script,/event\.preventDefault\(\)/);

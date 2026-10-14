@@ -24,7 +24,7 @@ before(async () => {
             + '<meta name="viewport" content="width=device-width, initial-scale=1">'
             + '<link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css">'
             + '<link rel="stylesheet" href="/Anabelka/css/checkout-validation.css">'
-            + '</head><body><form method="post" action="' + action + '">'
+            + '</head><body class="checkout-validation-page"><form method="post" action="' + action + '"'>
             + '<label>Ім’я <input name="customer_name" value="VIP GOLD" required></label>'
             + '<div>' + customerField + '</div>'
             + '<button type="submit">Продовжити</button></form>'
@@ -71,6 +71,24 @@ for (const quick of [true, false]) {
         assert.equal(await input.getAttribute('aria-invalid'), 'true');
         assert.equal(await page.locator('.checkout-validation-message').textContent(), message);
         await expectToast(page, 'warning', message);
+        const colors = await page.evaluate(() => {
+            const popup = getComputedStyle(document.getElementById('site-message'));
+            const guidance = getComputedStyle(document.querySelector('.checkout-validation-message'));
+            return {
+                popupBackground: popup.backgroundColor,
+                popupText: popup.color,
+                popupPosition: popup.position,
+                inlineBackground: guidance.backgroundColor,
+                inlineText: guidance.color,
+                inlinePosition: guidance.position
+            };
+        });
+        assert.equal(colors.popupBackground, 'rgb(138, 43, 226)');
+        assert.equal(colors.popupText, 'rgb(255, 255, 255)');
+        assert.equal(colors.popupPosition, 'fixed');
+        assert.equal(colors.inlineBackground, 'rgb(244, 234, 255)');
+        assert.equal(colors.inlineText, 'rgb(101, 25, 185)');
+        assert.notEqual(colors.inlinePosition, 'fixed');
         assert.equal(fixture.requests.length, beforeRequests,
             'An invalid order must not reach the server.');
         assert.equal(await input.evaluate(node => document.activeElement === node), true);
@@ -83,3 +101,24 @@ for (const quick of [true, false]) {
         assert.equal(await input.evaluate(node => node.validity.valid), true);
     });
 }
+
+test('dark-theme quick-order warning remains solid purple, separate from the inline hint', async t => {
+    const page = await browserPage(t, browser, fixture.origin, {
+        width: 360, height: 740, clock: false, pathname: '/fixture?quick'
+    });
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+    await page.getByRole('button', {name: 'Продовжити'}).click();
+    await page.locator('#site-message.show').waitFor();
+    const colors = await page.evaluate(() => {
+        const popup = getComputedStyle(document.getElementById('site-message'));
+        const inline = getComputedStyle(document.querySelector('.checkout-validation-message'));
+        return {
+            popupBackground: popup.backgroundColor,
+            popupText: popup.color,
+            inlineBackground: inline.backgroundColor
+        };
+    });
+    assert.equal(colors.popupBackground, 'rgb(138, 43, 226)');
+    assert.equal(colors.popupText, 'rgb(255, 255, 255)');
+    assert.notEqual(colors.inlineBackground, colors.popupBackground);
+});

@@ -96,10 +96,10 @@ $checkoutValidationMessages = [
         href="/Anabelka/css/catalog.css?v=4"
     >
 
-    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=2">
+    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=3">
 </head>
 
-<body>
+<body class="checkout-validation-page">
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 

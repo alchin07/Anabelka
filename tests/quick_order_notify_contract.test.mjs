@@ -22,8 +22,14 @@ test('both order forms use one native validator without bypassing HTML5 constrai
     assert.doesNotMatch(quick,/\bnovalidate\b/);
     assert.match(quick,/checkout-validation\.js\?v=3/);
     assert.match(checkout,/checkout-validation\.js\?v=3/);
-    assert.match(quick,/checkout-validation\.css\?v=2/);
+    assert.match(quick,/checkout-validation\.css\?v=3/);
     assert.match(quick,/JSON_HEX_TAG/);
+    assert.ok(quick.includes('<body class="checkout-validation-page">'));
+    assert.ok(checkout.includes('<body class="checkout-validation-page">'));
+    const css = read('css/checkout-validation.css');
+    assert.ok(css.includes('body.checkout-validation-page #site-message.anabelka-notify.is-warning'));
+    assert.ok(css.includes('background: #8A2BE2;'));
+    assert.ok(css.includes('color: #fff;'));
 });
 
 test('quick order empty phone displays a branded inline error and one toast', () => {

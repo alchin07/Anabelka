@@ -32,3 +32,14 @@
     background: #30213D;
     color: #F0E3FF;
 }
+
+/*
+ * On checkout pages, the central warning matches the solid-purple toast
+ * design. Field-level validation remains soft violet within the form.
+ * This is scoped so warnings in other modules keep their existing colors.
+ */
+body.checkout-validation-page #site-message.anabelka-notify.is-warning {
+    background: #8A2BE2;
+    color: #fff;
+    border-color: #8A2BE2;
+}
