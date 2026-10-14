@@ -266,9 +266,10 @@ if (
 
 
                 window.showMessage(
-                    settingsSaved
-                        ? 'Опция доставки добавлена'
-                        : 'Опция добавлена, но настройка поля не сохранена'
+                    settingsSaved ? 'Опция доставки добавлена'
+                        : 'Опция добавлена, но настройка поля не сохранена',
+                    settingsSaved ? 'success' : 'warning',
+                    true
                 );
 
 
@@ -283,11 +284,7 @@ if (
 
             } catch (error) {
 
-                window.showMessage(
-                    error instanceof Error
-                        ? error.message
-                        : 'Не удалось добавить опцию доставки.'
-                );
+                window.showMessage(error instanceof Error ? error.message : 'Не удалось добавить опцию доставки.', 'error');
             }
 
         }

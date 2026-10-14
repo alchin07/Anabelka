@@ -136,9 +136,7 @@
 
                 addModal.hidden = true;
 
-                window.showMessage(
-                    'Способ доставки добавлен'
-                );
+                window.showMessage('Способ доставки добавлен', 'success', true);
 
                 /*
                  * Новый способ не должен раскрывать
@@ -189,11 +187,7 @@
                 );
 
             } catch (error) {
-                window.showMessage(
-                    error instanceof Error
-                        ? error.message
-                        : 'Не удалось добавить способ доставки.'
-                );
+                window.showMessage(error instanceof Error ? error.message : 'Не удалось добавить способ доставки.', 'error');
             }
         }
     );

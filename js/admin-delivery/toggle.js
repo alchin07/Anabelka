@@ -149,21 +149,11 @@ document
                             || 'Элемент';
 
 
-                        showMessage(
-                            itemName
-                            +
-                            (
-                                isActive
-                                    ? ' включён'
-                                    : ' выключен'
-                            )
-                        );
+                        showMessage(itemName + (isActive ? ' включён' : ' выключен'), 'success');
 
                     } catch (error) {
 
-                        showMessage(
-                            error.message
-                        );
+                        showMessage(error.message, 'error');
                     }
 
                 }

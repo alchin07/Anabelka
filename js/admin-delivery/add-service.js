@@ -198,9 +198,7 @@ if (
                     true;
 
 
-                window.showMessage(
-                    'Служба доставки добавлена'
-                );
+                window.showMessage('Служба доставки добавлена', 'success', true);
 
 
                 setTimeout(
@@ -214,11 +212,7 @@ if (
 
             } catch (error) {
 
-                window.showMessage(
-                    error instanceof Error
-                        ? error.message
-                        : 'Не удалось добавить службу доставки.'
-                );
+                window.showMessage(error instanceof Error ? error.message : 'Не удалось добавить службу доставки.', 'error');
             }
 
         }

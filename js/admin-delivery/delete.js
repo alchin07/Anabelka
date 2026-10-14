@@ -159,7 +159,7 @@
 
                 deleteModal.hidden = true;
 
-                window.showMessage('Удалено');
+                window.showMessage('Удалено', 'success', true);
 
                 setTimeout(
                     () => window.location.reload(),
@@ -167,11 +167,7 @@
                 );
 
             } catch (error) {
-                window.showMessage(
-                    error instanceof Error
-                        ? error.message
-                        : 'Не удалось удалить.'
-                );
+                window.showMessage(error instanceof Error ? error.message : 'Не удалось удалить.', 'error');
             }
         }
     );
