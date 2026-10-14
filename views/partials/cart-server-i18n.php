@@ -14,8 +14,7 @@ $cartServerUi = [
     'stock_error' => Translator::t(
         'product.stock_error',
         'Недостатньо товару на складі.'
-    )
-,
+    ),
     'change_error' => Translator::t(
         'cart.error_change',
         'Не вдалося змінити кошик.'
@@ -35,7 +34,8 @@ $cartServerUi = [
 window.addEventListener('load', function () {
     const t = <?= json_encode(
         $cartServerUi,
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+            | JSON_HEX_APOS | JSON_HEX_QUOT
     ) ?>;
 
     const baseShowMessage = window.showMessage;

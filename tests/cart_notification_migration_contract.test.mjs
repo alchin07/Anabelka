@@ -12,6 +12,7 @@ test('cart has branded host and one shared notification queue', () => {
     const view = read('views/cart/index.php');
     assert.match(view, /class="site-message anabelka-notify"/);
     assert.match(view, /role="status" aria-live="polite"/);
+    assert.equal((view.match(/JSON_HEX_TAG/g) || []).length, 4);
     assert.match(view, /function showMessage\(text, type = 'error'\)/);
     assert.match(view, /notify\.show\(type, text\)/);
     assert.match(view, /notify\.store\('success', cartMessages\.removed\)/);
@@ -60,6 +61,7 @@ test('server error localization preserves severity', () => {
     assert.match(i18n, /baseShowMessage\(translated, type\)/);
     assert.match(i18n, /t\.color_sold_out/);
     assert.match(i18n, /t\.change_error/);
+    assert.match(i18n, /JSON_HEX_TAG/);
 });
 
 test('legacy cart color repair no longer uses browser alerts', () => {

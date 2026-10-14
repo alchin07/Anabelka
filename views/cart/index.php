@@ -308,21 +308,24 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                     'cart.error_change',
                     'Не вдалося змінити кошик.'
                 ),
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
             ) ?>,
             quantity: <?= json_encode(
                 Translator::t(
                     'cart.error_quantity',
                     'Не вдалося змінити кількість.'
                 ),
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
             ) ?>,
             remove: <?= json_encode(
                 Translator::t(
                     'cart.error_remove',
                     'Не вдалося видалити товар.'
                 ),
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
             ) ?>,
             removed: <?= json_encode(
                 Translator::t('cart.removed', 'Товар видалено з кошика.'),
