@@ -73,15 +73,17 @@
 }
 
 .admin-product-flash.is-success {
-    border-color: #b9decf;
-    background: #f1faf6;
-    color: #2f6954;
+    border-color: var(--notify-success-border, #8A2BE2);
+    background: var(--notify-success-bg, #8A2BE2);
+    color: var(--notify-success-text, #fff);
+    border-left-width: 4px;
 }
 
 .admin-product-flash.is-error {
-    border-color: #e8bac3;
-    background: #fff5f6;
-    color: #913748;
+    border-color: var(--notify-info-border, #8A2BE2);
+    background: var(--notify-info-bg, #f4eaff);
+    color: var(--notify-info-text, #6519b9);
+    border-left-width: 4px;
 }
 
 /* Field-level guidance reuses the existing solid-purple notification palette. */

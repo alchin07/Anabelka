@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=18">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=19">
     <?php if (ProductImageProcessingService::manualMaskReviewEnabled()): ?>
     <link rel="stylesheet" href="/Anabelka/css/admin-mask-editor.css?v=2">
     <?php endif; ?>
@@ -837,8 +837,8 @@ require __DIR__ . '/../../partials/header.php';
 <?php if (ProductImageProcessingService::manualMaskReviewEnabled()): ?>
 <script src="/Anabelka/js/admin-mask-editor.js?v=2"></script>
 <?php endif; ?>
-<script src="/Anabelka/js/admin-products.js?v=33"></script>
-<script src="/Anabelka/js/admin-product-color-picker.js?v=6"></script>
+<script src="/Anabelka/js/admin-products.js?v=34"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=7"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>
 </html>

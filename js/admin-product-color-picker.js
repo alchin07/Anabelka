@@ -245,20 +245,14 @@
     }
 
 
-    function showMessage(text)
+    // The picker shares the site's notification queue with the product editor.
+    // No separate timer may hide a message from a different action.
+    function showMessage(text, type = 'info')
     {
-        const message = document.getElementById('site-message');
-
-        if (!message) {
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-        clearTimeout(window.adminProductColorMessageTimer);
-        window.adminProductColorMessageTimer = window.setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
+        const notify = window.AnabelkaNotify;
+        return notify && typeof notify.show === 'function'
+            ? notify.show(type, text)
+            : false;
     }
 
 
@@ -458,7 +452,8 @@
         if (source === '') {
             showMessage(
                 'Цей колір можна зберегти без фото. '
-                + 'Виберіть готовий відтінок або «Інший відтінок».'
+                + 'Виберіть готовий відтінок або «Інший відтінок».',
+                'info'
             );
             return;
         }
@@ -486,7 +481,7 @@
         const image = picker.photoImage;
 
         if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
-            showMessage('Фотографія ще завантажується. Спробуйте ще раз.');
+            showMessage('Фотографія ще завантажується. Спробуйте ще раз.', 'warning');
             return;
         }
 
@@ -523,7 +518,7 @@
         const context = canvas.getContext('2d', { willReadFrequently: true });
 
         if (!context) {
-            showMessage('Не вдалося визначити колір на цьому телефоні.');
+            showMessage('Не вдалося визначити колір на цьому телефоні.', 'error');
             return;
         }
 
@@ -548,7 +543,7 @@
                 sampleResolution
             ).data;
         } catch (error) {
-            showMessage('З цього фото не вдалося взяти колір. Оберіть готовий.');
+            showMessage('З цього фото не вдалося взяти колір. Оберіть готовий.', 'error');
             showColorOptions();
             return;
         }
@@ -568,7 +563,7 @@
         }
 
         if (red.length === 0) {
-            showMessage('Оберіть непрозору ділянку фотографії.');
+            showMessage('Оберіть непрозору ділянку фотографії.', 'warning');
             return;
         }
 
@@ -584,7 +579,7 @@
         clearTimeout(photoReturnTimer);
         photoReturnTimer = window.setTimeout(function () {
             showColorOptions();
-            showMessage('Колір узято з фотографії.');
+            showMessage('Колір обрано з фотографії. Збережіть товар після підтвердження кольору.', 'info');
         }, 420);
     }
 
@@ -666,7 +661,7 @@
             return;
         }
 
-        showMessage('Не вдалося відкрити фотографію для вибору кольору.');
+        showMessage('Не вдалося відкрити фотографію для вибору кольору.', 'error');
         showColorOptions();
     });
 

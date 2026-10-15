@@ -3096,7 +3096,7 @@
             section.querySelector('.product-translation-description').value =
                 translation.description || '';
             setTranslationWorkflow(section, 'ai', 'draft');
-            showMessage('ШІ-переклад отримано. Перевірте його перед збереженням.', 'success');
+            showMessage('ШІ-переклад отримано. Перевірте його перед збереженням.', 'info');
         } catch (error) {
             showMessage(error.message || 'Не вдалося отримати ШІ-переклад.', 'error');
         } finally {
