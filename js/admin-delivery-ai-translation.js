@@ -7,27 +7,13 @@
 (function () {
     'use strict';
 
-    function showMessage(text)
+    function showMessage(text, type = 'info')
     {
-        if (typeof window.showMessage === 'function') {
-            window.showMessage(text);
-            return;
-        }
+        const notify = window.AnabelkaNotify;
 
-        const message = document.getElementById('site-message');
-
-        if (!message) {
-            window.alert(text);
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-
-        clearTimeout(window.deliveryAiMessageTimer);
-        window.deliveryAiMessageTimer = setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
+        return notify && typeof notify.show === 'function'
+            ? notify.show(type, text)
+            : false;
     }
 
 
@@ -211,7 +197,8 @@
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
                 showMessage(
-                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
+                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.',
+                    'warning'
                 );
                 return;
             }
@@ -269,14 +256,16 @@
                 }
 
                 showMessage(
-                    'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
+                    'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».',
+                    'info'
                 );
 
             } catch (error) {
                 showMessage(
                     error && error.message
                         ? error.message
-                        : 'Не вдалося отримати ШІ-переклад.'
+                        : 'Не вдалося отримати ШІ-переклад.',
+                    'error'
                 );
             } finally {
                 button.disabled = false;
@@ -319,7 +308,8 @@
                 || typeof window.AnabelkaAITranslation.suggest !== 'function'
             ) {
                 showMessage(
-                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
+                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.',
+                    'warning'
                 );
                 return;
             }
@@ -374,14 +364,16 @@
                 }
 
                 showMessage(
-                    'ШІ-переклад поля отримано. Перевірте його та натисніть «Зберегти».'
+                    'ШІ-переклад поля отримано. Перевірте його та натисніть «Зберегти».',
+                    'info'
                 );
 
             } catch (error) {
                 showMessage(
                     error && error.message
                         ? error.message
-                        : 'Не вдалося отримати ШІ-переклад поля.'
+                        : 'Не вдалося отримати ШІ-переклад поля.',
+                    'error'
                 );
             } finally {
                 button.disabled = false;

@@ -264,7 +264,7 @@
 
         if (path === '/Anabelka/admin/delivery') {
             appendScript(
-                '/Anabelka/js/admin-delivery-ai-translation.js?v=3',
+                '/Anabelka/js/admin-delivery-ai-translation.js?v=4',
                 'data-admin-delivery-ai'
             );
 
