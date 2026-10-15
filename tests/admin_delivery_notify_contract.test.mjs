@@ -46,12 +46,12 @@ test('delivery uses shared queue and stores reload flashes instead of custom tim
 
 test('delivery AJAX outcomes distinguish success, failure and partial success', () => {
     const cases = [
-        ['toggle.js', 2, /'success'\)/, /'error'\)/],
-        ['edit.js', 3, /'success'\)/, /'error'\)/],
-        ['delete.js', 2, /'success', true\)/, /'error'\)/],
-        ['add.js', 2, /'success', true\)/, /'error'\)/],
-        ['add-service.js', 2, /'success', true\)/, /'error'\)/],
-        ['add-option.js', 2, /settingsSaved \? 'success' : 'warning',\s*true/, /'error'\)/]
+        ['toggle.js', 2, /'success'\s*\)/, /'error'\s*\)/],
+        ['edit.js', 3, /'success'\s*\)/, /'error'\s*\)/],
+        ['delete.js', 2, /'success',\s*true\s*\)/, /'error'\s*\)/],
+        ['add.js', 2, /'success',\s*true\s*\)/, /'error'\s*\)/],
+        ['add-service.js', 2, /'success',\s*true\s*\)/, /'error'\s*\)/],
+        ['add-option.js', 2, /settingsSaved \? 'success' : 'warning',\s*true/, /'error'\s*\)/]
     ];
     for (const [name, expectedCalls, successPattern, errorPattern] of cases) {
         const js = read('js/admin-delivery/' + name);
