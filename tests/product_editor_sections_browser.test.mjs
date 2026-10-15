@@ -127,6 +127,81 @@ test('size, color, photo and translation updates keep the current expanded secti
     assert.deepEqual(await openLabels(h.page), [...state, 'Переклади']);
 });
 
+test('saved product colors attach to existing and new photos without duplicates', async t => {
+    const h = await harness(t);
+    await h.open('Кольори');
+    await h.open('Фотографії');
+
+    const existingPhoto = h.page.locator('#product-image-list [data-image-color-open]').first();
+    const choices = h.page.locator('[data-existing-product-color]');
+
+    await existingPhoto.click();
+    assert.equal(await h.page.locator('[data-color-picker-existing]').isVisible(), true);
+    assert.deepEqual(await choices.evaluateAll(nodes => nodes.map(node => node.dataset.existingProductColor)), ['Білий']);
+    await choices.first().click();
+    assert.equal(await choices.first().getAttribute('aria-pressed'), 'true');
+    await h.page.locator('[data-color-picker-cancel]').last().click();
+    assert.equal(await h.page.locator('#product-image-list [data-image-color-name]').inputValue(), '',
+        'Cancel must not change the image association.');
+
+    await existingPhoto.click();
+    await choices.first().click();
+    await h.page.locator('[data-color-picker-apply]').click();
+    assert.equal(await h.page.locator('#product-image-list [data-image-color-name]').inputValue(), 'Білий');
+
+    await h.page.locator('#product-image-input').setInputFiles({
+        name: 'photo.png', mimeType: 'image/png',
+        buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
+    });
+    await h.page.locator('#product-upload-preview [data-image-color-open]').click();
+    await choices.first().click();
+    await h.page.locator('[data-color-picker-apply]').click();
+    assert.equal(await h.page.locator('#product-upload-preview [data-image-color-name]').inputValue(), 'Білий');
+
+    await h.page.locator('[data-product-color-add]').click();
+    assert.equal(await h.page.locator('[data-color-picker-existing]').isVisible(), false,
+        'Saved colors belong to photo selection, not product-color creation.');
+    await h.page.locator('[data-color-system-input]').evaluate(node => {
+        node.value = '#626368';
+        node.dispatchEvent(new Event('input', {bubbles: true}));
+    });
+    await h.page.locator('[data-color-picker-name]').fill('Темно-сірий');
+    await h.page.locator('[data-color-picker-apply]').click();
+
+    await existingPhoto.click();
+    const gray = choices.filter({hasText: 'Темно-сірий'});
+    assert.deepEqual(await choices.evaluateAll(nodes => nodes.map(node => node.dataset.existingProductColor)),
+        ['Білий', 'Темно-сірий']);
+    await gray.click();
+    assert.equal(await gray.getAttribute('aria-pressed'), 'true');
+    await h.page.locator('[data-color-picker-apply]').click();
+
+    assert.equal(await h.page.locator('#product-image-list [data-image-color-name]').inputValue(), 'Темно-сірий');
+    assert.equal(await h.page.locator('#product-image-list [data-image-color-hex]').inputValue(), '#626368');
+    assert.equal(await h.page.locator('#product-upload-preview [data-image-color-name]').inputValue(), 'Білий');
+    assert.deepEqual(await h.page.locator('#product-color-list [data-product-manual-color]').evaluateAll(rows =>
+        rows.map(row => [row.querySelector('[data-image-color-name]').value,
+            row.querySelector('[data-image-color-hex]').value])),
+    [['Білий', '#ffffff'], ['Темно-сірий', '#626368']]);
+
+    const start = saves.length;
+    await h.page.locator('.product-editor-save').click();
+    await h.page.waitForFunction(() => document.querySelector('#site-message')?.textContent ===
+        'Перевірка збереження завершена');
+    assert.equal(saves.length, start + 1);
+    const submitted = saves.at(-1);
+    for (const [field, value] of [
+        ['image_color_name[17]', 'Темно-сірий'],
+        ['image_color_hex[17]', '#626368'],
+        ['new_image_color_name[]', 'Білий'],
+        ['product_color_name[]', 'Темно-сірий']
+    ]) {
+        assert.ok(submitted.includes('name="' + field + '"' + String.fromCharCode(13, 10, 13, 10) + value),
+            field + ' persists on save');
+    }
+});
+
+
 test('product inline validation clears immediately after correction', async t => {
     const h = await harness(t);
     await h.page.locator('#product-edit-price').fill('');

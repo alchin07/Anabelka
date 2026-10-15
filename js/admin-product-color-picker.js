@@ -11,6 +11,8 @@
         window: root.querySelector('.product-color-picker-window'),
         options: root.querySelector('[data-color-picker-options]'),
         presets: root.querySelector('[data-color-picker-presets]'),
+        existing: root.querySelector('[data-color-picker-existing]'),
+        existingList: root.querySelector('[data-color-picker-existing-list]'),
         preview: root.querySelector('[data-color-picker-preview]'),
         context: root.querySelector('[data-color-picker-context]'),
         name: root.querySelector('[data-color-picker-name]'),
@@ -32,6 +34,8 @@
         !picker.window
         || !picker.options
         || !picker.presets
+        || !picker.existing
+        || !picker.existingList
         || !picker.preview
         || !picker.name
         || !picker.photoButton
@@ -272,12 +276,29 @@
     }
 
 
+    function syncExistingProductColorSelection()
+    {
+        const selectedName = pickerHasColor
+            ? picker.name.value.trim().toLocaleLowerCase()
+            : '';
+        const selectedHex = normalizedHex(picker.systemInput.value);
+
+        picker.existingList.querySelectorAll('[data-existing-product-color]').forEach(function (button) {
+            const selected = selectedName !== ''
+                && button.dataset.existingProductColor.toLocaleLowerCase() === selectedName
+                && button.dataset.existingProductHex === selectedHex;
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+    }
+
+
     function updatePickerPreview()
     {
         const hex = normalizedHex(picker.systemInput.value);
         picker.preview.style.setProperty('--selected-image-color', hex);
         picker.preview.classList.toggle('has-color', pickerHasColor);
         updatePresetSelection(pickerHasColor ? hex : '');
+        syncExistingProductColorSelection();
     }
 
 
@@ -288,6 +309,67 @@
         picker.name.value = String(name || closestColorName(normalized));
         pickerHasColor = true;
         updatePickerPreview();
+    }
+
+
+    function renderExistingProductColors()
+    {
+        picker.existingList.replaceChildren();
+
+        // Product-color editing must not offer an image-only association.
+        const linkedPhoto = activeGroup && activeGroup.closest(
+            '.product-image-manage, .product-upload-preview-item'
+        );
+
+        if (!linkedPhoto) {
+            picker.existing.hidden = true;
+            return;
+        }
+
+        const seenNames = new Set();
+        const fragment = document.createDocumentFragment();
+
+        document.querySelectorAll('#product-color-list [data-product-manual-color]').forEach(function (row) {
+            const nameInput = row.querySelector('[data-image-color-name]');
+            const hexInput = row.querySelector('[data-image-color-hex]');
+            const name = nameInput ? nameInput.value.trim() : '';
+            const key = name.toLocaleLowerCase();
+
+            if (key === '' || seenNames.has(key)) {
+                return;
+            }
+
+            seenNames.add(key);
+            const hex = normalizedHex(hexInput ? hexInput.value : '');
+            const button = document.createElement('button');
+            const dot = document.createElement('span');
+            const label = document.createElement('span');
+
+            button.type = 'button';
+            button.className = 'product-color-existing-choice';
+            button.dataset.existingProductColor = name;
+            button.dataset.existingProductHex = hex;
+            button.setAttribute('aria-pressed', 'false');
+
+            dot.className = 'product-color-existing-choice-dot';
+            dot.style.setProperty('--existing-product-color', hex);
+            dot.setAttribute('aria-hidden', 'true');
+
+            label.className = 'product-color-existing-choice-name';
+            label.textContent = name;
+
+            button.appendChild(dot);
+            button.appendChild(label);
+            button.addEventListener('click', function () {
+                // Confirming the picker links this photo without altering the saved color.
+                setPickerColor(hex, name);
+            });
+            fragment.appendChild(button);
+        });
+
+        picker.existingList.appendChild(fragment);
+        picker.existing.hidden = picker.existingList.childElementCount === 0;
+        syncExistingProductColorSelection();
     }
 
 
@@ -422,6 +504,7 @@
                     : 'Колір товару без фото');
         }
 
+        renderExistingProductColors();
         showColorOptions();
         updatePickerPreview();
         root.hidden = false;
@@ -767,8 +850,8 @@
     picker.name.addEventListener('input', function () {
         if (picker.name.value.trim() !== '') {
             pickerHasColor = true;
-            updatePickerPreview();
         }
+        updatePickerPreview();
     });
 
     document.addEventListener('keydown', function (event) {
@@ -796,6 +879,13 @@
             }
         });
     }
+
+    document.addEventListener('anabelka:product-colors-change', function () {
+        if (!root.hidden && activeGroup) {
+            renderExistingProductColors();
+        }
+    });
+
 
     renderPresets();
 })();

@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=20">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=21">
     <?php if (ProductImageProcessingService::manualMaskReviewEnabled()): ?>
     <link rel="stylesheet" href="/Anabelka/css/admin-mask-editor.css?v=2">
     <?php endif; ?>
@@ -749,6 +749,16 @@ require __DIR__ . '/../../partials/header.php';
                     </label>
                 </div>
 
+                <div class="product-color-picker-existing" data-color-picker-existing hidden>
+                    <p class="product-color-picker-label">Кольори товару</p>
+                    <div
+                        class="product-color-picker-existing-list"
+                        data-color-picker-existing-list
+                        role="group"
+                        aria-label="Наявні кольори товару"
+                    ></div>
+                </div>
+
                 <p class="product-color-picker-label">Швидкий вибір</p>
                 <div
                     class="product-color-presets"
@@ -848,7 +858,7 @@ require __DIR__ . '/../../partials/header.php';
 <script src="/Anabelka/js/admin-mask-editor.js?v=2"></script>
 <?php endif; ?>
 <script src="/Anabelka/js/admin-products.js?v=34"></script>
-<script src="/Anabelka/js/admin-product-color-picker.js?v=8"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=9"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>
 </html>

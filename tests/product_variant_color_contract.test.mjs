@@ -92,6 +92,31 @@ test('product colors are independent from product photos', () => {
     );
 });
 
+test('existing product colors are reusable for photo associations without duplicates', () => {
+    const view = read('views/admin/products/index.php');
+    const picker = read('js/admin-product-color-picker.js');
+    const colors = read('js/admin-product-colors.js');
+    const css = read('css/admin-products.css');
+    const controller = read('app/Controllers/AdminProductController.php');
+
+    assert.match(view, /data-color-picker-existing-list/);
+    assert.match(view, /data-color-picker-existing hidden/);
+    assert.match(picker, /function renderExistingProductColors\(/);
+    assert.match(picker, /activeGroup\.closest\(/);
+    assert.match(picker, /#product-color-list \[data-product-manual-color\]/);
+    assert.match(picker, /seenNames\.has\(key\)/);
+    assert.match(picker, /setPickerColor\(hex, name\)/);
+    assert.match(picker, /syncExistingProductColorSelection\(\)/);
+    assert.match(picker, /button\.dataset\.existingProductHex\s*=\s*hex/);
+    assert.match(picker, /picker\.existing\.hidden\s*=\s*true/);
+    assert.match(picker, /anabelka:product-colors-change/);
+    assert.match(colors, /ensureManualColor\(name, hex\)/);
+    assert.match(controller, /filterImageColorsByProductColors\(/);
+    assert.match(css, /\.product-color-picker-existing\[hidden\]/);
+    assert.match(css, /\.product-color-existing-choice\[aria-pressed="true"\]/);
+});
+
+
 test('catalog and public variants include colors that have no photo', () => {
     const product = read('app/Models/Product.php');
     const collection = read('app/Models/StorefrontProductCollection.php');
