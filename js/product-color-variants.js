@@ -85,20 +85,13 @@
         const stockUi = window.AnabelkaProductI18n || {};
 
 
-        function showMessage(text)
+        function showMessage(text, type = 'error')
         {
-            const message = document.getElementById('site-message');
+            const notify = window.AnabelkaNotify;
 
-            if (!message) {
-                return;
-            }
-
-            message.textContent = text;
-            message.classList.add('show');
-            clearTimeout(window.productColorVariantMessageTimer);
-            window.productColorVariantMessageTimer = window.setTimeout(function () {
-                message.classList.remove('show');
-            }, 2400);
+            return notify && typeof notify.show === 'function'
+                ? notify.show(type, text)
+                : false;
         }
 
 
@@ -650,12 +643,12 @@
             });
 
             if (state.colors.length > 0 && !state.selectedColor) {
-                showMessage('Выберите цвет.');
+                showMessage(stockUi.select_color || 'Оберіть колір.', 'warning');
                 return;
             }
 
             if (selectedSizes.length === 0) {
-                showMessage('Выберите хотя бы один размер.');
+                showMessage(stockUi.select_size || 'Оберіть хоча б один розмір.', 'warning');
                 return;
             }
 
@@ -673,13 +666,13 @@
                 try {
                     data = JSON.parse(text);
                 } catch (error) {
-                    showMessage('Ошибка при добавлении товара.');
+                    showMessage(stockUi.add_error || 'Не вдалося додати товар до кошика.');
                     return;
                 }
 
                 if (!data.success) {
                     showMessage(
-                        data.message || 'Не удалось добавить товар в корзину.'
+                        data.message || stockUi.add_error || 'Не вдалося додати товар до кошика.'
                     );
                     return;
                 }
@@ -722,9 +715,9 @@
                     cartCount.textContent = data.cart_count;
                 }
 
-                showMessage('✓ Товар добавлен в корзину');
+                showMessage(stockUi.added || '✓ Товар додано до кошика', 'success');
             } catch (error) {
-                showMessage('Не удалось добавить товар.');
+                showMessage(stockUi.add_error || 'Не вдалося додати товар до кошика.');
             }
         }
 

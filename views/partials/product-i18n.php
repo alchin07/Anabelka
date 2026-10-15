@@ -24,6 +24,7 @@ $productUi = [
     'pcs' => Translator::t('product.pcs', 'шт.'),
     'add_to_cart' => Translator::t('product.add_to_cart', 'Додати вибране до кошика'),
     'select_size' => Translator::t('product.select_size', 'Оберіть хоча б один розмір.'),
+    'select_color' => Translator::t('product.select_color', 'Оберіть колір.'),
     'added' => Translator::t('product.added', '✓ Товар додано до кошика'),
     'add_error' => Translator::t('product.add_error', 'Не вдалося додати товар до кошика.'),
     'php_error' => Translator::t('product.php_error', 'Помилка PHP. Дивіться текст нижче.'),

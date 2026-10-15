@@ -84,7 +84,7 @@ test('variant cart handler also applies legacy availability response', () => {
     );
     assert.match(
         publicHeader,
-        /product-color-variants\.js\?v=5/
+        /product-color-variants\.js\?v=6/
     );
 });
 

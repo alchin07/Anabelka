@@ -629,7 +629,10 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
 
     <div
         id="site-message"
-        class="site-message"
+        class="site-message anabelka-notify"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
     ></div>
 
 
@@ -664,6 +667,8 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
         document.getElementById(
             'cart-form'
         );
+
+    const cartMessages = window.AnabelkaProductI18n || {};
 
 
     function applyLegacyAvailability(availability) {
@@ -954,7 +959,10 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                     formData.getAll('sizes[]');
 
                 if (selectedSizes.length === 0) {
-                    alert('Выберите хотя бы один размер.');
+                    showSiteMessage(
+                        cartMessages.select_size || 'Оберіть хоча б один розмір.',
+                        'warning'
+                    );
                     return;
                 }
 
@@ -973,9 +981,10 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                 .then(data => {
 
                     if (!data.success) {
-                        alert(
-                            data.message
-                            || 'Ошибка при добавлении товара.'
+                        showSiteMessage(
+                            data.message || cartMessages.add_error
+                                || 'Не вдалося додати товар до кошика.',
+                            'error'
                         );
                         return;
                     }
@@ -1011,11 +1020,15 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
 
 
                     showSiteMessage(
-                        '✓ Товар добавлен в корзину'
+                        cartMessages.added || '✓ Товар додано до кошика',
+                        'success'
                     );
                 })
                 .catch(() => {
-                    alert('Не удалось добавить товар.');
+                    showSiteMessage(
+                        cartMessages.add_error || 'Не вдалося додати товар до кошика.',
+                        'error'
+                    );
                 });
             }
         );
@@ -1023,23 +1036,12 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
     }
 
 
-    function showSiteMessage(text) {
-        const message =
-            document.getElementById('site-message');
+    function showSiteMessage(text, type = 'error') {
+        const notify = window.AnabelkaNotify;
 
-        if (!message) {
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-
-        setTimeout(
-            () => {
-                message.classList.remove('show');
-            },
-            2200
-        );
+        return notify && typeof notify.show === 'function'
+            ? notify.show(type, text)
+            : false;
     }
 
     </script>
