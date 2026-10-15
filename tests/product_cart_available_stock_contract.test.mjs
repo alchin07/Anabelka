@@ -56,7 +56,7 @@ test('legacy product page refreshes visible stock from the AJAX response', () =>
     );
     assert.match(
         productView,
-        /button\.dataset\.stock\s*=\s*String\(stock\)/
+        /button\.dataset\.stock\s*=\s*String\(availableStock\)/
     );
     assert.match(
         productView,
