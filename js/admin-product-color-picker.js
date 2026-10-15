@@ -15,6 +15,8 @@
         context: root.querySelector('[data-color-picker-context]'),
         name: root.querySelector('[data-color-picker-name]'),
         photoButton: root.querySelector('[data-color-picker-photo]'),
+        photoChoices: root.querySelector('[data-color-photo-choices]'),
+        photoChoiceList: root.querySelector('[data-color-photo-choice-list]'),
         systemButton: root.querySelector('[data-color-picker-system]'),
         systemInput: root.querySelector('[data-color-system-input]'),
         photoPanel: root.querySelector('[data-color-photo-panel]'),
@@ -33,6 +35,8 @@
         || !picker.preview
         || !picker.name
         || !picker.photoButton
+        || !picker.photoChoices
+        || !picker.photoChoiceList
         || !picker.systemButton
         || !picker.systemInput
         || !picker.photoPanel
@@ -371,6 +375,8 @@
             window.AnabelkaAdminBack.syncNow();
         }
         picker.photoImage.removeAttribute('src');
+        picker.photoChoiceList.replaceChildren();
+        picker.photoChoices.hidden = true;
 
         if (
             restoreFocus !== false
@@ -399,13 +405,21 @@
         picker.name.value = nameInput.value;
         picker.systemInput.value = normalizedHex(hexInput.value);
 
-        const sourceImage = selectedSourceImage();
-        picker.photoButton.disabled = !sourceImage;
+        const linkedPhoto = activeGroup.closest(
+            '.product-image-manage, .product-upload-preview-item'
+        );
+        const availablePhotos = availableSourcePhotos();
+
+        // Keep this action available even when there are no images:
+        // explain the requirement instead of silently disabling the button.
+        picker.photoButton.disabled = false;
 
         if (picker.context) {
-            picker.context.textContent = sourceImage
+            picker.context.textContent = linkedPhoto
                 ? 'Фотографія товару'
-                : 'Колір товару без фото';
+                : (availablePhotos.length
+                    ? 'Колір товару · вибір фото'
+                    : 'Колір товару без фото');
         }
 
         showColorOptions();
@@ -428,38 +442,108 @@
     }
 
 
-    function selectedSourceImage()
+    function sourcePhotoUrl(image)
+    {
+        return image
+            ? String(image.currentSrc || image.src || '').trim()
+            : '';
+    }
+
+
+    function availableSourcePhotos()
     {
         if (!activeGroup) {
-            return null;
+            return [];
         }
 
         const card = activeGroup.closest(
             '.product-image-manage, .product-upload-preview-item'
         );
 
-        return card ? card.querySelector('img') : null;
+        if (card) {
+            if (card.classList.contains('is-deleted')) {
+                return [];
+            }
+            const image = card.querySelector('img');
+            return sourcePhotoUrl(image) ? [image] : [];
+        }
+
+        // Independent product colors may sample any photo already attached
+        // to this product, including new upload previews. Sampling does not
+        // change image/color associations or persist anything by itself.
+        if (!activeGroup.matches('[data-product-manual-color]')) {
+            return [];
+        }
+
+        const cards = document.querySelectorAll(
+            '#product-image-list .product-image-manage, '
+            + '#product-upload-preview .product-upload-preview-item'
+        );
+
+        return Array.from(cards)
+            .filter(function (item) {
+                return !item.classList.contains('is-deleted');
+            })
+            .map(function (item) {
+                return item.querySelector('img');
+            })
+            .filter(function (image) {
+                return sourcePhotoUrl(image) !== '';
+            });
     }
 
 
     function openPhotoPicker()
     {
-        const sourceImage = selectedSourceImage();
-        const source = sourceImage
-            ? String(sourceImage.currentSrc || sourceImage.src || '')
-            : '';
+        const photos = availableSourcePhotos();
 
-        if (source === '') {
+        if (photos.length === 0) {
             showMessage(
-                'Цей колір можна зберегти без фото. '
-                + 'Виберіть готовий відтінок або «Інший відтінок».',
-                'info'
+                'Для вибору кольору з фото спочатку додайте '
+                + 'фотографію в розділі «Фотографії». '
+                + 'Або виберіть готовий відтінок.',
+                'warning'
             );
             return;
         }
 
+        picker.photoChoiceList.replaceChildren();
+        picker.photoChoices.hidden = photos.length < 2;
+        const buttons = [];
+
+        photos.forEach(function (image, index) {
+            if (photos.length < 2) {
+                return;
+            }
+
+            const button = document.createElement('button');
+            const thumbnail = document.createElement('img');
+            button.type = 'button';
+            button.className = 'product-color-photo-choice';
+            button.setAttribute(
+                'aria-label', 'Вибрати фотографію ' + (index + 1)
+            );
+            button.setAttribute(
+                'aria-pressed', index === 0 ? 'true' : 'false'
+            );
+            thumbnail.src = sourcePhotoUrl(image);
+            thumbnail.alt = '';
+            button.appendChild(thumbnail);
+            button.addEventListener('click', function () {
+                buttons.forEach(function (item) {
+                    item.setAttribute(
+                        'aria-pressed', item === button ? 'true' : 'false'
+                    );
+                });
+                picker.photoMarker.hidden = true;
+                picker.photoImage.src = sourcePhotoUrl(image);
+            });
+            buttons.push(button);
+            picker.photoChoiceList.appendChild(button);
+        });
+
         picker.photoMarker.hidden = true;
-        picker.photoImage.src = source;
+        picker.photoImage.src = sourcePhotoUrl(photos[0]);
         picker.options.hidden = true;
         picker.photoPanel.hidden = false;
         root.classList.add('is-photo-mode');

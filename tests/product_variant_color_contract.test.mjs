@@ -82,8 +82,10 @@ test('product colors are independent from product photos', () => {
     assert.match(colorEditor, /dataImageColorOpen|dataset\.imageColorOpen|data-image-color-open/);
     assert.match(
         picker,
-        /picker\.photoButton\.disabled\s*=\s*!sourceImage/
+        /picker\.photoButton\.disabled\s*=\s*false/
     );
+    assert.match(picker, /activeGroup\.matches\('\[data-product-manual-color\]'\)/);
+    assert.match(picker, /function\s+availableSourcePhotos\s*\(/);
     assert.match(
         picker,
         /anabelka:product-color-change/

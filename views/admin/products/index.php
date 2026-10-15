@@ -102,7 +102,7 @@ $productsJson = json_encode(
     <title>Товари — Адмін-панель</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=8">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
-    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=19">
+    <link rel="stylesheet" href="/Anabelka/css/admin-products.css?v=20">
     <?php if (ProductImageProcessingService::manualMaskReviewEnabled()): ?>
     <link rel="stylesheet" href="/Anabelka/css/admin-mask-editor.css?v=2">
     <?php endif; ?>
@@ -772,6 +772,16 @@ require __DIR__ . '/../../partials/header.php';
                     <span>Краще обрати рівну ділянку без відблиску або тіні.</span>
                 </p>
 
+                <div class="product-color-photo-choices" data-color-photo-choices hidden>
+                    <strong>Оберіть фотографію товару</strong>
+                    <div
+                        class="product-color-photo-choice-list"
+                        data-color-photo-choice-list
+                        role="group"
+                        aria-label="Фотографії для вибору кольору"
+                    ></div>
+                </div>
+
                 <div class="product-color-photo-stage">
                     <img
                         alt="Фотографія для вибору кольору"
@@ -838,7 +848,7 @@ require __DIR__ . '/../../partials/header.php';
 <script src="/Anabelka/js/admin-mask-editor.js?v=2"></script>
 <?php endif; ?>
 <script src="/Anabelka/js/admin-products.js?v=34"></script>
-<script src="/Anabelka/js/admin-product-color-picker.js?v=7"></script>
+<script src="/Anabelka/js/admin-product-color-picker.js?v=8"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>
 </html>

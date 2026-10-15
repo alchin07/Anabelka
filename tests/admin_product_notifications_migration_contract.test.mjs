@@ -76,5 +76,5 @@ test('product list shows persistent failures in branded colors, not old red/gree
     assert.match(html, /js\/anabelka-notify\.js\?v=3/);
     assert.match(html, /css\/admin-products\.css\?v=19/);
     assert.match(html, /js\/admin-products\.js\?v=34/);
-    assert.match(html, /js\/admin-product-color-picker\.js\?v=7/);
+    assert.match(html, /js\/admin-product-color-picker\.js\?v=8/);
 });

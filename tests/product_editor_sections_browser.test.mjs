@@ -341,3 +341,47 @@ for (const [width, height] of [[320, 640], [360, 800], [390, 844], [412, 915], [
         }
     });
 }
+
+
+test('independent product color can sample a product photo without linking it', async t => {
+    const h = await harness(t);
+    await h.open('Кольори');
+    await h.open('Фотографії');
+    const before = await h.page.locator('#product-image-list [data-image-color-name]').first().inputValue();
+    await h.page.locator('[data-product-color-add]').click();
+    assert.equal(await h.page.locator('#product-color-picker').isVisible(), true);
+    assert.equal(await h.page.locator('[data-color-picker-photo]').isEnabled(), true);
+    assert.equal(await h.page.locator('[data-color-picker-context]').innerText(), 'Колір товару · вибір фото');
+    await h.page.locator('[data-color-picker-photo]').click();
+    assert.equal(await h.page.locator('[data-color-photo-panel]').isVisible(), true);
+    const source = h.page.locator('[data-color-photo-image]');
+    await h.page.waitForFunction(() => {
+        const image = document.querySelector('[data-color-photo-image]');
+        return image && image.complete && image.naturalWidth > 0;
+    });
+    assert.match(await source.getAttribute('src'), /original\.svg/);
+    await source.click({position: {x: 25, y: 25}});
+    await h.page.waitForTimeout(550);
+    assert.equal(await h.page.locator('[data-color-photo-panel]').isHidden(), true);
+    await h.page.locator('[data-color-picker-apply]').click();
+    const manualNames = await h.page.locator(
+        '#product-color-list [data-product-manual-color] [data-image-color-name]'
+    ).evaluateAll(nodes => nodes.map(n => n.value.trim()));
+    assert.ok(manualNames.some(Boolean), 'Manual color received its own color name');
+    assert.equal(await h.page.locator('#product-image-list [data-image-color-name]').first().inputValue(), before,
+        'Color sampling did not relink an image');
+});
+
+test('no-photo manual color shows a useful warning instead of a disabled button', async t => {
+    const h = await harness(t, 390, 844, '?highlight=2');
+    await h.open('Кольори');
+    await h.page.locator('[data-product-color-add]').click();
+    const action = h.page.locator('[data-color-picker-photo]');
+    assert.equal(await action.isEnabled(), true);
+    await action.click();
+    assert.equal(await h.page.locator('[data-color-photo-panel]').isHidden(), true);
+    const toast = h.page.locator('#site-message');
+    assert.match(await toast.innerText(), /спочатку додайте фотографію/);
+    assert.equal(await toast.getAttribute('role'), 'status');
+    assert.equal(await h.page.locator('#product-color-picker').isVisible(), true);
+});
