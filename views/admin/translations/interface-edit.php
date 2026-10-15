@@ -78,7 +78,7 @@ $translationStatusOptions = TranslationWorkflow::statusOptions();
         </div>
 
         <?php if (!empty($editorError)): ?>
-            <div class="translations-error">
+            <div class="translations-error anabelka-notify-inline" role="alert">
                 <?= htmlspecialchars((string) $editorError) ?>
             </div>
         <?php else: ?>

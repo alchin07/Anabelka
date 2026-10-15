@@ -137,7 +137,7 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
         </div>
 
         <?php if (!empty($missingError)): ?>
-            <div class="translations-error">
+            <div class="translations-error anabelka-notify-inline" role="alert">
                 <?= htmlspecialchars((string) $missingError) ?>
             </div>
         <?php endif; ?>
