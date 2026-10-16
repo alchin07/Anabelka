@@ -138,7 +138,8 @@ for (const kind of ['entity', 'option']) {
 test('delivery AI loader refreshes Android cache and does not alter forms', () => {
     const nav = read('js/admin-nav.js');
     const view = read('views/admin/delivery/index.php');
-    assert.match(nav, /path === '\/Anabelka\/admin\/delivery'[\s\S]*?admin-delivery-ai-translation\.js\?v=4/);
+    assert.match(nav, /function appendDeliveryAiWhenReady\(\)[\s\S]*?admin-delivery-ai-translation\.js\?v=4/);
+    assert.match(nav, /path === '\/Anabelka\/admin\/delivery'[\s\S]*?appendDeliveryAiWhenReady\(\)/);
     assert.match(view, /anabelka-notify\.js\?v=3/);
     assert.match(view, /admin-delivery\/common\.js\?v=4/);
     assert.match(ai, /setDeliveryTranslationWorkflow\(/);
