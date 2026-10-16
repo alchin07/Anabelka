@@ -115,7 +115,7 @@ assert.match(adminNav, /\/Anabelka\/admin\/mobile-navigation/);
 assert.match(adminNav, /admin-mobile-navigation-ai-translation\.js\?v=3/);
 assert.match(aiJs, /AnabelkaAITranslation\.suggest/);
 assert.match(aiJs, /context:\s*['"]mobile_navigation['"]/);
-assert.match(aiJs, /source\.value\s*=\s*['"]ai['"]/);
+assert.match(aiJs, /source\.value\s*=\s*sourceValue/);
 assert.match(aiJs, /source\.value\s*=\s*['"]manual['"]/);
 assert.match(aiJs, /setWorkflow\(fieldset,\s*['"]ai['"],\s*['"]draft['"]\)/);
 assert.match(aiJs, /\.mobile-navigation-editor/);
