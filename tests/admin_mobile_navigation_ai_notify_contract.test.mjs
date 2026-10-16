@@ -215,7 +215,8 @@ test('floating Groq visibility still follows the editor expand/collapse', () => 
 });
 
 test('main mobile menu actions stay separate from the AI notification migration', () => {
-    assert.match(menuEditor, /const flashKey = 'anabelka-mobile-navigation-flash'/);
+    assert.doesNotMatch(menuEditor, /anabelka-mobile-navigation-flash|consumeStoredFlash|storeFlash/);
+    assert.match(menuEditor, /shared\.store\('success', message\)/);
     assert.match(menuEditor, /AnabelkaNotify/);
     assert.match(view, /id="site-message"/);
     assert.equal((view.match(/id="site-message"/g) || []).length, 1);

@@ -404,6 +404,6 @@ require __DIR__ . '/../partials/header.php';
     aria-live="polite"
 ></div>
 <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
-<script src="/Anabelka/js/admin-mobile-navigation.js?v=1"></script>
+<script src="/Anabelka/js/admin-mobile-navigation.js?v=2"></script>
 </body>
 </html>

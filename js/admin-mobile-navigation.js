@@ -11,57 +11,18 @@
     const addButton = root.querySelector('[data-mobile-navigation-add]');
     const createPanel = root.querySelector('[data-mobile-navigation-create]');
     const createCancel = root.querySelector('[data-mobile-navigation-create-cancel]');
-    const flashKey = 'anabelka-mobile-navigation-flash';
     let revision = String(root.dataset.revision || '');
     let dragState = null;
 
     function notify(type, message)
     {
-        const text = String(message || '');
+        const shared = window.AnabelkaNotify;
 
-        if (window.AnabelkaNotify && typeof window.AnabelkaNotify[type] === 'function') {
-            window.AnabelkaNotify[type](text);
-            return;
-        }
-
-        const host = document.getElementById('site-message');
-
-        if (host) {
-            host.textContent = text;
-        }
+        return shared && typeof shared.show === 'function'
+            ? shared.show(type, message)
+            : false;
     }
 
-    function consumeStoredFlash()
-    {
-        try {
-            const raw = window.sessionStorage.getItem(flashKey);
-
-            if (!raw) {
-                return;
-            }
-
-            window.sessionStorage.removeItem(flashKey);
-            const parsed = JSON.parse(raw);
-            notify(parsed.type || 'success', parsed.message || '');
-        } catch (error) {
-            window.sessionStorage.removeItem(flashKey);
-        }
-    }
-
-    function storeFlash(type, message)
-    {
-        try {
-            window.sessionStorage.setItem(
-                flashKey,
-                JSON.stringify({
-                    type: String(type || 'success'),
-                    message: String(message || '')
-                })
-            );
-        } catch (error) {
-            // A blocked storage area must not prevent the mutation itself.
-        }
-    }
 
     function csrf()
     {
@@ -167,7 +128,15 @@
 
     function reloadWithSuccess(message)
     {
-        storeFlash('success', message);
+        const shared = window.AnabelkaNotify;
+        const stored = shared && typeof shared.store === 'function'
+            && shared.store('success', message);
+
+        if (!stored) {
+            // If storage is blocked, report success without a second flash queue.
+            notify('success', message);
+        }
+
         window.location.reload();
     }
 
@@ -487,5 +456,4 @@
         finishDrag(event, false);
     });
 
-    consumeStoredFlash();
 }());
