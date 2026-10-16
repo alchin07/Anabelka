@@ -225,7 +225,7 @@
 
         if (!script) {
             script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=15';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=16';
             script.async = false;
             script.dataset.adminAiTranslation = '1';
         }
