@@ -104,7 +104,7 @@ test('editor scripts explicitly signal AI context changes', () => {
     );
     assert.match(
         categories,
-        /document\.body\.style\.overflow\s*=\s*['"];[\s\S]*?anabelka:ai-context-change/
+        /document\.body\.style\.overflow\s*=\s*['"][^'"]*['"]\s*;[\s\S]*?anabelka:ai-context-change/
     );
     assert.match(
         products,
