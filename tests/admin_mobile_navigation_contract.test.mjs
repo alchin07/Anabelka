@@ -112,7 +112,7 @@ assert.doesNotMatch(
   'source manual/AI picker must not remain visible in the mobile-menu editor'
 );
 assert.match(adminNav, /\/Anabelka\/admin\/mobile-navigation/);
-assert.match(adminNav, /admin-mobile-navigation-ai-translation\.js\?v=2/);
+assert.match(adminNav, /admin-mobile-navigation-ai-translation\.js\?v=3/);
 assert.match(aiJs, /AnabelkaAITranslation\.suggest/);
 assert.match(aiJs, /context:\s*['"]mobile_navigation['"]/);
 assert.match(aiJs, /source\.value\s*=\s*['"]ai['"]/);

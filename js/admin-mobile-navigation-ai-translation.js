@@ -2,27 +2,11 @@
     'use strict';
 
     function notify(type, message) {
-        if (
-            window.AnabelkaNotify
-            && typeof window.AnabelkaNotify[type] === 'function'
-        ) {
-            window.AnabelkaNotify[type](message);
-            return;
-        }
+        const shared = window.AnabelkaNotify;
 
-        const siteMessage = document.getElementById('site-message');
-
-        if (siteMessage) {
-            siteMessage.textContent = message;
-            siteMessage.classList.add('show');
-
-            window.setTimeout(function () {
-                siteMessage.classList.remove('show');
-            }, 3200);
-            return;
-        }
-
-        window.alert(message);
+        return shared && typeof shared.show === 'function'
+            ? shared.show(type, message)
+            : false;
     }
 
     function setWorkflow(fieldset, sourceValue, statusValue) {
@@ -75,7 +59,9 @@
             ) {
                 notify(
                     'warning',
-                    'Плаваючий ШІ-перекладач ще завантажується. Спробуйте ще раз.'
+                    document.querySelector('.admin-drawer-ai')
+                        ? 'Плаваючий ШІ-перекладач ще завантажується. Спробуйте ще раз.'
+                        : 'ШІ-переклад недоступний для поточної ролі адміністратора.'
                 );
                 return;
             }
@@ -121,7 +107,7 @@
                 translationName.focus();
 
                 notify(
-                    'success',
+                    'info',
                     'ШІ-переклад отримано. Перевірте текст і статус перед збереженням.'
                 );
             } catch (error) {

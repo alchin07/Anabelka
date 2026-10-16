@@ -330,7 +330,7 @@
 
         if (path === '/Anabelka/admin/mobile-navigation') {
             appendScript(
-                '/Anabelka/js/admin-mobile-navigation-ai-translation.js?v=2',
+                '/Anabelka/js/admin-mobile-navigation-ai-translation.js?v=3',
                 'data-admin-mobile-navigation-ai'
             );
             return;
