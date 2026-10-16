@@ -46,7 +46,7 @@ test('photo color sampling distinguishes warnings, errors and an unsaved choice'
     assert.match(picker, /Оберіть непрозору ділянку фотографії\.', 'warning'\)/);
     assert.match(picker, /Не вдалося відкрити фотографію для вибору кольору\.', 'error'\)/);
     assert.match(picker, /Колір обрано з фотографії\. Збережіть товар після підтвердження кольору\.', 'info'\)/);
-    assert.match(picker, /Виберіть готовий відтінок або «Інший відтінок»\.',\s*'info'/);
+    assert.match(picker, /\+ 'Або виберіть готовий відтінок\.',\s*'warning'/);
     assert.match(picker, /samplePhotoColor\(event\)/);
     assert.match(picker, /savePickerToGroup\(name, picker\.systemInput\.value\)/);
 });
@@ -75,6 +75,6 @@ test('product list shows persistent failures in branded colors, not old red/gree
     assert.match(html, /css\/anabelka-notify\.css\?v=4/);
     assert.match(html, /js\/anabelka-notify\.js\?v=3/);
     assert.match(html, /css\/admin-products\.css\?v=21/);
-    assert.match(html, /js\/admin-products\.js\?v=34/);
+    assert.match(html, /js\/admin-products\.js\?v=35/);
     assert.match(html, /js\/admin-product-color-picker\.js\?v=9/);
 });

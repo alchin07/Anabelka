@@ -147,25 +147,11 @@
     {
         const level = ['success', 'error', 'warning', 'info'].includes(type)
             ? type : 'info';
-        if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
-            return window.AnabelkaNotify.show(level, text);
-        }
+        const notify = window.AnabelkaNotify;
 
-        // Compatibility only: never block the editor with a native alert.
-        const element = document.getElementById('site-message');
-        if (!element) {
-            return false;
-        }
-        element.textContent = text;
-        ['success', 'error', 'warning', 'info'].forEach(function (kind) {
-            element.classList.remove('is-' + kind);
-        });
-        element.classList.add('is-' + level, 'show');
-        clearTimeout(window.adminProductMessageTimer);
-        window.adminProductMessageTimer = window.setTimeout(function () {
-            element.classList.remove('show');
-        }, 3500);
-        return true;
+        return notify && typeof notify.show === 'function'
+            ? notify.show(level, text)
+            : false;
     }
 
 
@@ -432,11 +418,7 @@
 
     function imageMaskNotice(type, message)
     {
-        if (window.AnabelkaNotify && typeof window.AnabelkaNotify.show === 'function') {
-            window.AnabelkaNotify.show(type, message);
-        } else {
-            showMessage(message, type);
-        }
+        return showMessage(message, type);
     }
 
 
