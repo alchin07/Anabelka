@@ -51,7 +51,7 @@ test('Groq visibility depends on opened delivery method/service forms only', () 
 
 test('Android caches load new versions of delivery and AI scripts', () => {
     assert.match(read('js/admin-nav.js'),/admin-ai-translation\.js\?v=16/);
-    assert.match(read('views/admin/partials/header.php'),/admin-nav\.js\?v=33/);
+    assert.match(read('views/admin/partials/header.php'),/admin-nav\.js\?v=34/);
     assert.match(read('views/admin/delivery/index.php'),/admin-delivery\/toggle\.js\?v=3/);
     assert.match(read('views/admin/delivery/index.php'),/admin-delivery\/edit\.js\?v=9/);
 });

@@ -221,6 +221,6 @@ test('main mobile menu actions stay separate from the AI notification migration'
     assert.match(view, /id="site-message"/);
     assert.equal((view.match(/id="site-message"/g) || []).length, 1);
     assert.match(view, /data-mobile-navigation-ai-translate/);
-    assert.match(loader, /admin-mobile-navigation-ai-translation\.js\?v=3/);
-    assert.match(header, /admin-nav\.js\?v=33/);
+    assert.match(loader, /admin-mobile-navigation-ai-translation\.js\?v=4/);
+    assert.match(header, /admin-nav\.js\?v=34/);
 });

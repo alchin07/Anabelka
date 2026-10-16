@@ -40,7 +40,7 @@ test('provider script is permission gated, and delivery click must check access'
 });
 
 test('Android cache versions and load event callbacks are intact', () => {
-    assert.match(header, /admin-nav\.js\?v=33/);
+    assert.match(header, /admin-nav\.js\?v=34/);
     assert.match(nav, /admin-ai-translation\.js\?v=16/);
     assert.match(nav, /admin-delivery-ai-translation\.js\?v=5/);
     assert.match(nav, /script\.async\s*=\s*false/);

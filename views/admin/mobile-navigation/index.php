@@ -151,11 +151,25 @@ require __DIR__ . '/../partials/header.php';
                             <?php
                             $code = strtolower(trim((string) ($language['code'] ?? '')));
                             ?>
-                            <fieldset>
+                            <fieldset
+                                data-mobile-navigation-language="<?= $escape($code) ?>"
+                            >
                                 <legend>
                                     <?= $escape($language['name'] ?? strtoupper($code)) ?>
                                     · <?= $escape($language['short_name'] ?? strtoupper($code)) ?>
                                 </legend>
+
+                                <?php if ($canManage && !$migrationRequired): ?>
+                                    <button
+                                        type="button"
+                                        class="mobile-navigation-ai-translate"
+                                        data-mobile-navigation-ai-translate
+                                        data-target-language="<?= $escape($code) ?>"
+                                    >
+                                        Перекласти через ШІ
+                                    </button>
+                                <?php endif; ?>
+
                                 <label>
                                     <span>Назва</span>
                                     <input
@@ -163,18 +177,31 @@ require __DIR__ . '/../partials/header.php';
                                         name="translations[<?= $escape($code) ?>][name]"
                                         maxlength="160"
                                         autocomplete="off"
+                                        data-mobile-navigation-translation-name
                                     >
                                 </label>
                                 <input
                                     type="hidden"
                                     name="translations[<?= $escape($code) ?>][source]"
                                     value="manual"
+                                    data-mobile-navigation-translation-source
                                 >
-                                <input
-                                    type="hidden"
-                                    name="translations[<?= $escape($code) ?>][status]"
-                                    value="approved"
-                                >
+                                <div class="mobile-navigation-translation-meta">
+                                    <label>
+                                        <span>Статус</span>
+                                        <select
+                                            name="translations[<?= $escape($code) ?>][status]"
+                                            data-mobile-navigation-translation-status
+                                        >
+                                            <?php foreach (TranslationWorkflow::statusOptions() as $statusValue => $statusLabel): ?>
+                                                <option
+                                                    value="<?= $escape($statusValue) ?>"
+                                                    <?= $statusValue === 'approved' ? 'selected' : '' ?>
+                                                ><?= $escape($statusLabel) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </label>
+                                </div>
                             </fieldset>
                         <?php endforeach; ?>
                     </div>

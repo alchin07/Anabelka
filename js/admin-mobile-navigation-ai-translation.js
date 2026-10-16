@@ -137,13 +137,19 @@
             return Boolean(editor.open);
         });
 
+        const createPanel = document.querySelector(
+            '[data-mobile-navigation-create]'
+        );
+        const isCreating = Boolean(createPanel && !createPanel.hidden);
+        const isEditingOrCreating = hasOpenEditor || isCreating;
+
         floatingRoot.classList.toggle(
             'is-mobile-navigation-ai-inactive',
-            !hasOpenEditor
+            !isEditingOrCreating
         );
         floatingRoot.setAttribute(
             'aria-hidden',
-            hasOpenEditor ? 'false' : 'true'
+            isEditingOrCreating ? 'false' : 'true'
         );
     }
 
@@ -160,6 +166,20 @@
                     syncFloatingPanelVisibility
                 );
             });
+
+        const createPanel = document.querySelector(
+            '[data-mobile-navigation-create]'
+        );
+
+        if (createPanel) {
+            new MutationObserver(syncFloatingPanelVisibility).observe(
+                createPanel,
+                {
+                    attributes: true,
+                    attributeFilter: ['hidden']
+                }
+            );
+        }
 
         syncFloatingPanelVisibility();
     }
