@@ -7,80 +7,56 @@ const nav = fs.readFileSync('js/admin-nav.js', 'utf8');
 const header = fs.readFileSync('views/admin/partials/header.php', 'utf8');
 const deliveryAi = fs.readFileSync('js/admin-delivery-ai-translation.js', 'utf8');
 
-function extract(name, endMarker, context) {
-    const start = nav.indexOf('    function ' + name + '(');
-    const end = nav.indexOf(endMarker, start);
-    assert.ok(start >= 0 && end > start, name + ' function exists');
-    return vm.runInNewContext(
-        '(function () {\n' + nav.slice(start, end) +
-        '\nreturn ' + name + ';\n})()',
-        context
-    );
+function extract(name, stop, context) {
+    const from = nav.indexOf('    function ' + name + '(');
+    const to = nav.indexOf(stop, from);
+    assert.ok(from >= 0 && to > from, name + ' exists');
+    return vm.runInNewContext('(function () {\n' + nav.slice(from, to) +
+        '\nreturn ' + name + ';\n})()', context);
 }
 
-test('delivery AI loader waits for shared provider readiness before adding buttons', async () => {
-    const callbacks = {};
-    const script = {
-        addEventListener(type, fn) {callbacks[type] = fn;}
-    };
-    const appended = [];
-    const window = {};
-    const promise = new Promise(resolve => {callbacks.resolve = resolve;});
-    const load = extract('appendDeliveryAiWhenReady', '    function ensurePageAiModules()', {
-        aiTranslationModuleReady: promise,
-        appendScript(src, name) {appended.push([src, name]);}
-    });
-
-    load();
-    assert.equal(appended.length, 0, 'Button script must not load before shared provider');
-    callbacks.resolve(true);
-    await promise;
-    await Promise.resolve();
-    assert.deepEqual(appended, [
-        ['/Anabelka/js/admin-delivery-ai-translation.js?v=4', 'data-admin-delivery-ai']
-    ]);
+test('delivery buttons render regardless of provider readiness or permission marker', () => {
+    for (const state of [null, Promise.resolve(false), Promise.resolve(true)]) {
+        const added = [];
+        const init = extract('appendDeliveryAiWhenReady', '    function ensurePageAiModules()', {
+            aiTranslationModuleReady: state,
+            appendScript(src, marker) {added.push([src, marker]);}
+        });
+        init();
+        assert.deepEqual(added, [
+            ['/Anabelka/js/admin-delivery-ai-translation.js?v=5', 'data-admin-delivery-ai']
+        ]);
+    }
 });
 
-test('failed or unauthorized AI loader does not create unusable delivery buttons', async () => {
-    const calls = [];
-    const denied = extract('appendDeliveryAiWhenReady', '    function ensurePageAiModules()', {
-        aiTranslationModuleReady: null,
-        appendScript() {calls.push('loaded');}
-    });
-    denied();
-    assert.deepEqual(calls, []);
-
-    const failed = extract('appendDeliveryAiWhenReady', '    function ensurePageAiModules()', {
-        aiTranslationModuleReady: Promise.resolve(false),
-        appendScript() {calls.push('loaded');}
-    });
-    failed();
-    await Promise.resolve();
-    assert.deepEqual(calls, []);
-});
-
-test('provider script has ordered async=false load handling and an explicit failure notice', () => {
-    assert.match(nav, /script\.async\s*=\s*false/);
-    assert.match(nav, /aiTranslationModuleReady\s*=\s*new Promise/);
-    assert.match(nav, /script\.addEventListener\('load'/);
-    assert.match(nav, /script\.addEventListener\('error'/);
-    assert.match(nav, /function showAiModuleLoadError\(\)/);
-    assert.match(nav, /notify\.error\(/);
-    assert.match(nav, /window\.AnabelkaAITranslation\.suggest\s*===\s*'function'/);
+test('provider script is permission gated, and delivery click must check access', () => {
     assert.match(nav, /!document\.querySelector\('\.admin-drawer-ai'\)/);
-    assert.match(header, /admin-nav\.js\?v=30/);
-    assert.match(nav, /admin-ai-translation\.js\?v=14/);
+    assert.match(deliveryAi, /document\.querySelector\('\.admin-drawer-ai'\)/);
+    assert.match(nav, /window\.AnabelkaAITranslationReady\s*=\s*aiTranslationModuleReady/);
+    assert.match(deliveryAi, /waitForAiModule\(\)/);
+    assert.match(deliveryAi, /Promise\.race\(/);
+    assert.match(deliveryAi, /window\.clearTimeout/);
     assert.doesNotMatch(deliveryAi, /deliveryAiMessageTimer|\bwindow\.alert\(/);
 });
 
-test('page still attaches independent translation-target navigation without AI access', () => {
-    const page = extract('ensurePageAiModules', '    function markActiveSection()', {
+test('Android cache versions and load event callbacks are intact', () => {
+    assert.match(header, /admin-nav\.js\?v=31/);
+    assert.match(nav, /admin-ai-translation\.js\?v=15/);
+    assert.match(nav, /admin-delivery-ai-translation\.js\?v=5/);
+    assert.match(nav, /script\.async\s*=\s*false/);
+    assert.match(nav, /script\.addEventListener\('load'/);
+    assert.match(nav, /script\.addEventListener\('error'/);
+    assert.match(nav, /notify\.error\(/);
+});
+
+test('delivery translation target loads independently', () => {
+    const actions = [];
+    const run = extract('ensurePageAiModules', '    function markActiveSection()', {
         window: {location: {pathname: '/Anabelka/admin/delivery'}},
-        appendDeliveryAiWhenReady() {},
-        appendScript(src, attribute) {
-            assert.equal(src, '/Anabelka/js/admin-translation-target.js?v=2');
-            assert.equal(attribute, 'data-admin-translation-target');
-        }
+        appendDeliveryAiWhenReady() {actions.push('buttons');},
+        appendScript(path, name) {actions.push([path, name]);}
     });
-    page();
+    run();
+    assert.deepEqual(actions, ['buttons',
+        ['/Anabelka/js/admin-translation-target.js?v=2', 'data-admin-translation-target']]);
 });

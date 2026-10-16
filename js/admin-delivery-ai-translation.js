@@ -17,6 +17,60 @@
     }
 
 
+    async function waitForAiModule()
+    {
+        function available()
+        {
+            return window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.suggest === 'function';
+        }
+
+        if (available()) {
+            return true;
+        }
+
+        if (!document.querySelector('.admin-drawer-ai')) {
+            showMessage(
+                'ШІ-переклад недоступний для поточної ролі адміністратора.',
+                'warning'
+            );
+            return false;
+        }
+
+        const pending = window.AnabelkaAITranslationReady;
+
+        if (pending && typeof pending.then === 'function') {
+            let timer = null;
+            try {
+                await Promise.race([
+                    pending,
+                    new Promise(function (resolve) {
+                        timer = window.setTimeout(function () {
+                            resolve(false);
+                        }, 5000);
+                    })
+                ]);
+            } catch (error) {
+                // The loading error is shown below.
+            } finally {
+                if (timer !== null) {
+                    window.clearTimeout(timer);
+                }
+            }
+        }
+
+        if (!available()) {
+            showMessage(
+                'Не вдалося завантажити модуль ШІ-перекладу. Оновіть сторінку.',
+                'error'
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+
     function ensureStyles()
     {
         if (document.getElementById('delivery-ai-translation-styles')) {
@@ -192,14 +246,7 @@
         button.textContent = 'Перекласти через ШІ';
 
         button.addEventListener('click', async function () {
-            if (
-                !window.AnabelkaAITranslation
-                || typeof window.AnabelkaAITranslation.suggest !== 'function'
-            ) {
-                showMessage(
-                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.',
-                    'warning'
-                );
+            if (!(await waitForAiModule())) {
                 return;
             }
 
@@ -303,14 +350,7 @@
         button.textContent = 'Перекласти через ШІ';
 
         button.addEventListener('click', async function () {
-            if (
-                !window.AnabelkaAITranslation
-                || typeof window.AnabelkaAITranslation.suggest !== 'function'
-            ) {
-                showMessage(
-                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.',
-                    'warning'
-                );
+            if (!(await waitForAiModule())) {
                 return;
             }
 

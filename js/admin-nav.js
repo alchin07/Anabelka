@@ -225,7 +225,7 @@
 
         if (!script) {
             script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=14';
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=15';
             script.async = false;
             script.dataset.adminAiTranslation = '1';
         }
@@ -270,6 +270,8 @@
             }, {once: true});
         });
 
+        window.AnabelkaAITranslationReady = aiTranslationModuleReady;
+
         if (!script.isConnected) {
             document.body.appendChild(script);
         }
@@ -291,22 +293,12 @@
 
     function appendDeliveryAiWhenReady()
     {
-        // The permission-gated provider is required for the translation UI.
-        // Do not display a button that can never reach the shared AI service.
-        if (!aiTranslationModuleReady) {
-            return;
-        }
-
-        aiTranslationModuleReady.then(function (ready) {
-            if (!ready) {
-                return;
-            }
-
-            appendScript(
-                '/Anabelka/js/admin-delivery-ai-translation.js?v=4',
-                'data-admin-delivery-ai'
-            );
-        });
+        // Buttons are safe to render before the provider is available.
+        // Click handling waits for the shared module and checks permissions.
+        appendScript(
+            '/Anabelka/js/admin-delivery-ai-translation.js?v=5',
+            'data-admin-delivery-ai'
+        );
     }
 
 

@@ -38,6 +38,7 @@ function setup(kind, responder) {
     };
     const doc = {
         getElementById: id => inputById[id] || null,
+        querySelector: query => query === '.admin-drawer-ai' ? {} : null,
         createElement: type => {
             assert.equal(type, 'button');
             return {
@@ -49,6 +50,8 @@ function setup(kind, responder) {
         }
     };
     const win = {
+        setTimeout() {return 1;},
+        clearTimeout() {},
         AnabelkaAITranslation: {
             async suggest(payload) {requests.push(payload); return responder(payload);}
         },
@@ -56,16 +59,21 @@ function setup(kind, responder) {
             workflows.push([node === section, origin, status]);
         }
     };
+    function notice(message, type) {notices.push([type, message]); return true;}
+    const waitForAiModule = extract('    async function waitForAiModule()',
+        '    function ensureStyles()', 'waitForAiModule', {
+            document: doc, window: win, showMessage: notice
+        });
     const name = kind === 'entity' ? 'createEntityButton' : 'createOptionInputButton';
     const end = kind === 'entity' ? '    function createOptionInputButton(section)' : '    function init()';
     const create = extract('    function ' + name + '(section)', end, name, {
         document: doc, window: win,
-        showMessage(message, type) {notices.push([type, message]); return true;},
+        showMessage: notice, waitForAiModule,
         prepareHead: () => ({appendChild(button) {buttons.push(button);}})
     });
     create(section);
     assert.equal(buttons.length, 1);
-    return {button: buttons[0], requests, workflows, notices, values, win};
+    return {button: buttons[0], requests, workflows, notices, values, win, doc};
 }
 
 test('AI notification wrapper sends typed messages through one shared queue', () => {
@@ -115,14 +123,43 @@ for (const kind of ['entity', 'option']) {
         assert.equal(h.button.textContent, original);
     });
 
-    test(kind + ' missing AI provider warns and does not modify translations', async () => {
+    test(kind + ' missing AI provider reports an error without changing data', async () => {
         const h = setup(kind, async () => ({}));
         delete h.win.AnabelkaAITranslation;
+        h.win.AnabelkaAITranslationReady = Promise.resolve(false);
         await h.button.handlers.click();
         assert.equal(h.requests.length, 0);
         assert.deepEqual(h.workflows, []);
         assert.equal(h.notices.length, 1);
+        assert.equal(h.notices[0][0], 'error');
+        assert.equal(h.button.disabled, false);
+    });
+
+    test(kind + ' missing permission gives warning without requesting AI', async () => {
+        const h = setup(kind, async () => ({}));
+        delete h.win.AnabelkaAITranslation;
+        h.doc.querySelector = () => null;
+        await h.button.handlers.click();
+        assert.deepEqual(h.requests, []);
+        assert.deepEqual(h.workflows, []);
+        assert.equal(h.notices.length, 1);
         assert.equal(h.notices[0][0], 'warning');
+    });
+
+    test(kind + ' awaits provider load and preserves draft workflow', async () => {
+        const h = setup(kind, async () => ({name: 'Pickup', description: 'Self pickup'}));
+        const ai = h.win.AnabelkaAITranslation;
+        delete h.win.AnabelkaAITranslation;
+        let done;
+        h.win.AnabelkaAITranslationReady = new Promise(resolve => {done = resolve;});
+        const click = h.button.handlers.click();
+        assert.equal(h.requests.length, 0);
+        h.win.AnabelkaAITranslation = ai;
+        done(true);
+        await click;
+        assert.equal(h.requests.length, 1);
+        assert.deepEqual(h.workflows, [[true, 'ai', 'draft']]);
+        assert.equal(h.notices[0][0], 'info');
     });
 
     test(kind + ' AI error preserves existing form data and reports error', async () => {
@@ -138,7 +175,7 @@ for (const kind of ['entity', 'option']) {
 test('delivery AI loader refreshes Android cache and does not alter forms', () => {
     const nav = read('js/admin-nav.js');
     const view = read('views/admin/delivery/index.php');
-    assert.match(nav, /function appendDeliveryAiWhenReady\(\)[\s\S]*?admin-delivery-ai-translation\.js\?v=4/);
+    assert.match(nav, /function appendDeliveryAiWhenReady\(\)[\s\S]*?admin-delivery-ai-translation\.js\?v=5/);
     assert.match(nav, /path === '\/Anabelka\/admin\/delivery'[\s\S]*?appendDeliveryAiWhenReady\(\)/);
     assert.match(view, /anabelka-notify\.js\?v=3/);
     assert.match(view, /admin-delivery\/common\.js\?v=4/);
