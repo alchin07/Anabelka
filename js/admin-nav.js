@@ -104,6 +104,21 @@
     }
 
 
+    let aiTranslationModuleReady = null;
+
+
+    function showAiModuleLoadError()
+    {
+        const notify = window.AnabelkaNotify;
+
+        if (notify && typeof notify.error === 'function') {
+            notify.error(
+                'Не вдалося завантажити модуль ШІ-перекладу. Оновіть сторінку.'
+            );
+        }
+    }
+
+
     function ensureAiTranslationSwitcher()
     {
         /*
@@ -206,10 +221,56 @@
             topSlot.appendChild(switcher);
         }
 
-        if (!document.querySelector('script[data-admin-ai-translation]')) {
-            const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=13';
+        let script = document.querySelector('script[data-admin-ai-translation]');
+
+        if (!script) {
+            script = document.createElement('script');
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=14';
+            script.async = false;
             script.dataset.adminAiTranslation = '1';
+        }
+
+        // Dynamic scripts otherwise run asynchronously and can expose the
+        // delivery translation button before the shared AI API has loaded.
+        aiTranslationModuleReady = new Promise(function (resolve) {
+            let finished = false;
+
+            function finish(loaded) {
+                if (finished) {
+                    return;
+                }
+
+                finished = true;
+                const ready = Boolean(
+                    loaded
+                    && window.AnabelkaAITranslation
+                    && typeof window.AnabelkaAITranslation.suggest === 'function'
+                );
+
+                if (!ready) {
+                    showAiModuleLoadError();
+                }
+
+                resolve(ready);
+            }
+
+            if (
+                window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.suggest === 'function'
+            ) {
+                resolve(true);
+                return;
+            }
+
+            script.addEventListener('load', function () {
+                finish(true);
+            }, {once: true});
+            script.addEventListener('error', function () {
+                finish(false);
+            }, {once: true});
+        });
+
+        if (!script.isConnected) {
             document.body.appendChild(script);
         }
     }
@@ -225,6 +286,27 @@
         script.src = src;
         script.setAttribute(dataName, dataValue || '1');
         document.body.appendChild(script);
+    }
+
+
+    function appendDeliveryAiWhenReady()
+    {
+        // The permission-gated provider is required for the translation UI.
+        // Do not display a button that can never reach the shared AI service.
+        if (!aiTranslationModuleReady) {
+            return;
+        }
+
+        aiTranslationModuleReady.then(function (ready) {
+            if (!ready) {
+                return;
+            }
+
+            appendScript(
+                '/Anabelka/js/admin-delivery-ai-translation.js?v=4',
+                'data-admin-delivery-ai'
+            );
+        });
     }
 
 
@@ -263,10 +345,7 @@
         }
 
         if (path === '/Anabelka/admin/delivery') {
-            appendScript(
-                '/Anabelka/js/admin-delivery-ai-translation.js?v=4',
-                'data-admin-delivery-ai'
-            );
+            appendDeliveryAiWhenReady();
 
             appendScript(
                 '/Anabelka/js/admin-translation-target.js?v=2',

@@ -59,8 +59,8 @@ test('admin header cache-busts the nav loader that enables floating AI tools', (
     const header = read('views/admin/partials/header.php');
     const nav = read('js/admin-nav.js');
 
-    assert.match(header, /admin-nav\.js\?v=28/);
-    assert.match(nav, /admin-ai-translation\.js\?v=12/);
+    assert.match(header, /admin-nav\.js\?v=30/);
+    assert.match(nav, /admin-ai-translation\.js\?v=14/);
 });
 
 
@@ -135,7 +135,7 @@ test('category AI switcher rises above category modal', () => {
         /\.admin-ai-top-slot\.is-category-edit-context\s*\{[\s\S]*?z-index:\s*14050/
     );
     assert.match(nav, /admin-ai-translation\.css\?v=5/);
-    assert.match(nav, /admin-ai-translation\.js\?v=12/);
+    assert.match(nav, /admin-ai-translation\.js\?v=14/);
 });
 
 
