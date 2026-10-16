@@ -267,7 +267,23 @@
     }
 
     async function request(url, options) {
-        const response = await fetch(url, options || {});
+        let response;
+
+        try {
+            response = await fetch(url, options || {});
+        } catch (error) {
+            // A rejected fetch has no HTTP response: keep network failures
+            // understandable without disguising an API/permission error.
+            if (error && error.name === 'TypeError') {
+                throw new Error(
+                    'Не вдалося зв’язатися із сервером. '
+                    + 'Перевірте з’єднання та повторіть спробу.'
+                );
+            }
+
+            throw error;
+        }
+
         const data = await response.json();
 
         if (!response.ok || !data.success) {
