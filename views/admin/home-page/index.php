@@ -210,14 +210,6 @@ $creatableBlocks = array_filter(
         </div>
     <?php endif; ?>
 
-    <div
-        id="admin-home-builder-dnd-message"
-        class="admin-home-builder-flash"
-        role="status"
-        aria-live="polite"
-        hidden
-    ></div>
-
     <?php foreach (['main', 'right_rail'] as $zone): ?>
         <?php
         $zoneBlocks = is_array($blocksByZone[$zone] ?? null)
@@ -410,6 +402,6 @@ $creatableBlocks = array_filter(
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-home-page.js?v=5"></script>
+<script src="/Anabelka/js/admin-home-page.js?v=6"></script>
 </body>
 </html>

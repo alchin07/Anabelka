@@ -12,9 +12,6 @@
     }
 
     const reorderUrl = '/Anabelka/admin/home-page/reorder';
-    const messageElement = document.getElementById(
-        'admin-home-builder-dnd-message'
-    );
     const previewFrames = Array.from(
         root.querySelectorAll('[data-home-builder-preview-frame]')
     );
@@ -23,7 +20,6 @@
     );
     let activeDrag = null;
     let previewDragState = null;
-    let messageTimer = 0;
     let selectedBlockId = '';
 
     function setHomeBlockCollapsed(item, collapsed)
@@ -553,32 +549,14 @@
 
     function showMessage(message, isError)
     {
-        const text = String(message || '');
+        const notify = window.AnabelkaNotify;
 
-        if (
-            window.AnabelkaNotify
-            && typeof window.AnabelkaNotify.show === 'function'
-        ) {
-            window.AnabelkaNotify.show(
+        return notify && typeof notify.show === 'function'
+            ? notify.show(
                 isError ? 'error' : 'success',
-                text
-            );
-            return;
-        }
-
-        if (!messageElement) {
-            return;
-        }
-
-        window.clearTimeout(messageTimer);
-        messageElement.textContent = text;
-        messageElement.classList.toggle('is-error', Boolean(isError));
-        messageElement.classList.toggle('is-success', !isError);
-        messageElement.hidden = false;
-
-        messageTimer = window.setTimeout(function () {
-            messageElement.hidden = true;
-        }, isError ? 4800 : 2800);
+                String(message || '')
+            )
+            : false;
     }
 
 
