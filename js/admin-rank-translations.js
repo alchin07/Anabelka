@@ -9,17 +9,13 @@
         document.head.appendChild(stylesheet);
     }
 
-    function showMessage(text)
+    function showMessage(text, type = 'info')
     {
-        const existing = document.querySelector('.admin-rank-message');
+        const notify = window.AnabelkaNotify;
 
-        if (existing) {
-            existing.textContent = text;
-            existing.classList.remove('is-error');
-            return;
-        }
-
-        window.alert(text);
+        return notify && typeof notify.show === 'function'
+            ? notify.show(type, text)
+            : false;
     }
 
 
@@ -68,7 +64,7 @@
         const sourceName = String(sourceInput.value || '').trim();
 
         if (!sourceName) {
-            showMessage('Спочатку вкажіть українську назву рангу.');
+            showMessage('Спочатку вкажіть українську назву рангу.', 'warning');
             return;
         }
 
@@ -76,7 +72,7 @@
             !window.AnabelkaAITranslation
             || typeof window.AnabelkaAITranslation.suggest !== 'function'
         ) {
-            showMessage('Система ШІ-перекладу ще завантажується. Спробуйте ще раз.');
+            showMessage('Система ШІ-перекладу ще завантажується. Спробуйте ще раз.', 'warning');
             return;
         }
 
@@ -94,9 +90,11 @@
 
             targetInput.value = String(translation.name || '').trim();
             setWorkflow(block, 'ai', 'draft');
-            showMessage('ШІ-переклад отримано. Перевірте назву та натисніть «Зберегти».');
+            showMessage('ШІ-переклад отримано. Перевірте назву та натисніть «Зберегти».', 'info');
         } catch (error) {
-            showMessage(error.message || 'Не вдалося перекласти назву рангу.');
+            showMessage(error && error.message
+                ? error.message
+                : 'Не вдалося перекласти назву рангу.', 'error');
         } finally {
             button.disabled = false;
             button.textContent = originalText;
