@@ -103,14 +103,6 @@ $availableForAdd = array_filter(
         </div>
     <?php endif; ?>
 
-    <div
-        id="dashboard-builder-dnd-message"
-        class="dashboard-builder-flash"
-        role="status"
-        aria-live="polite"
-        hidden
-    ></div>
-
     <section class="dashboard-builder-create">
         <div>
             <h3>Новий блок</h3>
@@ -645,6 +637,6 @@ $availableForAdd = array_filter(
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-dashboard-builder.js?v=2"></script>
+<script src="/Anabelka/js/admin-dashboard-builder.js?v=3"></script>
 </body>
 </html>

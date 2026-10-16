@@ -247,7 +247,7 @@ assert.match(view, /Редагувати/);
 assert.match(view, /data-dashboard-builder-link-list/);
 assert.match(view, /data-dashboard-builder-link-handle/);
 assert.match(view, /data-dashboard-builder-links-empty/);
-assert.match(view, /admin-dashboard-builder\.js\?v=2/);
+assert.match(view, /admin-dashboard-builder\.js\?v=3/);
 assert.match(css, /@media\s*\(max-width:\s*700px\)/);
 assert.match(css, /min-height:\s*44px/);
 assert.match(css, /dashboard-builder-live-badge/);

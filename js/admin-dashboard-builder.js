@@ -20,13 +20,8 @@
         '/Anabelka/admin/dashboard-builder/reorder-blocks';
     const linkEndpoint =
         '/Anabelka/admin/dashboard-builder/reorder-links';
-    const messageElement = document.getElementById(
-        'dashboard-builder-dnd-message'
-    );
-
     let activeDrag = null;
     let saving = false;
-    let messageTimer = 0;
 
 
     function setBlockCollapsed(block, collapsed)
@@ -244,38 +239,14 @@
 
     function showMessage(message, isError)
     {
-        const text = String(message || '');
+        const notify = window.AnabelkaNotify;
 
-        if (
-            window.AnabelkaNotify
-            && typeof window.AnabelkaNotify.show === 'function'
-        ) {
-            window.AnabelkaNotify.show(
+        return notify && typeof notify.show === 'function'
+            ? notify.show(
                 isError ? 'error' : 'success',
-                text
-            );
-            return;
-        }
-
-        if (!messageElement) {
-            return;
-        }
-
-        window.clearTimeout(messageTimer);
-        messageElement.textContent = text;
-        messageElement.classList.toggle(
-            'is-error',
-            Boolean(isError)
-        );
-        messageElement.classList.toggle(
-            'is-success',
-            !isError
-        );
-        messageElement.hidden = false;
-
-        messageTimer = window.setTimeout(function () {
-            messageElement.hidden = true;
-        }, isError ? 4800 : 2800);
+                String(message || '')
+            )
+            : false;
     }
 
 
