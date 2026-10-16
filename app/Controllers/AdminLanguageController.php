@@ -7,18 +7,24 @@ class AdminLanguageController extends Controller
         $languages = Language::all();
         $availableLanguages = Language::availableCatalog();
 
+        // Carry an unread success from the previous notification mechanism
+        // into the shared one-time queue. Errors remain visible on the page.
+        $legacyMessage = $_SESSION['language_message'] ?? '';
+        if (is_string($legacyMessage) && trim($legacyMessage) !== '') {
+            AnabelkaFlash::success($legacyMessage);
+        }
+
+        $error = $_SESSION['language_error'] ?? '';
+        unset($_SESSION['language_message'], $_SESSION['language_error']);
+
         $this->view(
             'admin/languages/index',
             [
                 'languages' => $languages,
                 'availableLanguages' => $availableLanguages,
-                'message' => $_SESSION['language_message'] ?? '',
-                'error' => $_SESSION['language_error'] ?? ''
+                'error' => is_string($error) ? $error : ''
             ]
         );
-
-        unset($_SESSION['language_message']);
-        unset($_SESSION['language_error']);
     }
 
 
@@ -29,8 +35,7 @@ class AdminLanguageController extends Controller
                 $_POST['language_code'] ?? ''
             );
 
-            $_SESSION['language_message'] =
-                'Мову додано.';
+            $this->flashSuccess('Мову додано.');
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -49,8 +54,7 @@ class AdminLanguageController extends Controller
                 $_POST['name'] ?? ''
             );
 
-            $_SESSION['language_message'] =
-                'Назву мови збережено.';
+            $this->flashSuccess('Назву мови збережено.');
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -81,10 +85,11 @@ class AdminLanguageController extends Controller
                 empty($language['is_active'])
             );
 
-            $_SESSION['language_message'] =
+            $this->flashSuccess(
                 empty($language['is_active'])
                     ? 'Мову увімкнено.'
-                    : 'Мову вимкнено.';
+                    : 'Мову вимкнено.'
+            );
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -102,8 +107,7 @@ class AdminLanguageController extends Controller
                 (int) ($_POST['language_id'] ?? 0)
             );
 
-            $_SESSION['language_message'] =
-                'Основну мову сайту змінено.';
+            $this->flashSuccess('Основну мову сайту змінено.');
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -135,8 +139,7 @@ class AdminLanguageController extends Controller
                 $language['code'] ?? ''
             );
 
-            $_SESSION['language_message'] =
-                'Мову та її переклади видалено.';
+            $this->flashSuccess('Мову та її переклади видалено.');
 
         } catch (Throwable $e) {
             $_SESSION['language_error'] =
@@ -144,6 +147,14 @@ class AdminLanguageController extends Controller
         }
 
         $this->redirect();
+    }
+
+
+    private function flashSuccess($message)
+    {
+        // A later successful action replaces any stale pre-redirect error.
+        unset($_SESSION['language_message'], $_SESSION['language_error']);
+        AnabelkaFlash::success((string) $message);
     }
 
 
