@@ -14,20 +14,20 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Адмін-панель · Новини — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-news.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-news.css?v=2">
 </head>
 <body>
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
 <main class="admin-news-page">
-    <?php if ($flash): ?>
-        <div class="admin-news-flash <?= ($flash['type'] ?? '') === 'success' ? 'is-success' : 'is-error' ?>">
+    <?php if ($flash && ($flash['type'] ?? '') === 'error'): ?>
+        <div class="admin-news-flash is-error" role="alert">
             <?= $escape($flash['message'] ?? '') ?>
         </div>
     <?php endif; ?>
 
     <?php if ($loadError !== ''): ?>
-        <div class="admin-news-warning"><?= $escape($loadError) ?></div>
+        <div class="admin-news-warning" role="alert"><?= $escape($loadError) ?></div>
     <?php endif; ?>
 
     <section class="admin-news-create">

@@ -12,12 +12,6 @@
     font-weight: 700;
 }
 
-.admin-news-flash.is-success {
-    border: 1px solid #b9ddc4;
-    background: #f2fbf5;
-    color: #27623a;
-}
-
 .admin-news-flash.is-error,
 .admin-news-warning {
     border: 1px solid #e7b9c1;

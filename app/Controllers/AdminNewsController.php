@@ -25,6 +25,13 @@ class AdminNewsController extends Controller
             : null;
         unset($_SESSION['admin_news_flash']);
 
+        // Migrate a pending pre-update success to the shared one-time queue.
+        // Validation errors continue to be displayed on the page.
+        if (($flash['type'] ?? '') === 'success') {
+            AnabelkaFlash::success((string) ($flash['message'] ?? ''));
+            $flash = null;
+        }
+
         $this->view('admin/news/index', [
             'items' => $items,
             'languages' => Language::active(),
@@ -165,6 +172,14 @@ class AdminNewsController extends Controller
 
     private function flash($type, $message)
     {
+        if ((string) $type === 'success') {
+            // Existing central PHP flash survives the POST -> GET redirect.
+            unset($_SESSION['admin_news_flash']);
+            AnabelkaFlash::success((string) $message);
+            return;
+        }
+
+        // Keep CSRF, validation and unexpected errors visible until reviewed.
         $_SESSION['admin_news_flash'] = [
             'type' => (string) $type,
             'message' => (string) $message
