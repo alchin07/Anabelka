@@ -246,6 +246,27 @@
     font: inherit;
 }
 
+.mobile-navigation-form-grid input[aria-invalid="true"] {
+    border-color: #8A2BE2;
+    outline: 2px solid #8A2BE2;
+    outline-offset: 1px;
+}
+
+.mobile-navigation-form-grid input[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 4px rgba(138, 43, 226, 0.16);
+}
+
+.mobile-navigation-form-grid .mobile-navigation-field-error {
+    margin: 3px 0 0;
+    padding: 9px 11px;
+    font-size: 12px;
+    text-align: left;
+}
+
+.mobile-navigation-form-grid .mobile-navigation-field-error[hidden] {
+    display: none;
+}
+
 .mobile-navigation-switch-row {
     display: flex;
     align-items: center;

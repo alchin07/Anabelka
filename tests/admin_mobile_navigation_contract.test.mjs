@@ -141,4 +141,4 @@ assert.match(css, /overflow-wrap|word-break/);
 
 process.stdout.write('admin mobile navigation contract passed\n');
 
-assert.match(view, /admin-mobile-navigation\.css\?v=3/);
+assert.match(view, /admin-mobile-navigation\.css\?v=4/);

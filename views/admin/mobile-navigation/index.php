@@ -34,7 +34,7 @@ foreach ($languages as $language) {
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
     <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=3">
-    <link rel="stylesheet" href="/Anabelka/css/admin-mobile-navigation.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-mobile-navigation.css?v=4">
 </head>
 <body>
 <?php
@@ -96,6 +96,7 @@ require __DIR__ . '/../partials/header.php';
                 method="post"
                 action="/Anabelka/admin/mobile-navigation/create"
                 data-mobile-navigation-form="create"
+                novalidate
             >
                 <input type="hidden" name="_csrf" value="<?= $escape($csrfToken) ?>">
 
@@ -108,7 +109,14 @@ require __DIR__ . '/../partials/header.php';
                             maxlength="160"
                             required
                             autocomplete="off"
+                            aria-describedby="mobile-navigation-create-name-error"
                         >
+                        <p
+                            id="mobile-navigation-create-name-error"
+                            class="mobile-navigation-field-error anabelka-notify-inline is-validation"
+                            data-mobile-navigation-error="name_uk"
+                            hidden
+                        ></p>
                     </label>
 
                     <label>
@@ -120,7 +128,14 @@ require __DIR__ . '/../partials/header.php';
                             placeholder="/Anabelka/... або https://..."
                             required
                             autocomplete="off"
+                            aria-describedby="mobile-navigation-create-url-error"
                         >
+                        <p
+                            id="mobile-navigation-create-url-error"
+                            class="mobile-navigation-field-error anabelka-notify-inline is-validation"
+                            data-mobile-navigation-error="url"
+                            hidden
+                        ></p>
                     </label>
                 </div>
 
@@ -404,6 +419,6 @@ require __DIR__ . '/../partials/header.php';
     aria-live="polite"
 ></div>
 <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
-<script src="/Anabelka/js/admin-mobile-navigation.js?v=2"></script>
+<script src="/Anabelka/js/admin-mobile-navigation.js?v=3"></script>
 </body>
 </html>

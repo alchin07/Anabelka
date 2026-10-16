@@ -24,6 +24,177 @@
     }
 
 
+    function createFieldMessage(field)
+    {
+        const raw = String(field.value || '');
+        const value = raw.trim();
+
+        if (field.name === 'name_uk') {
+            if (!value) {
+                return 'Вкажіть українську назву пункту меню.';
+            }
+
+            return Array.from(value).length > 160
+                ? 'Назва пункту меню занадто довга.'
+                : '';
+        }
+
+        if (field.name !== 'url') {
+            return '';
+        }
+
+        if (!value) {
+            return 'Вкажіть посилання на сторінку.';
+        }
+
+        if (Array.from(value).length > 1000) {
+            return 'Посилання занадто довге (максимум 1000 символів).';
+        }
+
+        if (/[\\\x00-\x1F\x7F]/.test(raw) || value.startsWith('//')) {
+            return 'Посилання містить недопустимі символи.';
+        }
+
+        if (/^(?:javascript|data|file):/i.test(value)) {
+            return 'Недозволена схема посилання.';
+        }
+
+        if (/^https?:\/\//i.test(value)) {
+            try {
+                const address = new URL(value);
+
+                return /^(?:http:|https:)$/.test(address.protocol)
+                    && address.hostname
+                    && !address.username
+                    && !address.password
+                    ? ''
+                    : 'Вкажіть коректне зовнішнє посилання.';
+            } catch (error) {
+                return 'Вкажіть коректне зовнішнє посилання.';
+            }
+        }
+
+        const path = value.split(/[?#]/, 1)[0];
+        let decoded;
+        let decodedTwice;
+
+        try {
+            decoded = decodeURIComponent(path);
+            decodedTwice = decodeURIComponent(decoded);
+        } catch (error) {
+            return 'Некоректне внутрішнє посилання.';
+        }
+
+        if (decoded !== decodedTwice) {
+            return 'Неоднозначне кодування посилання.';
+        }
+
+        if (decoded !== '/Anabelka' && !decoded.startsWith('/Anabelka/')) {
+            return 'Внутрішнє посилання повинно вести в Анабельку.';
+        }
+
+        if (decoded.split('/').some(function (part) {
+            return part === '.' || part === '..';
+        })) {
+            return 'Шлях не може виходити за межі Анабельки.';
+        }
+
+        return '';
+    }
+
+
+    function setCreateFieldError(form, field, message)
+    {
+        const help = form.querySelector(
+            '[data-mobile-navigation-error="' + field.name + '"]'
+        );
+
+        if (!help) {
+            return;
+        }
+
+        help.textContent = message;
+        help.hidden = !message;
+
+        if (message) {
+            field.setAttribute('aria-invalid', 'true');
+        } else {
+            field.removeAttribute('aria-invalid');
+        }
+    }
+
+
+    function clearCreateErrors(form)
+    {
+        ['name_uk', 'url'].forEach(function (name) {
+            const field = form.querySelector('input[name="' + name + '"]');
+
+            if (field) {
+                setCreateFieldError(form, field, '');
+            }
+        });
+    }
+
+
+    function validateCreateForm(form)
+    {
+        let firstInvalid = null;
+
+        ['name_uk', 'url'].forEach(function (name) {
+            const field = form.querySelector('input[name="' + name + '"]');
+
+            if (!field) {
+                return;
+            }
+
+            const message = createFieldMessage(field);
+            setCreateFieldError(form, field, message);
+
+            if (message && !firstInvalid) {
+                firstInvalid = field;
+            }
+        });
+
+        if (firstInvalid) {
+            firstInvalid.focus();
+        }
+
+        return !firstInvalid;
+    }
+
+
+    function showCreateServerError(form, error)
+    {
+        if (
+            form.dataset.mobileNavigationForm !== 'create'
+            || error.status !== 422
+        ) {
+            return false;
+        }
+
+        const message = String(error.message || '');
+        let name = '';
+
+        if (/посилан|URL|схем|кодуван|шлях/i.test(message)) {
+            name = 'url';
+        } else if (/назв/i.test(message)) {
+            name = 'name_uk';
+        }
+
+        const field = name
+            ? form.querySelector('input[name="' + name + '"]')
+            : null;
+
+        if (!field) {
+            return false;
+        }
+
+        setCreateFieldError(form, field, message);
+        field.focus();
+        return true;
+    }
+
+
     function csrf()
     {
         return String(root.dataset.csrf || '');
@@ -168,15 +339,46 @@
             return;
         }
 
+        if (
+            form.dataset.mobileNavigationForm === 'create'
+            && !validateCreateForm(form)
+        ) {
+            return;
+        }
+
         setFormPending(form, true);
         request(form.action, new FormData(form))
             .then(function (payload) {
                 reloadWithSuccess(payload.message || 'Зміни збережено.');
             })
             .catch(function (error) {
-                notify('error', error.message);
+                if (!showCreateServerError(form, error)) {
+                    notify('error', error.message);
+                }
                 setFormPending(form, false);
             });
+    });
+
+
+    root.addEventListener('input', function (event) {
+        const field = event.target;
+        const form = field && field.form;
+
+        if (
+            !form
+            || form.dataset.mobileNavigationForm !== 'create'
+            || !['name_uk', 'url'].includes(field.name)
+        ) {
+            return;
+        }
+
+        const hint = form.querySelector(
+            '[data-mobile-navigation-error="' + field.name + '"]'
+        );
+
+        if (hint && !hint.hidden) {
+            setCreateFieldError(form, field, createFieldMessage(field));
+        }
     });
 
     if (addButton && createPanel) {
@@ -192,6 +394,14 @@
 
     if (createCancel && createPanel) {
         createCancel.addEventListener('click', function () {
+            const form = createPanel.querySelector(
+                'form[data-mobile-navigation-form="create"]'
+            );
+
+            if (form) {
+                clearCreateErrors(form);
+            }
+
             createPanel.hidden = true;
             if (addButton) {
                 addButton.focus();
