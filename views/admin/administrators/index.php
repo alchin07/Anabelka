@@ -281,7 +281,13 @@ foreach ($permissions as $permission) {
                         </div>
                     <?php elseif ($canManage): ?>
                         <div class="admin-staff-actions<?= $isInvitationRestricted ? ' has-invitation' : '' ?>">
-                            <form method="post" action="/Anabelka/admin/administrators/role" onsubmit="return confirm('Змінити роль цього адміністратора?');">
+                            <form
+                                method="post"
+                                action="/Anabelka/admin/administrators/role"
+                                data-anabelka-confirm="Змінити роль цього адміністратора?"
+                                data-anabelka-confirm-title="Зміна ролі"
+                                data-anabelka-confirm-confirm-text="Змінити"
+                            >
                                 <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                 <input type="hidden" name="admin_id" value="<?= $adminId ?>">
                                 <label>
@@ -360,7 +366,15 @@ foreach ($permissions as $permission) {
                                     </div>
                                 </div>
                             <?php else: ?>
-                                <form method="post" action="/Anabelka/admin/administrators/password" autocomplete="off" onsubmit="return confirm('Встановити новий пароль цьому адміністратору?');">
+                                <form
+                                    method="post"
+                                    action="/Anabelka/admin/administrators/password"
+                                    autocomplete="off"
+                                    data-anabelka-confirm="Встановити новий пароль цьому адміністратору?"
+                                    data-anabelka-confirm-title="Зміна пароля"
+                                    data-anabelka-confirm-confirm-text="Змінити пароль"
+                                    data-anabelka-confirm-danger="1"
+                                >
                                     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="admin_id" value="<?= $adminId ?>">
                                     <label>
@@ -370,7 +384,15 @@ foreach ($permissions as $permission) {
                                     <button type="submit">Змінити пароль</button>
                                 </form>
 
-                                <form class="admin-access-toggle-form" method="post" action="/Anabelka/admin/administrators/toggle" onsubmit="return confirm('<?= $isActive ? 'Вимкнути доступ цього адміністратора?' : 'Увімкнути доступ цього адміністратора?' ?>');">
+                                <form
+                                    class="admin-access-toggle-form"
+                                    method="post"
+                                    action="/Anabelka/admin/administrators/toggle"
+                                    data-anabelka-confirm="<?= $isActive ? 'Вимкнути доступ цього адміністратора?' : 'Увімкнути доступ цього адміністратора?' ?>"
+                                    data-anabelka-confirm-title="<?= $isActive ? 'Вимкнення доступу' : 'Увімкнення доступу' ?>"
+                                    data-anabelka-confirm-confirm-text="<?= $isActive ? 'Вимкнути' : 'Увімкнути' ?>"
+                                    data-anabelka-confirm-danger="<?= $isActive ? '1' : '0' ?>"
+                                >
                                     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="admin_id" value="<?= $adminId ?>">
                                     <button class="<?= $isActive ? 'is-danger' : 'is-enable' ?>" type="submit" <?= $isCurrent ? 'disabled' : '' ?>>
