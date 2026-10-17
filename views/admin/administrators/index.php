@@ -60,7 +60,7 @@ foreach ($permissions as $permission) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адміністратори') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=5">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=6">
 </head>
 <body>
 
@@ -79,11 +79,12 @@ foreach ($permissions as $permission) {
     </section>
 
     <?php if (!empty($message)): ?>
-        <div class="admin-security-message is-success"><?= htmlspecialchars($message) ?></div>
+        <?php // Keep older bookmarked success URLs readable. New POST results use AnabelkaFlash. ?>
+        <div class="admin-security-message is-success" role="status"><?= htmlspecialchars($message) ?></div>
     <?php endif; ?>
 
     <?php if (!empty($error)): ?>
-        <div class="admin-security-message is-error"><?= htmlspecialchars($error) ?></div>
+        <div class="admin-security-message is-error" role="alert"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
     <?php if ($inviteFlash && $inviteMessage !== ''): ?>

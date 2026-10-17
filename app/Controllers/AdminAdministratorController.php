@@ -719,6 +719,22 @@ class AdminAdministratorController extends Controller
 
     private function redirect($key, $message)
     {
+        if ($key === 'message') {
+            // Keep one-time invitation tokens in their existing dedicated
+            // session card. Only a non-sensitive outcome enters the toast.
+            $text = (string) $message;
+            if ($text === 'Адміністратор уже має цю роль.') {
+                AnabelkaFlash::info($text);
+            } else {
+                AnabelkaFlash::success($text);
+            }
+
+            header('Location: /Anabelka/admin/administrators');
+            exit;
+        }
+
+        // Validation, CSRF and permission failures must stay visible on the
+        // destination page instead of expiring like a success toast.
         header(
             'Location: /Anabelka/admin/administrators?'
             . http_build_query([$key => (string) $message])
