@@ -36,7 +36,7 @@ $inviteStatusLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Користувачі') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/admin-rank-requests.css?v=1">
 </head>
 <body>
@@ -60,13 +60,14 @@ $inviteStatusLabels = [
     </section>
 
     <?php if (!empty($message)): ?>
-        <div class="admin-users-message is-success">
+        <?php // Compatibility with older links containing a success parameter. ?>
+        <div class="admin-users-message is-success" role="status">
             <?= htmlspecialchars($message) ?>
         </div>
     <?php endif; ?>
 
     <?php if (!empty($error)): ?>
-        <div class="admin-users-message is-error">
+        <div class="admin-users-message is-error" role="alert">
             <?= htmlspecialchars($error) ?>
         </div>
     <?php endif; ?>
