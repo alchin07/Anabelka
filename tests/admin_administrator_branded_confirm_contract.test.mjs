@@ -246,13 +246,13 @@ test('role pickers use shared branded selects and keep their existing POST contr
     const css = read('css/admin-administrators.css');
     const select = read('js/anabelka-select.js');
 
-    assert.match(invite, /<select name="role_id" data-anabelka-select required>/);
-    assert.match(role, /<select name="role_id" data-anabelka-select <\\?= \\$isCurrent \\? 'disabled' : '' \\?>/);
-    assert.match(role, /name="_csrf"/);
-    assert.match(role, /name="admin_id"/);
-    assert.match(role, /value="<\\?= \\(int\\) \\(\\$role\\['id'\\] \\?\\? 0\\) \\?>"/);
-    assert.match(role, /data-anabelka-confirm="Змінити роль цього адміністратора\\?"/);
-    assert.match(select, /select\\[data-anabelka-select\\]/);
-    assert.match(css, /\\.admin-staff-card:has\\(\\.admin-staff-actions \\.anabelka-select\\.is-open\\)/);
-    assert.match(css, /button:where\\(:not\\(\\.anabelka-select-trigger, \\.anabelka-select-option\\)\\)/);
+    assert.ok(invite.includes('<select name="role_id" data-anabelka-select required>'));
+    assert.ok(role.includes(`<select name="role_id" data-anabelka-select <?= $isCurrent ? 'disabled' : '' ?>>`));
+    assert.ok(role.includes('name="_csrf"'));
+    assert.ok(role.includes('name="admin_id"'));
+    assert.ok(role.includes(`value="<?= (int) ($role['id'] ?? 0) ?>"`));
+    assert.ok(role.includes('data-anabelka-confirm="Змінити роль цього адміністратора?"'));
+    assert.ok(select.includes('select[data-anabelka-select]'));
+    assert.ok(css.includes('.admin-staff-card:has(.admin-staff-actions .anabelka-select.is-open)'));
+    assert.ok(css.includes('button:where(:not(.anabelka-select-trigger, .anabelka-select-option))'));
 });
