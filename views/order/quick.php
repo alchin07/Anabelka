@@ -3,6 +3,21 @@
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
 
+$quickValidationMessages = [
+    'required' => Translator::t(
+        'public.order.error_fill_field',
+        'Заповніть поле «{field}».'
+    ),
+    'invalid' => Translator::t(
+        'checkout.validation_invalid',
+        'Перевірте значення поля «{field}».'
+    ),
+    'labels' => [
+        'customer_name' => Translator::t('quick.name', 'Ім’я'),
+        'customer_phone' => Translator::t('quick.phone', 'Номер телефону')
+    ]
+];
+
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -25,9 +40,10 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
         rel="stylesheet"
         href="/Anabelka/css/catalog.css?v=4"
     >
+    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=3">
 </head>
 
-<body>
+<body class="checkout-validation-page">
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
@@ -214,6 +230,13 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
     </section>
 
 </main>
+
+<script type="application/json" id="checkout-validation-messages"><?= json_encode(
+    $quickValidationMessages,
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+        | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE
+) ?: '{}' ?></script>
+<script src="/Anabelka/js/checkout-validation.js?v=3"></script>
 
 </body>
 </html>

@@ -11,9 +11,14 @@
         window: root.querySelector('.product-color-picker-window'),
         options: root.querySelector('[data-color-picker-options]'),
         presets: root.querySelector('[data-color-picker-presets]'),
+        existing: root.querySelector('[data-color-picker-existing]'),
+        existingList: root.querySelector('[data-color-picker-existing-list]'),
         preview: root.querySelector('[data-color-picker-preview]'),
+        context: root.querySelector('[data-color-picker-context]'),
         name: root.querySelector('[data-color-picker-name]'),
         photoButton: root.querySelector('[data-color-picker-photo]'),
+        photoChoices: root.querySelector('[data-color-photo-choices]'),
+        photoChoiceList: root.querySelector('[data-color-photo-choice-list]'),
         systemButton: root.querySelector('[data-color-picker-system]'),
         systemInput: root.querySelector('[data-color-system-input]'),
         photoPanel: root.querySelector('[data-color-photo-panel]'),
@@ -29,9 +34,13 @@
         !picker.window
         || !picker.options
         || !picker.presets
+        || !picker.existing
+        || !picker.existingList
         || !picker.preview
         || !picker.name
         || !picker.photoButton
+        || !picker.photoChoices
+        || !picker.photoChoiceList
         || !picker.systemButton
         || !picker.systemInput
         || !picker.photoPanel
@@ -244,20 +253,14 @@
     }
 
 
-    function showMessage(text)
+    // The picker shares the site's notification queue with the product editor.
+    // No separate timer may hide a message from a different action.
+    function showMessage(text, type = 'info')
     {
-        const message = document.getElementById('site-message');
-
-        if (!message) {
-            return;
-        }
-
-        message.textContent = text;
-        message.classList.add('show');
-        clearTimeout(window.adminProductColorMessageTimer);
-        window.adminProductColorMessageTimer = window.setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
+        const notify = window.AnabelkaNotify;
+        return notify && typeof notify.show === 'function'
+            ? notify.show(type, text)
+            : false;
     }
 
 
@@ -273,12 +276,29 @@
     }
 
 
+    function syncExistingProductColorSelection()
+    {
+        const selectedName = pickerHasColor
+            ? picker.name.value.trim().toLocaleLowerCase()
+            : '';
+        const selectedHex = normalizedHex(picker.systemInput.value);
+
+        picker.existingList.querySelectorAll('[data-existing-product-color]').forEach(function (button) {
+            const selected = selectedName !== ''
+                && button.dataset.existingProductColor.toLocaleLowerCase() === selectedName
+                && button.dataset.existingProductHex === selectedHex;
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+    }
+
+
     function updatePickerPreview()
     {
         const hex = normalizedHex(picker.systemInput.value);
         picker.preview.style.setProperty('--selected-image-color', hex);
         picker.preview.classList.toggle('has-color', pickerHasColor);
         updatePresetSelection(pickerHasColor ? hex : '');
+        syncExistingProductColorSelection();
     }
 
 
@@ -289,6 +309,67 @@
         picker.name.value = String(name || closestColorName(normalized));
         pickerHasColor = true;
         updatePickerPreview();
+    }
+
+
+    function renderExistingProductColors()
+    {
+        picker.existingList.replaceChildren();
+
+        // Product-color editing must not offer an image-only association.
+        const linkedPhoto = activeGroup && activeGroup.closest(
+            '.product-image-manage, .product-upload-preview-item'
+        );
+
+        if (!linkedPhoto) {
+            picker.existing.hidden = true;
+            return;
+        }
+
+        const seenNames = new Set();
+        const fragment = document.createDocumentFragment();
+
+        document.querySelectorAll('#product-color-list [data-product-manual-color]').forEach(function (row) {
+            const nameInput = row.querySelector('[data-image-color-name]');
+            const hexInput = row.querySelector('[data-image-color-hex]');
+            const name = nameInput ? nameInput.value.trim() : '';
+            const key = name.toLocaleLowerCase();
+
+            if (key === '' || seenNames.has(key)) {
+                return;
+            }
+
+            seenNames.add(key);
+            const hex = normalizedHex(hexInput ? hexInput.value : '');
+            const button = document.createElement('button');
+            const dot = document.createElement('span');
+            const label = document.createElement('span');
+
+            button.type = 'button';
+            button.className = 'product-color-existing-choice';
+            button.dataset.existingProductColor = name;
+            button.dataset.existingProductHex = hex;
+            button.setAttribute('aria-pressed', 'false');
+
+            dot.className = 'product-color-existing-choice-dot';
+            dot.style.setProperty('--existing-product-color', hex);
+            dot.setAttribute('aria-hidden', 'true');
+
+            label.className = 'product-color-existing-choice-name';
+            label.textContent = name;
+
+            button.appendChild(dot);
+            button.appendChild(label);
+            button.addEventListener('click', function () {
+                // Confirming the picker links this photo without altering the saved color.
+                setPickerColor(hex, name);
+            });
+            fragment.appendChild(button);
+        });
+
+        picker.existingList.appendChild(fragment);
+        picker.existing.hidden = picker.existingList.childElementCount === 0;
+        syncExistingProductColorSelection();
     }
 
 
@@ -337,6 +418,17 @@
         nameInput.value = String(name || '').trim();
         hexInput.value = normalizedHex(hex);
         refreshImageColorGroup(activeGroup);
+
+        document.dispatchEvent(new CustomEvent(
+            'anabelka:product-color-change',
+            {
+                detail: {
+                    group: activeGroup,
+                    name: nameInput.value,
+                    hex: hexInput.value
+                }
+            }
+        ));
     }
 
 
@@ -357,7 +449,16 @@
         root.hidden = true;
         document.body.classList.remove('product-color-picker-open');
         activeGroup = null;
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
         picker.photoImage.removeAttribute('src');
+        picker.photoChoiceList.replaceChildren();
+        picker.photoChoices.hidden = true;
 
         if (
             restoreFocus !== false
@@ -385,10 +486,36 @@
         pickerHasColor = nameInput.value.trim() !== '';
         picker.name.value = nameInput.value;
         picker.systemInput.value = normalizedHex(hexInput.value);
+
+        const linkedPhoto = activeGroup.closest(
+            '.product-image-manage, .product-upload-preview-item'
+        );
+        const availablePhotos = availableSourcePhotos();
+
+        // Keep this action available even when there are no images:
+        // explain the requirement instead of silently disabling the button.
+        picker.photoButton.disabled = false;
+
+        if (picker.context) {
+            picker.context.textContent = linkedPhoto
+                ? 'Фотографія товару'
+                : (availablePhotos.length
+                    ? 'Колір товару · вибір фото'
+                    : 'Колір товару без фото');
+        }
+
+        renderExistingProductColors();
         showColorOptions();
         updatePickerPreview();
         root.hidden = false;
         document.body.classList.add('product-color-picker-open');
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.syncNow === 'function'
+        ) {
+            window.AnabelkaAdminBack.syncNow();
+        }
 
         window.setTimeout(function () {
             if (picker.close) {
@@ -398,34 +525,108 @@
     }
 
 
-    function selectedSourceImage()
+    function sourcePhotoUrl(image)
+    {
+        return image
+            ? String(image.currentSrc || image.src || '').trim()
+            : '';
+    }
+
+
+    function availableSourcePhotos()
     {
         if (!activeGroup) {
-            return null;
+            return [];
         }
 
         const card = activeGroup.closest(
             '.product-image-manage, .product-upload-preview-item'
         );
 
-        return card ? card.querySelector('img') : null;
+        if (card) {
+            if (card.classList.contains('is-deleted')) {
+                return [];
+            }
+            const image = card.querySelector('img');
+            return sourcePhotoUrl(image) ? [image] : [];
+        }
+
+        // Independent product colors may sample any photo already attached
+        // to this product, including new upload previews. Sampling does not
+        // change image/color associations or persist anything by itself.
+        if (!activeGroup.matches('[data-product-manual-color]')) {
+            return [];
+        }
+
+        const cards = document.querySelectorAll(
+            '#product-image-list .product-image-manage, '
+            + '#product-upload-preview .product-upload-preview-item'
+        );
+
+        return Array.from(cards)
+            .filter(function (item) {
+                return !item.classList.contains('is-deleted');
+            })
+            .map(function (item) {
+                return item.querySelector('img');
+            })
+            .filter(function (image) {
+                return sourcePhotoUrl(image) !== '';
+            });
     }
 
 
     function openPhotoPicker()
     {
-        const sourceImage = selectedSourceImage();
-        const source = sourceImage
-            ? String(sourceImage.currentSrc || sourceImage.src || '')
-            : '';
+        const photos = availableSourcePhotos();
 
-        if (source === '') {
-            showMessage('Спочатку додайте фотографію товару.');
+        if (photos.length === 0) {
+            showMessage(
+                'Для вибору кольору з фото спочатку додайте '
+                + 'фотографію в розділі «Фотографії». '
+                + 'Або виберіть готовий відтінок.',
+                'warning'
+            );
             return;
         }
 
+        picker.photoChoiceList.replaceChildren();
+        picker.photoChoices.hidden = photos.length < 2;
+        const buttons = [];
+
+        photos.forEach(function (image, index) {
+            if (photos.length < 2) {
+                return;
+            }
+
+            const button = document.createElement('button');
+            const thumbnail = document.createElement('img');
+            button.type = 'button';
+            button.className = 'product-color-photo-choice';
+            button.setAttribute(
+                'aria-label', 'Вибрати фотографію ' + (index + 1)
+            );
+            button.setAttribute(
+                'aria-pressed', index === 0 ? 'true' : 'false'
+            );
+            thumbnail.src = sourcePhotoUrl(image);
+            thumbnail.alt = '';
+            button.appendChild(thumbnail);
+            button.addEventListener('click', function () {
+                buttons.forEach(function (item) {
+                    item.setAttribute(
+                        'aria-pressed', item === button ? 'true' : 'false'
+                    );
+                });
+                picker.photoMarker.hidden = true;
+                picker.photoImage.src = sourcePhotoUrl(image);
+            });
+            buttons.push(button);
+            picker.photoChoiceList.appendChild(button);
+        });
+
         picker.photoMarker.hidden = true;
-        picker.photoImage.src = source;
+        picker.photoImage.src = sourcePhotoUrl(photos[0]);
         picker.options.hidden = true;
         picker.photoPanel.hidden = false;
         root.classList.add('is-photo-mode');
@@ -447,7 +648,7 @@
         const image = picker.photoImage;
 
         if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
-            showMessage('Фотографія ще завантажується. Спробуйте ще раз.');
+            showMessage('Фотографія ще завантажується. Спробуйте ще раз.', 'warning');
             return;
         }
 
@@ -484,7 +685,7 @@
         const context = canvas.getContext('2d', { willReadFrequently: true });
 
         if (!context) {
-            showMessage('Не вдалося визначити колір на цьому телефоні.');
+            showMessage('Не вдалося визначити колір на цьому телефоні.', 'error');
             return;
         }
 
@@ -509,7 +710,7 @@
                 sampleResolution
             ).data;
         } catch (error) {
-            showMessage('З цього фото не вдалося взяти колір. Оберіть готовий.');
+            showMessage('З цього фото не вдалося взяти колір. Оберіть готовий.', 'error');
             showColorOptions();
             return;
         }
@@ -529,7 +730,7 @@
         }
 
         if (red.length === 0) {
-            showMessage('Оберіть непрозору ділянку фотографії.');
+            showMessage('Оберіть непрозору ділянку фотографії.', 'warning');
             return;
         }
 
@@ -545,7 +746,7 @@
         clearTimeout(photoReturnTimer);
         photoReturnTimer = window.setTimeout(function () {
             showColorOptions();
-            showMessage('Колір узято з фотографії.');
+            showMessage('Колір обрано з фотографії. Збережіть товар після підтвердження кольору.', 'info');
         }, 420);
     }
 
@@ -627,7 +828,7 @@
             return;
         }
 
-        showMessage('Не вдалося відкрити фотографію для вибору кольору.');
+        showMessage('Не вдалося відкрити фотографію для вибору кольору.', 'error');
         showColorOptions();
     });
 
@@ -649,8 +850,8 @@
     picker.name.addEventListener('input', function () {
         if (picker.name.value.trim() !== '') {
             pickerHasColor = true;
-            updatePickerPreview();
         }
+        updatePickerPreview();
     });
 
     document.addEventListener('keydown', function (event) {
@@ -662,6 +863,29 @@
         event.stopImmediatePropagation();
         closePicker(true);
     });
+
+    if (
+        window.AnabelkaAdminBack
+        && typeof window.AnabelkaAdminBack.register === 'function'
+    ) {
+        window.AnabelkaAdminBack.register({
+            key: 'product-color-picker',
+            priority: 110,
+            isActive: function () {
+                return !root.hidden;
+            },
+            close: function () {
+                closePicker(true);
+            }
+        });
+    }
+
+    document.addEventListener('anabelka:product-colors-change', function () {
+        if (!root.hidden && activeGroup) {
+            renderExistingProductColors();
+        }
+    });
+
 
     renderPresets();
 })();

@@ -1,46 +1,29 @@
 /**
- * Показать универсальное сообщение.
+ * Уведомления раздела доставки через единое ядро AnabelkaNotify.
+ * При смене страницы сообщение показывается один раз после загрузки.
  *
  * @param {string} text
+ * @param {'success'|'error'|'warning'|'info'} type
+ * @param {boolean} afterReload
+ * @returns {boolean}
  */
-window.showMessage =
-    function (text)
-    {
-        const message =
-            document.getElementById(
-                'site-message'
-            );
+window.showMessage = function (text, type = 'info', afterReload = false)
+{
+    const notify = window.AnabelkaNotify;
+    if (!notify || typeof notify.show !== 'function') {
+        return false;
+    }
 
-        if (!message) {
-            return;
-        }
+    const level = ['success', 'error', 'warning', 'info'].includes(type)
+        ? type : 'info';
 
+    if (afterReload && typeof notify.store === 'function'
+        && notify.store(level, text)) {
+        return true;
+    }
 
-        message.textContent =
-            text;
-
-        message.classList.add(
-            'show'
-        );
-
-
-        clearTimeout(
-            window.siteMessageTimer
-        );
-
-
-        window.siteMessageTimer =
-            setTimeout(
-                () => {
-
-                    message.classList.remove(
-                        'show'
-                    );
-
-                },
-                2200
-            );
-    };
+    return notify.show(level, text);
+};
 
 
 /**

@@ -60,7 +60,9 @@ $isActive =
     method="POST"
     class="toggle-form"
     data-name="<?= htmlspecialchars(
-        $actionType
+        $itemName ?? '',
+        ENT_QUOTES,
+        'UTF-8'
     ) ?>"
     style="margin: 0;"
 >

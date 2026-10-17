@@ -22,7 +22,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-languages.css?v=2"
+        href="/Anabelka/css/admin-languages.css?v=3"
     >
 </head>
 
@@ -48,14 +48,8 @@ require __DIR__ . '/../../partials/header.php';
             </div>
         </div>
 
-        <?php if (!empty($message)): ?>
-            <div class="languages-notice">
-                <?= htmlspecialchars($message) ?>
-            </div>
-        <?php endif; ?>
-
         <?php if (!empty($error)): ?>
-            <div class="languages-notice error">
+            <div class="languages-notice error" role="alert">
                 <?= htmlspecialchars($error) ?>
             </div>
         <?php endif; ?>

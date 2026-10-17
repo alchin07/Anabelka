@@ -36,7 +36,7 @@ $inviteStatusLabels = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Користувачі') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-users.css?v=4">
     <link rel="stylesheet" href="/Anabelka/css/admin-rank-requests.css?v=1">
 </head>
 <body>
@@ -60,13 +60,14 @@ $inviteStatusLabels = [
     </section>
 
     <?php if (!empty($message)): ?>
-        <div class="admin-users-message is-success">
+        <?php // Compatibility with older links containing a success parameter. ?>
+        <div class="admin-users-message is-success" role="status">
             <?= htmlspecialchars($message) ?>
         </div>
     <?php endif; ?>
 
     <?php if (!empty($error)): ?>
-        <div class="admin-users-message is-error">
+        <div class="admin-users-message is-error" role="alert">
             <?= htmlspecialchars($error) ?>
         </div>
     <?php endif; ?>
@@ -307,7 +308,9 @@ $inviteStatusLabels = [
                             class="admin-user-rank-form"
                             method="post"
                             action="/Anabelka/admin/users/rank"
-                            onsubmit="return confirm('Змінити ранг цього користувача?');"
+                            data-anabelka-confirm="Змінити ранг цього користувача?"
+                            data-anabelka-confirm-title="Зміна рангу"
+                            data-anabelka-confirm-confirm-text="Змінити"
                         >
                             <input type="hidden" name="user_id" value="<?= $userId ?>">
                             <input
@@ -353,7 +356,10 @@ $inviteStatusLabels = [
                                     <form
                                         method="post"
                                         action="/Anabelka/admin/users/deactivate"
-                                        onsubmit="return confirm('Деактивувати цей акаунт? Користувач більше не зможе увійти.');"
+                                        data-anabelka-confirm="Деактивувати цей акаунт? Користувач більше не зможе увійти."
+                                        data-anabelka-confirm-title="Деактивація акаунта"
+                                        data-anabelka-confirm-confirm-text="Деактивувати"
+                                        data-anabelka-confirm-danger="1"
                                     >
                                         <input type="hidden" name="_csrf" value="<?= htmlspecialchars($adminCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                         <input type="hidden" name="user_id" value="<?= $userId ?>">
@@ -373,7 +379,10 @@ $inviteStatusLabels = [
                                 <form
                                     method="post"
                                     action="/Anabelka/admin/users/delete"
-                                    onsubmit="return confirm('Видалити цей акаунт назавжди? Цю дію не можна скасувати.');"
+                                    data-anabelka-confirm="Видалити цей акаунт назавжди? Цю дію не можна скасувати."
+                                    data-anabelka-confirm-title="Видалення акаунта"
+                                    data-anabelka-confirm-confirm-text="Видалити"
+                                    data-anabelka-confirm-danger="1"
                                 >
                                     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($adminCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
                                     <input type="hidden" name="user_id" value="<?= $userId ?>">

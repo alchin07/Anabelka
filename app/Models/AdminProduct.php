@@ -296,7 +296,7 @@ class AdminProduct
                 :show_stock_quantity,
                 :brand,
                 :country,
-                NULL,
+                '',
                 :is_active
             )
         ");
@@ -849,6 +849,7 @@ class AdminProduct
         ]);
 
         ProductImage::duplicateForProduct((int) $sourceId, $targetId);
+        ProductColor::duplicateForProduct((int) $sourceId, $targetId);
 
         return $targetId;
     }
@@ -868,6 +869,43 @@ class AdminProduct
         }
 
         $imageMap = ProductImage::forProducts($ids);
+        $colorMap = ProductColor::editorColorsForProducts($ids);
+        $processingMap = [];
+        $imageIds = [];
+
+        foreach ($imageMap as $images) {
+            foreach ($images as $image) {
+                $imageId = (int) ($image['id'] ?? 0);
+
+                if ($imageId > 0) {
+                    $imageIds[] = $imageId;
+                }
+            }
+        }
+
+        if (!empty($imageIds) && class_exists('ProductImageProcessing')) {
+            try {
+                $processingMap =
+                    ProductImageProcessing::forImageIds($imageIds);
+            } catch (Throwable $e) {
+                error_log(
+                    'Admin product image processing state: '
+                    . $e->getMessage()
+                );
+                $processingMap = [];
+            }
+        }
+
+        foreach ($imageMap as &$images) {
+            foreach ($images as &$image) {
+                $imageId = (int) ($image['id'] ?? 0);
+                $image['processing'] =
+                    $processingMap[$imageId] ?? null;
+            }
+            unset($image);
+        }
+        unset($images);
+
         $db = Database::connect();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
@@ -930,7 +968,22 @@ class AdminProduct
 
         foreach ($products as &$product) {
             $productId = (int) $product['id'];
-            $product['images'] = $imageMap[$productId] ?? [];
+            $images = $imageMap[$productId] ?? [];
+            $product['images'] = $images;
+
+            $mainImage = $images[0] ?? null;
+
+            if (is_array($mainImage)) {
+                if (!empty($mainImage['thumb_path'])) {
+                    $product['main_image'] = $mainImage['thumb_path'];
+                } elseif (!empty($mainImage['master_path'])) {
+                    $product['main_image'] = $mainImage['master_path'];
+                } elseif (!empty($mainImage['path'])) {
+                    $product['main_image'] = $mainImage['path'];
+                }
+            }
+
+            $product['colors'] = $colorMap[$productId] ?? [];
             $product['rank_prices'] = $priceMap[$productId] ?? [];
             $product['sizes'] = $sizeMap[$productId] ?? [];
             $product['material'] =

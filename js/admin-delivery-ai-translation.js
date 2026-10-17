@@ -7,27 +7,67 @@
 (function () {
     'use strict';
 
-    function showMessage(text)
+    function showMessage(text, type = 'info')
     {
-        if (typeof window.showMessage === 'function') {
-            window.showMessage(text);
-            return;
+        const notify = window.AnabelkaNotify;
+
+        return notify && typeof notify.show === 'function'
+            ? notify.show(type, text)
+            : false;
+    }
+
+
+    async function waitForAiModule()
+    {
+        function available()
+        {
+            return window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.suggest === 'function';
         }
 
-        const message = document.getElementById('site-message');
-
-        if (!message) {
-            window.alert(text);
-            return;
+        if (available()) {
+            return true;
         }
 
-        message.textContent = text;
-        message.classList.add('show');
+        if (!document.querySelector('.admin-drawer-ai')) {
+            showMessage(
+                'ШІ-переклад недоступний для поточної ролі адміністратора.',
+                'warning'
+            );
+            return false;
+        }
 
-        clearTimeout(window.deliveryAiMessageTimer);
-        window.deliveryAiMessageTimer = setTimeout(function () {
-            message.classList.remove('show');
-        }, 3000);
+        const pending = window.AnabelkaAITranslationReady;
+
+        if (pending && typeof pending.then === 'function') {
+            let timer = null;
+            try {
+                await Promise.race([
+                    pending,
+                    new Promise(function (resolve) {
+                        timer = window.setTimeout(function () {
+                            resolve(false);
+                        }, 5000);
+                    })
+                ]);
+            } catch (error) {
+                // The loading error is shown below.
+            } finally {
+                if (timer !== null) {
+                    window.clearTimeout(timer);
+                }
+            }
+        }
+
+        if (!available()) {
+            showMessage(
+                'Не вдалося завантажити модуль ШІ-перекладу. Оновіть сторінку.',
+                'error'
+            );
+            return false;
+        }
+
+        return true;
     }
 
 
@@ -206,13 +246,7 @@
         button.textContent = 'Перекласти через ШІ';
 
         button.addEventListener('click', async function () {
-            if (
-                !window.AnabelkaAITranslation
-                || typeof window.AnabelkaAITranslation.suggest !== 'function'
-            ) {
-                showMessage(
-                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
-                );
+            if (!(await waitForAiModule())) {
                 return;
             }
 
@@ -269,14 +303,16 @@
                 }
 
                 showMessage(
-                    'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».'
+                    'ШІ-переклад отримано. Перевірте його та натисніть «Зберегти».',
+                    'info'
                 );
 
             } catch (error) {
                 showMessage(
                     error && error.message
                         ? error.message
-                        : 'Не вдалося отримати ШІ-переклад.'
+                        : 'Не вдалося отримати ШІ-переклад.',
+                    'error'
                 );
             } finally {
                 button.disabled = false;
@@ -314,13 +350,7 @@
         button.textContent = 'Перекласти через ШІ';
 
         button.addEventListener('click', async function () {
-            if (
-                !window.AnabelkaAITranslation
-                || typeof window.AnabelkaAITranslation.suggest !== 'function'
-            ) {
-                showMessage(
-                    'Система ШІ-перекладу ще завантажується. Спробуйте ще раз.'
-                );
+            if (!(await waitForAiModule())) {
                 return;
             }
 
@@ -374,14 +404,16 @@
                 }
 
                 showMessage(
-                    'ШІ-переклад поля отримано. Перевірте його та натисніть «Зберегти».'
+                    'ШІ-переклад поля отримано. Перевірте його та натисніть «Зберегти».',
+                    'info'
                 );
 
             } catch (error) {
                 showMessage(
                     error && error.message
                         ? error.message
-                        : 'Не вдалося отримати ШІ-переклад поля.'
+                        : 'Не вдалося отримати ШІ-переклад поля.',
+                    'error'
                 );
             } finally {
                 button.disabled = false;

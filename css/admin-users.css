@@ -58,15 +58,17 @@ body {
 }
 
 .admin-users-message.is-success {
-    border: 1px solid #b8ddc3;
-    background: #edf8f0;
-    color: #316440;
+    border: 1px solid var(--notify-success-border, #8A2BE2);
+    border-left-width: 4px;
+    background: var(--notify-success-bg, #8A2BE2);
+    color: var(--notify-success-text, #fff);
 }
 
 .admin-users-message.is-error {
-    border: 1px solid #e7b9c1;
-    background: #fff0f2;
-    color: #8e3748;
+    border: 1px solid var(--notify-info-border, #8A2BE2);
+    border-left-width: 4px;
+    background: var(--notify-info-bg, #f4eaff);
+    color: var(--notify-info-text, #6519b9);
 }
 
 .admin-users-panel,

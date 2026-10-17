@@ -196,10 +196,18 @@ class CartController extends Controller
 
         if ($this->isAjax()) {
             header('Content-Type: application/json; charset=utf-8');
-            echo json_encode([
+
+            $payload = [
                 'success' => true,
                 'cart_count' => $this->getCartCount()
-            ]);
+            ];
+
+            if (!$usesVariantStock) {
+                $payload['availability'] =
+                    $this->getLegacyAvailability($product);
+            }
+
+            echo json_encode($payload);
             exit;
         }
 
@@ -498,6 +506,131 @@ class CartController extends Controller
         http_response_code((int) $status);
         echo $message;
         exit;
+    }
+
+
+    private function getLegacyAvailability(array $product)
+    {
+        $productId = (int) ($product['id'] ?? 0);
+        $stockMode = (string) ($product['stock_mode'] ?? 'total');
+        $attributes = Product::attributes($productId);
+        $availableSizes = [];
+        $stockSizes = [];
+        $cartSizes = [];
+
+        if ($stockMode === 'by_size') {
+            $stockTotal = 0;
+            $cartTotal = 0;
+            $availableTotal = 0;
+
+            foreach ($attributes as $attribute) {
+                if (($attribute['attribute_slug'] ?? '') !== 'size') {
+                    continue;
+                }
+
+                $sizeId = (int) ($attribute['value_id'] ?? 0);
+
+                if ($sizeId <= 0) {
+                    continue;
+                }
+
+                $stock = max(0, (int) ($attribute['stock'] ?? 0));
+                $inCart = max(
+                    0,
+                    $this->currentLegacyQuantity(
+                        $product,
+                        $sizeId,
+                        $this->buildCartKey($productId, $sizeId, '')
+                    )
+                );
+                $available = max(0, $stock - $inCart);
+                $key = (string) $sizeId;
+
+                $stockSizes[$key] = $stock;
+                $cartSizes[$key] = $inCart;
+                $availableSizes[$key] = $available;
+                $stockTotal += $stock;
+                $cartTotal += $inCart;
+                $availableTotal += $available;
+            }
+
+            return [
+                'mode' => 'by_size',
+                'stock_total' => $stockTotal,
+                'cart_total' => $cartTotal,
+                'available_total' => $availableTotal,
+                'stock_sizes' => $stockSizes,
+                'cart_sizes' => $cartSizes,
+                'available_sizes' => $availableSizes,
+                'total' => $availableTotal,
+                'sizes' => $availableSizes
+            ];
+        }
+
+        $stockTotal = max(0, (int) ($product['stock'] ?? 0));
+        $cartTotal = 0;
+        $sessionCartSizes = [];
+
+        if (!empty($_SESSION['user_id'])) {
+            $cartTotal = Cart::getProductQuantity(
+                (int) $_SESSION['user_id'],
+                $productId
+            );
+        } else {
+            foreach ($_SESSION['cart'] ?? [] as $item) {
+                if ((int) ($item['product_id'] ?? 0) !== $productId) {
+                    continue;
+                }
+
+                $quantity = max(0, (int) ($item['quantity'] ?? 0));
+                $sizeId = (int) ($item['size_id'] ?? 0);
+                $cartTotal += $quantity;
+
+                if ($sizeId > 0) {
+                    $sessionCartSizes[$sizeId] =
+                        ($sessionCartSizes[$sizeId] ?? 0) + $quantity;
+                }
+            }
+        }
+
+        $availableTotal = max(0, $stockTotal - $cartTotal);
+
+        foreach ($attributes as $attribute) {
+            if (($attribute['attribute_slug'] ?? '') !== 'size') {
+                continue;
+            }
+
+            $sizeId = (int) ($attribute['value_id'] ?? 0);
+
+            if ($sizeId <= 0) {
+                continue;
+            }
+
+            $sizeCart = !empty($_SESSION['user_id'])
+                ? Cart::getSizeQuantity(
+                    (int) $_SESSION['user_id'],
+                    $productId,
+                    $sizeId
+                )
+                : (int) ($sessionCartSizes[$sizeId] ?? 0);
+            $key = (string) $sizeId;
+
+            $stockSizes[$key] = $stockTotal;
+            $cartSizes[$key] = max(0, $sizeCart);
+            $availableSizes[$key] = $availableTotal;
+        }
+
+        return [
+            'mode' => 'total',
+            'stock_total' => $stockTotal,
+            'cart_total' => max(0, $cartTotal),
+            'available_total' => $availableTotal,
+            'stock_sizes' => $stockSizes,
+            'cart_sizes' => $cartSizes,
+            'available_sizes' => $availableSizes,
+            'total' => $availableTotal,
+            'sizes' => $availableSizes
+        ];
     }
 
 

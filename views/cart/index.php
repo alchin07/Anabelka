@@ -55,9 +55,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
         </p>
 
 
-        <?php if (empty($items)): ?>
-
-            <p id="empty-cart-message">
+        <p id="empty-cart-message"<?= empty($items) ? '' : ' hidden' ?>>
                 <?= htmlspecialchars(
                     Translator::t(
                         'cart.empty',
@@ -66,7 +64,8 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                 ) ?>
             </p>
 
-        <?php else: ?>
+        <?php if (!empty($items)): ?>
+            <div id="cart-filled-content">
 
             <div id="cart-items">
 
@@ -290,13 +289,15 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                 ) ?>
             </a>
 
+            </div>
+
         <?php endif; ?>
 
     </main>
 
     <div
         id="site-message"
-        class="site-message"
+        class="site-message anabelka-notify" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true" tabindex="-1"
     ></div>
 
 
@@ -308,21 +309,29 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                     'cart.error_change',
                     'Не вдалося змінити кошик.'
                 ),
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
             ) ?>,
             quantity: <?= json_encode(
                 Translator::t(
                     'cart.error_quantity',
                     'Не вдалося змінити кількість.'
                 ),
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
             ) ?>,
             remove: <?= json_encode(
                 Translator::t(
                     'cart.error_remove',
                     'Не вдалося видалити товар.'
                 ),
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
+            ) ?>,
+            removed: <?= json_encode(
+                Translator::t('cart.removed', 'Товар видалено з кошика.'),
+                JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+                    | JSON_HEX_APOS | JSON_HEX_QUOT
             ) ?>
         };
 
@@ -526,6 +535,9 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
                             recalculateCart();
                             updateHeaderCartCount();
+                            if (currentQuantity <= 1) {
+                                announceRemoved();
+                            }
 
                         } catch (error) {
                             showMessage(
@@ -562,6 +574,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
 
                             recalculateCart();
                             updateHeaderCartCount();
+                            announceRemoved();
 
                         } catch (error) {
                             showMessage(
@@ -574,28 +587,29 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
             });
 
 
-        function showMessage(text)
+        function showMessage(text, type = 'error')
         {
-            const message =
-                document.getElementById(
-                    'site-message'
-                );
+            const notify = window.AnabelkaNotify;
+            return Boolean(
+                notify && typeof notify.show === 'function'
+                    && notify.show(type, text)
+            );
+        }
 
-            if (!message) {
-                return;
+        function announceRemoved()
+        {
+            if (!document.querySelector('.cart-item')) {
+                const populated = document.getElementById('cart-filled-content');
+                const empty = document.getElementById('empty-cart-message');
+
+                if (populated && empty) {
+                    populated.hidden = true;
+                    empty.hidden = false;
+                }
             }
 
-            message.textContent = text;
-            message.classList.add('show');
-
-            clearTimeout(
-                window.siteMessageTimer
-            );
-
-            window.siteMessageTimer =
-                setTimeout(() => {
-                    message.classList.remove('show');
-                }, 2200);
+            // Keep the message visible: no page reload or sessionStorage needed.
+            showMessage(cartMessages.removed, 'success');
         }
 
     </script>

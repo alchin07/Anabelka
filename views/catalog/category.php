@@ -11,7 +11,7 @@ $pageTitle = $category['name'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($category['name']) ?> — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?=v8">
-    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=6">
+    <link rel="stylesheet" href="/Anabelka/css/catalog.css?v=7">
 </head>
 <body>
 
@@ -35,7 +35,11 @@ $pageTitle = $category['name'];
             <div class="category-list">
                 <?php foreach ($children as $child): ?>
                     <a
-                        href="/Anabelka/catalog/<?= htmlspecialchars($child['slug']) ?>"
+                        href="<?= htmlspecialchars(
+                            Category::catalogUrl($child),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
                         class="category-item"
                     >
                         <?= htmlspecialchars($child['name']) ?>
@@ -44,7 +48,9 @@ $pageTitle = $category['name'];
             </div>
         </section>
 
-    <?php elseif (!empty($products)): ?>
+    <?php endif; ?>
+
+    <?php if (!empty($products)): ?>
         <section class="catalog-products">
             <h2><?= htmlspecialchars(
                 Translator::t('public.catalog.products', 'Товари')
@@ -152,9 +158,25 @@ $pageTitle = $category['name'];
                     </article>
                 <?php endforeach; ?>
             </div>
+
+            <?php
+            $pagination = is_array($productPagination ?? null)
+                ? $productPagination
+                : [];
+            $paginationPath = Category::catalogUrl($category);
+            $paginationQuery = is_array($_GET ?? null) ? $_GET : [];
+            unset($paginationQuery['page']);
+            $paginationLabel = Translator::t(
+                'public.pagination.label',
+                'Сторінки товарів'
+            );
+            require __DIR__ . '/../partials/pagination.php';
+            ?>
         </section>
 
-    <?php else: ?>
+    <?php endif; ?>
+
+    <?php if (empty($children) && empty($products)): ?>
         <p><?= htmlspecialchars(
             Translator::t(
                 'public.catalog.empty',

@@ -53,7 +53,7 @@ class AdminProductController extends Controller
                 'filters' => $filters,
                 'productsError' => $productsError,
                 'flash' => is_array($flash) ? $flash : null,
-                'csrfToken' => $this->csrfToken()
+                'csrfToken' => AdminAccess::csrfToken()
             ]
         );
     }
@@ -76,10 +76,12 @@ class AdminProductController extends Controller
             );
             $existingImageColors = $this->existingImageColorsFromRequest();
             $newImageColors = $this->newImageColorsFromRequest();
+            $manualColors = $this->productColorsFromRequest();
 
             /* DDL має виконатися до початку транзакції. */
             ProductTranslator::getForProduct(0);
             ProductImage::ensureTable();
+            ProductColor::ensureTable();
 
             $currentSource = null;
             $storedTranslations = [];
@@ -152,7 +154,19 @@ class AdminProductController extends Controller
                 $imageColors[(int) $imageId] = $newImageColors[$index];
             }
 
+            $imageColors = $this->filterImageColorsByProductColors(
+                $imageColors,
+                $manualColors
+            );
             ProductImage::syncColors($productId, $imageColors);
+            ProductColor::syncForProduct(
+                $productId,
+                $manualColors
+            );
+            ProductVariantStock::pruneColors(
+                $productId,
+                $manualColors
+            );
             ProductImage::selectMain(
                 $productId,
                 (int) ($_POST['main_image_id'] ?? 0)
@@ -257,6 +271,7 @@ class AdminProductController extends Controller
 
             ProductTranslator::getForProduct(0);
             ProductImage::ensureTable();
+            ProductColor::ensureTable();
             $db = Database::connect();
             $db->beginTransaction();
             $productId = AdminProduct::duplicate($sourceId);
@@ -350,7 +365,7 @@ class AdminProductController extends Controller
             $_POST['stock'] ?? 0,
             'Залишок має бути цілим числом.'
         );
-        $sizes = $this->sizesFromRequest();
+        $sizes = $this->sizesFromRequest($stockMode);
 
         if (empty($sizes)) {
             throw new InvalidArgumentException(
@@ -419,8 +434,9 @@ class AdminProductController extends Controller
     }
 
 
-    private function sizesFromRequest()
+    private function sizesFromRequest($stockMode = 'total')
     {
+        $stockMode = $stockMode === 'by_size' ? 'by_size' : 'total';
         $ids = is_array($_POST['size_id'] ?? null)
             ? $_POST['size_id']
             : [];
@@ -456,21 +472,139 @@ class AdminProductController extends Controller
                 : strtolower($name);
 
             if (isset($seen[$key])) {
-                continue;
+                throw new InvalidArgumentException(
+                    'Розмір «' . $name
+                    . '» додано двічі. Залиште один рядок для кожного розміру.'
+                );
             }
 
             $seen[$key] = true;
             $sizes[] = [
                 'id' => (int) ($ids[$index] ?? 0),
                 'name' => $name,
-                'stock' => $this->wholeNumber(
-                    $stocks[$index] ?? 0,
-                    'Залишок розміру має бути цілим числом.'
-                )
+                'stock' => $stockMode === 'by_size'
+                    ? $this->wholeNumber(
+                        $stocks[$index] ?? 0,
+                        'Залишок розміру має бути цілим числом.'
+                    )
+                    : 0
             ];
         }
 
         return $sizes;
+    }
+
+
+
+
+
+    private function productColorsFromRequest()
+    {
+        $names = is_array($_POST['product_color_name'] ?? null)
+            ? $_POST['product_color_name']
+            : [];
+        $hexes = is_array($_POST['product_color_hex'] ?? null)
+            ? $_POST['product_color_hex']
+            : [];
+        $colors = [];
+        $seen = [];
+
+        foreach ($names as $index => $rawName) {
+            $name = trim((string) $rawName);
+
+            if ($name === '') {
+                continue;
+            }
+
+            if (function_exists('mb_strlen')) {
+                if (mb_strlen($name, 'UTF-8') > 100) {
+                    throw new InvalidArgumentException(
+                        'Назва кольору не може бути довшою за 100 символів.'
+                    );
+                }
+            } elseif (strlen($name) > 100) {
+                throw new InvalidArgumentException(
+                    'Назва кольору не може бути довшою за 100 символів.'
+                );
+            }
+
+            $key = function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $hex = strtolower(trim((string) ($hexes[$index] ?? '')));
+
+            if (!preg_match('/^#[0-9a-f]{6}$/', $hex)) {
+                $hex = '#b8b0bd';
+            }
+
+            $seen[$key] = true;
+            $colors[] = [
+                'name' => $name,
+                'hex' => $hex
+            ];
+
+            if (count($colors) > 60) {
+                throw new InvalidArgumentException(
+                    'Для одного товару дозволено не більше 60 кольорів.'
+                );
+            }
+        }
+
+        return $colors;
+    }
+
+
+    private function filterImageColorsByProductColors(
+        array $imageColors,
+        array $productColors
+    ) {
+        $allowed = [];
+
+        foreach ($productColors as $color) {
+            if (!is_array($color)) {
+                continue;
+            }
+
+            $name = trim((string) ($color['name'] ?? ''));
+
+            if ($name === '') {
+                continue;
+            }
+
+            $key = function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+            $allowed[$key] = true;
+        }
+
+        $filtered = [];
+
+        foreach ($imageColors as $imageId => $color) {
+            if (!is_array($color)) {
+                continue;
+            }
+
+            $name = trim((string) ($color['name'] ?? ''));
+
+            if ($name === '') {
+                continue;
+            }
+
+            $key = function_exists('mb_strtolower')
+                ? mb_strtolower($name, 'UTF-8')
+                : strtolower($name);
+
+            if (isset($allowed[$key])) {
+                $filtered[(int) $imageId] = $color;
+            }
+        }
+
+        return $filtered;
     }
 
 
@@ -948,25 +1082,11 @@ class AdminProductController extends Controller
 
     private function assertCsrf()
     {
-        $submitted = (string) ($_POST['csrf_token'] ?? '');
-
-        if (!hash_equals($this->csrfToken(), $submitted)) {
+        if (!Csrf::verify('admin')) {
             throw new InvalidArgumentException(
                 'Сторінка застаріла. Оновіть її та повторіть дію.'
             );
         }
-    }
-
-
-    private function csrfToken()
-    {
-        if (empty($_SESSION['admin_product_csrf'])) {
-            $_SESSION['admin_product_csrf'] = bin2hex(
-                random_bytes(24)
-            );
-        }
-
-        return (string) $_SESSION['admin_product_csrf'];
     }
 
 

@@ -3,6 +3,12 @@
 require_once __DIR__ . '/app/Core/ErrorHandler.php';
 ErrorHandler::register(__DIR__);
 
+require_once __DIR__ . '/app/Core/NotificationBootstrap.php';
+NotificationBootstrap::register();
+
+require_once __DIR__ . '/app/Core/PublicErrorPage.php';
+PublicErrorPage::register(__DIR__);
+
 require_once __DIR__ . '/app/Core/App.php';
 
 $app = new App();

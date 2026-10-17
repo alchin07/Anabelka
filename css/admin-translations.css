@@ -49,12 +49,8 @@
 }
 
 .translations-error {
+    /* Keep page-load failures visible; shared notification styles set color. */
     margin-bottom: 16px;
-    padding: 12px 14px;
-    border: 1px solid #e0a5a5;
-    border-radius: 12px;
-    background: #fff5f5;
-    color: #8a2c2c;
 }
 
 .translation-filters {

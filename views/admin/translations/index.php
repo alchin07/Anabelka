@@ -23,6 +23,11 @@
         rel="stylesheet"
         href="/Anabelka/css/admin-translations.css?v=7"
     >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/anabelka-notify.css?v=3"
+    >
 </head>
 <body>
 
@@ -71,7 +76,7 @@ $sectionLabels = [
         </div>
 
         <?php if (!empty($dashboardError)): ?>
-            <div class="translations-error">
+            <div class="translations-error anabelka-notify-inline" role="alert">
                 <?= htmlspecialchars($dashboardError) ?>
             </div>
         <?php endif; ?>

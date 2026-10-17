@@ -34,6 +34,7 @@
         rel="stylesheet"
         href="/Anabelka/css/admin-delivery-translation-target.css?v=3"
     >
+    <link rel="stylesheet" href="/Anabelka/css/anabelka-notify.css?v=3">
 </head>
 
 <body>
@@ -173,7 +174,7 @@
 
     <div
         id="site-message"
-        class="site-message"
+        class="site-message anabelka-notify" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true" tabindex="-1"
     ></div>
 
     <?php require __DIR__
@@ -191,32 +192,34 @@
     <?php require __DIR__
         . '/partials/add-option-modal.php'; ?>
 
+    <script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
+
     <script
-        src="/Anabelka/js/admin-delivery/common.js?v=3"
+        src="/Anabelka/js/admin-delivery/common.js?v=4"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/toggle.js?v=1"
+        src="/Anabelka/js/admin-delivery/toggle.js?v=3"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/edit.js?v=7"
+        src="/Anabelka/js/admin-delivery/edit.js?v=9"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/delete.js?v=2"
+        src="/Anabelka/js/admin-delivery/delete.js?v=3"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/add.js?v=3"
+        src="/Anabelka/js/admin-delivery/add.js?v=4"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/add-service.js?v=1"
+        src="/Anabelka/js/admin-delivery/add-service.js?v=2"
     ></script>
 
     <script
-        src="/Anabelka/js/admin-delivery/add-option.js?v=2"
+        src="/Anabelka/js/admin-delivery/add-option.js?v=3"
     ></script>
 
     <script

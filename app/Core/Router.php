@@ -11,9 +11,12 @@ class Router
     }
 
 
-    public function post($path, $action)
+    public function post($path, $action, array $options = [])
     {
-        $this->routes['POST'][$path] = $action;
+        $this->routes['POST'][$path] = [
+            'action' => $action,
+            'options' => $options
+        ];
     }
 
 
@@ -51,29 +54,42 @@ class Router
             $path = rtrim($path, '/');
         }
 
-        $this->guardAdminRoute($path, $method, $uri);
+        $routeMatch = $this->matchRoute(
+            $path,
+            $method
+        );
+
+        if (
+            $routeMatch !== null
+            && $this->requiresCsrf(
+                $method,
+                $routeMatch['options']
+            )
+        ) {
+            Csrf::enforce(
+                $this->csrfFamily(
+                    $path,
+                    $routeMatch['options']
+                )
+            );
+        }
+
+        $this->guardAdminRoute(
+            $path,
+            $method,
+            $uri,
+            $routeMatch !== null
+        );
 
         if (class_exists('AdminActionAudit')) {
             AdminActionAudit::watch($path, $method);
         }
 
-        foreach ($this->routes[$method] ?? [] as $route => $action) {
-            $pattern = preg_replace(
-                '#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#',
-                '([^/]+)',
-                $route
+        if ($routeMatch !== null) {
+            return $this->callAction(
+                $routeMatch['action'],
+                $routeMatch['params']
             );
-
-            $pattern = '#^' . $pattern . '$#';
-
-            if (preg_match($pattern, $path, $matches)) {
-                array_shift($matches);
-
-                return $this->callAction(
-                    $action,
-                    $matches
-                );
-            }
         }
 
         http_response_code(404);
@@ -91,8 +107,82 @@ class Router
     }
 
 
-    private function guardAdminRoute($path, $method, $uri)
+    private function matchRoute($path, $method)
     {
+        foreach ($this->routes[$method] ?? [] as $route => $routeDefinition) {
+            $action = is_array($routeDefinition)
+                ? ($routeDefinition['action'] ?? '')
+                : $routeDefinition;
+            $options = is_array($routeDefinition)
+                ? ($routeDefinition['options'] ?? [])
+                : [];
+
+            $pattern = preg_replace(
+                '#\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}#',
+                '([^/]+)',
+                $route
+            );
+
+            $pattern = '#^' . $pattern . '$#';
+
+            if (!preg_match($pattern, $path, $matches)) {
+                continue;
+            }
+
+            array_shift($matches);
+
+            return [
+                'action' => $action,
+                'options' => $options,
+                'params' => $matches
+            ];
+        }
+
+        return null;
+    }
+
+
+    private function requiresCsrf($method, array $options)
+    {
+        if (($options['csrf'] ?? null) === false) {
+            return false;
+        }
+
+        return in_array(
+            strtoupper((string) $method),
+            ['POST', 'PUT', 'PATCH', 'DELETE'],
+            true
+        );
+    }
+
+
+    private function csrfFamily($path, array $options)
+    {
+        $explicitFamily = trim(
+            (string) ($options['csrf_family'] ?? '')
+        );
+
+        if ($explicitFamily !== '') {
+            return $explicitFamily;
+        }
+
+        if (
+            $path === '/admin'
+            || strpos($path, '/admin/') === 0
+        ) {
+            return 'admin';
+        }
+
+        return 'customer';
+    }
+
+
+    private function guardAdminRoute(
+        $path,
+        $method,
+        $uri,
+        $routeExists = false
+    ) {
         $isAdminPath = $path === '/admin'
             || strpos($path, '/admin/') === 0;
 
@@ -126,14 +216,21 @@ class Router
         $admin = AdminAccess::current();
 
         if (!$admin) {
-            $returnTo = '/Anabelka' . $path;
-            $query = parse_url((string) $uri, PHP_URL_QUERY);
+            if (
+                strtoupper((string) $method) === 'GET'
+                && $routeExists
+            ) {
+                $returnTo = '/Anabelka' . $path;
+                $query = parse_url((string) $uri, PHP_URL_QUERY);
 
-            if (is_string($query) && $query !== '') {
-                $returnTo .= '?' . $query;
+                if (is_string($query) && $query !== '') {
+                    $returnTo .= '?' . $query;
+                }
+
+                $_SESSION['admin_return_to'] = $returnTo;
+                $_SESSION['admin_return_to_validated'] = 1;
             }
 
-            $_SESSION['admin_return_to'] = $returnTo;
             header('Location: /Anabelka/admin/login');
             exit;
         }
@@ -149,7 +246,21 @@ class Router
             return;
         }
 
-        if ($path === '/admin/audit') {
+        if (
+            $path === '/admin/system'
+            || strpos($path, '/admin/system/') === 0
+        ) {
+            if (($admin['role_slug'] ?? '') === 'owner') {
+                return;
+            }
+
+            $this->forbidAdminAccess();
+        }
+
+        if (
+            $path === '/admin/audit'
+            || strpos($path, '/admin/audit/') === 0
+        ) {
             $permission = 'audit.view';
         } elseif (
             $path === '/admin/administrators'
@@ -176,16 +287,30 @@ class Router
             return;
         }
 
+        $this->forbidAdminAccess();
+    }
+
+
+    private function forbidAdminAccess()
+    {
         http_response_code(403);
+
+        if (
+            class_exists('PublicErrorPage')
+            && method_exists('PublicErrorPage', 'renderGeneric')
+        ) {
+            PublicErrorPage::renderGeneric(403);
+            exit;
+        }
+
         header('Content-Type: text/html; charset=UTF-8');
 
         echo '<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            . '<title>Доступ заборонено — Анабелька</title></head>'
-            . '<body style="font-family:Arial,sans-serif;padding:24px">'
-            . '<h1>403 — Недостатньо прав</h1>'
-            . '<p>Вашій ролі не дозволено виконувати цю дію.</p>'
-            . '<p><a href="/Anabelka/admin">Повернутися до адмін-панелі</a></p>'
+            . '<title>Анабелька</title></head><body>'
+            . '<h1>Щось пішло не так</h1>'
+            . '<p>Спробуйте ще раз.</p>'
+            . '<p><a href="/Anabelka/">На головну</a></p>'
             . '</body></html>';
         exit;
     }
