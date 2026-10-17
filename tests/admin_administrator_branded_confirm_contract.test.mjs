@@ -239,3 +239,20 @@ test('view-only access and existing one-time invitation output are untouched', (
     assert.match(controller, /\$_SESSION\['admin_administrator_invite_flash'\] = \$result/);
     assert.match(controller, /AnabelkaFlash::info\(\$text\)/);
 });
+
+test('role pickers use shared branded selects and keep their existing POST contract', () => {
+    const invite = administratorForm('invite');
+    const role = administratorForm('role');
+    const css = read('css/admin-administrators.css');
+    const select = read('js/anabelka-select.js');
+
+    assert.match(invite, /<select name="role_id" data-anabelka-select required>/);
+    assert.match(role, /<select name="role_id" data-anabelka-select <\\?= \\$isCurrent \\? 'disabled' : '' \\?>/);
+    assert.match(role, /name="_csrf"/);
+    assert.match(role, /name="admin_id"/);
+    assert.match(role, /value="<\\?= \\(int\\) \\(\\$role\\['id'\\] \\?\\? 0\\) \\?>"/);
+    assert.match(role, /data-anabelka-confirm="Змінити роль цього адміністратора\\?"/);
+    assert.match(select, /select\\[data-anabelka-select\\]/);
+    assert.match(css, /\\.admin-staff-card:has\\(\\.admin-staff-actions \\.anabelka-select\\.is-open\\)/);
+    assert.match(css, /button:where\\(:not\\(\\.anabelka-select-trigger, \\.anabelka-select-option\\)\\)/);
+});

@@ -150,8 +150,8 @@ body {
     font: inherit;
 }
 
-.admin-create-form button,
-.admin-staff-actions button,
+.admin-create-form button:where(:not(.anabelka-select-trigger, .anabelka-select-option)),
+.admin-staff-actions button:where(:not(.anabelka-select-trigger, .anabelka-select-option)),
 .admin-role-save {
     min-height: 41px;
     padding: 0 13px;
@@ -189,6 +189,13 @@ select:disabled {
 .admin-staff-card.is-owner {
     border-color: #cfb6eb;
     background: #fdfaff;
+}
+
+/* Let the role list escape its card without disturbing closed cards. */
+.admin-staff-card:has(.admin-staff-actions .anabelka-select.is-open) {
+    position: relative;
+    z-index: 2;
+    overflow: visible;
 }
 
 .admin-staff-main {

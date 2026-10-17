@@ -65,12 +65,12 @@ test('validation, CSRF and permission errors remain persistent and accessible', 
 });
 
 test('branded notices preserve the invitation UI, confirms and role protections', () => {
-    assert.match(view, /admin-administrators\.css\?v=6/);
+    assert.match(view, /admin-administrators\.css\?v=7/);
     assert.match(css, /\.admin-security-message\.is-error\s*\{[^}]*--notify-info-bg,\s*#f4eaff/s);
     assert.match(css, /\.admin-security-message\.is-success\s*\{[^}]*--notify-success-bg,\s*#8A2BE2/s);
     const legacyStyle = css.match(/\.admin-security-message\.is-error\s*\{([^}]*)\}/s)?.[1] || '';
     assert.doesNotMatch(legacyStyle, /#fff0f2|#e7b9c1|#8e3748/);
-    assert.match(view, /onsubmit="return confirm\('Змінити роль цього адміністратора\?'\)/);
+    assert.match(view, /data-anabelka-confirm="Змінити роль цього адміністратора\?"/);
     assert.match(view, /name="_csrf"/);
     assert.match(view, /\$canManage/);
     assert.match(controller, /AdminAccess::audit\(/);

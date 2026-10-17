@@ -60,7 +60,7 @@ foreach ($permissions as $permission) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Адміністратори') ?></title>
-    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=6">
+    <link rel="stylesheet" href="/Anabelka/css/admin-administrators.css?v=7">
 </head>
 <body>
 
@@ -171,7 +171,7 @@ foreach ($permissions as $permission) {
                 </label>
                 <label>
                     <span>Роль</span>
-                    <select name="role_id" required>
+                    <select name="role_id" data-anabelka-select required>
                         <?php foreach ($assignableRoles as $role): ?>
                             <option value="<?= (int) ($role['id'] ?? 0) ?>">
                                 <?= htmlspecialchars($role['name'] ?? '') ?>
@@ -292,7 +292,7 @@ foreach ($permissions as $permission) {
                                 <input type="hidden" name="admin_id" value="<?= $adminId ?>">
                                 <label>
                                     <span>Роль</span>
-                                    <select name="role_id" <?= $isCurrent ? 'disabled' : '' ?>>
+                                    <select name="role_id" data-anabelka-select <?= $isCurrent ? 'disabled' : '' ?>>
                                         <?php foreach ($assignableRoles as $role): ?>
                                             <option
                                                 value="<?= (int) ($role['id'] ?? 0) ?>"
