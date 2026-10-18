@@ -1,6 +1,7 @@
 import importlib.util
 import http.client
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -310,7 +311,16 @@ class MaskReviewTests(unittest.TestCase):
                 outside = root / 'outside'
                 outside.mkdir()
                 (outside / 'sentinel').write_text('keep')
-                (root / 'reviews' / ('d' * 32)).symlink_to(outside, target_is_directory=True)
+                symlink = root / 'reviews' / ('d' * 32)
+                symlink_created = True
+                try:
+                    symlink.symlink_to(outside, target_is_directory=True)
+                except OSError as error:
+                    # Creating directory symlinks on Windows may require Developer Mode
+                    # or the SeCreateSymbolicLinkPrivilege user right.
+                    if os.name != 'nt' or getattr(error, 'winerror', None) != 1314:
+                        raise
+                    symlink_created = False
                 active = root / 'reviews' / ('c' * 32)
                 with server.private_file_lock(active / 'review.lock'):
                     server.cleanup_expired_mask_reviews()
@@ -318,6 +328,8 @@ class MaskReviewTests(unittest.TestCase):
                 self.assertFalse((root / 'reviews' / ('a' * 32)).exists())
                 self.assertTrue(claimed.is_dir())
                 self.assertEqual((outside / 'sentinel').read_text(), 'keep')
+                if symlink_created:
+                    self.assertTrue(symlink.is_symlink())
                 (claimed / 'php-owner.json').write_text(json.dumps({'preview_id': 'e' * 64, 'expires_at': int(time.time()) - 1}))
                 server.cleanup_expired_mask_reviews()
                 self.assertFalse(claimed.exists())
@@ -771,6 +783,7 @@ class MaskReviewTests(unittest.TestCase):
     def test_explicit_restore_refuses_source_background_color_even_inside_candidate_seed(self):
         module = self.module()
         seed, raw = self.fixture()
+        raw[60, 50] = 0  # Exercise a real cutout that restoration would promote.
         source_rgb = self.rgb(seed)
         source_rgb[60, 50] = (240, 240, 240)
         result = module.revise_alpha(raw, seed, [{
