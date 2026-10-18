@@ -3,7 +3,7 @@
 class ProductImageProcessingService
 {
     // Temporary feature switch. Keep the manual editor code for future experiments.
-    private const MANUAL_MASK_REVIEW_ENABLED = false;
+    private const MANUAL_MASK_REVIEW_ENABLED = true;
 
     public static function manualMaskReviewEnabled(): bool
     {
