@@ -425,6 +425,10 @@ try {
     check($service->reviewEdit(7,$unit['preview_id'],1,$unitAction)===$unitEdited,'integer unit hardness retries the identical canonical float journal');
     $unitAction[0]['hardness']=1.0;
     check($service->reviewEdit(7,$unit['preview_id'],0,$unitAction)===$unitEdited,'float unit hardness retries the identical canonical parent journal');
+    $restoreAction=[['kind'=>'restore','tool'=>'point','radius'=>2,'points'=>[[30,30]]]];
+    $restoreEdited=$service->reviewEdit(7,$unit['preview_id'],1,$restoreAction);
+    check($restoreEdited['revision']===2 && $restoreEdited['review']['actions'][0]['kind']==='restore',
+        'PHP action validator accepts and stores explicit material restoration.');
     $service->cancel(7,$unit['preview_id']);
     $legacyWorkerSnapshot=true;
     $legacy=$service->create(7,'studio-light','auto');
