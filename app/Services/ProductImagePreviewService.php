@@ -801,7 +801,7 @@ class ProductImagePreviewService
         $result = [];
         foreach ($value as $action) {
             if (!is_array($action) || count(array_diff(array_keys($action), ['kind', 'tool', 'radius', 'hardness', 'points'])) !== 0
-                || !in_array($action['kind'] ?? '', ['foreground', 'background', 'unsure'], true)
+                || !in_array($action['kind'] ?? '', ['foreground', 'background', 'unsure', 'restore'], true)
                 || !in_array($action['tool'] ?? '', ['brush', 'point'], true)) { throw new InvalidArgumentException('Некоректна дія маски.'); }
             $radius = $action['radius'] ?? null;
             $hardness = $action['hardness'] ?? 1;
