@@ -13,6 +13,7 @@ MAX_ACTIONS = 64
 MAX_POINTS = 2048
 MAX_ACTION_POINTS = 512
 MAX_ANNOTATED_RATIO = .02
+MAX_RESTORE_RATIO = .04
 MAX_SOURCE_EDGE = 8192
 MAX_SOURCE_PIXELS = 20_000_000
 
@@ -138,7 +139,7 @@ def normalize_actions(actions: Any, shape: tuple[int, int]) -> list[dict[str, An
         if not isinstance(action, dict) or set(action) - {'kind', 'tool', 'radius', 'hardness', 'points'}:
             raise ValueError('Некоректна дія редактора маски.')
         kind, tool = action.get('kind'), action.get('tool')
-        if kind not in ('foreground', 'background', 'unsure') or tool not in ('brush', 'point'):
+        if kind not in ('foreground', 'background', 'unsure', 'restore') or tool not in ('brush', 'point'):
             raise ValueError('Некоректний інструмент маски.')
         if kind == 'unsure' and tool != 'point':
             raise ValueError('Невпевнене позначення підтримує тільки точку.')
@@ -166,6 +167,7 @@ def normalize_actions(actions: Any, shape: tuple[int, int]) -> list[dict[str, An
 def action_weights(actions: Any, shape: tuple[int, int]):
     height, width = shape
     annotated = np.zeros(shape, dtype=bool)
+    restored = np.zeros(shape, dtype=bool)
     for action in normalize_actions(actions, shape):
         kind, radius, hardness, points = (action[name] for name in ('kind', 'radius', 'hardness', 'points'))
         # Distance from an exact native-coordinate path; feather stays inside the circle.
@@ -178,9 +180,18 @@ def action_weights(actions: Any, shape: tuple[int, int]):
         weights = np.clip((radius - distance) / max(.001, radius * (1 - hardness)), 0, 1)
         if hardness == 1:
             weights = (distance < radius).astype(np.float32)
-        annotated |= weights > 0
-        if np.count_nonzero(annotated) > max(16, height * width * MAX_ANNOTATED_RATIO):
-            raise ValueError('Позначайте невелику локальну ділянку, не всю область фотографії.')
+        footprint = weights > 0
+        if kind == 'restore':
+            restored |= footprint
+            if np.count_nonzero(restored) > max(16, height * width * MAX_RESTORE_RATIO):
+                raise ValueError('Відновлюйте невелику локальну ділянку, не всю фотографію.')
+        else:
+            annotated |= footprint
+            if np.count_nonzero(annotated) > max(16, height * width * MAX_ANNOTATED_RATIO):
+                raise ValueError('Позначайте невелику локальну ділянку, не всю область фотографії.')
+        if np.count_nonzero(annotated | restored) > max(
+                16, height * width * (MAX_ANNOTATED_RATIO + MAX_RESTORE_RATIO)):
+            raise ValueError('Загальна площа ручного редагування завелика.')
         yield kind, weights
 
 
@@ -231,10 +242,16 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                     similar |= ((np.max(np.abs(pixels - color), axis=1) <= 24)
                                 & (np.linalg.norm(chroma_difference, axis=1) <= 6))
                 backdrop_like[selected] = similar
-            unsafe = changed & (raw < 255) & (
-                (native_seed != cv2.GC_PR_FGD if native_seed is not None else True) | ~near_material
-                | (raw < 64) | backdrop_like | (source_rgb is None or not palette))
-            reason = 'unsupported_foreground_annotation'
+            source_foreground = native_seed == cv2.GC_PR_FGD if native_seed is not None else np.zeros(raw.shape, dtype=bool)
+            if kind == 'restore':
+                unsafe = changed & (
+                    ~source_foreground | backdrop_like | (source_rgb is None or not palette))
+                reason = 'unsafe_material_restore'
+            else:
+                unsafe = changed & (raw < 255) & (
+                    ~source_foreground | ~near_material | (raw < 64) | backdrop_like
+                    | (source_rgb is None or not palette))
+                reason = 'unsupported_foreground_annotation'
         if np.any(unsafe):
             refusals.append(reason)
             # A whole stroke is rejected. One focus box keeps its accounting
@@ -245,7 +262,7 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                                    'conflicts': [conflict]})
             continue
         action_results.append({'index': index, 'status': 'accepted', 'reasons': []})
-        target = 255 if kind == 'foreground' else 0
+        target = 0 if kind == 'background' else 255
         alpha = np.rint(alpha.astype(np.float32) * (1 - weights) + target * weights).astype(np.uint8)
     validation = validate_alpha(alpha, raw, seed)
     for reason in dict.fromkeys(refusals):
