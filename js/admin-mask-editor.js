@@ -19,6 +19,7 @@
         source_evidence_unavailable: 'Не вдалося перевірити оригінал. Фото не змінено.',
         unsafe_background_annotation: 'Позначка фону зачіпає модель.',
         unsupported_foreground_annotation: 'Ця позначка моделі виходить за підтверджений матеріал. Зменште її або позначте фон.',
+        unsafe_material_restore: 'Відновлення дозволене лише всередині ймовірного матеріалу моделі, не схожого на фон.',
         annotation_unsure: 'Неясна позначка не змінює маску. Уточніть її як фон або модель.'
     };
     const gateLabels = {component: 'Частини моделі', local: 'Матеріал', thin: 'Тонкі деталі', background: 'Фон'};
@@ -107,7 +108,7 @@
             node.innerHTML = '<header class="mask-editor-header">' + button('data-mask-close', 'Закрити маску', 'close') + '<h2 id="mask-editor-title">Розумна маска</h2><div class="mask-editor-zoom">' + button('data-mask-zoom-out', 'Зменшити', 'minus') + button('data-mask-zoom-in', 'Збільшити', 'plus') + button('data-mask-fit', 'Умістити фото', 'fit') + '</div></header>'
                 + '<div class="mask-editor-stage" data-mask-stage data-zoom="1" tabindex="0" aria-label="Фото з піксельною маскою. Два пальці — масштаб і рух."><canvas class="mask-editor-canvas" aria-hidden="true"></canvas><canvas class="mask-editor-magnifier" width="160" height="160" hidden aria-hidden="true"></canvas><div class="mask-editor-loading" role="status">Завантаження маски…</div></div>'
                 + '<nav class="mask-editor-regions" aria-label="Перевірка ділянок">' + button('data-mask-previous', 'Попередня ділянка', 'previous') + '<div class="mask-editor-region-summary" aria-live="polite"><span data-mask-count></span><small><span data-mask-initial-count></span> · <span data-mask-remaining-count></span></small></div>' + button('data-mask-next', 'Наступна ділянка', 'next') + button('data-mask-conflicts-open class="mask-editor-conflict-count"', 'Відхилені та неясні позначки', null, '<span data-mask-accepted-count hidden></span><span data-mask-rejected-count></span><small data-mask-unresolved-count></small>') + button('data-mask-help', 'Пензель і підказка', 'help') + '</nav>'
-                + '<footer class="mask-editor-footer"><div class="mask-editor-modes" role="group" aria-label="Позначити точку">' + button('data-mask-kind="background"', 'Тут фон', null, 'Фон') + button('data-mask-kind="foreground"', 'Тут модель', null, 'Модель') + button('data-mask-kind="unsure"', 'Тут неясно', null, 'Неясно') + '</div><div class="mask-editor-tools" role="group" aria-label="Інструменти">' + button('data-mask-tool="brush" data-mask-brush="foreground"', 'Пензель зберегти модель', 'save', 'Зберегти') + button('data-mask-tool="brush" data-mask-brush="background"', 'Пензель видалити фон', 'erase', 'Видалити') + button('data-mask-tool="pan"', 'Рух без малювання', 'pan', 'Рух') + button('data-mask-undo', 'Скасувати штрих', 'undo') + button('data-mask-redo', 'Повторити штрих', 'redo') + button('data-mask-reset', 'Скинути всі штрихи', 'reset') + '</div><p class="mask-editor-status" data-mask-status role="status" aria-live="polite">Оберіть «Фон», «Модель» або «Неясно» й торкніться фото.</p><div class="mask-editor-actions">' + button('data-mask-cancel', 'Скасувати редагування', null, 'Скасувати') + button('data-mask-validate class="mask-editor-primary"', 'Перевірити і порівняти', null, 'Перевірити і порівняти') + '</div></footer>';
+                + '<footer class="mask-editor-footer"><div class="mask-editor-modes" role="group" aria-label="Позначити точку">' + button('data-mask-kind="background"', 'Тут фон', null, 'Фон') + button('data-mask-kind="foreground"', 'Тут модель', null, 'Модель') + button('data-mask-kind="unsure"', 'Тут неясно', null, 'Неясно') + button('data-mask-kind="restore"', 'Відновити втрачений матеріал моделі', null, 'Матеріал') + '</div><div class="mask-editor-tools" role="group" aria-label="Інструменти">' + button('data-mask-tool="brush" data-mask-brush="foreground"', 'Пензель зберегти модель', 'save', 'Зберегти') + button('data-mask-tool="brush" data-mask-brush="background"', 'Пензель видалити фон', 'erase', 'Видалити') + button('data-mask-tool="pan"', 'Рух без малювання', 'pan', 'Рух') + button('data-mask-undo', 'Скасувати штрих', 'undo') + button('data-mask-redo', 'Повторити штрих', 'redo') + button('data-mask-reset', 'Скинути всі штрихи', 'reset') + '</div><p class="mask-editor-status" data-mask-status role="status" aria-live="polite">Оберіть режим позначки або відновлення й торкніться фото.</p><div class="mask-editor-actions">' + button('data-mask-cancel', 'Скасувати редагування', null, 'Скасувати') + button('data-mask-validate class="mask-editor-primary"', 'Перевірити і порівняти', null, 'Перевірити і порівняти') + '</div></footer>';
             this.node = node;
             this.stage = node.querySelector('[data-mask-stage]');
             this.canvas = node.querySelector('.mask-editor-canvas');
@@ -174,7 +175,7 @@
                 this.node.querySelector('.mask-editor-loading').hidden = true;
                 if (serial === 1 && Array.isArray(this.config.reasons) && this.config.reasons.length) {
                     const reasons = [...new Set(this.config.reasons.map(reason => refusalLabels[reason]).filter(Boolean))].slice(0, 2);
-                    this.status((this.actions.length ? 'Маска потребує уточнення. ' : 'Оберіть «Фон», «Модель» або «Неясно» й торкніться фото. ') + (reasons[0] || 'Перевірте позначені ділянки.'));
+                    this.status((this.actions.length ? 'Маска потребує уточнення. ' : 'Оберіть режим позначки або відновлення й торкніться фото. ') + (reasons[0] || 'Перевірте позначені ділянки.'));
                 }
                 this.resize();
                 this.update();
@@ -255,7 +256,7 @@
         paintAction(ctx, action, outcome, scale) {
             const points = action.points;
             const rejected = outcome && outcome.status === 'rejected';
-            const color = rejected ? '196,49,68' : action.kind === 'foreground' ? '54,152,101' : action.kind === 'unsure' ? '238,165,29' : '138,43,226';
+            const color = rejected ? '196,49,68' : action.kind === 'foreground' ? '54,152,101' : action.kind === 'restore' ? '22,126,150' : action.kind === 'unsure' ? '238,165,29' : '138,43,226';
             const radius = action.radius;
             const hardness = action.hardness == null ? 1 : action.hardness;
             const dot = (x, y) => {
@@ -549,7 +550,7 @@
             }
             if (this.auxiliary) return;
             if (control.dataset.maskKind) {this.kind = control.dataset.maskKind; this.tool = 'point'; this.cursor = null; this.toolHint(); this.update(); this.render();}
-            else if (control.dataset.maskTool) {this.tool = control.dataset.maskTool; if (control.dataset.maskBrush) this.kind = control.dataset.maskBrush; this.cursor = null; this.toolHint(); this.update(); this.render();}
+            else if (control.dataset.maskTool) {this.tool = control.dataset.maskTool; if (control.dataset.maskBrush) this.kind = this.kind === 'restore' && control.dataset.maskBrush === 'foreground' ? 'restore' : control.dataset.maskBrush; this.cursor = null; this.toolHint(); this.update(); this.render();}
             else if (control.hasAttribute('data-mask-undo')) {if (this.undo.length) {this.redo.push(clone(this.actions)); this.actions = this.undo.pop(); this.hasEdited = true;} this.editingIndex = null; this.restoreBaseline(); this.describeState(); this.update(); this.render();}
             else if (control.hasAttribute('data-mask-redo')) {if (this.redo.length) {this.undo.push(clone(this.actions)); this.actions = this.redo.pop(); this.hasEdited = true;} this.editingIndex = null; this.restoreBaseline(); this.describeState(); this.update(); this.render();}
             else if (control.hasAttribute('data-mask-reset')) {if (this.actions.length || this.redo.length) this.showAuxiliary('reset');}
@@ -564,7 +565,7 @@
         }
         update() {
             this.node.querySelectorAll('[data-mask-kind]').forEach(button => button.setAttribute('aria-pressed', String(this.tool === 'point' && button.dataset.maskKind === this.kind)));
-            this.node.querySelectorAll('[data-mask-tool]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.maskTool === this.tool && (!button.dataset.maskBrush || button.dataset.maskBrush === this.kind))));
+            this.node.querySelectorAll('[data-mask-tool]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.maskTool === this.tool && (!button.dataset.maskBrush || (this.kind === 'restore' ? button.dataset.maskBrush === 'foreground' : button.dataset.maskBrush === this.kind)))));
             this.node.querySelector('[data-mask-count]').textContent = this.config.regions.length
                 ? (this.remainingRegionCount > this.config.regions.length ? 'Показано: ' : '') + (this.region + 1) + ' із ' + this.config.regions.length + (this.remainingRegionCount > this.config.regions.length ? '' : ' ділянок')
                 : 'Ділянок немає';
@@ -594,7 +595,7 @@
             if (type) notify(type, message);
         }
         toolHint() {
-            const hints = {background: 'Фон: торкніться чистого фону на фото. Біля волосся або тканини зменште радіус.', foreground: 'Модель: торкніться матеріалу на фото біля збереженого краю. Білі прогалини не домальовуються.', unsure: 'Неясно: торкніться фото, щоб позначити сумнівне місце. Точка не змінює маску; уточніть її як фон або модель.'};
+            const hints = {background: 'Фон: торкніться чистого фону на фото. Біля волосся або тканини зменште радіус.', foreground: 'Модель: торкніться матеріалу біля збереженого краю.', restore: 'Відновлення: використовуйте лише для видимого на оригіналі матеріалу. Позначка має бути всередині ймовірної області моделі, не схожої на фон; усі перевірки якості залишаються активними.', unsure: 'Неясно: торкніться фото, щоб позначити сумнівне місце. Точка не змінює маску; уточніть її як фон або модель.'};
             this.status((this.editingIndex === null ? '' : 'Замініть позначку ' + (this.editingIndex + 1) + ' новим штрихом. ') + (this.tool === 'pan' ? 'Рух не малює. Два пальці змінюють масштаб і положення фото.' : hints[this.kind]));
         }
         describeState() {
