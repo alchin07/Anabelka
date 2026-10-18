@@ -693,6 +693,13 @@ class MaskReviewTests(unittest.TestCase):
             self.assertEqual(result['validation']['status'], 'needs_review')
             self.assertIn('unsupported_foreground_annotation', result['validation']['reasons'])
             np.testing.assert_array_equal(result['alpha'], raw)
+            restored = module.revise_alpha(raw, seed, [{
+                'kind': 'restore', 'tool': 'point', 'radius': 4,
+                'points': [[50, 52]],
+            }], source_rgb=rgb)
+            self.assertEqual(restored['action_results'][0]['status'], 'rejected')
+            self.assertIn('unsafe_material_restore', restored['validation']['reasons'])
+            np.testing.assert_array_equal(restored['alpha'], raw)
 
     def test_all_four_gates_report_loss_and_actual_pixel_regions(self):
         module = self.module()
@@ -734,6 +741,62 @@ class MaskReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.revise_alpha(raw, seed, [valid] * 65)
 
+
+    def test_explicit_restore_reaches_probable_material_past_the_existing_alpha_edge(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        raw[30:90, 35:65] = 0
+        source_rgb = self.rgb(seed)
+        result = module.revise_alpha(raw, seed, [{
+            'kind': 'restore', 'tool': 'point', 'radius': 3,
+            'points': [[50, 60]],
+        }], source_rgb=source_rgb)
+        self.assertEqual(result['action_results'][0]['status'], 'accepted')
+        self.assertGreater(result['alpha'][60, 50], raw[60, 50])
+        self.assertEqual(result['validation']['status'], 'needs_review')
+
+    def test_explicit_restore_refuses_known_background(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        source_rgb = self.rgb(seed)
+        seed[60, 50] = cv2.GC_BGD
+        result = module.revise_alpha(raw, seed, [{
+            'kind': 'restore', 'tool': 'point', 'radius': 2,
+            'points': [[50, 60]],
+        }], source_rgb=source_rgb)
+        self.assertEqual(result['action_results'][0]['status'], 'rejected')
+        self.assertEqual(result['action_results'][0]['reasons'], ['unsafe_material_restore'])
+        np.testing.assert_array_equal(result['alpha'], raw)
+
+    def test_explicit_restore_refuses_source_background_color_even_inside_candidate_seed(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        source_rgb = self.rgb(seed)
+        source_rgb[60, 50] = (240, 240, 240)
+        result = module.revise_alpha(raw, seed, [{
+            'kind': 'restore', 'tool': 'point', 'radius': 1,
+            'points': [[50, 60]],
+        }], source_rgb=source_rgb)
+        self.assertEqual(result['action_results'][0]['status'], 'rejected')
+        np.testing.assert_array_equal(result['alpha'], raw)
+
+    def test_explicit_restore_requires_source_and_background_evidence(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        result = module.revise_alpha(raw, seed, [{
+            'kind': 'restore', 'tool': 'point', 'radius': 2,
+            'points': [[50, 60]],
+        }])
+        self.assertEqual(result['action_results'][0]['status'], 'rejected')
+        np.testing.assert_array_equal(result['alpha'], raw)
+
+    def test_explicit_restore_has_a_separate_four_percent_area_limit(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        action = {'kind': 'restore', 'tool': 'brush', 'radius': 80,
+                  'hardness': 1, 'points': [[50, 60]]}
+        with self.assertRaises(ValueError):
+            list(module.action_weights([action], raw.shape))
 
 if __name__ == '__main__':
     unittest.main()
