@@ -684,6 +684,23 @@ class MaskReviewTests(unittest.TestCase):
         self.assertIn('unsafe_background_annotation', result['action_results'][0]['reasons'])
         np.testing.assert_array_equal(result['alpha'], raw)
 
+    def test_background_mark_never_overrides_definite_foreground_seed(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        source = self.rgb(seed)
+        seed[50:60, 40:50] = cv2.GC_FGD
+        source[50:60, 40:50] = (240, 240, 240)
+        action = {
+            'kind': 'background', 'tool': 'point', 'radius': 2,
+            'hardness': 1, 'points': [[45, 55]],
+        }
+
+        result = module.revise_alpha(raw, seed, [action], source_rgb=source)
+
+        self.assertEqual(result['action_results'][0]['status'], 'rejected')
+        self.assertIn('unsafe_background_annotation', result['action_results'][0]['reasons'])
+        np.testing.assert_array_equal(result['alpha'], raw)
+
     def test_background_mark_on_opaque_skin_or_arm_is_rejected_without_mutation(self):
         module = self.module()
         seed, raw = self.fixture()
