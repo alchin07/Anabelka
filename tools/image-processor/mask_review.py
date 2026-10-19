@@ -1,4 +1,4 @@
-"""Bounded alpha review with source-confirmed background edits and guarded material restoration."""
+"""Bounded alpha review with user-confirmed background edits and guarded material restoration."""
 from __future__ import annotations
 
 import math
@@ -78,15 +78,18 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None,
     elif (confirmed_background.shape != alpha.shape or confirmed_background.dtype != np.bool_):
         raise ValueError('Некоректна перевірена позначка фону.')
     size = (seed.shape[1], seed.shape[0])
-    confirmed_background_seed = _resize(confirmed_background.astype(np.uint8), size).astype(bool)
-    confirmed_background_seed &= ((seed == cv2.GC_BGD) | (seed == cv2.GC_PR_BGD))
+    # Manual background strokes are authoritative. Use area resampling so a small
+    # native-resolution mark still excludes its touched coarse seed cell.
+    confirmed_background_seed = np.asarray(
+        Image.fromarray(confirmed_background.astype(np.uint8) * 255).resize(
+            size, Image.Resampling.BOX)) > 0
     opacity = np.asarray(Image.fromarray(alpha).resize(size, Image.Resampling.BILINEAR))
     native_size = (alpha.shape[1], alpha.shape[0])
 
     def native_loss(mask: np.ndarray, threshold: int) -> np.ndarray:
         return _resize(mask.astype(np.uint8), native_size).astype(bool) & (alpha < threshold)
 
-    source_foreground = seed == cv2.GC_PR_FGD
+    source_foreground = (seed == cv2.GC_PR_FGD) & ~confirmed_background_seed
     core = cv2.erode(source_foreground.astype(np.uint8), np.ones((3, 3), np.uint8))
     count, labels, stats, _ = cv2.connectedComponentsWithStats(core, connectivity=8)
     minimum = max(16, round(seed.size * .001))
@@ -236,23 +239,9 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
             continue
         changed = weights > 0
         if kind == 'background':
-            backdrop_like = np.zeros(raw.shape, dtype=bool)
-            if source_rgb is not None and palette and native_seed is not None:
-                pixels = source_rgb[changed].astype(np.float32)
-                similar = np.zeros(len(pixels), dtype=bool)
-                for color in palette:
-                    chroma_difference = np.stack((pixels[:, 0] - pixels[:, 1] - color[0] + color[1],
-                                                  pixels[:, 1] - pixels[:, 2] - color[1] + color[2]), axis=1)
-                    similar |= ((np.max(np.abs(pixels - color), axis=1) <= 24)
-                                & (np.linalg.norm(chroma_difference, axis=1) <= 6))
-                backdrop_like[changed] = similar
-            # Only uncertain probable-background pixels need a manual correction.
-            # Definite GC_BGD pixels remain rejected so repeated/oversized journals
-            # cannot turn already-classified background into accepted edits.
-            source_background = (native_seed == cv2.GC_PR_BGD
-                                 if native_seed is not None else np.zeros(raw.shape, dtype=bool))
-            safe_background = changed & backdrop_like & source_background
-            unsafe = changed & ~safe_background
+            # The operator explicitly selected background and painted this stroke.
+            # action_weights already caps the total editable footprint at MAX_ANNOTATED_RATIO.
+            unsafe = np.zeros(raw.shape, dtype=bool)
             reason = 'unsafe_background_annotation'
         else:
             backdrop_like = np.zeros(raw.shape, dtype=bool)
