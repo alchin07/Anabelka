@@ -453,7 +453,7 @@ class MaskReviewTests(unittest.TestCase):
                 self.assertTrue(all(item['status'] == 'rejected' for item in result['action_results']))
                 np.testing.assert_array_equal(result['alpha'], raw)
 
-    def test_maximum_rejected_journal_stays_bounded_and_can_be_undone(self):
+    def test_maximum_accepted_background_journal_stays_bounded_and_can_be_undone(self):
         server = self.server()
         seed = np.full((200, 200), cv2.GC_BGD, np.uint8)
         seed[20:100, 20:100] = cv2.GC_PR_FGD
@@ -482,13 +482,12 @@ class MaskReviewTests(unittest.TestCase):
                 self.assertLess(len(server.json_bytes(result)), 1024 * 1024)
                 self.assertEqual(len(result['review']['action_results']), 64)
                 for item in result['review']['action_results']:
-                    self.assertEqual(item['status'], 'rejected')
-                    self.assertEqual(item['reasons'], ['unsafe_background_annotation'])
-                    self.assertEqual(len(item['conflicts']), 1)
-                    self.assertEqual(item['conflicts'][0]['bbox'], [10, 149, 157, 3])
-                    self.assertEqual(item['conflicts'][0]['pixels'], 285)
-                    self.assertNotIn('polygon', item['conflicts'][0])
-                np.testing.assert_array_equal(np.asarray(Image.open(directory / 'alpha-1.png')), raw)
+                    self.assertEqual(item['status'], 'accepted')
+                    self.assertEqual(item['reasons'], [])
+                    self.assertNotIn('conflicts', item)
+                revised = np.asarray(Image.open(directory / 'alpha-1.png'))
+                self.assertEqual(revised[150, 50], 0)
+                self.assertFalse(np.array_equal(revised, raw))
                 undo = server.revise_mask_review({**request, 'revision': 1, 'actions': []})
                 self.assertEqual(undo['revision'], 2)
                 self.assertEqual(undo['review']['actions'], [])
@@ -669,7 +668,7 @@ class MaskReviewTests(unittest.TestCase):
         self.assertTrue(result['validation']['gates']['local']['accepted'])
         self.assertTrue(result['validation']['gates']['background']['accepted'])
 
-    def test_background_mark_rejects_skin_even_if_seed_says_probable_background(self):
+    def test_explicit_background_mark_overrides_seed_and_source_colour(self):
         module = self.module()
         seed, raw = self.fixture()
         source = self.rgb(seed)
@@ -681,11 +680,11 @@ class MaskReviewTests(unittest.TestCase):
 
         result = module.revise_alpha(raw, seed, [action], source_rgb=source)
 
-        self.assertEqual(result['action_results'][0]['status'], 'rejected')
-        self.assertIn('unsafe_background_annotation', result['action_results'][0]['reasons'])
-        np.testing.assert_array_equal(result['alpha'], raw)
+        self.assertEqual(result['action_results'][0]['status'], 'accepted')
+        self.assertEqual(result['alpha'][55, 45], 0)
+        self.assertTrue(result['validation']['gates']['local']['accepted'])
 
-    def test_background_mark_never_overrides_definite_foreground_seed(self):
+    def test_explicit_background_mark_overrides_definite_foreground_seed(self):
         module = self.module()
         seed, raw = self.fixture()
         source = self.rgb(seed)
@@ -698,23 +697,21 @@ class MaskReviewTests(unittest.TestCase):
 
         result = module.revise_alpha(raw, seed, [action], source_rgb=source)
 
-        self.assertEqual(result['action_results'][0]['status'], 'rejected')
-        self.assertIn('unsafe_background_annotation', result['action_results'][0]['reasons'])
-        np.testing.assert_array_equal(result['alpha'], raw)
+        self.assertEqual(result['action_results'][0]['status'], 'accepted')
+        self.assertEqual(result['alpha'][55, 45], 0)
+        self.assertTrue(result['validation']['gates']['local']['accepted'])
 
-    def test_background_mark_on_opaque_skin_or_arm_is_rejected_without_mutation(self):
+    def test_explicit_background_mark_can_override_opaque_source_material(self):
         module = self.module()
         seed, raw = self.fixture()
-        # Even a mistaken source colour label cannot erase immutable opaque material.
         seed[50:60, 40:50] = cv2.GC_PR_BGD
-        for kind in ('background',):
-            result = module.revise_alpha(raw, seed, [{
-                'kind': kind, 'tool': 'point', 'radius': 3,
-                'hardness': 1, 'points': [[45, 55]],
-            }])
-            self.assertEqual(result['validation']['status'], 'needs_review')
-            self.assertIn('unsafe_background_annotation', result['validation']['reasons'])
-            np.testing.assert_array_equal(result['alpha'], raw)
+        result = module.revise_alpha(raw, seed, [{
+            'kind': 'background', 'tool': 'point', 'radius': 3,
+            'hardness': 1, 'points': [[45, 55]],
+        }])
+        self.assertEqual(result['action_results'][0]['status'], 'accepted')
+        self.assertEqual(result['alpha'][55, 45], 0)
+        self.assertTrue(result['validation']['gates']['local']['accepted'])
 
     def test_foreground_annotation_cannot_add_known_background(self):
         module = self.module()
