@@ -649,6 +649,41 @@ class MaskReviewTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 server.revise_mask_review({**request, 'revision': 30, 'actions': [action]})
 
+    def test_background_mark_can_correct_source_confirmed_probable_background(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        source = self.rgb(seed)
+        # The segmentation kept this source-colour-confirmed background opaque.
+        raw[20:31, 10:21] = 255
+        action = {
+            'kind': 'background', 'tool': 'point', 'radius': 2,
+            'hardness': 1, 'points': [[15, 25]],
+        }
+
+        result = module.revise_alpha(raw, seed, [action], source_rgb=source)
+
+        self.assertEqual(result['action_results'][0]['status'], 'accepted')
+        self.assertEqual(result['alpha'][25, 15], 0)
+        self.assertTrue(result['validation']['gates']['component']['accepted'])
+        self.assertTrue(result['validation']['gates']['local']['accepted'])
+        self.assertTrue(result['validation']['gates']['background']['accepted'])
+
+    def test_background_mark_rejects_skin_even_if_seed_says_probable_background(self):
+        module = self.module()
+        seed, raw = self.fixture()
+        source = self.rgb(seed)
+        seed[50:60, 40:50] = cv2.GC_PR_BGD
+        action = {
+            'kind': 'background', 'tool': 'point', 'radius': 3,
+            'hardness': 1, 'points': [[45, 55]],
+        }
+
+        result = module.revise_alpha(raw, seed, [action], source_rgb=source)
+
+        self.assertEqual(result['action_results'][0]['status'], 'rejected')
+        self.assertIn('unsafe_background_annotation', result['action_results'][0]['reasons'])
+        np.testing.assert_array_equal(result['alpha'], raw)
+
     def test_background_mark_on_opaque_skin_or_arm_is_rejected_without_mutation(self):
         module = self.module()
         seed, raw = self.fixture()
