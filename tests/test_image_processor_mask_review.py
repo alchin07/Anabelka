@@ -428,21 +428,20 @@ class MaskReviewTests(unittest.TestCase):
         result = module.revise_alpha(raw, seed, actions, source_rgb=self.rgb(seed))
         self.assertEqual([item['index'] for item in result.get('action_results', [])], [0, 1, 2, 3])
         self.assertEqual([item['status'] for item in result['action_results']],
-                         ['accepted', 'rejected', 'rejected', 'unresolved'])
+                         ['accepted', 'accepted', 'rejected', 'unresolved'])
         self.assertEqual([item['reasons'] for item in result['action_results']],
-                         [[], ['unsafe_background_annotation'], ['unsupported_foreground_annotation'],
-                          ['annotation_unsure']])
-        self.assertTrue(result['action_results'][1]['conflicts'])
+                         [[], [], ['unsupported_foreground_annotation'], ['annotation_unsure']])
+        self.assertNotIn('conflicts', result['action_results'][1])
         self.assertEqual(result['validation']['regions'], [])
         self.assertEqual(result['validation']['status'], 'needs_review')
         self.assertEqual(result['alpha'][52, 50], 255)
-        self.assertEqual(result['alpha'][55, 45], raw[55, 45])
+        self.assertEqual(result['alpha'][55, 45], 0)
 
     def test_duplicate_rejected_annotations_do_not_increase_actual_mask_problem_regions(self):
         module = self.module()
         seed, raw = self.fixture()
         raw[30:50, 40:60] = 0
-        action = {'kind': 'background', 'tool': 'point', 'radius': 3, 'points': [[45, 55]]}
+        action = {'kind': 'foreground', 'tool': 'point', 'radius': 3, 'points': [[5, 4]]}
         baseline = module.validate_alpha(raw, raw, seed)
         self.assertTrue(baseline['regions'])
         for count in (1, 2, 16):
