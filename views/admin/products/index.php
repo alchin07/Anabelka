@@ -857,7 +857,7 @@ require __DIR__ . '/../../partials/header.php';
 <?php if (ProductImageProcessingService::manualMaskReviewEnabled()): ?>
 <script src="/Anabelka/js/admin-mask-editor.js?v=2"></script>
 <?php endif; ?>
-<script src="/Anabelka/js/admin-products.js?v=35"></script>
+<script src="/Anabelka/js/admin-products.js?v=36"></script>
 <script src="/Anabelka/js/admin-product-color-picker.js?v=9"></script>
 <script src="/Anabelka/js/admin-product-colors.js?v=2"></script>
 </body>

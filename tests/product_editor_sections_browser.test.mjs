@@ -69,6 +69,18 @@ async function harness(t, width = 390, height = 844, query = '') {
     page.setDefaultTimeout(5000);
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    await page.addInitScript(() => {
+        const originalFocus = HTMLElement.prototype.focus;
+        window.__productFieldFocusAttempts = [];
+        HTMLElement.prototype.focus = function (...args) {
+            if (this.matches && this.matches(
+                '#product-edit-name, .product-translation-name, .product-translation-description'
+            )) {
+                window.__productFieldFocusAttempts.push(this.id || this.className);
+            }
+            return originalFocus.apply(this, args);
+        };
+    });
     t.after(async () => { await context.close(); assert.deepEqual(errors, [], 'Application JS must not throw.'); });
     await page.goto(origin + '/Anabelka/admin/products' + query);
     if (!query) await page.locator('[data-product-edit][data-product-id="1"]').click();
@@ -92,8 +104,11 @@ test('every editor opening keeps main fields visible and starts the seven option
         assert.equal(await h.page.locator('#product-edit-' + id).isVisible(), true, id + ' stays in Основне');
     }
     assert.equal(await h.page.locator('.product-section-heading').locator('summary').count(), 0);
+    await h.page.waitForTimeout(160);
     assert.equal(await h.page.evaluate(() => document.activeElement.matches('input, textarea, select')), false,
-        'Ordinary editor opening keeps the existing mobile keyboard policy');
+        'Ordinary editor opening must not activate an editable field');
+    assert.deepEqual(await h.page.evaluate(() => window.__productFieldFocusAttempts), [],
+        'Opening a product must never try to focus its name or translation');
     await h.open('Ціни');
     await h.open('Кольори');
     await h.open('Фотографії');
@@ -104,6 +119,9 @@ test('every editor opening keeps main fields visible and starts the seven option
     await h.page.locator('.product-editor-cancel').click();
     await h.page.locator('[data-product-create]').click();
     assert.deepEqual(await openLabels(h.page), []);
+    await h.page.waitForTimeout(160);
+    assert.deepEqual(await h.page.evaluate(() => window.__productFieldFocusAttempts), [],
+        'Editing another product or creating one must not request editable focus');
 });
 
 test('size, color, photo and translation updates keep the current expanded sections', async t => {
@@ -278,10 +296,17 @@ test('missing and duplicate sizes reveal the stock section without submitting', 
     assert.equal(saves.length, start);
 });
 
-test('translation target URL expands translations and focuses its field', async t => {
+test('translation target URL expands and highlights without focusing an input', async t => {
     const h = await harness(t, 390, 844, '?highlight=1&focus_language=en');
-    await h.page.waitForFunction(() => document.activeElement.matches('.product-translation-description'));
+    await h.page.waitForFunction(() =>
+        document.querySelector('[data-product-language="en"]')?.classList.contains('is-translation-focus'));
+    await h.page.waitForTimeout(160);
     assert.deepEqual(await openLabels(h.page), ['Переклади']);
+    assert.deepEqual(await h.page.evaluate(() => window.__productFieldFocusAttempts), [],
+        'A translation link must not programmatically focus a field');
+    assert.equal(await h.page.evaluate(() => document.activeElement.matches('input, textarea, select')), false);
+    const rect = await h.page.locator('[data-product-language="en"]').boundingBox();
+    assert.ok(rect && rect.y < 844 && rect.y + rect.height > 0, 'Requested translation scrolls into view');
 });
 
 test('product save success is queued once across reload without premature toast', async t => {

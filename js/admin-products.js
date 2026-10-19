@@ -2711,34 +2711,26 @@
     }
 
 
-    function focusEditor(productId)
+    function revealRequestedTranslation(productId)
     {
         const section = requestedTranslationFocus(productId);
 
         if (!section) {
-            fields.name.focus();
             return;
         }
 
+        // A translation link navigates by highlighting and scrolling,
+        // without focusing an input or opening the Android keyboard.
         revealEditorField(section);
         section.classList.add('is-translation-focus');
-        const name = section.querySelector('.product-translation-name');
-        const description = section.querySelector(
-            '.product-translation-description'
-        );
-        const target = name && name.value.trim() === ''
-            ? name
-            : (description || name);
 
         window.setTimeout(function () {
-            section.scrollIntoView({ block: 'center' });
-
-            if (target) {
-                focusRequestedEditorField(target);
+            if (!editor.hidden && section.isConnected
+                && section.classList.contains('is-translation-focus')) {
+                section.scrollIntoView({ block: 'center' });
             }
         }, 80);
     }
-
 
     function openEditor(product)
     {
@@ -2827,9 +2819,7 @@
         document.dispatchEvent(new CustomEvent(
             'anabelka:ai-context-change'
         ));
-        window.setTimeout(function () {
-            focusEditor(isEdit ? product.id : 0);
-        }, 30);
+        revealRequestedTranslation(isEdit ? product.id : 0);
     }
 
 
