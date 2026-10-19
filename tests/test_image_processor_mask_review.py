@@ -653,6 +653,7 @@ class MaskReviewTests(unittest.TestCase):
         module = self.module()
         seed, raw = self.fixture()
         source = self.rgb(seed)
+        seed = cv2.resize(seed, (50, 60), interpolation=cv2.INTER_NEAREST)
         # The segmentation kept this source-colour-confirmed background opaque.
         raw[20:31, 10:21] = 255
         action = {
