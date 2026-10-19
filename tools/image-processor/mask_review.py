@@ -246,7 +246,10 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                     similar |= ((np.max(np.abs(pixels - color), axis=1) <= 24)
                                 & (np.linalg.norm(chroma_difference, axis=1) <= 6))
                 backdrop_like[changed] = similar
-            source_background = ((native_seed == cv2.GC_BGD) | (native_seed == cv2.GC_PR_BGD)
+            # Only uncertain probable-background pixels need a manual correction.
+            # Definite GC_BGD pixels remain rejected so repeated/oversized journals
+            # cannot turn already-classified background into accepted edits.
+            source_background = (native_seed == cv2.GC_PR_BGD
                                  if native_seed is not None else np.zeros(raw.shape, dtype=bool))
             safe_background = changed & backdrop_like & source_background
             unsafe = changed & ~safe_background
