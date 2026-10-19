@@ -1,4 +1,4 @@
-"""Bounded, deterministic alpha review. User labels never grant material deletion."""
+"""Bounded alpha review with source-confirmed background edits and guarded material restoration."""
 from __future__ import annotations
 
 import math
@@ -107,7 +107,7 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None,
     for index in range(1, count):
         if stats[index, cv2.CC_STAT_AREA] >= minimum:
             fail('local', 'source_local_material_loss', native_loss(labels == index, 128))
-    # Independent immutable-alpha guard prevents hand/skin/hair/lace labels from erasing material.
+    # Preserve immutable material except for pixels independently confirmed as source background.
     destructive = (raw >= 64) & (alpha < raw) & ~confirmed_background
     if np.any(destructive):
         fail('local', 'immutable_material_loss', destructive)
