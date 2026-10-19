@@ -43,7 +43,8 @@ def regions_from_mask(mask: np.ndarray, reason: str, *, maximum: int = 32) -> li
     return result
 
 
-def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None) -> dict[str, Any]:
+def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None,
+                   *, confirmed_background: np.ndarray | None = None) -> dict[str, Any]:
     """Evaluate each required source gate independently, preserving its thresholds."""
     gates = {name: {'accepted': True, 'reasons': []} for name in ('component', 'local', 'thin', 'background')}
     report: dict[str, Any] = {'status': 'accepted', 'reasons': [], 'gates': gates, 'regions': []}
@@ -72,6 +73,10 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None) 
         return report
     if seed.ndim != 2 or seed.dtype != np.uint8:
         raise ValueError('Некоректні дані перевірки джерела.')
+    if confirmed_background is None:
+        confirmed_background = np.zeros(alpha.shape, dtype=bool)
+    elif (confirmed_background.shape != alpha.shape or confirmed_background.dtype != np.bool_):
+        raise ValueError('Некоректна перевірена позначка фону.')
     size = (seed.shape[1], seed.shape[0])
     opacity = np.asarray(Image.fromarray(alpha).resize(size, Image.Resampling.BILINEAR))
     native_size = (alpha.shape[1], alpha.shape[0])
@@ -79,7 +84,7 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None) 
     def native_loss(mask: np.ndarray, threshold: int) -> np.ndarray:
         return _resize(mask.astype(np.uint8), native_size).astype(bool) & (alpha < threshold)
 
-    source_foreground = seed == cv2.GC_PR_FGD
+    source_foreground = (seed == cv2.GC_PR_FGD) & ~confirmed_background
     core = cv2.erode(source_foreground.astype(np.uint8), np.ones((3, 3), np.uint8))
     count, labels, stats, _ = cv2.connectedComponentsWithStats(core, connectivity=8)
     minimum = max(16, round(seed.size * .001))
@@ -101,7 +106,7 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None) 
         if stats[index, cv2.CC_STAT_AREA] >= minimum:
             fail('local', 'source_local_material_loss', native_loss(labels == index, 128))
     # Independent immutable-alpha guard prevents hand/skin/hair/lace labels from erasing material.
-    destructive = (raw >= 64) & (alpha < raw)
+    destructive = (raw >= 64) & (alpha < raw) & ~confirmed_background
     if np.any(destructive):
         fail('local', 'immutable_material_loss', destructive)
     strands = (source_foreground & (cv2.dilate(core, np.ones((3, 3), np.uint8)) == 0)).astype(np.uint8)
@@ -111,7 +116,7 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None) 
                 and float(np.mean(opacity[labels == index] >= 64)) < .90):
             fail('thin', 'source_thin_material_loss', native_loss(labels == index, 64))
     background = cv2.erode((~source_foreground).astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
-    samples = seed == cv2.GC_BGD
+    samples = (seed == cv2.GC_BGD) | confirmed_background
     retentions = [float(np.mean(opacity[domain] <= 32)) for domain in (background, samples) if np.any(domain)]
     gates['background']['retention'] = retentions
     if not retentions:
@@ -221,6 +226,7 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                     palette.append(np.median(pixels, axis=0))
     refusals = []
     action_results = []
+    confirmed_background = np.zeros(raw.shape, dtype=bool)
     for index, (kind, weights) in enumerate(action_weights(actions, raw.shape)):
         if kind == 'unsure':
             refusals.append('annotation_unsure')
@@ -228,7 +234,19 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
             continue
         changed = weights > 0
         if kind == 'background':
-            unsafe = changed & ((raw >= 64) | (native_seed != cv2.GC_BGD if native_seed is not None else True))
+            backdrop_like = np.zeros(raw.shape, dtype=bool)
+            if source_rgb is not None and palette and native_seed is not None:
+                pixels = source_rgb[changed].astype(np.float32)
+                similar = np.zeros(len(pixels), dtype=bool)
+                for color in palette:
+                    chroma_difference = np.stack((pixels[:, 0] - pixels[:, 1] - color[0] + color[1],
+                                                  pixels[:, 1] - pixels[:, 2] - color[1] + color[2]), axis=1)
+                    similar |= ((np.max(np.abs(pixels - color), axis=1) <= 24)
+                                & (np.linalg.norm(chroma_difference, axis=1) <= 6))
+                backdrop_like[changed] = similar
+            hard_foreground = native_seed == cv2.GC_FGD if native_seed is not None else np.ones(raw.shape, dtype=bool)
+            safe_background = changed & backdrop_like & ~hard_foreground
+            unsafe = changed & ~safe_background
             reason = 'unsafe_background_annotation'
         else:
             backdrop_like = np.zeros(raw.shape, dtype=bool)
@@ -262,9 +280,11 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                                    'conflicts': [conflict]})
             continue
         action_results.append({'index': index, 'status': 'accepted', 'reasons': []})
+        if kind == 'background':
+            confirmed_background |= changed
         target = 0 if kind == 'background' else 255
         alpha = np.rint(alpha.astype(np.float32) * (1 - weights) + target * weights).astype(np.uint8)
-    validation = validate_alpha(alpha, raw, seed)
+    validation = validate_alpha(alpha, raw, seed, confirmed_background=confirmed_background)
     for reason in dict.fromkeys(refusals):
         if reason not in validation['reasons']:
             validation['reasons'].append(reason)
