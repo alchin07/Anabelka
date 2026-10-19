@@ -270,7 +270,7 @@ $surfaceLabel = static function ($surface) use ($surfaceLabels) {
                                             2,
                                             ',',
                                             ' '
-                                        ) ?> €
+                                        ) ?> ₴
                                     </strong>
                                 </td>
                                 <td data-label="Місце">

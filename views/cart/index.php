@@ -112,7 +112,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                                 2,
                                 ',',
                                 ' '
-                            ) ?> €
+                            ) ?> ₴
                         </p>
 
 
@@ -214,7 +214,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                                     ' '
                                 ) ?>
                             </span>
-                            €
+                            ₴
                         </p>
 
 
@@ -255,7 +255,7 @@ $pageTitle = Translator::t('cart.title', 'Кошик');
                         ' '
                     ) ?>
                 </span>
-                €
+                ₴
             </h2>
 
             <a

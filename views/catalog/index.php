@@ -173,7 +173,7 @@ $renderAdultTree = function (array $nodes, $level = 1) use (
                     Translator::t('public.catalog.product_name', 'Назва товару')
                 ) ?></h3>
 
-                <p class="product-price">0 €</p>
+                <p class="product-price">0 ₴</p>
             </div>
         </div>
     </section>

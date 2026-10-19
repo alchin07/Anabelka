@@ -144,9 +144,9 @@ $assetUrl = function ($path) {
                                 <?php endif; ?>
 
                                 <div class="search-product-price">
-                                    <strong><?= number_format((float) $currentPrice, 2, ',', ' ') ?> €</strong>
+                                    <strong><?= number_format((float) $currentPrice, 2, ',', ' ') ?> ₴</strong>
                                     <?php if ($oldPrice > (float) $currentPrice): ?>
-                                        <del><?= number_format($oldPrice, 2, ',', ' ') ?> €</del>
+                                        <del><?= number_format($oldPrice, 2, ',', ' ') ?> ₴</del>
                                     <?php endif; ?>
                                 </div>
                             </div>

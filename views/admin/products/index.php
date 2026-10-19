@@ -17,7 +17,7 @@ $escape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
 $formatMoney = function ($value) {
-    return number_format((float) $value, 2, ',', ' ') . ' €';
+    return number_format((float) $value, 2, ',', ' ') . ' ₴';
 };
 $categoryById = [];
 
@@ -451,19 +451,19 @@ require __DIR__ . '/../../partials/header.php';
 
                     <div class="product-form-grid product-details-content">
                         <label class="product-form-field">
-                            <span>Основна ціна, € *</span>
+                            <span>Основна ціна, ₴ *</span>
                             <input type="number" name="price" id="product-edit-price" min="0" step="0.01" inputmode="decimal" required>
                         </label>
 
                         <label class="product-form-field">
-                            <span>Стара ціна, €</span>
+                            <span>Стара ціна, ₴</span>
                             <input type="number" name="old_price" id="product-edit-old-price" min="0" step="0.01" inputmode="decimal">
                         </label>
 
                         <?php foreach ($priceRanks as $rank): ?>
                             <?php if (strtolower((string) ($rank['slug'] ?? '')) === 'guest') { continue; } ?>
                             <label class="product-form-field">
-                                <span><?= $escape($rank['name']) ?>, €</span>
+                                <span><?= $escape($rank['name']) ?>, ₴</span>
                                 <input
                                     type="number"
                                     name="rank_price[<?= (int) $rank['id'] ?>]"

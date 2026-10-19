@@ -149,7 +149,7 @@ $collectionInfo = $collectionMeta[$collectionSource]
                                     2,
                                     ',',
                                     ' '
-                                ) ?> €
+                                ) ?> ₴
                             </strong>
 
                             <?php if ($oldPrice > $currentPrice): ?>
@@ -159,7 +159,7 @@ $collectionInfo = $collectionMeta[$collectionSource]
                                         2,
                                         ',',
                                         ' '
-                                    ) ?> €
+                                    ) ?> ₴
                                 </del>
                             <?php endif; ?>
                         </div>

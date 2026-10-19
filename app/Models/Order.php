@@ -137,7 +137,7 @@ class Order
                         0,
                         :subtotal,
                         :total,
-                        'EUR',
+                        'UAH',
                         :comment,
                         :order_token
                     )

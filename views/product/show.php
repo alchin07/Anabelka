@@ -278,12 +278,12 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
     >
         <?php if ($guestDiscount > 0): ?>
             <s style="color:#888;font-size:17px;">
-                <?= number_format($guestBasePrice, 2, ',', ' ') ?> €
+                <?= number_format($guestBasePrice, 2, ',', ' ') ?> ₴
             </s>
         <?php endif; ?>
 
         <strong style="color:var(--primary-color);font-size:20px;">
-            <?= number_format($guestCurrentPrice, 2, ',', ' ') ?> €
+            <?= number_format($guestCurrentPrice, 2, ',', ' ') ?> ₴
         </strong>
     </span>
 </div>
@@ -365,13 +365,13 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                                 <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
                                     <?php if ($discountPercent > 0): ?>
                                         <s style="color:#888;font-weight:normal;">
-                                            <?= number_format($basePrice, 2, ',', ' ') ?> €
+                                            <?= number_format($basePrice, 2, ',', ' ') ?> ₴
                                         </s>
                                         <strong style="color:var(--primary-color);font-size:17px;">
-                                            <?= number_format($discountPrice, 2, ',', ' ') ?> €
+                                            <?= number_format($discountPrice, 2, ',', ' ') ?> ₴
                                         </strong>
                                     <?php else: ?>
-                                        <?= number_format($basePrice, 2, ',', ' ') ?> €
+                                        <?= number_format($basePrice, 2, ',', ' ') ?> ₴
                                     <?php endif; ?>
                                 </span>
                             </div>
@@ -387,7 +387,7 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
             <?php if (!empty($product['old_price'])): ?>
                 <p style="padding: 0 15px 10px;">
                     Старая цена:
-                    <s><?= number_format((float) $product['old_price'], 2, ',', ' ') ?> €</s>
+                    <s><?= number_format((float) $product['old_price'], 2, ',', ' ') ?> ₴</s>
                 </p>
             <?php endif; ?>
 

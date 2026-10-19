@@ -144,7 +144,7 @@ $assetUrl = function ($path) {
                                         2,
                                         ',',
                                         ' '
-                                    ) ?> €
+                                    ) ?> ₴
                                 </strong>
 
                                 <?php if ($oldPrice > (float) $currentPrice): ?>
@@ -154,7 +154,7 @@ $assetUrl = function ($path) {
                                             2,
                                             ',',
                                             ' '
-                                        ) ?> €
+                                        ) ?> ₴
                                     </del>
                                 <?php endif; ?>
                             </div>

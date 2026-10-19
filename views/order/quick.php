@@ -199,7 +199,7 @@ $quickValidationMessages = [
                         2,
                         ',',
                         ' '
-                    ) ?> €
+                    ) ?> ₴
                 </strong>
             </div>
 

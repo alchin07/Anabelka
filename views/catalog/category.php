@@ -152,7 +152,7 @@ $pageTitle = $category['name'];
                                     2,
                                     ',',
                                     ' '
-                                ) ?> €
+                                ) ?> ₴
                             </p>
                         </a>
                     </article>

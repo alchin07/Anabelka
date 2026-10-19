@@ -6,6 +6,12 @@ $orderItems = !empty($order['id'])
     ? CustomerOrderHistory::regularItems((int) $order['id'])
     : [];
 $orderCurrency = strtoupper(trim((string) ($order['currency'] ?? 'EUR')));
+$orderCurrencySymbols = [
+    'EUR' => '€',
+    'UAH' => '₴',
+    'USD' => '$'
+];
+$orderCurrencySymbol = $orderCurrencySymbols[$orderCurrency] ?? $orderCurrency;
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -82,7 +88,7 @@ $orderCurrency = strtoupper(trim((string) ($order['currency'] ?? 'EUR')));
                     2,
                     ',',
                     ' '
-                ) ?> €
+                ) ?> <?= htmlspecialchars($orderCurrencySymbol, ENT_QUOTES, 'UTF-8') ?>
             </p>
         <?php endif; ?>
 

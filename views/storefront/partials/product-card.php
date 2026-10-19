@@ -89,11 +89,11 @@ $colorVariants = is_array($collectionItem['color_variants'] ?? null)
 
             <div class="storefront-product-price">
                 <strong>
-                    <?= number_format($currentPrice, 2, ',', ' ') ?> €
+                    <?= number_format($currentPrice, 2, ',', ' ') ?> ₴
                 </strong>
 
                 <?php if ($oldPrice > $currentPrice): ?>
-                    <del><?= number_format($oldPrice, 2, ',', ' ') ?> €</del>
+                    <del><?= number_format($oldPrice, 2, ',', ' ') ?> ₴</del>
                 <?php endif; ?>
             </div>
         </div>
