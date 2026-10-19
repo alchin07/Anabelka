@@ -280,8 +280,15 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
             refusals.append(reason)
             # A whole stroke is rejected. One focus box keeps its accounting
             # bounded even when overlapping strokes hit many separate details.
-            conflict = {'reason': reason, 'bbox': list(cv2.boundingRect(unsafe.astype(np.uint8))),
-                        'pixels': int(np.count_nonzero(unsafe))}
+            conflict_mask = unsafe
+            if reason == 'unsafe_background_annotation':
+                # Report the material pixels the rejected background stroke could erase,
+                # excluding the feathered brush fringe over already-transparent areas.
+                opaque_conflict = unsafe & (raw >= 64)
+                if np.any(opaque_conflict):
+                    conflict_mask = opaque_conflict
+            conflict = {'reason': reason, 'bbox': list(cv2.boundingRect(conflict_mask.astype(np.uint8))),
+                        'pixels': int(np.count_nonzero(conflict_mask))}
             action_results.append({'index': index, 'status': 'rejected', 'reasons': [reason],
                                    'conflicts': [conflict]})
             continue
