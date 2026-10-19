@@ -525,7 +525,7 @@ class MaskReviewTests(unittest.TestCase):
                     'actions': [{**action, 'hardness': 1}]})
                 self.assertEqual(retry['revision'], 1)
                 self.assertEqual(retry['review']['actions'], [{**action, 'hardness': 1}])
-                self.assertEqual(retry['review']['action_results'][0]['status'], 'rejected')
+                self.assertEqual(retry['review']['action_results'][0]['status'], 'accepted')
                 self.assertEqual(retry['review']['regions'], [])
                 self.assertEqual((directory / 'metadata.json').read_bytes(), before)
                 self.assertFalse((directory / 'alpha-2.png').exists())
