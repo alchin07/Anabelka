@@ -77,6 +77,8 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None,
         confirmed_background = np.zeros(alpha.shape, dtype=bool)
     elif (confirmed_background.shape != alpha.shape or confirmed_background.dtype != np.bool_):
         raise ValueError('Некоректна перевірена позначка фону.')
+    if np.any(confirmed_background & ((seed == cv2.GC_FGD) | (seed == cv2.GC_PR_FGD))):
+        raise ValueError('Перевірена позначка фону перетинає ймовірний або певний матеріал моделі.')
     size = (seed.shape[1], seed.shape[0])
     opacity = np.asarray(Image.fromarray(alpha).resize(size, Image.Resampling.BILINEAR))
     native_size = (alpha.shape[1], alpha.shape[0])
@@ -84,7 +86,7 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None,
     def native_loss(mask: np.ndarray, threshold: int) -> np.ndarray:
         return _resize(mask.astype(np.uint8), native_size).astype(bool) & (alpha < threshold)
 
-    source_foreground = (seed == cv2.GC_PR_FGD) & ~confirmed_background
+    source_foreground = seed == cv2.GC_PR_FGD
     core = cv2.erode(source_foreground.astype(np.uint8), np.ones((3, 3), np.uint8))
     count, labels, stats, _ = cv2.connectedComponentsWithStats(core, connectivity=8)
     minimum = max(16, round(seed.size * .001))
@@ -244,8 +246,9 @@ def revise_alpha(raw: np.ndarray, seed: np.ndarray | None, actions: Any,
                     similar |= ((np.max(np.abs(pixels - color), axis=1) <= 24)
                                 & (np.linalg.norm(chroma_difference, axis=1) <= 6))
                 backdrop_like[changed] = similar
-            hard_foreground = native_seed == cv2.GC_FGD if native_seed is not None else np.ones(raw.shape, dtype=bool)
-            safe_background = changed & backdrop_like & ~hard_foreground
+            source_background = ((native_seed == cv2.GC_BGD) | (native_seed == cv2.GC_PR_BGD)
+                                 if native_seed is not None else np.zeros(raw.shape, dtype=bool))
+            safe_background = changed & backdrop_like & source_background
             unsafe = changed & ~safe_background
             reason = 'unsafe_background_annotation'
         else:
