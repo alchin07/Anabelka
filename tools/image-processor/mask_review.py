@@ -77,9 +77,9 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None,
         confirmed_background = np.zeros(alpha.shape, dtype=bool)
     elif (confirmed_background.shape != alpha.shape or confirmed_background.dtype != np.bool_):
         raise ValueError('Некоректна перевірена позначка фону.')
-    if np.any(confirmed_background & ((seed == cv2.GC_FGD) | (seed == cv2.GC_PR_FGD))):
-        raise ValueError('Перевірена позначка фону перетинає ймовірний або певний матеріал моделі.')
     size = (seed.shape[1], seed.shape[0])
+    confirmed_background_seed = _resize(confirmed_background.astype(np.uint8), size).astype(bool)
+    confirmed_background_seed &= ((seed == cv2.GC_BGD) | (seed == cv2.GC_PR_BGD))
     opacity = np.asarray(Image.fromarray(alpha).resize(size, Image.Resampling.BILINEAR))
     native_size = (alpha.shape[1], alpha.shape[0])
 
@@ -118,7 +118,7 @@ def validate_alpha(alpha: np.ndarray, raw: np.ndarray, seed: np.ndarray | None,
                 and float(np.mean(opacity[labels == index] >= 64)) < .90):
             fail('thin', 'source_thin_material_loss', native_loss(labels == index, 64))
     background = cv2.erode((~source_foreground).astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
-    samples = (seed == cv2.GC_BGD) | confirmed_background
+    samples = (seed == cv2.GC_BGD) | confirmed_background_seed
     retentions = [float(np.mean(opacity[domain] <= 32)) for domain in (background, samples) if np.any(domain)]
     gates['background']['retention'] = retentions
     if not retentions:
