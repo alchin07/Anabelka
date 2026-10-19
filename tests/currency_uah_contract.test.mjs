@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const read = path => fs.readFileSync(path, 'utf8');
+const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const currentPriceViews = [
     'views/admin/products/index.php',
     'views/admin/security/vip-price-views.php',
