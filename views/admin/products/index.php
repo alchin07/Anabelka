@@ -4,6 +4,8 @@ $categories = is_array($categories ?? null) ? $categories : [];
 $priceRanks = is_array($priceRanks ?? null) ? $priceRanks : [];
 $languages = is_array($languages ?? null) ? $languages : [];
 $summary = is_array($summary ?? null) ? $summary : [];
+$pagination = is_array($pagination ?? null) ? $pagination : [];
+$page = max(1, (int) ($pagination['page'] ?? 1));
 $filters = AdminProduct::normalizeFilters(
     is_array($filters ?? null) ? $filters : []
 );
@@ -78,6 +80,16 @@ $productsUrl = function (array $changes = []) use ($filters) {
     return '/Anabelka/admin/products'
         . (empty($query) ? '' : '?' . http_build_query($query));
 };
+$paginationQuery = [];
+if ($filters['status'] !== 'all') {
+    $paginationQuery['status'] = $filters['status'];
+}
+if ($filters['category_id'] > 0) {
+    $paginationQuery['category_id'] = $filters['category_id'];
+}
+if ($filters['q'] !== '') {
+    $paginationQuery['q'] = $filters['q'];
+}
 $statusTabs = [
     'all' => 'Усі',
     'active' => 'На сайті',
@@ -302,6 +314,7 @@ require __DIR__ . '/../../partials/header.php';
                                 <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
                                 <input type="hidden" name="filter_category_id" value="<?= (int) $filters['category_id'] ?>">
                                 <input type="hidden" name="filter_q" value="<?= $escape($filters['q']) ?>">
+                                <input type="hidden" name="filter_page" value="<?= $page ?>">
                                 <button type="submit">Створити копію</button>
                             </form>
 
@@ -317,6 +330,7 @@ require __DIR__ . '/../../partials/header.php';
                                 <input type="hidden" name="filter_status" value="<?= $escape($filters['status']) ?>">
                                 <input type="hidden" name="filter_category_id" value="<?= (int) $filters['category_id'] ?>">
                                 <input type="hidden" name="filter_q" value="<?= $escape($filters['q']) ?>">
+                                <input type="hidden" name="filter_page" value="<?= $page ?>">
                                 <button type="submit" class="<?= $isActive ? 'is-danger' : 'is-restore' ?>">
                                     <?= $isActive ? 'Приховати' : 'Повернути на сайт' ?>
                                 </button>
@@ -327,6 +341,14 @@ require __DIR__ . '/../../partials/header.php';
                 </div>
             <?php endforeach; ?>
         </section>
+    <?php endif; ?>
+
+    <?php if ($productsError === '' && (int) ($pagination['total_pages'] ?? 1) > 1): ?>
+        <?php
+        $paginationPath = '/Anabelka/admin/products';
+        $paginationLabel = 'Сторінки товарів';
+        require __DIR__ . '/../../partials/pagination.php';
+        ?>
     <?php endif; ?>
 </main>
 

@@ -9,6 +9,9 @@ class AdminProductController extends Controller
     public function index()
     {
         $filters = AdminProduct::normalizeFilters($_GET);
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $perPage = 20;
+        $highlight = max(0, (int) ($_GET['highlight'] ?? 0));
         $products = [];
         $categories = [];
         $priceRanks = [];
@@ -18,11 +21,42 @@ class AdminProductController extends Controller
             'out_of_stock' => 0,
             'hidden' => 0
         ];
+        $pagination = [
+            'page' => 1,
+            'per_page' => $perPage,
+            'total' => 0,
+            'total_pages' => 1,
+            'has_previous' => false,
+            'has_next' => false
+        ];
         $productsError = '';
         $languages = [];
 
         try {
-            $products = AdminProduct::all($filters);
+            $total = AdminProduct::countFiltered($filters);
+            $totalPages = max(1, (int) ceil($total / $perPage));
+
+            if ($highlight > 0) {
+                $targetPage = AdminProduct::pageForProduct(
+                    $filters,
+                    $highlight,
+                    $perPage
+                );
+                if ($targetPage !== null) {
+                    $page = $targetPage;
+                }
+            }
+
+            $page = min($page, $totalPages);
+            $products = AdminProduct::page($filters, $page, $perPage);
+            $pagination = [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => $totalPages,
+                'has_previous' => $page > 1,
+                'has_next' => $page < $totalPages
+            ];
             $categories = AdminProduct::categories();
             $priceRanks = AdminProduct::priceRanks();
             $summary = AdminProduct::summary();
@@ -50,6 +84,7 @@ class AdminProductController extends Controller
                 'priceRanks' => $priceRanks,
                 'languages' => $languages,
                 'summary' => $summary,
+                'pagination' => $pagination,
                 'filters' => $filters,
                 'productsError' => $productsError,
                 'flash' => is_array($flash) ? $flash : null,
@@ -219,6 +254,7 @@ class AdminProductController extends Controller
             'category_id' => $_POST['filter_category_id'] ?? 0,
             'q' => $_POST['filter_q'] ?? ''
         ]);
+        $page = max(1, (int) ($_POST['filter_page'] ?? 1));
 
         try {
             $this->assertCsrf();
@@ -245,7 +281,7 @@ class AdminProductController extends Controller
             ];
         }
 
-        header('Location: ' . $this->productsUrl($filters));
+        header('Location: ' . $this->productsUrl($filters, 0, $page));
         exit;
     }
 
@@ -257,6 +293,7 @@ class AdminProductController extends Controller
             'category_id' => $_POST['filter_category_id'] ?? 0,
             'q' => $_POST['filter_q'] ?? ''
         ]);
+        $page = max(1, (int) ($_POST['filter_page'] ?? 1));
         $db = null;
 
         try {
@@ -301,7 +338,7 @@ class AdminProductController extends Controller
             ];
         }
 
-        header('Location: ' . $this->productsUrl($filters));
+        header('Location: ' . $this->productsUrl($filters, 0, $page));
         exit;
     }
 
@@ -1090,7 +1127,7 @@ class AdminProductController extends Controller
     }
 
 
-    private function productsUrl(array $filters, $highlight = 0)
+    private function productsUrl(array $filters, $highlight = 0, $page = 1)
     {
         $query = [];
 
@@ -1104,6 +1141,10 @@ class AdminProductController extends Controller
 
         if (($filters['q'] ?? '') !== '') {
             $query['q'] = $filters['q'];
+        }
+
+        if ((int) $page > 1) {
+            $query['page'] = (int) $page;
         }
 
         if ((int) $highlight > 0) {
