@@ -356,6 +356,40 @@ class Product
 
 
     /**
+     * The requested size must actually belong to the product.
+     * A global attribute_values ID is not sufficient for cart validation.
+     */
+    public static function hasSize($productId, $sizeId)
+    {
+        $productId = (int) $productId;
+        $sizeId = (int) $sizeId;
+
+        if ($productId <= 0 || $sizeId <= 0) {
+            return false;
+        }
+
+        $stmt = Database::connect()->prepare("
+            SELECT 1
+            FROM product_attributes AS pa
+            JOIN attribute_values AS av
+                ON av.id = pa.attribute_value_id
+            JOIN attributes AS a
+                ON a.id = av.attribute_id
+            WHERE pa.product_id = :product_id
+              AND pa.attribute_value_id = :size_id
+              AND a.slug = 'size'
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'product_id' => $productId,
+            'size_id' => $sizeId
+        ]);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+
+    /**
      * Получить slug текущего
      * ценового ранга пользователя.
      */
@@ -763,10 +797,14 @@ class Product
             SELECT COUNT(*)
                 AS available_count
 
-            FROM product_attributes
-
-            WHERE product_id = :product_id
-              AND stock > 0
+            FROM product_attributes AS pa
+            JOIN attribute_values AS av
+                ON av.id = pa.attribute_value_id
+            JOIN attributes AS a
+                ON a.id = av.attribute_id
+            WHERE pa.product_id = :product_id
+              AND a.slug = 'size'
+              AND pa.stock > 0
         ");
 
         $stmt->execute([

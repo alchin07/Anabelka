@@ -48,14 +48,45 @@ class QuickOrderController extends Controller
             ? (int) $_SESSION['user_id']
             : null;
 
-        $result = QuickOrder::create(
-            $userId,
-            $customerName,
-            $customerPhone,
-            $comment,
-            $items,
-            $total
-        );
+        try {
+            $result = QuickOrder::create(
+                $userId,
+                $customerName,
+                $customerPhone,
+                $comment,
+                $items,
+                $total
+            );
+        } catch (RuntimeException $e) {
+            $message = trim((string) $e->getMessage());
+            $isInventoryError =
+                strpos($message, 'Недостатньо товару') === 0
+                || strpos($message, 'Не вдалося визначити розмір') === 0
+                || strpos($message, 'Не вдалося знайти товар для обліку залишку') === 0;
+
+            if (!$isInventoryError) {
+                throw $e;
+            }
+
+            http_response_code(409);
+
+            $this->view(
+                'order/error',
+                [
+                    'errorTitle' => Translator::t(
+                        'public.order.stock_changed_title',
+                        'Залишок товару змінився'
+                    ),
+                    'errorMessage' => $message,
+                    'backUrl' => '/Anabelka/cart',
+                    'backLabel' => Translator::t(
+                        'public.order.back_cart',
+                        'Повернутися до кошика'
+                    )
+                ]
+            );
+            return;
+        }
 
         if ($userId) {
             Cart::clearByUserId($userId);

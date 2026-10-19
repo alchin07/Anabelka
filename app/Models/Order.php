@@ -91,6 +91,8 @@ class Order
         }
 
         self::ensureSchema();
+        // CREATE TABLE must never run in an active stock reservation transaction.
+        ProductVariantStock::ensureTable();
         $db = Database::connect();
         $db->beginTransaction();
 

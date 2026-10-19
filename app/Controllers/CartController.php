@@ -106,6 +106,12 @@ class CartController extends Controller
             $this->jsonError('Выберите хотя бы один размер');
         }
 
+        foreach ($cleanSizes as $sizeId) {
+            if (!Product::hasSize($productId, $sizeId)) {
+                $this->jsonError('Вибраний розмір не належить цьому товару.');
+            }
+        }
+
         $usesVariantStock = ProductVariantStock::hasMatrix($productId);
         $colorInfo = null;
 
@@ -229,6 +235,10 @@ class CartController extends Controller
 
         if (!$product) {
             $this->plainError('Товар не найден', 404);
+        }
+
+        if (!Product::hasSize($productId, $sizeId)) {
+            $this->plainError('Розмір товару недоступний.', 409);
         }
 
         if (ProductVariantStock::hasMatrix($productId)) {

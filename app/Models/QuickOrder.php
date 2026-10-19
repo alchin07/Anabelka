@@ -119,6 +119,7 @@ class QuickOrder
         $total
     ) {
         self::ensureTables();
+        ProductVariantStock::ensureTable();
 
         $db = Database::connect();
         $db->beginTransaction();

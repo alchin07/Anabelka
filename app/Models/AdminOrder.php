@@ -191,6 +191,7 @@ class AdminOrder
         if ($type === 'quick') {
             QuickOrder::ensureTables();
         }
+        ProductVariantStock::ensureTable();
 
         $table = $type === 'regular'
             ? 'orders'
