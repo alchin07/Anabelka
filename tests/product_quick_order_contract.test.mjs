@@ -21,7 +21,8 @@ test('both product form listeners allow quick submit without AJAX cart mutation'
     const variants = read('js/product-color-variants.js');
     assert.match(page, /event\.submitter[\s\S]*?data-product-quick-order/);
     assert.match(variants, /event\.submitter[\s\S]*?data-product-quick-order/);
-    assert.match(variants, /event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);\s*const formData/);
+    assert.match(variants, /event\.preventDefault\(\);\s*event\.stopImmediatePropagation\(\);/);
+    assert.match(variants, /const formData = new FormData\(cartForm\);/);
     assert.match(variants, /if \(state\.colors\.length > 0 && !state\.selectedColor\)/);
 });
 
