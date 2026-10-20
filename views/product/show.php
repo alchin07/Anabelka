@@ -618,9 +618,7 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                     </button>
 
                     <button
-                        type="submit"
-                        formmethod="GET"
-                        formaction="/Anabelka/quick-order/product"
+                        type="button"
                         data-product-quick-order
                         style="
                             width:100%;
@@ -974,20 +972,6 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
         cartForm.addEventListener(
             'submit',
             function (event) {
-
-                if (
-                    event.submitter
-                    && event.submitter.hasAttribute('data-product-quick-order')
-                ) {
-                    if (new FormData(cartForm).getAll('sizes[]').length === 0) {
-                        event.preventDefault();
-                        showSiteMessage(
-                            cartMessages.select_size || 'Оберіть хоча б один розмір.',
-                            'warning'
-                        );
-                    }
-                    return;
-                }
 
                 event.preventDefault();
 

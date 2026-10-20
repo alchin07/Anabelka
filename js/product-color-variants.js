@@ -639,28 +639,6 @@
                 return checkbox.checked && !checkbox.disabled;
             });
 
-            if (
-                event.submitter
-                && event.submitter.hasAttribute('data-product-quick-order')
-            ) {
-                if (state.colors.length > 0 && !state.selectedColor) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-                    showMessage(stockUi.select_color || 'Оберіть колір.', 'warning');
-                    return;
-                }
-
-                if (selectedSizes.length === 0) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-                    showMessage(
-                        stockUi.select_size || 'Оберіть хоча б один розмір.',
-                        'warning'
-                    );
-                }
-                return;
-            }
-
             event.preventDefault();
             event.stopImmediatePropagation();
 
