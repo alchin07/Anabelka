@@ -81,11 +81,58 @@ $quickValidationMessages = [
             ) ?>
         </p>
 
+        <?php if (!empty($productDraftToken)): ?>
+            <div
+                style="
+                    margin-bottom: 18px;
+                    padding: 14px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                "
+            >
+                <?php foreach ($items as $item): ?>
+                    <div style="margin-bottom: 6px;">
+                        <strong><?= htmlspecialchars(
+                            (string) ($item['product']['name'] ?? ''),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?></strong>
+                        — <?= htmlspecialchars(
+                            (string) ($item['size']['value'] ?? ''),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
+                        <?php if (!empty($item['color_name'])): ?>
+                            · <?= htmlspecialchars(
+                                (string) $item['color_name'],
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
+                        <?php endif; ?>
+                        · 1 шт.
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
         <form
-            action="/Anabelka/quick-order"
+            action="<?= !empty($productDraftToken)
+                ? '/Anabelka/quick-order/product'
+                : '/Anabelka/quick-order' ?>"
             method="POST"
             autocomplete="on"
         >
+            <?php if (!empty($productDraftToken)): ?>
+                <input
+                    type="hidden"
+                    name="draft_token"
+                    value="<?= htmlspecialchars(
+                        $productDraftToken,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                >
+            <?php endif; ?>
 
             <div style="margin-bottom: 15px;">
                 <label>

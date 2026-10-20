@@ -89,6 +89,16 @@ $router->post(
 );
 
 $router->get(
+    '/quick-order/product',
+    'QuickOrderController@productForm'
+);
+
+$router->post(
+    '/quick-order/product',
+    'QuickOrderController@productStore'
+);
+
+$router->get(
     '/quick-order/success',
     'QuickOrderController@success'
 );

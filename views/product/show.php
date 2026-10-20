@@ -616,6 +616,31 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
                     >
                         Добавить выбранное в корзину
                     </button>
+
+                    <button
+                        type="submit"
+                        formmethod="GET"
+                        formaction="/Anabelka/quick-order/product"
+                        data-product-quick-order
+                        style="
+                            width:100%;
+                            margin-top:10px;
+                            padding:14px;
+                            border:1px solid var(--primary-color);
+                            border-radius:12px;
+                            background:var(--primary-light-color);
+                            color:var(--primary-color);
+                            font-size:16px;
+                            font-weight:bold;
+                            cursor:pointer;
+                        "
+                    >
+                        <?= htmlspecialchars(
+                            Translator::t('quick.title', 'Швидке замовлення'),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
+                    </button>
                 </div>
 
             </form>
@@ -949,6 +974,20 @@ $guestDiscount = Product::getActiveDiscountPercent($product['id']);
         cartForm.addEventListener(
             'submit',
             function (event) {
+
+                if (
+                    event.submitter
+                    && event.submitter.hasAttribute('data-product-quick-order')
+                ) {
+                    if (new FormData(cartForm).getAll('sizes[]').length === 0) {
+                        event.preventDefault();
+                        showSiteMessage(
+                            cartMessages.select_size || 'Оберіть хоча б один розмір.',
+                            'warning'
+                        );
+                    }
+                    return;
+                }
 
                 event.preventDefault();
 
