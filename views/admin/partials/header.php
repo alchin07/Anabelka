@@ -134,6 +134,15 @@ $adminCan = static function ($permission) {
 };
 
 $canDashboard = $adminCan('dashboard.view');
+$canChat = $adminCan('chat.use');
+$chatUnread = 0;
+if ($canChat && $currentAdmin && class_exists('AdminChat')) {
+    try {
+        $chatUnread = AdminChat::unreadTotal((int) $currentAdmin['id']);
+    } catch (Throwable $e) {
+        // Доки не виконано SQL-міграцію, решта меню працює звичайно.
+    }
+}
 $canDashboardBuilder = $adminCan('dashboard.manage');
 $canOrders = $adminCan('orders.view');
 $canSearch = $adminCan('search.view');
@@ -251,7 +260,7 @@ $canVipPriceViews = $adminCan('vip_prices.view');
     </div>
 
     <nav id="admin-section-nav" class="admin-section-nav">
-        <?php if ($canDashboard || $canDashboardBuilder || $canOrders || $canSearch || $canUsers || $canRanks): ?>
+        <?php if ($canDashboard || $canDashboardBuilder || $canChat || $canOrders || $canSearch || $canUsers || $canRanks): ?>
             <span class="admin-nav-group-title">Огляд</span>
 
             <?php if ($canDashboard): ?>
@@ -270,6 +279,16 @@ $canVipPriceViews = $adminCan('vip_prices.view');
                     data-admin-route="/Anabelka/admin/dashboard-builder"
                 >
                     <span>Конструктор адмін-главної</span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canChat): ?>
+                <a href="/Anabelka/admin/chat" data-admin-route="/Anabelka/admin/chat">
+                    <span>Чат команди</span>
+                    <span class="admin-nav-badge" data-chat-unread-badge
+                          <?= $chatUnread > 0 ? '' : 'hidden' ?>>
+                        <?= $chatUnread > 99 ? '99+' : $chatUnread ?>
+                    </span>
                 </a>
             <?php endif; ?>
 

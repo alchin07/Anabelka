@@ -18,7 +18,8 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
 <main class="admin-chat-page" id="admin-chat" data-admin-id="<?= $adminId ?>"
-      data-csrf="<?= $escape($csrfToken) ?>">
+      data-csrf="<?= $escape($csrfToken) ?>"
+      data-role="<?= $escape(AdminAccess::current()['role_slug'] ?? '') ?>">
     <div class="admin-chat-heading">
         <div>
             <h2>Чат команди <span aria-hidden="true">💜</span></h2>

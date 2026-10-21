@@ -296,7 +296,7 @@ final class AdminChat
     {
         self::conversation($id, $actorId);
         $body = trim($body);
-        if (mb_strlen($body, 'UTF-8') > 4000) {
+        if (self::textLength($body) > 4000) {
             throw new InvalidArgumentException('Повідомлення не може бути довшим за 4000 символів.');
         }
         if ($replyId > 0) {
@@ -333,8 +333,9 @@ final class AdminChat
 
     public static function edit(int $id, int $actorId, string $body): void
     {
+        self::assertMessageAuthorMembership($id, $actorId);
         $body = trim($body);
-        if ($body === '' || mb_strlen($body, 'UTF-8') > 4000) {
+        if ($body === '' || self::textLength($body) > 4000) {
             throw new InvalidArgumentException('Вкажіть текст до 4000 символів.');
         }
         $stmt = self::db()->prepare("
@@ -350,6 +351,7 @@ final class AdminChat
 
     public static function delete(int $id, int $actorId): void
     {
+        self::assertMessageAuthorMembership($id, $actorId);
         $stmt = self::db()->prepare("
             UPDATE admin_chat_messages
             SET body = '', deleted_at = NOW()
@@ -399,7 +401,7 @@ final class AdminChat
     public static function search(int $actorId, string $term): array
     {
         $term = trim($term);
-        if (mb_strlen($term, 'UTF-8') < 2 || mb_strlen($term, 'UTF-8') > 100) {
+        if (self::textLength($term) < 2 || self::textLength($term) > 100) {
             return [];
         }
         $stmt = self::db()->prepare("
@@ -415,10 +417,30 @@ final class AdminChat
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    private static function assertMessageAuthorMembership(int $messageId, int $actorId): void
+    {
+        $stmt = self::db()->prepare(
+            "SELECT conversation_id FROM admin_chat_messages WHERE id = ? AND sender_id = ? AND deleted_at IS NULL"
+        );
+        $stmt->execute([$messageId, $actorId]);
+        $conversationId = (int) $stmt->fetchColumn();
+        if ($conversationId <= 0) {
+            throw new DomainException('Можна змінювати лише власні повідомлення.');
+        }
+        self::conversation($conversationId, $actorId);
+    }
+
+    private static function textLength(string $value): int
+    {
+        return function_exists('mb_strlen')
+            ? mb_strlen($value, 'UTF-8')
+            : (preg_match_all('/./us', $value, $matches) ?: strlen($value));
+    }
+
     private static function validTitle(string $title): string
     {
         $title = trim($title);
-        if ($title === '' || mb_strlen($title, 'UTF-8') > 120) {
+        if ($title === '' || self::textLength($title) > 120) {
             throw new InvalidArgumentException('Вкажіть назву групи до 120 символів.');
         }
         return $title;

@@ -198,6 +198,10 @@
     }
 
     function toList() {
+        state.active = 0;
+        state.conversation = null;
+        state.members = [];
+        clearReply();
         layout.classList.remove('has-open-thread');
         closeEmoji();
         const url = new URL(location.href);
