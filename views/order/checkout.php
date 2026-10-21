@@ -41,6 +41,36 @@ $checkoutJsTranslations = [
     )
 ];
 
+$checkoutValidationMessages = [
+    'required' => Translator::t(
+        'public.order.error_fill_field', 'Заповніть поле «{field}».'
+    ),
+    'invalid' => Translator::t(
+        'checkout.validation_invalid', 'Перевірте значення поля «{field}».'
+    ),
+    'email' => Translator::t('public.order.error_email', 'Некоректний Email.'),
+    'method' => Translator::t(
+        'checkout.validation_choose_method', 'Оберіть спосіб доставки.'
+    ),
+    'service' => Translator::t(
+        'public.order.error_choose_service', 'Оберіть службу доставки.'
+    ),
+    'option' => Translator::t(
+        'public.order.error_choose_option', 'Оберіть варіант отримання.'
+    ),
+    'labels' => [
+        'customer_name' => Translator::t('checkout.name', 'Ім’я'),
+        'customer_email' => Translator::t('checkout.email', 'Email'),
+        'delivery_country' => Translator::t('checkout.country', 'Країна'),
+        'delivery_city' => Translator::t('checkout.city', 'Місто'),
+        'delivery_address' => Translator::t('checkout.address', 'Адреса'),
+        'delivery_postcode' => Translator::t('checkout.postcode', 'Поштовий індекс'),
+        'delivery_option_input' => Translator::t(
+            'checkout.delivery_address', 'Дані доставки'
+        )
+    ]
+];
+
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLanguage['code'] ?? 'uk') ?>">
@@ -66,9 +96,10 @@ $checkoutJsTranslations = [
         href="/Anabelka/css/catalog.css?v=4"
     >
 
+    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=3">
 </head>
 
-<body>
+<body class="checkout-validation-page">
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
@@ -627,6 +658,12 @@ $checkoutJsTranslations = [
 
 </main>
 
+<script type="application/json" id="checkout-validation-messages"><?= json_encode(
+    $checkoutValidationMessages,
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+        | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE
+) ?: '{}' ?></script>
+
 <script>
 
 const checkoutTranslations = <?= json_encode(
@@ -1057,6 +1094,8 @@ updateDeliveryForm();
 updateAddressFieldByOption();
 
 </script>
+
+<script src="/Anabelka/js/checkout-validation.js?v=3"></script>
 
 </body>
 

@@ -91,6 +91,8 @@ class Order
         }
 
         self::ensureSchema();
+        // CREATE TABLE must never run in an active stock reservation transaction.
+        ProductVariantStock::ensureTable();
         $db = Database::connect();
         $db->beginTransaction();
 
@@ -137,7 +139,7 @@ class Order
                         0,
                         :subtotal,
                         :total,
-                        'EUR',
+                        'UAH',
                         :comment,
                         :order_token
                     )

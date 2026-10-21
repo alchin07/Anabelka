@@ -23,6 +23,11 @@
         rel="stylesheet"
         href="/Anabelka/css/admin-translations.css?v=7"
     >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/anabelka-notify.css?v=3"
+    >
 </head>
 <body>
 
@@ -73,7 +78,7 @@ $translationStatusOptions = TranslationWorkflow::statusOptions();
         </div>
 
         <?php if (!empty($editorError)): ?>
-            <div class="translations-error">
+            <div class="translations-error anabelka-notify-inline" role="alert">
                 <?= htmlspecialchars((string) $editorError) ?>
             </div>
         <?php else: ?>
@@ -266,13 +271,15 @@ $translationStatusOptions = TranslationWorkflow::statusOptions();
 
 <div
     id="site-message"
-    class="site-message"
+    class="site-message anabelka-notify"
     role="status"
     aria-live="polite"
+    aria-atomic="true"
 ></div>
 
+<script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
 <script
-    src="/Anabelka/js/admin-interface-translations.js?v=3"
+    src="/Anabelka/js/admin-interface-translations.js?v=4"
 ></script>
 
 </body>

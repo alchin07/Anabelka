@@ -9,6 +9,7 @@
     'use strict';
 
     let suppressEditableFocusUntil = 0;
+    let requestedFocusField = null;
 
     function isEditableElement(element)
     {
@@ -26,13 +27,16 @@
     {
         const active = document.activeElement;
 
-        if (isEditableElement(active) && typeof active.blur === 'function') {
+        if ((active !== requestedFocusField || Date.now() >= suppressEditableFocusUntil)
+            && isEditableElement(active)
+            && typeof active.blur === 'function') {
             active.blur();
         }
     }
 
     function suppressProgrammaticFocus(duration)
     {
+        requestedFocusField = null;
         const milliseconds = Number(duration || 500);
         suppressEditableFocusUntil = Math.max(
             suppressEditableFocusUntil,
@@ -52,10 +56,23 @@
         suppressProgrammaticFocus(650);
     }
 
+    // Validation and a requested translation target must remain reachable.
+    // Other button-driven navigation retains the normal keyboard policy.
+    function focusRequestedField(element)
+    {
+        if (!isEditableElement(element) || typeof element.focus !== 'function') {
+            return;
+        }
+
+        requestedFocusField = element;
+        element.focus();
+    }
+
     window.AdminUiFocusPolicy = {
         blurActiveField: blurActiveField,
         suppressProgrammaticFocus: suppressProgrammaticFocus,
-        prepareProgrammaticNavigation: prepareProgrammaticNavigation
+        prepareProgrammaticNavigation: prepareProgrammaticNavigation,
+        focusRequestedField: focusRequestedField
     };
 
     /*
@@ -65,6 +82,7 @@
      */
     document.addEventListener('pointerdown', function (event) {
         if (isEditableElement(event.target)) {
+            requestedFocusField = null;
             suppressEditableFocusUntil = 0;
             return;
         }
@@ -84,6 +102,7 @@
         if (
             Date.now() < suppressEditableFocusUntil
             && isEditableElement(event.target)
+            && event.target !== requestedFocusField
         ) {
             event.target.blur();
         }

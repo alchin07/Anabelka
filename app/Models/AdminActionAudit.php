@@ -85,8 +85,24 @@ class AdminActionAudit
             case '/admin/products/variant-stock/save':
                 return ['action' => 'product.variant_stock_updated'];
 
+            case '/admin/categories/create':
+                return ['action' => 'category.created'];
+
             case '/admin/categories/update':
                 return ['action' => 'category.updated'];
+
+            case '/admin/categories/move':
+                return [
+                    'action' => self::postString('direction', 8) !== ''
+                        ? 'category.reordered'
+                        : 'category.moved'
+                ];
+
+            case '/admin/categories/toggle':
+                return ['action' => 'category.flag_changed'];
+
+            case '/admin/categories/delete':
+                return ['action' => 'category.deleted'];
 
             case '/admin/users/invite/create':
                 return ['action' => 'customer.invitation_created'];
@@ -227,10 +243,41 @@ class AdminActionAudit
                     'product_id' => self::postInt('product_id')
                 ]);
 
+            case '/admin/categories/create':
+                return self::cleanDetails([
+                    'name' => self::postString('name', 150),
+                    'department_id' => self::postInt('department_id'),
+                    'parent_id' => self::postInt('parent_id'),
+                    'is_active' => self::postFlag('is_active'),
+                    'is_adult' => self::postFlag('is_adult')
+                ]);
+
             case '/admin/categories/update':
                 return self::cleanDetails([
                     'category_id' => self::postInt('category_id'),
-                    'name' => self::postString('name', 180)
+                    'name' => self::postString('name', 150),
+                    'is_active' => self::postFlag('is_active'),
+                    'is_adult' => self::postFlag('is_adult')
+                ]);
+
+            case '/admin/categories/move':
+                return self::cleanDetails([
+                    'category_id' => self::postInt('category_id'),
+                    'department_id' => self::postInt('department_id'),
+                    'parent_id' => self::postInt('parent_id'),
+                    'direction' => self::postString('direction', 8)
+                ]);
+
+            case '/admin/categories/toggle':
+                return self::cleanDetails([
+                    'category_id' => self::postInt('category_id'),
+                    'field' => self::postString('field', 20),
+                    'value' => self::postFlag('value')
+                ]);
+
+            case '/admin/categories/delete':
+                return self::cleanDetails([
+                    'category_id' => self::postInt('category_id')
                 ]);
 
             case '/admin/users/invite/create':

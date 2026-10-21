@@ -133,13 +133,13 @@ class AdminUserController extends Controller
 
             $_SESSION['admin_user_invite_flash'] = $result;
 
-            header(
-                'Location: /Anabelka/admin/users?'
-                . http_build_query([
-                    'message' => 'Акаунт для запрошення створено.'
-                ])
+            // The one-time invitation token remains in the existing session
+            // result. Only a generic success message enters the notification.
+            $this->redirectBack(
+                '',
+                'message',
+                'Акаунт для запрошення створено.'
             );
-            exit;
         } catch (Throwable $e) {
             header(
                 'Location: /Anabelka/admin/users?'
@@ -350,7 +350,24 @@ class AdminUserController extends Controller
         }
 
         unset($query['message'], $query['error']);
-        $query[$key] = $message;
+
+        if ($key === 'message') {
+            $text = (string) $message;
+
+            // A no-op is information; a completed mutation is success.
+            if (in_array($text, [
+                'Користувач уже має цей ранг.',
+                'Акаунт уже деактивований.'
+            ], true)) {
+                AnabelkaFlash::info($text);
+            } else {
+                AnabelkaFlash::success($text);
+            }
+        } else {
+            // Keep validation, CSRF and access errors on the page.
+            $query[$key] = $message;
+        }
+
         $url = '/Anabelka/admin/users';
         $encoded = http_build_query($query);
 

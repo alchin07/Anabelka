@@ -23,7 +23,7 @@ class QuickOrder
                 comment TEXT NULL,
                 subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                 total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-                currency VARCHAR(3) NOT NULL DEFAULT 'EUR',
+                currency VARCHAR(3) NOT NULL DEFAULT 'UAH',
                 status VARCHAR(30) NOT NULL DEFAULT 'new',
                 inventory_reserved TINYINT(1) NOT NULL DEFAULT 0,
                 order_token CHAR(64) NOT NULL,
@@ -119,6 +119,7 @@ class QuickOrder
         $total
     ) {
         self::ensureTables();
+        ProductVariantStock::ensureTable();
 
         $db = Database::connect();
         $db->beginTransaction();
@@ -148,7 +149,7 @@ class QuickOrder
                     :comment,
                     :subtotal,
                     :total,
-                    'EUR',
+                    'UAH',
                     'new',
                     0,
                     :order_token

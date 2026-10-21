@@ -81,7 +81,8 @@
             '/Anabelka/admin/categories',
             '/Anabelka/admin/products',
             '/Anabelka/admin/delivery',
-            '/Anabelka/admin/ranks'
+            '/Anabelka/admin/ranks',
+            '/Anabelka/admin/mobile-navigation'
         ];
 
         if (exactPages.includes(path)) {
@@ -103,6 +104,21 @@
     }
 
 
+    let aiTranslationModuleReady = null;
+
+
+    function showAiModuleLoadError()
+    {
+        const notify = window.AnabelkaNotify;
+
+        if (notify && typeof notify.error === 'function') {
+            notify.error(
+                'Не вдалося завантажити модуль ШІ-перекладу. Оновіть сторінку.'
+            );
+        }
+    }
+
+
     function ensureAiTranslationSwitcher()
     {
         /*
@@ -120,7 +136,7 @@
         if (!document.querySelector('link[data-admin-ai-translation]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';
-            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=3';
+            stylesheet.href = '/Anabelka/css/admin-ai-translation.css?v=5';
             stylesheet.dataset.adminAiTranslation = '1';
             document.head.appendChild(stylesheet);
         }
@@ -146,14 +162,49 @@
             switcher.className = 'ai-provider-switcher';
             switcher.hidden = true;
 
-            const label = document.createElement('label');
-            label.htmlFor = 'ai-provider-select';
+            const label = document.createElement('span');
+            label.className = 'ai-provider-caption';
             label.textContent = 'ШІ-переклад';
 
             const select = document.createElement('select');
             select.id = 'ai-provider-select';
-            select.className = 'ai-provider-select';
-            select.setAttribute('aria-label', 'Провайдер ШІ-перекладу');
+            select.className = 'ai-provider-select ai-provider-native-select';
+            select.setAttribute('aria-hidden', 'true');
+            select.tabIndex = -1;
+
+            const picker = document.createElement('div');
+            picker.className = 'ai-provider-picker';
+
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.id = 'ai-provider-trigger';
+            trigger.className = 'ai-provider-trigger';
+            trigger.setAttribute('aria-haspopup', 'listbox');
+            trigger.setAttribute('aria-controls', 'ai-provider-options');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.setAttribute('aria-label', 'Провайдер ШІ-перекладу');
+
+            const triggerLabel = document.createElement('span');
+            triggerLabel.id = 'ai-provider-trigger-label';
+            triggerLabel.className = 'ai-provider-trigger-label';
+            triggerLabel.textContent = 'ШІ';
+
+            const chevron = document.createElement('span');
+            chevron.className = 'ai-provider-chevron';
+            chevron.setAttribute('aria-hidden', 'true');
+            chevron.textContent = '⌄';
+
+            const options = document.createElement('div');
+            options.id = 'ai-provider-options';
+            options.className = 'ai-provider-options';
+            options.setAttribute('role', 'listbox');
+            options.setAttribute('aria-label', 'Провайдер ШІ-перекладу');
+            options.hidden = true;
+
+            trigger.appendChild(triggerLabel);
+            trigger.appendChild(chevron);
+            picker.appendChild(trigger);
+            picker.appendChild(options);
 
             const status = document.createElement('span');
             status.id = 'ai-provider-status';
@@ -162,6 +213,7 @@
 
             switcher.appendChild(label);
             switcher.appendChild(select);
+            switcher.appendChild(picker);
             switcher.appendChild(status);
         }
 
@@ -169,10 +221,58 @@
             topSlot.appendChild(switcher);
         }
 
-        if (!document.querySelector('script[data-admin-ai-translation]')) {
-            const script = document.createElement('script');
-            script.src = '/Anabelka/js/admin-ai-translation.js?v=6';
+        let script = document.querySelector('script[data-admin-ai-translation]');
+
+        if (!script) {
+            script = document.createElement('script');
+            script.src = '/Anabelka/js/admin-ai-translation.js?v=16';
+            script.async = false;
             script.dataset.adminAiTranslation = '1';
+        }
+
+        // Dynamic scripts otherwise run asynchronously and can expose the
+        // delivery translation button before the shared AI API has loaded.
+        aiTranslationModuleReady = new Promise(function (resolve) {
+            let finished = false;
+
+            function finish(loaded) {
+                if (finished) {
+                    return;
+                }
+
+                finished = true;
+                const ready = Boolean(
+                    loaded
+                    && window.AnabelkaAITranslation
+                    && typeof window.AnabelkaAITranslation.suggest === 'function'
+                );
+
+                if (!ready) {
+                    showAiModuleLoadError();
+                }
+
+                resolve(ready);
+            }
+
+            if (
+                window.AnabelkaAITranslation
+                && typeof window.AnabelkaAITranslation.suggest === 'function'
+            ) {
+                resolve(true);
+                return;
+            }
+
+            script.addEventListener('load', function () {
+                finish(true);
+            }, {once: true});
+            script.addEventListener('error', function () {
+                finish(false);
+            }, {once: true});
+        });
+
+        window.AnabelkaAITranslationReady = aiTranslationModuleReady;
+
+        if (!script.isConnected) {
             document.body.appendChild(script);
         }
     }
@@ -191,13 +291,24 @@
     }
 
 
+    function appendDeliveryAiWhenReady()
+    {
+        // Buttons are safe to render before the provider is available.
+        // Click handling waits for the shared module and checks permissions.
+        appendScript(
+            '/Anabelka/js/admin-delivery-ai-translation.js?v=5',
+            'data-admin-delivery-ai'
+        );
+    }
+
+
     function ensurePageAiModules()
     {
         const path = window.location.pathname.replace(/\/$/, '');
 
         if (path === '/Anabelka/admin/categories') {
             appendScript(
-                '/Anabelka/js/admin-category-ai-translation.js?v=4',
+                '/Anabelka/js/admin-category-ai-translation.js?v=6',
                 'data-admin-category-ai'
             );
 
@@ -217,11 +328,16 @@
             return;
         }
 
-        if (path === '/Anabelka/admin/delivery') {
+        if (path === '/Anabelka/admin/mobile-navigation') {
             appendScript(
-                '/Anabelka/js/admin-delivery-ai-translation.js?v=3',
-                'data-admin-delivery-ai'
+                '/Anabelka/js/admin-mobile-navigation-ai-translation.js?v=4',
+                'data-admin-mobile-navigation-ai'
             );
+            return;
+        }
+
+        if (path === '/Anabelka/admin/delivery') {
+            appendDeliveryAiWhenReady();
 
             appendScript(
                 '/Anabelka/js/admin-translation-target.js?v=2',
@@ -276,6 +392,13 @@
             drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
             backdrop.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
 
+            if (
+                window.AnabelkaAdminBack
+                && typeof window.AnabelkaAdminBack.syncNow === 'function'
+            ) {
+                window.AnabelkaAdminBack.syncNow();
+            }
+
             if (isOpen) {
                 previousFocus = document.activeElement;
 
@@ -318,6 +441,22 @@
                 setOpen(false);
             }
         });
+
+        if (
+            window.AnabelkaAdminBack
+            && typeof window.AnabelkaAdminBack.register === 'function'
+        ) {
+            window.AnabelkaAdminBack.register({
+                key: 'admin-drawer',
+                priority: 20,
+                isActive: function () {
+                    return drawer.classList.contains('is-open');
+                },
+                close: function () {
+                    setOpen(false);
+                }
+            });
+        }
     }
 
 

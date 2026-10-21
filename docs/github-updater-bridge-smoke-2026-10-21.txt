@@ -1,0 +1,6 @@
+ANABELKA - GITHUB UPDATER BRIDGE SMOKE TEST
+Date: 2026-10-21
+Purpose: verify a new GitHub commit reaches Android through KSWEB / Termux Bridge.
+This file is documentation only. It is not used by the shop, database, or image processor.
+Expected Android location: Anabelka/docs/github-updater-bridge-smoke-2026-10-21.txt
+Test marker: ANABELKA-BRIDGE-FETCH-FAST-FORWARD-OK

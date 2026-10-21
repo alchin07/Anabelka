@@ -2,6 +2,23 @@
 
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
+// The visible form heading is inside the card, so don't repeat it in the site header.
+$hidePublicPageHeading = true;
+
+$quickValidationMessages = [
+    'required' => Translator::t(
+        'public.order.error_fill_field',
+        'Заповніть поле «{field}».'
+    ),
+    'invalid' => Translator::t(
+        'checkout.validation_invalid',
+        'Перевірте значення поля «{field}».'
+    ),
+    'labels' => [
+        'customer_name' => Translator::t('quick.name', 'Ім’я'),
+        'customer_phone' => Translator::t('quick.phone', 'Номер телефону')
+    ]
+];
 
 ?>
 <!DOCTYPE html>
@@ -25,9 +42,10 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
         rel="stylesheet"
         href="/Anabelka/css/catalog.css?v=4"
     >
+    <link rel="stylesheet" href="/Anabelka/css/checkout-validation.css?v=3">
 </head>
 
-<body>
+<body class="checkout-validation-page">
 
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
@@ -65,11 +83,58 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
             ) ?>
         </p>
 
+        <?php if (!empty($productDraftToken)): ?>
+            <div
+                style="
+                    margin-bottom: 18px;
+                    padding: 14px;
+                    border: 1px solid var(--border-color);
+                    border-radius: 12px;
+                "
+            >
+                <?php foreach ($items as $item): ?>
+                    <div style="margin-bottom: 6px;">
+                        <strong><?= htmlspecialchars(
+                            (string) ($item['product']['name'] ?? ''),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?></strong>
+                        — <?= htmlspecialchars(
+                            (string) ($item['size']['value'] ?? ''),
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>
+                        <?php if (!empty($item['color_name'])): ?>
+                            · <?= htmlspecialchars(
+                                (string) $item['color_name'],
+                                ENT_QUOTES,
+                                'UTF-8'
+                            ) ?>
+                        <?php endif; ?>
+                        · 1 шт.
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
         <form
-            action="/Anabelka/quick-order"
+            action="<?= !empty($productDraftToken)
+                ? '/Anabelka/quick-order/product'
+                : '/Anabelka/quick-order' ?>"
             method="POST"
             autocomplete="on"
         >
+            <?php if (!empty($productDraftToken)): ?>
+                <input
+                    type="hidden"
+                    name="draft_token"
+                    value="<?= htmlspecialchars(
+                        $productDraftToken,
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ) ?>"
+                >
+            <?php endif; ?>
 
             <div style="margin-bottom: 15px;">
                 <label>
@@ -183,7 +248,7 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
                         2,
                         ',',
                         ' '
-                    ) ?> €
+                    ) ?> ₴
                 </strong>
             </div>
 
@@ -214,6 +279,13 @@ $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
     </section>
 
 </main>
+
+<script type="application/json" id="checkout-validation-messages"><?= json_encode(
+    $quickValidationMessages,
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+        | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE
+) ?: '{}' ?></script>
+<script src="/Anabelka/js/checkout-validation.js?v=3"></script>
 
 </body>
 </html>

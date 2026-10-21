@@ -226,23 +226,11 @@ class Cart
             return false;
         }
 
-        $db = Database::connect();
-        $stmt = $db->prepare("
-            SELECT 1
-            FROM product_attributes
-            WHERE product_id = :product_id
-              AND attribute_value_id = :size_id
-            LIMIT 1
-        ");
-        $stmt->execute([
-            'product_id' => $productId,
-            'size_id' => $sizeId
-        ]);
-
-        if (!$stmt->fetchColumn()) {
+        if (!Product::hasSize($productId, $sizeId)) {
             return false;
         }
 
+        $db = Database::connect();
         $usesVariantStock = ProductVariantStock::hasMatrix($productId);
 
         if ($usesVariantStock) {

@@ -781,11 +781,7 @@
                             );
                         }
                     } catch (error) {
-                        window.showMessage(
-                            error instanceof Error
-                                ? error.message
-                                : 'Не удалось загрузить переводы.'
-                        );
+                        window.showMessage(error instanceof Error ? error.message : 'Не удалось загрузить переводы.', 'error');
                     }
 
                     const translationFocusField =
@@ -961,6 +957,11 @@
                         if (deleteButton) {
                             deleteButton.dataset.name = editName.value;
                         }
+
+                        const toggleForm = row.querySelector('.toggle-form');
+                        if (toggleForm) {
+                            toggleForm.dataset.name = editName.value;
+                        }
                     }
 
                     editButton.dataset.name = editName.value;
@@ -970,16 +971,10 @@
 
                 editModal.hidden = true;
 
-                window.showMessage(
-                    'Изменения и переводы сохранены'
-                );
+                window.showMessage('Изменения и переводы сохранены', 'success');
 
             } catch (error) {
-                window.showMessage(
-                    error instanceof Error
-                        ? error.message
-                        : 'Не удалось сохранить изменения.'
-                );
+                window.showMessage(error instanceof Error ? error.message : 'Не удалось сохранить изменения.', 'error');
             }
         }
     );

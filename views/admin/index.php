@@ -21,7 +21,7 @@
 
     <link
         rel="stylesheet"
-        href="/Anabelka/css/admin-dashboard.css?v=2"
+        href="/Anabelka/css/admin-dashboard.css?v=3"
     >
 </head>
 <body>
@@ -39,6 +39,9 @@ $translationSummary = is_array($translationSummary ?? null)
     : [];
 $aiSummary = is_array($aiSummary ?? null)
     ? $aiSummary
+    : [];
+$dashboardBuilderBlocks = is_array($dashboardBuilderBlocks ?? null)
+    ? $dashboardBuilderBlocks
     : [];
 $adminNotificationSummary = is_array($adminNotificationSummary ?? null)
     ? $adminNotificationSummary
@@ -58,6 +61,12 @@ $adminNotificationTotal = max(
 
 $formatNumber = function ($value) {
     return number_format((int) $value, 0, ',', ' ');
+};
+
+$formatBadgeCount = function ($value) {
+    $value = max(0, (int) $value);
+
+    return $value > 99 ? '99+' : (string) $value;
 };
 
 $formatMoney = function ($value, $currency) {
@@ -132,6 +141,100 @@ $aiStateClass = !$aiAvailable
             <?= htmlspecialchars((string) $dashboardError) ?>
         </div>
     <?php endif; ?>
+
+    <?php if (!empty($dashboardBuilderBlocks)): ?>
+        <section
+            class="dashboard-builder-layout"
+            aria-label="Налаштовані блоки адмін-панелі"
+        >
+            <?php foreach ($dashboardBuilderBlocks as $dashboardBlock): ?>
+                <?php
+                $dashboardLinks = is_array(
+                    $dashboardBlock['links'] ?? null
+                )
+                    ? $dashboardBlock['links']
+                    : [];
+                ?>
+                <section class="dashboard-builder-panel">
+                    <div class="dashboard-builder-panel-head">
+                        <h2>
+                            <?= htmlspecialchars(
+                                (string) ($dashboardBlock['title'] ?? '')
+                            ) ?>
+                        </h2>
+                    </div>
+
+                    <div class="dashboard-builder-service-grid">
+                        <?php foreach ($dashboardLinks as $dashboardLink): ?>
+                            <?php
+                            $dashboardService = is_array(
+                                $dashboardLink['service'] ?? null
+                            )
+                                ? $dashboardLink['service']
+                                : [];
+                            $dashboardBadgeCount = max(
+                                0,
+                                (int) ($dashboardLink['badge_count'] ?? 0)
+                            );
+                            $dashboardBadgeTone = (string) (
+                                $dashboardLink['badge_tone']
+                                ?? 'notification'
+                            );
+                            ?>
+                            <a
+                                class="dashboard-builder-service-link"
+                                href="<?= htmlspecialchars(
+                                    (string) ($dashboardLink['url'] ?? '/Anabelka/admin'),
+                                    ENT_QUOTES,
+                                    'UTF-8'
+                                ) ?>"
+                            >
+                                <?php if ($dashboardBadgeCount > 0): ?>
+                                    <span
+                                        class="dashboard-builder-service-badge<?= $dashboardBadgeTone === 'error'
+                                            ? ' is-error'
+                                            : '' ?>"
+                                        aria-label="<?= htmlspecialchars(
+                                            'Нових сповіщень: '
+                                            . $dashboardBadgeCount,
+                                            ENT_QUOTES,
+                                            'UTF-8'
+                                        ) ?>"
+                                    >
+                                        <?= htmlspecialchars(
+                                            $formatBadgeCount(
+                                                $dashboardBadgeCount
+                                            )
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+
+                                <strong>
+                                    <?= htmlspecialchars(
+                                        (string) (
+                                            $dashboardLink['display_label']
+                                            ?? $dashboardService['label']
+                                            ?? $dashboardLink['service_key']
+                                            ?? 'Служба'
+                                        )
+                                    ) ?>
+                                </strong>
+
+                                <?php if (!empty($dashboardService['description'])): ?>
+                                    <span>
+                                        <?= htmlspecialchars(
+                                            (string) $dashboardService['description']
+                                        ) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+            <?php endforeach; ?>
+        </section>
+    <?php endif; ?>
+
 
     <section
         class="dashboard-alert-grid"

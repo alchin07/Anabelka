@@ -18,6 +18,17 @@ class AdminDashboardController extends Controller
 
         $translationSummary = $this->translationSummary();
         $aiSummary = $this->aiSummary();
+        $dashboardBuilderBlocks = [];
+
+        try {
+            if (class_exists('AdminDashboardLayout')) {
+                $dashboardBuilderBlocks =
+                    AdminDashboardLayout::activeForCurrentAdmin();
+            }
+        } catch (Throwable $e) {
+            // Конструктор не повинен блокувати поточну головну адмінки.
+            $dashboardBuilderBlocks = [];
+        }
         $notificationSummary = [
             'total' => 0,
             'all_total' => 0,
@@ -58,6 +69,7 @@ class AdminDashboardController extends Controller
                 'recentOrders' => $overview['recent_orders'] ?? [],
                 'translationSummary' => $translationSummary,
                 'aiSummary' => $aiSummary,
+                'dashboardBuilderBlocks' => $dashboardBuilderBlocks,
                 'adminNotificationSummary' => $notificationSummary,
                 'dashboardError' => $dashboardError,
                 'navBadges' => [

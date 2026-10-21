@@ -14,37 +14,53 @@ class AdminRolePermission
 
         self::ensureSchema();
         $db = Database::connect();
-        $rows = $db->query("
-            SELECT
-                o.role_id,
-                o.permissions_json,
-                r.slug
-            FROM admin_role_permission_overrides o
-            INNER JOIN admin_roles r ON r.id = o.role_id
-            ORDER BY o.role_id ASC
-        ")->fetchAll(PDO::FETCH_ASSOC);
+        $db->beginTransaction();
 
-        foreach ($rows as $row) {
-            if (($row['slug'] ?? '') === 'owner') {
-                continue;
+        try {
+            // Lock the role rows while rebuilding the live permission set.
+            // This serializes concurrent admin requests so that two requests
+            // cannot both DELETE/INSERT the same (role_id, permission_key)
+            // pair at the same time.
+            $rows = $db->query("
+                SELECT
+                    o.role_id,
+                    o.permissions_json,
+                    r.slug
+                FROM admin_role_permission_overrides o
+                INNER JOIN admin_roles r ON r.id = o.role_id
+                ORDER BY o.role_id ASC
+                FOR UPDATE
+            ")->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($rows as $row) {
+                if (($row['slug'] ?? '') === 'owner') {
+                    continue;
+                }
+
+                $decoded = json_decode(
+                    (string) ($row['permissions_json'] ?? '[]'),
+                    true
+                );
+                $keys = self::normalizePermissionKeys(
+                    is_array($decoded) ? $decoded : []
+                );
+
+                self::replaceLivePermissions(
+                    $db,
+                    (int) ($row['role_id'] ?? 0),
+                    $keys
+                );
             }
 
-            $decoded = json_decode(
-                (string) ($row['permissions_json'] ?? '[]'),
-                true
-            );
-            $keys = self::normalizePermissionKeys(
-                is_array($decoded) ? $decoded : []
-            );
+            $db->commit();
+            self::$applied = true;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
 
-            self::replaceLivePermissions(
-                $db,
-                (int) ($row['role_id'] ?? 0),
-                $keys
-            );
+            throw $e;
         }
-
-        self::$applied = true;
     }
 
 
@@ -92,6 +108,26 @@ class AdminRolePermission
         $db->beginTransaction();
 
         try {
+            // Use the same role-row lock as applySavedOverrides(). This keeps
+            // a manual permission update atomic with any concurrent request
+            // that is restoring saved overrides.
+            $lock = $db->prepare("
+                SELECT id
+                FROM admin_roles
+                WHERE id = :id
+                LIMIT 1
+                FOR UPDATE
+            ");
+            $lock->execute([
+                'id' => $roleId
+            ]);
+
+            if (!$lock->fetchColumn()) {
+                throw new RuntimeException(
+                    'Роль адміністратора не знайдено.'
+                );
+            }
+
             $save = $db->prepare("
                 INSERT INTO admin_role_permission_overrides
                     (role_id, permissions_json)

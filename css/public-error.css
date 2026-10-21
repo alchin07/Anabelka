@@ -1,0 +1,97 @@
+.public-error-page {
+    min-height: calc(100vh - 120px);
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: 32px 16px 48px;
+    background: #faf7ff;
+}
+
+.public-error-card {
+    width: min(560px, 100%);
+    box-sizing: border-box;
+    padding: 32px 24px;
+    border: 1px solid #eadcf7;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 14px 36px rgba(101, 25, 185, 0.10);
+    color: #20202a;
+    text-align: center;
+}
+
+.public-error-card h1 {
+    margin: 0 0 12px;
+    color: #20202a;
+    font-size: clamp(26px, 7vw, 38px);
+    line-height: 1.15;
+}
+
+.public-error-card p {
+    margin: 0 auto;
+    max-width: 440px;
+    color: #6b6170;
+    font-size: 16px;
+    line-height: 1.55;
+}
+
+.public-error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.public-error-actions a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 11px 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.public-error-primary {
+    background: #8A2BE2;
+    color: #fff;
+}
+
+.public-error-secondary {
+    border: 1px solid #8A2BE2;
+    background: #f4eaff;
+    color: #6519b9;
+}
+
+.public-error-actions a:focus-visible {
+    outline: 3px solid rgba(138, 43, 226, 0.35);
+    outline-offset: 2px;
+}
+
+@media (max-width: 430px) {
+    .public-error-page {
+        min-height: calc(100vh - 96px);
+        place-items: start center;
+        padding: 64px 12px 30px;
+    }
+
+    .public-error-card {
+        padding: 22px 16px;
+        border-radius: 16px;
+    }
+
+    .public-error-card h1 {
+        margin: 0 0 10px;
+    }
+
+    .public-error-actions {
+        flex-direction: column;
+        margin-top: 20px;
+    }
+
+    .public-error-actions a {
+        width: 100%;
+    }
+}

@@ -288,6 +288,6 @@ $lastOrderableId = !empty($orderableRankIds)
     </section>
 </main>
 
-<script src="/Anabelka/js/admin-rank-translations.js?v=1"></script>
+<script src="/Anabelka/js/admin-rank-translations.js?v=2"></script>
 </body>
 </html>

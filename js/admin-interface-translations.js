@@ -17,7 +17,6 @@
         'interface-source-value'
     );
 
-    const message = document.getElementById('site-message');
     const saveButton = form.querySelector('.interface-editor-save');
 
     const stateLabels = {
@@ -30,23 +29,22 @@
     };
 
 
-    function showMessage(text)
+    // All feedback goes through the shared notification queue. A saved
+    // translation returns to the missing-translations page, which consumes
+    // its success flash after navigation.
+    function showMessage(type, text, afterReload = false)
     {
-        if (!message) {
-            window.alert(text);
-            return;
+        const notify = window.AnabelkaNotify;
+        if (!notify || typeof notify.show !== 'function') {
+            return false;
         }
 
-        message.textContent = text;
-        message.classList.add('show');
+        if (afterReload && typeof notify.store === 'function'
+            && notify.store(type, text)) {
+            return true;
+        }
 
-        clearTimeout(window.interfaceTranslationMessageTimer);
-        window.interfaceTranslationMessageTimer = setTimeout(
-            function () {
-                message.classList.remove('show');
-            },
-            3500
-        );
+        return notify.show(type, text);
     }
 
 
@@ -249,6 +247,7 @@
                         !== 'function'
                 ) {
                     showMessage(
+                        'warning',
                         'Система ШІ-перекладу ще завантажується. '
                         + 'Спробуйте ще раз.'
                     );
@@ -307,12 +306,14 @@
                     targetField.select();
 
                     showMessage(
+                        'info',
                         'ШІ-переклад отримано. Перевірте його '
                         + 'та натисніть «Зберегти».'
                     );
 
                 } catch (error) {
                     showMessage(
+                        'error',
                         error instanceof Error
                             ? error.message
                             : 'Не вдалося отримати ШІ-переклад.'
@@ -351,7 +352,7 @@
                 );
             }
 
-            showMessage(data.message || 'Збережено.');
+            showMessage('success', data.message || 'Збережено.', true);
 
             window.setTimeout(function () {
                 window.location.href = data.return_url
@@ -360,6 +361,7 @@
 
         } catch (error) {
             showMessage(
+                'error',
                 error instanceof Error
                     ? error.message
                     : 'Не вдалося зберегти переклади.'

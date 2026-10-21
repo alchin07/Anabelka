@@ -127,10 +127,16 @@ class AdultAccess
     }
 
 
-    public static function gateUrl($categorySlug, $returnUrl = '')
+    public static function gateUrl(array $category, $returnUrl = '')
     {
-        $categorySlug = trim((string) $categorySlug);
-        $url = '/Anabelka/18-plus/' . rawurlencode($categorySlug);
+        $departmentSlug = trim(
+            (string) ($category['department_slug'] ?? '')
+        );
+        $categorySlug = trim((string) ($category['slug'] ?? ''));
+        $url = '/Anabelka/18-plus/'
+            . rawurlencode($departmentSlug)
+            . '/'
+            . rawurlencode($categorySlug);
         $returnUrl = self::safeReturnUrl($returnUrl);
 
         if ($returnUrl !== '') {

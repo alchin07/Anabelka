@@ -18,6 +18,21 @@
             : '#b8b0bd';
     }
 
+    function notifyColor(type, message, afterReload = false)
+    {
+        const api = window.AnabelkaNotify;
+        if (!api) {
+            return false;
+        }
+        if (afterReload && typeof api.store === 'function'
+            && api.store(type, message)) {
+            return true;
+        }
+        return typeof api.show === 'function'
+            ? api.show(type, message)
+            : false;
+    }
+
     function showRequiredBanner()
     {
         const params = new URLSearchParams(window.location.search);
@@ -34,15 +49,8 @@
 
         const banner = document.createElement('div');
         banner.dataset.cartColorBanner = '1';
-        banner.style.cssText = [
-            'margin:0 0 18px',
-            'padding:14px 16px',
-            'border:1px solid #d9c2eb',
-            'border-radius:12px',
-            'background:#faf5ff',
-            'color:#5d3b72',
-            'font-weight:700'
-        ].join(';');
+        banner.className = 'anabelka-notify-inline is-warning';
+        banner.style.marginBottom = '18px';
         banner.textContent = 'Для старої позиції в кошику потрібно вибрати колір перед оформленням замовлення.';
         page.insertBefore(banner, page.firstChild);
     }
@@ -157,14 +165,15 @@
                     const result = await response.json();
 
                     if (!response.ok || !result.success) {
-                        window.alert(result.message || 'Не вдалося зберегти колір.');
+                        notifyColor('error', result.message || 'Не вдалося зберегти колір.');
                         button.disabled = false;
                         return;
-                    }
+                    }                    notifyColor('success', 'Колір товару збережено.', true);
+
 
                     window.location.href = '/Anabelka/cart';
                 } catch (error) {
-                    window.alert('Не вдалося зберегти колір.');
+                    notifyColor('error', 'Не вдалося зберегти колір.');
                     button.disabled = false;
                 }
             });

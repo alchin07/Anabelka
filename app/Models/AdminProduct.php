@@ -36,42 +36,15 @@ class AdminProduct
     }
 
 
-    public static function all(array $filters = [])
+    public static function all(array $filters = [], $page = 1, $perPage = 300)
     {
         $filters = self::normalizeFilters($filters);
         $db = Database::connect();
-        $conditions = [];
+        $perPage = max(1, min(300, (int) $perPage));
+        $page = max(1, (int) $page);
+        $offset = ($page - 1) * $perPage;
         $params = [];
-
-        if ($filters['status'] === 'active') {
-            $conditions[] = 'p.is_active = 1';
-        } elseif ($filters['status'] === 'hidden') {
-            $conditions[] = 'p.is_active = 0';
-        } elseif ($filters['status'] === 'out_of_stock') {
-            $conditions[] = 'p.is_active = 1';
-            $conditions[] = self::outOfStockCondition('p');
-        }
-
-        if ($filters['category_id'] > 0) {
-            $conditions[] = 'p.category_id = :category_id';
-            $params['category_id'] = $filters['category_id'];
-        }
-
-        if ($filters['q'] !== '') {
-            $conditions[] = '('
-                . 'p.name LIKE :query_name '
-                . "OR COALESCE(p.sku, '') LIKE :query_sku "
-                . "OR COALESCE(p.slug, '') LIKE :query_slug"
-                . ')';
-            $like = '%' . $filters['q'] . '%';
-            $params['query_name'] = $like;
-            $params['query_sku'] = $like;
-            $params['query_slug'] = $like;
-        }
-
-        $where = empty($conditions)
-            ? ''
-            : 'WHERE ' . implode(' AND ', $conditions);
+        $where = self::filteredWhere($filters, $params);
 
         $stmt = $db->prepare("
             SELECT
@@ -114,14 +87,87 @@ class AdminProduct
                 COALESCE(c.name, ''),
                 p.name,
                 p.id
-            LIMIT 300
+            LIMIT :limit OFFSET :offset
         ");
-        $stmt->execute($params);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(
+                ':' . $key,
+                $value,
+                $key === 'category_id' ? PDO::PARAM_INT : PDO::PARAM_STR
+            );
+        }
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         self::attachRelations($products);
 
         return $products;
+    }
+
+
+    public static function page(array $filters = [], $page = 1, $perPage = 20)
+    {
+        return self::all($filters, $page, $perPage);
+    }
+
+
+    public static function countFiltered(array $filters = [])
+    {
+        $filters = self::normalizeFilters($filters);
+        $params = [];
+        $where = self::filteredWhere($filters, $params);
+        $db = Database::connect();
+
+        $stmt = $db->prepare("
+            SELECT COUNT(*)
+            FROM products AS p
+            LEFT JOIN categories AS c ON c.id = p.category_id
+            {$where}
+        ");
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+
+    public static function pageForProduct(array $filters, $productId, $perPage = 20)
+    {
+        $productId = (int) $productId;
+        if ($productId <= 0) {
+            return null;
+        }
+
+        $filters = self::normalizeFilters($filters);
+        $perPage = max(1, min(300, (int) $perPage));
+        $params = [];
+        $where = self::filteredWhere($filters, $params);
+        $db = Database::connect();
+
+        // Fetch only sorted IDs for direct links (new copies and translations).
+        $stmt = $db->prepare("
+            SELECT p.id
+            FROM products AS p
+            LEFT JOIN categories AS c ON c.id = p.category_id
+            {$where}
+            ORDER BY
+                p.is_active DESC,
+                COALESCE(c.name, ''),
+                p.name,
+                p.id
+        ");
+        $stmt->execute($params);
+
+        $position = 0;
+        while (($id = $stmt->fetchColumn()) !== false) {
+            if ((int) $id === $productId) {
+                return intdiv($position, $perPage) + 1;
+            }
+            $position++;
+        }
+
+        return null;
     }
 
 
@@ -296,7 +342,7 @@ class AdminProduct
                 :show_stock_quantity,
                 :brand,
                 :country,
-                NULL,
+                '',
                 :is_active
             )
         ");
@@ -849,6 +895,7 @@ class AdminProduct
         ]);
 
         ProductImage::duplicateForProduct((int) $sourceId, $targetId);
+        ProductColor::duplicateForProduct((int) $sourceId, $targetId);
 
         return $targetId;
     }
@@ -868,6 +915,43 @@ class AdminProduct
         }
 
         $imageMap = ProductImage::forProducts($ids);
+        $colorMap = ProductColor::editorColorsForProducts($ids);
+        $processingMap = [];
+        $imageIds = [];
+
+        foreach ($imageMap as $images) {
+            foreach ($images as $image) {
+                $imageId = (int) ($image['id'] ?? 0);
+
+                if ($imageId > 0) {
+                    $imageIds[] = $imageId;
+                }
+            }
+        }
+
+        if (!empty($imageIds) && class_exists('ProductImageProcessing')) {
+            try {
+                $processingMap =
+                    ProductImageProcessing::forImageIds($imageIds);
+            } catch (Throwable $e) {
+                error_log(
+                    'Admin product image processing state: '
+                    . $e->getMessage()
+                );
+                $processingMap = [];
+            }
+        }
+
+        foreach ($imageMap as &$images) {
+            foreach ($images as &$image) {
+                $imageId = (int) ($image['id'] ?? 0);
+                $image['processing'] =
+                    $processingMap[$imageId] ?? null;
+            }
+            unset($image);
+        }
+        unset($images);
+
         $db = Database::connect();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
@@ -930,7 +1014,22 @@ class AdminProduct
 
         foreach ($products as &$product) {
             $productId = (int) $product['id'];
-            $product['images'] = $imageMap[$productId] ?? [];
+            $images = $imageMap[$productId] ?? [];
+            $product['images'] = $images;
+
+            $mainImage = $images[0] ?? null;
+
+            if (is_array($mainImage)) {
+                if (!empty($mainImage['thumb_path'])) {
+                    $product['main_image'] = $mainImage['thumb_path'];
+                } elseif (!empty($mainImage['master_path'])) {
+                    $product['main_image'] = $mainImage['master_path'];
+                } elseif (!empty($mainImage['path'])) {
+                    $product['main_image'] = $mainImage['path'];
+                }
+            }
+
+            $product['colors'] = $colorMap[$productId] ?? [];
             $product['rank_prices'] = $priceMap[$productId] ?? [];
             $product['sizes'] = $sizeMap[$productId] ?? [];
             $product['material'] =
@@ -974,6 +1073,43 @@ class AdminProduct
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+
+    private static function filteredWhere(array $filters, array &$params)
+    {
+        $params = [];
+        $conditions = [];
+
+        if ($filters['status'] === 'active') {
+            $conditions[] = 'p.is_active = 1';
+        } elseif ($filters['status'] === 'hidden') {
+            $conditions[] = 'p.is_active = 0';
+        } elseif ($filters['status'] === 'out_of_stock') {
+            $conditions[] = 'p.is_active = 1';
+            $conditions[] = self::outOfStockCondition('p');
+        }
+
+        if ($filters['category_id'] > 0) {
+            $conditions[] = 'p.category_id = :category_id';
+            $params['category_id'] = $filters['category_id'];
+        }
+
+        if ($filters['q'] !== '') {
+            $conditions[] = '('
+                . 'p.name LIKE :query_name '
+                . "OR COALESCE(p.sku, '') LIKE :query_sku "
+                . "OR COALESCE(p.slug, '') LIKE :query_slug"
+                . ')';
+            $like = '%' . $filters['q'] . '%';
+            $params['query_name'] = $like;
+            $params['query_sku'] = $like;
+            $params['query_slug'] = $like;
+        }
+
+        return empty($conditions)
+            ? ''
+            : 'WHERE ' . implode(' AND ', $conditions);
     }
 
 

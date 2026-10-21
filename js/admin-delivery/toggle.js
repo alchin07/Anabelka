@@ -144,26 +144,19 @@ document
                         }
 
 
-                        const itemName =
-                            form.dataset.name
-                            || 'Элемент';
-
+                        const itemName = (form.dataset.name || '').trim()
+                            || (row.querySelector('.delivery-name')?.textContent || '').trim()
+                            || 'Елемент доставки';
 
                         showMessage(
-                            itemName
-                            +
-                            (
-                                isActive
-                                    ? ' включён'
-                                    : ' выключен'
-                            )
+                            '«' + itemName + '»: '
+                                + (isActive ? 'увімкнено' : 'вимкнено'),
+                            'success'
                         );
 
                     } catch (error) {
 
-                        showMessage(
-                            error.message
-                        );
+                        showMessage(error.message, 'error');
                     }
 
                 }

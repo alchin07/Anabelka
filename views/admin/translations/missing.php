@@ -23,6 +23,11 @@
         rel="stylesheet"
         href="/Anabelka/css/admin-translations.css?v=7"
     >
+
+    <link
+        rel="stylesheet"
+        href="/Anabelka/css/anabelka-notify.css?v=3"
+    >
 </head>
 <body>
 
@@ -132,7 +137,7 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
         </div>
 
         <?php if (!empty($missingError)): ?>
-            <div class="translations-error">
+            <div class="translations-error anabelka-notify-inline" role="alert">
                 <?= htmlspecialchars((string) $missingError) ?>
             </div>
         <?php endif; ?>
@@ -427,6 +432,15 @@ $resetUrl = '/Anabelka/admin/translations/missing?section='
 
     </section>
 </main>
+
+<div
+    id="site-message"
+    class="site-message anabelka-notify"
+    role="status"
+    aria-live="polite"
+></div>
+<script src="/Anabelka/js/anabelka-notify.js?v=3"></script>
+<script src="/Anabelka/js/admin-flash-message.js?v=2"></script>
 
 </body>
 </html>

@@ -30,8 +30,10 @@
 }
 
 .languages-notice.error {
-    background: #fff0f2;
-    color: #9b1c31;
+    border: 1px solid var(--notify-info-border, #8A2BE2);
+    border-left-width: 4px;
+    background: var(--notify-info-bg, #f4eaff);
+    color: var(--notify-info-text, #6519b9);
 }
 
 .language-create {

@@ -29,20 +29,38 @@ class Inventory
 
             $product = is_array($item['product'] ?? null)
                 ? $item['product']
-                : Product::findById((int) ($item['product_id'] ?? 0));
+                : self::findInventoryProduct((int) ($item['product_id'] ?? 0));
             $productId = (int) ($product['id'] ?? ($item['product_id'] ?? 0));
             $sizeId = (int) ($item['size_id'] ?? 0);
             $quantity = max(0, (int) ($item['quantity'] ?? 0));
             $colorKey = trim((string) ($item['color_key'] ?? ''));
 
-            if ($productId <= 0 || $quantity <= 0 || !$product) {
+            if ($quantity <= 0) {
                 continue;
+            }
+
+            if ($productId <= 0 || !$product) {
+                throw new RuntimeException(
+                    'Не вдалося знайти товар для обліку залишку.'
+                );
+            }
+
+            if ($direction < 0 && !Product::hasSize($productId, $sizeId)) {
+                throw new RuntimeException(
+                    'Не вдалося визначити розмір товару для обліку залишку.'
+                );
             }
 
             if (ProductVariantStock::hasMatrix($productId)) {
                 if ($sizeId <= 0 || $colorKey === '') {
                     throw new RuntimeException(
                         'Не вдалося визначити розмір або колір товару для обліку залишку.'
+                    );
+                }
+
+                if ($direction > 0 && !Product::hasSize($productId, $sizeId)) {
+                    throw new RuntimeException(
+                        'Не вдалося повернути залишок: розмір товару більше не існує.'
                     );
                 }
 
@@ -170,6 +188,12 @@ class Inventory
                         'product_id' => $productId,
                         'size_id' => $sizeId
                     ]);
+
+                    if ($stmt->rowCount() !== 1) {
+                        throw new RuntimeException(
+                            'Не вдалося повернути залишок товару потрібного розміру.'
+                        );
+                    }
                 }
 
                 $legacySizeProducts[$productId] = true;
@@ -195,14 +219,21 @@ class Inventory
                     );
                 }
             } else {
-                $db->prepare("
+                $stmt = $db->prepare("
                     UPDATE products
                     SET stock = stock + :quantity
                     WHERE id = :product_id
-                ")->execute([
+                ");
+                $stmt->execute([
                     'quantity' => $quantity,
                     'product_id' => $productId
                 ]);
+
+                if ($stmt->rowCount() !== 1) {
+                    throw new RuntimeException(
+                        'Не вдалося повернути залишок товару на склад.'
+                    );
+                }
             }
         }
 
@@ -220,6 +251,28 @@ class Inventory
         foreach (array_keys($legacySizeProducts) as $productId) {
             self::recalculateLegacySizeProduct((int) $productId);
         }
+    }
+
+
+    private static function findInventoryProduct($productId)
+    {
+        $productId = (int) $productId;
+
+        if ($productId <= 0) {
+            return false;
+        }
+
+        // Stock and refunds also apply to products hidden from the store.
+        // Public Product::findById() intentionally excludes inactive products.
+        $stmt = Database::connect()->prepare("
+            SELECT *
+            FROM products
+            WHERE id = :id
+            LIMIT 1
+        ");
+        $stmt->execute(['id' => $productId]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
 
