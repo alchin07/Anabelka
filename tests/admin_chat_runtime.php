@@ -38,7 +38,7 @@ function deny(callable $action, string $message): void
     check(false, $message);
 }
 $db = Database::connect();
-$db->exec('SELECT 1');
+$db->query('SELECT 1')->fetchColumn();
 AdminAccess::ensureSchema();
 $schema = (string) file_get_contents(
     __DIR__ . '/../database/migrations/2026-10-21_admin_chat.sql'
