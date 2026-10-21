@@ -148,3 +148,13 @@ test('the new entry point reuses existing validated product-only quick order', (
     }
     assert.equal((source.match(/Cart::clearByUserId\(/g) || []).length, 1);
 });
+
+test('quick order uses one visible heading while preserving browser page title', () => {
+    const quick = read('views/order/quick.php');
+    const header = read('views/partials/header.php');
+    assert.match(quick, /\$pageTitle = Translator::t\('quick.title', 'Швидке замовлення'\)/);
+    assert.match(quick, /<title><\?= htmlspecialchars\(\$pageTitle\) \?> — Анабелька<\/title>/);
+    assert.match(quick, /\$hidePublicPageHeading = true;/);
+    assert.match(quick, /<h2>[\s\S]*?Translator::t\(\s*'quick.title',\s*'Швидке замовлення'/);
+    assert.match(header, /if \(!empty\(\$pageTitle\) && empty\(\$hidePublicPageHeading\)\)/);
+});

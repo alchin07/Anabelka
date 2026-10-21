@@ -2,6 +2,8 @@
 
 $currentLanguage = Translator::currentLanguage();
 $pageTitle = Translator::t('quick.title', 'Швидке замовлення');
+// The visible form heading is inside the card, so don't repeat it in the site header.
+$hidePublicPageHeading = true;
 
 $quickValidationMessages = [
     'required' => Translator::t(

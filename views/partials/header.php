@@ -609,7 +609,7 @@ if (
             </form>
         </div>
 
-        <?php if (!empty($pageTitle)): ?>
+        <?php if (!empty($pageTitle) && empty($hidePublicPageHeading)): ?>
             <h1 class="public-header-page-title">
                 <?= htmlspecialchars($pageTitle) ?>
             </h1>
