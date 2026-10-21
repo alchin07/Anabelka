@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const read = (name) => fs.readFileSync(name, 'utf8');
+const app = read('app/Core/App.php');
+const session = read('app/Core/SessionSecurity.php');
+const access = read('app/Models/AdminAccess.php');
+const router = read('app/Core/Router.php');
+const routes = read('routes/AdminAuth.php');
+const controller = read('app/Controllers/AdminAuthController.php');
+const publicIndex = read('public/index.php');
+const adminHeader = read('views/admin/partials/header.php');
+const js = read('js/admin-session-activity.js');
+const work = read('js/admin-work-time.js');
+
+assert.match(app, /SessionSecurity::start\(\)/);
+assert.doesNotMatch(publicIndex, /session_start\(\)/);
+assert.match(session, /session\.use_strict_mode['"], ['"]1/);
+assert.match(session, /session\.cookie_httponly['"], ['"]1/);
+assert.match(session, /'samesite'\s*=>\s*'Lax'/);
+assert.match(session, /'lifetime'\s*=>\s*0/);
+assert.match(session, /'secure'\s*=>\s*\$isHttps/);
+assert.match(session, /gc_maxlifetime/);
+assert.match(access, /IDLE_LIMIT_SECONDS = 60 \* 60/);
+assert.match(access, /MAX_AGE_SECONDS = 12 \* 60 \* 60/);
+assert.match(access, /admin_auth_started_at/);
+assert.match(access, /admin_auth_last_activity_at/);
+assert.match(access, /old pre-deployment admin sessions must log in again/i);
+assert.match(access, /function currentId\(\)[\s\S]*?self::clearAdminSession\(\)/);
+assert.match(access, /function startSessionFor\(\$adminId\)[\s\S]*?SESSION_STARTED_AT/);
+assert.match(access, /function logout\(\)[\s\S]*?self::clearAdminSession\(\)/);
+assert.match(router, /\$path === '\/admin\/session\/activity'/);
+assert.match(router, /'\/admin\/work-time\/heartbeat'/);
+assert.match(router, /\$requestedWith !== 'xmlhttprequest'/);
+assert.match(routes, /post\(\s*'\/admin\/session\/activity'/);
+assert.match(controller, /function activity\(\)[\s\S]*?AdminAccess::markActivity\(\)/);
+assert.match(adminHeader, /js\/admin-session-activity\.js/);
+assert.match(js, /event\.isTrusted/);
+assert.match(js, /document\.visibilityState !== 'visible'/);
+assert.match(js, /MIN_INTERVAL_MS = 2 \* 60 \* 1000/);
+assert.match(js, /method: 'POST'/);
+assert.match(work, /IDLE_LIMIT_MS = 5 \* 60 \* 1000/);
+
+console.log('admin session security contract passed');

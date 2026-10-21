@@ -145,7 +145,7 @@ assert.match(script, /body\.set\('active'/);
 assert.doesNotMatch(script, /active_seconds/);
 assert.match(script, /navigator\.sendBeacon/);
 
-assert.match(view, /Адмін-панелі та на публічній частині сайту/);
+assert.match(view, /в адмін-панелі та на публічній частині сайту/);
 assert.match(view, /Адмін-панель/);
 assert.match(view, />Сайт</);
 assert.match(view, />Android</);
