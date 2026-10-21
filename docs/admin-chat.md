@@ -42,3 +42,4 @@
     node --check js/admin-chat.js
     node --check js/admin-chat-emoji.js
     node --test tests/admin_chat_contract.test.mjs
+Зв'язки автора/творця з admin_users використовують ON DELETE SET NULL, щоб не перешкоджати видаленню адміністратора. Історія повідомлень зберігається з підписом «Колишній адміністратор».

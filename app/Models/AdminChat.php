@@ -239,11 +239,11 @@ final class AdminChat
         $db = self::db();
         if ($after > 0) {
             $stmt = $db->prepare("
-                SELECT m.id, m.conversation_id, m.sender_id, au.name AS sender_name,
+                SELECT m.id, m.conversation_id, m.sender_id, COALESCE(au.name, 'Колишній адміністратор') AS sender_name,
                     m.body, m.reply_to_id, m.created_at, m.edited_at, m.deleted_at,
                     quoted.body AS reply_body, reply_sender.name AS reply_sender
                 FROM admin_chat_messages m
-                JOIN admin_users au ON au.id = m.sender_id
+                LEFT JOIN admin_users au ON au.id = m.sender_id
                 LEFT JOIN admin_chat_messages quoted ON quoted.id = m.reply_to_id
                 LEFT JOIN admin_users reply_sender ON reply_sender.id = quoted.sender_id
                 WHERE m.conversation_id = ? AND m.id > ?
@@ -253,11 +253,11 @@ final class AdminChat
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } else {
             $stmt = $db->prepare("
-                SELECT m.id, m.conversation_id, m.sender_id, au.name AS sender_name,
+                SELECT m.id, m.conversation_id, m.sender_id, COALESCE(au.name, 'Колишній адміністратор') AS sender_name,
                     m.body, m.reply_to_id, m.created_at, m.edited_at, m.deleted_at,
                     quoted.body AS reply_body, reply_sender.name AS reply_sender
                 FROM admin_chat_messages m
-                JOIN admin_users au ON au.id = m.sender_id
+                LEFT JOIN admin_users au ON au.id = m.sender_id
                 LEFT JOIN admin_chat_messages quoted ON quoted.id = m.reply_to_id
                 LEFT JOIN admin_users reply_sender ON reply_sender.id = quoted.sender_id
                 WHERE m.conversation_id = ?
@@ -405,11 +405,11 @@ final class AdminChat
             return [];
         }
         $stmt = self::db()->prepare("
-            SELECT m.id, m.conversation_id, m.body, m.created_at, au.name AS sender_name
+            SELECT m.id, m.conversation_id, m.body, m.created_at, COALESCE(au.name, 'Колишній адміністратор') AS sender_name
             FROM admin_chat_messages m
             INNER JOIN admin_chat_members cm
                 ON cm.conversation_id = m.conversation_id
-            INNER JOIN admin_users au ON au.id = m.sender_id
+            LEFT JOIN admin_users au ON au.id = m.sender_id
             WHERE cm.admin_id = ? AND m.deleted_at IS NULL AND m.body LIKE ?
             ORDER BY m.id DESC LIMIT 40
         ");
@@ -434,7 +434,7 @@ final class AdminChat
     {
         return function_exists('mb_strlen')
             ? mb_strlen($value, 'UTF-8')
-            : (preg_match_all('/./us', $value, $matches) ?: strlen($value));
+            : (preg_match_all('/[\s\S]/u', $value, $matches) ?: strlen($value));
     }
 
     private static function validTitle(string $title): string

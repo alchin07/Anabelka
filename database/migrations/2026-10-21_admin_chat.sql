@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS admin_chat_conversations (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     kind ENUM('direct', 'group') NOT NULL,
     title VARCHAR(120) NULL,
-    created_by INT UNSIGNED NOT NULL,
+    created_by INT UNSIGNED NULL,
     direct_key CHAR(64) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS admin_chat_conversations (
     UNIQUE KEY uq_admin_chat_direct_key (direct_key),
     KEY idx_admin_chat_updated (updated_at, id),
     CONSTRAINT fk_admin_chat_conversation_owner FOREIGN KEY (created_by)
-        REFERENCES admin_users (id) ON DELETE RESTRICT
+        REFERENCES admin_users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS admin_chat_members (
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS admin_chat_members (
 CREATE TABLE IF NOT EXISTS admin_chat_messages (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     conversation_id BIGINT UNSIGNED NOT NULL,
-    sender_id INT UNSIGNED NOT NULL,
+    sender_id INT UNSIGNED NULL,
     body TEXT NULL,
     reply_to_id BIGINT UNSIGNED NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS admin_chat_messages (
     CONSTRAINT fk_admin_chat_msg_conversation FOREIGN KEY (conversation_id)
         REFERENCES admin_chat_conversations (id) ON DELETE CASCADE,
     CONSTRAINT fk_admin_chat_msg_sender FOREIGN KEY (sender_id)
-        REFERENCES admin_users (id) ON DELETE RESTRICT,
+        REFERENCES admin_users (id) ON DELETE SET NULL,
     CONSTRAINT fk_admin_chat_msg_reply FOREIGN KEY (reply_to_id)
         REFERENCES admin_chat_messages (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
