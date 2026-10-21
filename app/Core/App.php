@@ -4,10 +4,8 @@ class App
 {
     public function run()
     {
-        // Запускаем сессию для корзины.
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        require_once __DIR__ . '/SessionSecurity.php';
+        SessionSecurity::start();
 
         require_once __DIR__ . '/Controller.php';
         require_once __DIR__ . '/Csrf.php';

@@ -124,6 +124,15 @@ class AdminAuthController extends Controller
     }
 
 
+    public function activity()
+    {
+        // Router validates the admin session and enforces CSRF first.
+        AdminAccess::markActivity();
+        header('Cache-Control: no-store');
+        http_response_code(204);
+    }
+
+
     public function logout()
     {
         if (!AdminAccess::verifyCsrf($_POST['_csrf'] ?? '')) {

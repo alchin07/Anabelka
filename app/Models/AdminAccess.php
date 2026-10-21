@@ -8,6 +8,10 @@ class AdminAccess
     private const SESSION_NAME = 'admin_user_name';
     private const SESSION_ROLE = 'admin_role_slug';
     private const CSRF_KEY = 'admin_csrf_token';
+    private const SESSION_STARTED_AT = 'admin_auth_started_at';
+    private const SESSION_LAST_ACTIVITY_AT = 'admin_auth_last_activity_at';
+    private const IDLE_LIMIT_SECONDS = 60 * 60;
+    private const MAX_AGE_SECONDS = 12 * 60 * 60;
 
 
     public static function ensureSchema()
@@ -268,11 +272,8 @@ class AdminAccess
             self::audit('admin.logout', [], $adminId);
         }
 
-        unset(
-            $_SESSION[self::SESSION_ID],
-            $_SESSION[self::SESSION_NAME],
-            $_SESSION[self::SESSION_ROLE]
-        );
+        self::clearAdminSession();
+        unset($_SESSION[self::CSRF_KEY]);
 
         session_regenerate_id(true);
     }
@@ -306,11 +307,7 @@ class AdminAccess
         $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$admin || empty($admin['is_active'])) {
-            unset(
-                $_SESSION[self::SESSION_ID],
-                $_SESSION[self::SESSION_NAME],
-                $_SESSION[self::SESSION_ROLE]
-            );
+            self::clearAdminSession();
             return null;
         }
 
@@ -323,7 +320,38 @@ class AdminAccess
 
     public static function currentId()
     {
-        return (int) ($_SESSION[self::SESSION_ID] ?? 0);
+        $adminId = (int) ($_SESSION[self::SESSION_ID] ?? 0);
+        if ($adminId <= 0) {
+            return 0;
+        }
+
+        $started = $_SESSION[self::SESSION_STARTED_AT] ?? null;
+        $lastActivity = $_SESSION[self::SESSION_LAST_ACTIVITY_AT] ?? null;
+        $now = time();
+
+        // Old pre-deployment admin sessions must log in again.
+        if (
+            !is_int($started)
+            || !is_int($lastActivity)
+            || $started <= 0
+            || $lastActivity < $started
+            || $now < $lastActivity
+            || ($now - $started) >= self::MAX_AGE_SECONDS
+            || ($now - $lastActivity) >= self::IDLE_LIMIT_SECONDS
+        ) {
+            self::clearAdminSession();
+            return 0;
+        }
+
+        return $adminId;
+    }
+
+
+    public static function markActivity(): void
+    {
+        if (self::currentId() > 0) {
+            $_SESSION[self::SESSION_LAST_ACTIVITY_AT] = time();
+        }
     }
 
 
@@ -501,6 +529,18 @@ class AdminAccess
     }
 
 
+    private static function clearAdminSession(): void
+    {
+        unset(
+            $_SESSION[self::SESSION_ID],
+            $_SESSION[self::SESSION_NAME],
+            $_SESSION[self::SESSION_ROLE],
+            $_SESSION[self::SESSION_STARTED_AT],
+            $_SESSION[self::SESSION_LAST_ACTIVITY_AT]
+        );
+    }
+
+
     private static function startSessionFor($adminId)
     {
         $adminId = (int) $adminId;
@@ -511,6 +551,10 @@ class AdminAccess
 
         session_regenerate_id(true);
         $_SESSION[self::SESSION_ID] = $adminId;
+        $_SESSION[self::SESSION_STARTED_AT] = time();
+        $_SESSION[self::SESSION_LAST_ACTIVITY_AT] =
+            $_SESSION[self::SESSION_STARTED_AT];
+        unset($_SESSION[self::CSRF_KEY]);
 
         $admin = self::current();
 

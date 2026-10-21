@@ -21,6 +21,11 @@ $router->post(
 );
 
 $router->post(
+    '/admin/session/activity',
+    'AdminAuthController@activity'
+);
+
+$router->post(
     '/admin/logout',
     'AdminAuthController@logout'
 );

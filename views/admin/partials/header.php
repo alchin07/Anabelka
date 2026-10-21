@@ -558,6 +558,16 @@ $canVipPriceViews = $adminCan('vip_prices.view');
 
 <?php if ($currentAdmin): ?>
     <script
+        src="/Anabelka/js/admin-session-activity.js?v=1"
+        data-admin-session-activity
+        data-csrf-token="<?= htmlspecialchars(
+            $adminCsrfToken,
+            ENT_QUOTES,
+            'UTF-8'
+        ) ?>"
+        defer
+    ></script>
+    <script
         src="/Anabelka/js/admin-work-time.js?v=2"
         data-admin-work-time
         data-work-source="web_admin"

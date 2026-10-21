@@ -235,7 +235,39 @@ class Router
             exit;
         }
 
-        if ($path === '/admin/logout') {
+        // Background heartbeats and JSON polling never extend admin login.
+        // A user gesture on an open admin page is reported separately.
+        $requestedWith = strtolower((string) (
+            $_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''
+        ));
+        $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+        $isDocument = $method === 'GET'
+            && strpos($accept, 'text/html') !== false;
+        $isFormPost = $method === 'POST';
+
+        if (
+            $routeExists
+            && $requestedWith !== 'xmlhttprequest'
+            && ($isDocument || $isFormPost)
+            && !in_array(
+                $path,
+                [
+                    '/admin/logout',
+                    '/admin/session/activity',
+                    '/admin/work-time/heartbeat',
+                    '/admin/system/error-notifications',
+                    '/admin/image-processor/health'
+                ],
+                true
+            )
+        ) {
+            AdminAccess::markActivity();
+        }
+
+        if (
+            $path === '/admin/logout'
+            || $path === '/admin/session/activity'
+        ) {
             return;
         }
 
