@@ -28,14 +28,9 @@
     // Only a server-local folder of authorized PNGs may activate graphic smilies.
     const pictureBase = root.dataset.emojiGraphics || '';
     let pictureAvailable = false;
-    const pictureCodes = new Set(Object.keys(pictureData.files));
-    const pictureCategories = pictureData.categories.map(function (cat) {
-        return {
-            id: cat.id, label: cat.label, icon: cat.icon, keywords: cat.keywords,
-            items: cat.codes.map(function (code) { return '(' + code + ')'; }),
-            isPictureSet: true
-        };
-    });
+    // An explicit local manifest enables only icons actually installed.
+    const pictureCodes = new Set();
+    let pictureCategories = [];
     function activeEmojiCategories() {
         // No graphics? Keep the original, fully functional Unicode picker.
         return pictureAvailable
@@ -88,19 +83,51 @@
         container.appendChild(document.createTextNode(text.slice(pos)));
     }
     function activatePictureEmoji() {
-        if (!pictureBase || !pictureCodes.has('smiley')) { return; }
-        // A probe avoids showing broken images for people without a licensed pack.
-        const probe = new Image();
-        probe.onload = function () {
-            if (probe.naturalWidth < 8) { return; }
-            pictureAvailable = true;
-            currentEmojiCategory = 'classic';
-            state.signature = '';
-            if (state.active && state.messages.length) { renderThread(false); }
-            if (!emojiPanel.hidden) { renderEmojiTabs(); renderEmojiGrid(); }
-        };
-        probe.onerror = function () { /* Unicode picker stays intact. */ };
-        probe.src = pictureUrl('smiley');
+        if (!pictureBase || !pictureData.files.smiley) { return; }
+        // Only use an explicitly installed, authorized, local image pack.
+        // The manifest prevents a single PNG from enabling 212 broken icons.
+        fetch(pictureBase + '/manifest.json', {
+            credentials: 'same-origin', cache: 'no-store'
+        })
+            .then(function (response) {
+                if (!response.ok) { throw new Error('No local graphic pack'); }
+                return response.json();
+            })
+            .then(function (manifest) {
+                if (!manifest || manifest.version !== 1 || !Array.isArray(manifest.codes)) {
+                    return;
+                }
+                const installed = Array.from(new Set(manifest.codes))
+                    .filter(function (code) {
+                        return typeof code === 'string' &&
+                            Object.prototype.hasOwnProperty.call(pictureData.files, code);
+                    });
+                if (!installed.length) { return; }
+                // Probe a real image before switching the visible emoji set.
+                const probe = new Image();
+                probe.onload = function () {
+                    if (probe.naturalWidth < 8) { return; }
+                    installed.forEach(function (code) { pictureCodes.add(code); });
+                    pictureCategories = pictureData.categories.map(function (cat) {
+                        return {
+                            id: cat.id, label: cat.label, icon: cat.icon,
+                            keywords: cat.keywords,
+                            items: cat.codes.filter(function (code) {
+                                return pictureCodes.has(code);
+                            }).map(function (code) { return '(' + code + ')'; }),
+                            isPictureSet: true
+                        };
+                    }).filter(function (cat) { return cat.items.length > 0; });
+                    pictureAvailable = true;
+                    currentEmojiCategory = 'classic';
+                    state.signature = '';
+                    if (state.active && state.messages.length) { renderThread(false); }
+                    if (!emojiPanel.hidden) { renderEmojiTabs(); renderEmojiGrid(); }
+                };
+                probe.onerror = function () { /* Unicode emoji fallback. */ };
+                probe.src = pictureUrl(installed[0]);
+            })
+            .catch(function () { /* No graphics: Unicode still works. */ });
     }
 
     let currentEmojiCategory = 'recent';

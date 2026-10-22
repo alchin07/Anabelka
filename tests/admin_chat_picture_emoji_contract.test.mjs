@@ -11,6 +11,8 @@ test('Image pack is strictly optional and stays out of Git', () => {
     const js = read('js/admin-chat.js');
     assert.match(js, /pictureAvailable\s*=\s*false/);
     assert.match(js, /probe\.onerror/);
+    assert.match(js, /manifest\.codes/);
+    assert.match(js, /\/manifest\.json/);
     assert.match(js, /return pictureAvailable\s*\?/);
     assert.ok(read('.gitignore').includes('assets/chat-emoji/graphics/'));
     assert.match(read('assets/chat-emoji/README.md'), /Viber/);
