@@ -58,8 +58,8 @@
 .chat-empty-icon { width:74px; height:74px; border-radius:22px; display:grid; place-items:center; font-size:36px; background:var(--chat-light); }
 .chat-message-row { display:flex; flex-direction:column; gap:2px; margin:0 0 14px; align-items:flex-start; }
 .chat-message-row.is-mine { align-items:flex-end; }
-.chat-bubble { background:#fff; border:1px solid var(--chat-border); border-radius:15px 15px 15px 5px; padding:9px 12px; max-width:min(85%,580px); min-width:90px; overflow-wrap:anywhere; box-shadow:0 5px 16px rgba(80,45,105,.04); }
-.chat-message-row.is-mine .chat-bubble { background:var(--chat-light); border-color:#ddbcfd; border-radius:15px 15px 5px 15px; }
+.chat-bubble { background:#f4f1f8; border:0; border-radius:15px 15px 15px 5px; padding:9px 12px; max-width:min(85%,580px); min-width:90px; overflow-wrap:anywhere; box-shadow:none; }
+.chat-message-row.is-mine .chat-bubble { background:var(--chat-light); border:0; border-radius:15px 15px 5px 15px; }
 .chat-sender { display:block; font-size:11px; font-weight:700; color:var(--chat-dark); margin-bottom:5px; }
 .chat-message-body { white-space:pre-wrap; font-size:14px; line-height:1.48; margin:0; }
 .chat-message-meta { display:flex; align-items:center; gap:6px; font-size:10px; color:#86798f; margin-top:6px; }
@@ -67,8 +67,8 @@
 .chat-message-actions button { font:inherit; font-size:11px; color:var(--chat-dark); cursor:pointer; background:none; border:0; padding:3px 5px; border-radius:5px; }
 .chat-message-actions button:hover, .chat-message-actions button:focus-visible { background:var(--chat-light); }
 .chat-quoted { display:grid; font-size:12px; color:#6a497a; border-left:3px solid var(--chat-brand); padding:5px 9px; margin-bottom:7px; background:#fff9; border-radius:3px 7px 7px 3px; white-space:pre-wrap; }
-.chat-file-card { display:flex; gap:7px; margin:7px 0 0; padding:7px; border-radius:10px; background:#fff; border:1px solid var(--chat-border); color:var(--chat-dark); text-decoration:none; align-items:center; overflow-wrap:anywhere; font-size:12px; }
-.chat-file-card:hover { border-color:var(--chat-brand); }
+.chat-file-card { display:flex; gap:7px; margin:7px 0 0; padding:7px; border-radius:10px; background:var(--chat-soft); border:0; color:var(--chat-dark); text-decoration:none; align-items:center; overflow-wrap:anywhere; font-size:12px; }
+.chat-file-card:hover { background:var(--chat-light); }
 .chat-image-card { display:block; margin-top:7px; }
 .chat-image-card img { display:block; max-width:100%; max-height:260px; border-radius:9px; object-fit:contain; }
 .chat-edit-wrap { display:grid; gap:7px; padding-top:8px; }
@@ -154,4 +154,68 @@
 @media (max-width:730px) {
   .chat-emoji-grid { grid-template-columns:repeat(6,minmax(0,1fr)); }
   .chat-emoji-grid button { font-size:26px; }
+}
+
+/* Standalone illustrated / native emoji appear like Viber-style stickers.
+   Message borders are intentionally absent. Other UI borders are unaffected. */
+.chat-message-row.is-emoji-only .chat-bubble,
+.chat-message-row.is-emoji-only.is-mine .chat-bubble {
+    min-width:0;
+    max-width:100%;
+    border:0;
+    border-radius:0;
+    padding:0;
+    box-shadow:none;
+    background:transparent;
+}
+.chat-message-row.is-emoji-only .chat-message-body {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    line-height:1;
+    white-space:normal;
+    margin:0;
+}
+.chat-message-row.is-emoji-only .chat-message-emoji {
+    display:block;
+    width:112px;
+    height:112px;
+    max-width:none;
+    max-height:none;
+    margin:0;
+    object-fit:contain;
+    flex:0 0 auto;
+}
+.chat-message-row.is-emoji-only .chat-message-native-emoji {
+    display:block;
+    font-size:108px;
+    line-height:1.1;
+    flex:0 0 auto;
+}
+.chat-message-row.is-emoji-count-2 .chat-message-emoji {
+    width:82px;
+    height:82px;
+}
+.chat-message-row.is-emoji-count-2 .chat-message-native-emoji { font-size:78px; }
+.chat-message-row.is-emoji-count-3 .chat-message-emoji {
+    width:68px;
+    height:68px;
+}
+.chat-message-row.is-emoji-count-3 .chat-message-native-emoji { font-size:64px; }
+.chat-message-row.is-emoji-only .chat-message-meta {
+    margin-top:5px;
+    padding-left:3px;
+}
+.chat-message-row.is-emoji-only .chat-quoted {
+    background:transparent;
+    border:0;
+    padding-left:0;
+}
+@media (max-width:730px) {
+    .chat-message-row.is-emoji-only .chat-message-emoji { width:104px; height:104px; }
+    .chat-message-row.is-emoji-only .chat-message-native-emoji { font-size:100px; }
+    .chat-message-row.is-emoji-count-2 .chat-message-emoji { width:76px; height:76px; }
+    .chat-message-row.is-emoji-count-2 .chat-message-native-emoji { font-size:72px; }
+    .chat-message-row.is-emoji-count-3 .chat-message-emoji { width:60px; height:60px; }
+    .chat-message-row.is-emoji-count-3 .chat-message-native-emoji { font-size:56px; }
 }

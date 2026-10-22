@@ -315,11 +315,66 @@
         history.replaceState(history.state, '', url.pathname + url.search);
     }
 
+    /**
+     * Standalone 1-3 emoji are displayed as large stickers without bubbles.
+     * Both installed graphic codes and standard Unicode grapheme emoji work.
+     * Plain text, unavailable graphic codes and attachments keep regular bubbles.
+     */
+    function standaloneEmojiTokens(text) {
+        const value = String(text || '').trim();
+        if (!value) { return []; }
+        const segmenter = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
+            ? new Intl.Segmenter(undefined, {granularity: 'grapheme'})
+            : null;
+        const result = [];
+        let cursor = 0;
+        while (cursor < value.length) {
+            while (cursor < value.length && /\s/u.test(value[cursor])) {
+                cursor++;
+            }
+            if (cursor >= value.length) { break; }
+            if (result.length >= 3) { return []; }
+
+            const remainder = value.slice(cursor);
+            const graphic = /^\(([A-Za-z0-9_$!]{1,40})\)/.exec(remainder);
+            if (graphic) {
+                const code = pictureToken(graphic[0]);
+                if (!code) { return []; }
+                result.push({type: 'graphic', value: code});
+                cursor += graphic[0].length;
+                continue;
+            }
+
+            // Without proper grapheme support, keep Unicode in the normal bubble
+            // rather than splitting skin tones, flags or joined emoji.
+            if (!segmenter) { return []; }
+            const first = segmenter.segment(remainder)[Symbol.iterator]().next().value;
+            const cluster = first && first.segment || '';
+            if (
+                !cluster ||
+                !/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u.test(cluster)
+            ) {
+                return [];
+            }
+            result.push({type: 'unicode', value: cluster});
+            cursor += cluster.length;
+        }
+        return result;
+    }
+
+
     function renderMessage(entry) {
         const own = Number(entry.sender_id) === adminId;
         const deleted = Boolean(entry.deleted_at);
         const row = node('div', 'chat-message-row' + (own ? ' is-mine' : ''));
         row.dataset.messageId = entry.id;
+        const attachments = Array.isArray(entry.attachments) ? entry.attachments : [];
+        const loneEmojis = !deleted && !attachments.length
+            ? standaloneEmojiTokens(entry.body || '')
+            : [];
+        if (loneEmojis.length) {
+            row.classList.add('is-emoji-only', 'is-emoji-count-' + loneEmojis.length);
+        }
         const bubble = node('article', 'chat-bubble');
         if (!own) { bubble.appendChild(node('span', 'chat-sender', entry.sender_name || 'Адміністратор')); }
         if (entry.reply_to_id && !deleted) {
@@ -329,8 +384,20 @@
             bubble.appendChild(quoted);
         }
         const messageBody = node('p', 'chat-message-body');
-        if (deleted) { messageBody.textContent = 'Повідомлення видалено'; }
-        else { appendFormattedMessage(messageBody, entry.body || ''); }
+        if (deleted) {
+            messageBody.textContent = 'Повідомлення видалено';
+        } else if (loneEmojis.length) {
+            loneEmojis.forEach(function (emoji) {
+                if (emoji.type === 'graphic') {
+                    const img = pictureImage(emoji.value, 'chat-message-emoji');
+                    messageBody.appendChild(img || document.createTextNode('(' + emoji.value + ')'));
+                } else {
+                    messageBody.appendChild(node('span', 'chat-message-native-emoji', emoji.value));
+                }
+            });
+        } else {
+            appendFormattedMessage(messageBody, entry.body || '');
+        }
         bubble.appendChild(messageBody);
         if (!deleted && Array.isArray(entry.attachments)) {
             entry.attachments.forEach(function (file) {
