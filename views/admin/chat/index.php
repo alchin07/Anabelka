@@ -12,14 +12,15 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Чат адміністраторів — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-chat.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-chat.css?v=2">
 </head>
 <body>
 <?php require __DIR__ . '/../partials/header.php'; ?>
 
 <main class="admin-chat-page" id="admin-chat" data-admin-id="<?= $adminId ?>"
       data-csrf="<?= $escape($csrfToken) ?>"
-      data-role="<?= $escape(AdminAccess::current()['role_slug'] ?? '') ?>">
+      data-role="<?= $escape(AdminAccess::current()['role_slug'] ?? '') ?>"
+      data-emoji-graphics="/Anabelka/assets/chat-emoji/graphics">
     <div class="admin-chat-heading">
         <div>
             <h2>Чат команди <span aria-hidden="true">💜</span></h2>
@@ -181,7 +182,7 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
 </dialog>
 <p class="chat-toast" id="chat-toast" role="status" aria-live="polite" hidden></p>
 
-<script defer src="/Anabelka/js/admin-chat-emoji.js?v=1"></script>
-<script defer src="/Anabelka/js/admin-chat.js?v=1"></script>
+<script defer src="/Anabelka/js/admin-chat-emoji.js?v=2"></script>
+<script defer src="/Anabelka/js/admin-chat.js?v=2"></script>
 </body>
 </html>

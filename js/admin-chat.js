@@ -24,6 +24,85 @@
     const searchInput = el('chat-search');
     const emojiPanel = el('chat-emoji-panel');
     const emojiData = window.AnabelkaChatEmojiData || {categories: [], names: {}};
+    const pictureData = window.AnabelkaChatClassicData || {files: {}, labels: {}, categories: []};
+    // Only a server-local folder of authorized PNGs may activate graphic smilies.
+    const pictureBase = root.dataset.emojiGraphics || '';
+    let pictureAvailable = false;
+    const pictureCodes = new Set(Object.keys(pictureData.files));
+    const pictureCategories = pictureData.categories.map(function (cat) {
+        return {
+            id: cat.id, label: cat.label, icon: cat.icon, keywords: cat.keywords,
+            items: cat.codes.map(function (code) { return '(' + code + ')'; }),
+            isPictureSet: true
+        };
+    });
+    function activeEmojiCategories() {
+        // No graphics? Keep the original, fully functional Unicode picker.
+        return pictureAvailable
+            ? pictureCategories.concat(emojiData.categories)
+            : emojiData.categories;
+    }
+    function pictureToken(token) {
+        if (!pictureAvailable || typeof token !== 'string') { return ''; }
+        const match = /^\(([A-Za-z0-9_$!]{1,40})\)$/.exec(token);
+        return match && pictureCodes.has(match[1]) ? match[1] : '';
+    }
+    function pictureUrl(code) {
+        const filename = pictureData.files[code];
+        // Literal names from our static allowlist only, never message input as a path.
+        if (!filename || !/^[A-Za-z0-9_-]{1,50}\.png$/.test(filename)) {
+            return '';
+        }
+        return pictureBase + '/' + filename;
+    }
+    function pictureImage(code, className) {
+        const url = pictureUrl(code);
+        if (!url) { return null; }
+        const img = node('img', className || 'chat-emoji-art');
+        img.src = url;
+        img.alt = pictureData.labels[code] || code;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.width = 32;
+        img.height = 32;
+        img.addEventListener('error', function () {
+            img.replaceWith(document.createTextNode('(' + code + ')'));
+        }, {once: true});
+        return img;
+    }
+    function appendFormattedMessage(container, text) {
+        text = String(text || '');
+        if (!pictureAvailable) {
+            container.textContent = text;
+            return;
+        }
+        const pattern = /\(([A-Za-z0-9_$!]{1,40})\)/g;
+        let found, pos = 0;
+        while ((found = pattern.exec(text)) !== null) {
+            const code = found[1], pic = pictureCodes.has(code) ? pictureImage(code, 'chat-message-emoji') : null;
+            if (!pic) { continue; }
+            container.appendChild(document.createTextNode(text.slice(pos, found.index)));
+            container.appendChild(pic);
+            pos = pattern.lastIndex;
+        }
+        container.appendChild(document.createTextNode(text.slice(pos)));
+    }
+    function activatePictureEmoji() {
+        if (!pictureBase || !pictureCodes.has('smiley')) { return; }
+        // A probe avoids showing broken images for people without a licensed pack.
+        const probe = new Image();
+        probe.onload = function () {
+            if (probe.naturalWidth < 8) { return; }
+            pictureAvailable = true;
+            currentEmojiCategory = 'classic';
+            state.signature = '';
+            if (state.active && state.messages.length) { renderThread(false); }
+            if (!emojiPanel.hidden) { renderEmojiTabs(); renderEmojiGrid(); }
+        };
+        probe.onerror = function () { /* Unicode picker stays intact. */ };
+        probe.src = pictureUrl('smiley');
+    }
+
     let currentEmojiCategory = 'recent';
     let searchDelay = null;
     let toastDelay = null;
@@ -222,8 +301,10 @@
             quoted.appendChild(node('span', '', entry.reply_body || 'Повідомлення видалено'));
             bubble.appendChild(quoted);
         }
-        bubble.appendChild(node('p', 'chat-message-body',
-            deleted ? 'Повідомлення видалено' : entry.body || ''));
+        const messageBody = node('p', 'chat-message-body');
+        if (deleted) { messageBody.textContent = 'Повідомлення видалено'; }
+        else { appendFormattedMessage(messageBody, entry.body || ''); }
+        bubble.appendChild(messageBody);
         if (!deleted && Array.isArray(entry.attachments)) {
             entry.attachments.forEach(function (file) {
                 const href = API + 'file?id=' + encodeURIComponent(file.id);
@@ -594,7 +675,7 @@
     function renderEmojiTabs() {
         const tabs = el('chat-emoji-tabs');
         clearChildren(tabs);
-        emojiData.categories.forEach(function (category) {
+        activeEmojiCategories().forEach(function (category) {
             const button = node('button', '', category.icon);
             button.type = 'button';
             button.title = category.label;
@@ -615,27 +696,41 @@
         clearChildren(grid);
         const query = el('chat-emoji-search').value.trim().toLocaleLowerCase();
         const categories = query
-            ? emojiData.categories.filter(function (x) { return x.id !== 'recent'; })
-            : emojiData.categories.filter(function (x) { return x.id === currentEmojiCategory; });
+            ? activeEmojiCategories().filter(function (x) { return x.id !== 'recent' && x.id !== 'classic'; })
+            : activeEmojiCategories().filter(function (x) { return x.id === currentEmojiCategory; });
         let found = 0;
         categories.forEach(function (category) {
-            const list = category.id === 'recent' ? recentItems() : category.items;
-            const matches = list.filter(function (symbol) {
+            const items = category.id === 'recent' ? recentItems() : category.items;
+            const matches = items.filter(function (token) {
                 if (!query) { return true; }
-                return symbol.includes(query) ||
-                    (String(emojiData.names[symbol] || '') + ' ' +
-                        category.label + ' ' + category.keywords)
+                const codeMatch = typeof token === 'string' && /^\(([A-Za-z0-9_$!]{1,40})\)$/.exec(token);
+                const descriptor = codeMatch
+                    ? (pictureData.labels[codeMatch[1]] || '') + ' ' + codeMatch[1]
+                    : String(emojiData.names[token] || '');
+                return String(token).toLocaleLowerCase().includes(query) ||
+                    (descriptor + ' ' + category.label + ' ' + category.keywords)
                         .toLocaleLowerCase().includes(query);
             });
             if (!matches.length) { return; }
             found += matches.length;
             grid.appendChild(node('h4', '', category.label));
-            matches.forEach(function (symbol) {
-                const button = node('button', '', symbol);
+            matches.forEach(function (token) {
+                const code = pictureToken(token);
+                const label = code
+                    ? (pictureData.labels[code] || code)
+                    : String(emojiData.names[token] || token).split(' ').slice(0, 3).join(' ');
+                const button = node('button');
                 button.type = 'button';
-                button.title = String(emojiData.names[symbol] || symbol).split(' ').slice(0, 3).join(' ');
-                button.setAttribute('aria-label', button.title);
-                button.addEventListener('click', function () { emojiInsert(symbol); });
+                button.title = label;
+                button.setAttribute('aria-label', label);
+                if (code) {
+                    const img = pictureImage(code, 'chat-emoji-art');
+                    if (img) { button.appendChild(img); }
+                    else { button.textContent = token; }
+                } else {
+                    button.textContent = token;
+                }
+                button.addEventListener('click', function () { emojiInsert(token); });
                 grid.appendChild(button);
             });
         });
@@ -737,4 +832,5 @@
         if (state.active && chatFor(state.active)) { openConversation(state.active, false); }
     });
     window.setInterval(refresh, 6500);
+    activatePictureEmoji();
 }());
