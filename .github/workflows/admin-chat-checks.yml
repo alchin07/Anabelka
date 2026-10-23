@@ -67,7 +67,30 @@ jobs:
           node --check js/admin-chat-emoji.js
           node --check tests/admin_chat_contract.test.mjs
       - name: Chat contract tests
-        run: node --test tests/admin_chat_contract.test.mjs tests/admin_chat_picture_emoji_contract.test.mjs tests/admin_chat_emoji_display_contract.test.mjs tests/admin_chat_photo_viewer_contract.test.mjs
+        run: node --test tests/admin_chat_*.test.mjs
+
+  avatar-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/chat-ui-deps" --no-save --no-package-lock playwright@1.62.1
+          node "$RUNNER_TEMP/chat-ui-deps/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Check mobile and desktop SVG avatars
+        env:
+          ANABELKA_UI_TEST_DEPS: ${{ runner.temp }}/chat-ui-deps/node_modules
+          ANABELKA_CHAT_UI_ARTIFACT_DIR: ${{ runner.temp }}/chat-ui-screenshots
+        run: node --test tests/admin_chat_avatar_browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chat-ui-04-screenshots
+          path: ${{ runner.temp }}/chat-ui-screenshots
+          if-no-files-found: ignore
 
   temporary-mariadb:
     runs-on: ubuntu-latest

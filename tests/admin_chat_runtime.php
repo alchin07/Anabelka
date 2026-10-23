@@ -37,6 +37,14 @@ function deny(callable $action, string $message): void
     }
     check(false, $message);
 }
+function listedConversations(int $viewerId): array
+{
+    $listed = [];
+    foreach (AdminChat::listFor($viewerId) as $row) {
+        $listed[(int) $row['id']] = $row;
+    }
+    return $listed;
+}
 $db = Database::connect();
 $db->query('SELECT 1')->fetchColumn();
 AdminAccess::ensureSchema();
@@ -79,14 +87,31 @@ check(count(AdminChat::admins($owner)) === 2, 'Admins can be listed by session')
 $direct = AdminChat::direct($owner, $anna);
 check($direct > 0 && $direct === AdminChat::direct($anna, $owner),
     'Direct conversation is unique in both directions');
+$listed = listedConversations($owner);
+check(array_key_exists('member_count', $listed[$direct]) &&
+    $listed[$direct]['member_count'] === null,
+    'Direct list row has no group member count');
+check($listed[$direct]['display_name'] === 'Anna Test' &&
+    (int) $listed[$direct]['unread'] === 0 && $listed[$direct]['preview'] === null,
+    'Direct list preserves its recipient name and empty message state');
 
 $msg = AdminChat::send($direct, $owner, 'Привіт! ✨', 0);
 $history = AdminChat::messages($direct, $anna);
 check(count($history) === 1 && $history[0]['body'] === 'Привіт! ✨',
     'Authorized participant receives Unicode message');
 check(AdminChat::unreadTotal($anna) === 1, 'Recipient has one unread message');
+$listed = listedConversations($anna);
+check($listed[$direct]['member_count'] === null &&
+    (int) $listed[$direct]['unread'] === 1 &&
+    (int) $listed[$direct]['last_message_id'] === $msg &&
+    $listed[$direct]['preview'] === 'Привіт! ✨',
+    'Direct list preserves unread count and latest message alongside null member count');
 AdminChat::read($direct, $anna, $msg);
 check(AdminChat::unreadTotal($anna) === 0, 'Read marker clears unread counter');
+$listed = listedConversations($anna);
+check($listed[$direct]['member_count'] === null &&
+    (int) $listed[$direct]['unread'] === 0,
+    'Reading a direct conversation leaves its member count unset');
 deny(static fn() => AdminChat::messages($direct, $bohdan),
     'Non-member cannot read private thread');
 
@@ -109,6 +134,18 @@ deny(static fn() => AdminChat::file($fileId, $anna),
 $group = AdminChat::createGroup($owner, 'Команда', [$anna, $bohdan]);
 check(count(AdminChat::members($group, $owner)) === 3,
     'Group created with three members');
+$pairGroup = AdminChat::createGroup($owner, 'Owner pair', [$anna]);
+$privateGroup = AdminChat::createGroup($anna, 'Private members', [$bohdan]);
+$listed = listedConversations($owner);
+check((string) ($listed[$group]['member_count'] ?? '') === '3' &&
+    (string) ($listed[$pairGroup]['member_count'] ?? '') === '2',
+    'Each joined group lists its own exact member count including the viewer');
+check(!isset($listed[$privateGroup]),
+    'A group and its member count are absent from a non-member list');
+$listed = listedConversations($anna);
+check((string) ($listed[$privateGroup]['member_count'] ?? '') === '2' &&
+    (string) ($listed[$group]['member_count'] ?? '') === '3',
+    'A member sees isolated counts for groups with different memberships');
 $_SESSION['admin_user_id'] = $anna;
 deny(static fn() => AdminChat::manageGroup($group, $anna, 'rename', 0, 'Bad title'),
     'Ordinary group member cannot rename owner group');
@@ -116,6 +153,14 @@ $_SESSION['admin_user_id'] = $owner;
 AdminChat::manageGroup($group, $owner, 'rename', 0, 'Чат відділу');
 check(AdminChat::conversation($group, $anna)['title'] === 'Чат відділу',
     'Owner may rename group');
+AdminChat::manageGroup($pairGroup, $owner, 'remove', $anna);
+$listed = listedConversations($owner);
+check((string) ($listed[$pairGroup]['member_count'] ?? '') === '1' &&
+    (string) ($listed[$group]['member_count'] ?? '') === '3',
+    'A creator-only group lists one member without changing another group count');
+$listed = listedConversations($anna);
+check(!isset($listed[$pairGroup]),
+    'Removed participant no longer sees a singleton group or its count');
 // A removed administrator must not be able to fetch a previously known file URL.
 $groupMessage = AdminChat::send($group, $owner, 'Private group attachment', 0);
 AdminChat::addAttachment($groupMessage, str_repeat('c', 40),
@@ -123,11 +168,35 @@ AdminChat::addAttachment($groupMessage, str_repeat('c', 40),
 $groupFileId = (int) $db->lastInsertId();
 check((int) AdminChat::file($groupFileId, $bohdan)['id'] === $groupFileId,
     'Joined member may fetch private group attachment');
+$listed = listedConversations($anna);
+check((string) ($listed[$group]['member_count'] ?? '') === '3' &&
+    (int) $listed[$group]['unread'] === 1 &&
+    (int) $listed[$group]['last_message_id'] === $groupMessage &&
+    $listed[$group]['preview'] === 'Private group attachment',
+    'Sending an attachment message preserves group count and list message metadata');
+$groupHistory = AdminChat::messages($group, $anna);
+check(count($groupHistory) === 1 &&
+    count($groupHistory[0]['attachments']) === 1 &&
+    (int) $groupHistory[0]['attachments'][0]['id'] === $groupFileId,
+    'Group member still receives the message attachment');
+AdminChat::read($group, $anna, $groupMessage);
+$listed = listedConversations($anna);
+check((string) ($listed[$group]['member_count'] ?? '') === '3' &&
+    (int) $listed[$group]['unread'] === 0 && AdminChat::unreadTotal($anna) === 0,
+    'Reading group messages clears unread totals without changing membership count');
 deny(static fn() => AdminChat::manageGroup($group, $owner, 'remove', $owner),
     'Group creator cannot be removed without ownership transfer');
 AdminChat::manageGroup($group, $owner, 'remove', $bohdan);
 check(count(AdminChat::members($group, $owner)) === 2,
     'Removal actually deletes member record');
+$listed = listedConversations($owner);
+check((string) ($listed[$group]['member_count'] ?? '') === '2' &&
+    (string) ($listed[$pairGroup]['member_count'] ?? '') === '1',
+    'Removing a member refreshes only that group count');
+$listed = listedConversations($bohdan);
+check(!isset($listed[$group]) &&
+    (string) ($listed[$privateGroup]['member_count'] ?? '') === '2',
+    'Removed member loses the group list row while another joined group keeps its count');
 deny(static fn() => AdminChat::manageGroup($group, $owner, 'remove', $bohdan),
     'Removing an absent member cannot silently report success');
 deny(static fn() => AdminChat::messages($group, $bohdan),
@@ -139,6 +208,10 @@ check((int) AdminChat::file($groupFileId, $owner)['id'] === $groupFileId,
 AdminChat::manageGroup($group, $owner, 'add', $bohdan);
 check(count(AdminChat::members($group, $owner)) === 3,
     'Group creator may re-add a member');
+$listed = listedConversations($bohdan);
+check((string) ($listed[$group]['member_count'] ?? '') === '3' &&
+    (string) ($listed[$privateGroup]['member_count'] ?? '') === '2',
+    'Re-added member sees the restored count without changing another group');
 $replyTo = AdminChat::send($group, $owner, 'Важлива інформація', 0);
 AdminChat::send($group, $anna, 'Зрозуміло 👍', $replyTo);
 check(count(AdminChat::search($bohdan, 'Зрозуміло')) === 1,
@@ -149,6 +222,12 @@ $oldMsg = AdminChat::send($direct, $anna, 'History after deletion', 0);
 $db->prepare('DELETE FROM admin_users WHERE id = ?')->execute([$anna]);
 check(AdminChat::conversation($ownerOfDeleted, $owner)['created_by'] === null,
     'Deleting an admin does not block group history');
+$listed = listedConversations($owner);
+check((string) ($listed[$ownerOfDeleted]['member_count'] ?? '') === '1' &&
+    (string) ($listed[$group]['member_count'] ?? '') === '2' &&
+    (string) ($listed[$pairGroup]['member_count'] ?? '') === '1' &&
+    $listed[$direct]['member_count'] === null,
+    'Deleted membership updates each group count while direct rows remain uncounted');
 $history = AdminChat::messages($direct, $owner);
 $matching = array_values(array_filter($history,
     static fn($row) => (int) $row['id'] === $oldMsg

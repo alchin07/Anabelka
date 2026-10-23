@@ -11,7 +11,8 @@
     const csrf = root.dataset.csrf || '';
     const state = {
         active: Number(new URLSearchParams(location.search).get('c')) || 0,
-        conversations: [], admins: [], messages: [], members: [], conversation: null,
+        conversations: [], admins: [], messages: [], members: [], membersLoadedFor: 0,
+        membersVersion: 0, conversation: null,
         signature: '', syncing: false, threadLoading: false, replyId: 0,
         lastRead: {}, deleteId: 0, sending: false, searching: false
     };
@@ -218,14 +219,63 @@
         return state.conversations.find(function (c) { return Number(c.id) === Number(id); });
     }
 
+    function participantCount(conversation) {
+        if (!conversation || conversation.kind !== 'group') { return null; }
+        if (Number(conversation.id) === state.active &&
+            state.membersLoadedFor === state.active && state.members.length > 0) {
+            return state.members.length;
+        }
+        const value = conversation.member_count;
+        if ((typeof value !== 'number' && typeof value !== 'string') ||
+            !/^\d+$/.test(String(value))) { return null; }
+        const count = Number(value);
+        return Number.isSafeInteger(count) && count > 0 ? count : null;
+    }
+
+    function brandedAvatar(conversation) {
+        const group = Boolean(conversation && conversation.kind === 'group');
+        const count = participantCount(conversation);
+        const avatar = node('span', 'chat-avatar-icon');
+        avatar.setAttribute('role', 'img');
+        avatar.setAttribute('aria-label', group
+            ? 'Груповий чат · ' + (count === null ? 'учасники завантажуються' : 'учасників: ' + count)
+            : 'Особиста розмова');
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 40 40');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2.2');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('focusable', 'false');
+        const transforms = group ? ['translate(1 1) scale(1.2)']
+            : ['translate(-1 -1) scale(.83)', 'translate(12 11) scale(.83)'];
+        transforms.forEach(function (transform) {
+            const heart = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            heart.setAttribute('d', 'M16 27.5C13 24.9 4.5 19.2 4.5 12.3C4.5 5.6 12.5 3.7 16 9C19.5 3.7 27.5 5.6 27.5 12.3C27.5 19.2 19 24.9 16 27.5Z');
+            heart.setAttribute('transform', transform);
+            svg.appendChild(heart);
+        });
+        avatar.appendChild(svg);
+        if (group && count !== null) {
+            const badge = node('span', 'chat-member-count' + (count > 99 ? ' is-wide' : ''),
+                count > 99 ? '99+' : count);
+            badge.setAttribute('aria-hidden', 'true');
+            avatar.appendChild(badge);
+        }
+        return avatar;
+    }
+
     function updateConversationHeader() {
         const conversation = chatFor(state.active);
+        const count = participantCount(conversation);
         el('chat-thread-title').textContent = conversation
             ? (conversation.display_name || 'Особиста розмова') : 'Оберіть розмову';
-        el('chat-thread-avatar').textContent = conversation && conversation.kind === 'group' ? '👥' : '💬';
+        el('chat-thread-avatar').replaceChildren(brandedAvatar(conversation));
         el('chat-thread-subtitle').textContent = conversation
             ? (conversation.kind === 'group'
-                ? 'Груповий чат · ' + state.members.length + ' учасників'
+                ? 'Груповий чат' + (count === null ? '' : ' · ' + count + ' учасників')
                 : 'Особиста розмова') : 'Спілкуйтеся з адміністраторами';
         el('chat-manage-group').hidden = !conversation || conversation.kind !== 'group';
     }
@@ -247,7 +297,8 @@
             button.type = 'button';
             button.setAttribute('role', 'listitem');
             if (id === state.active) { button.classList.add('is-active'); }
-            const avatar = node('span', 'chat-avatar', chat.kind === 'group' ? '👥' : '💬');
+            const avatar = node('span', 'chat-avatar');
+            avatar.appendChild(brandedAvatar(chat));
             const copy = node('span', 'chat-conversation-copy');
             copy.appendChild(node('strong', '', chat.display_name || 'Особиста розмова'));
             copy.appendChild(node('span', '', chat.preview || 'Напишіть перше повідомлення'));
@@ -264,6 +315,9 @@
         const data = await request('api/list');
         state.conversations = Array.isArray(data.conversations) ? data.conversations : [];
         state.admins = Array.isArray(data.admins) ? data.admins : [];
+        // The new list count is current while the open thread's members reload.
+        state.membersLoadedFor = 0;
+        state.membersVersion++;
         const badge = el('chat-all-count');
         const total = Number(data.unread_total || 0);
         badge.hidden = total <= 0;
@@ -283,6 +337,8 @@
         state.signature = '';
         state.messages = [];
         state.members = [];
+        state.membersLoadedFor = 0;
+        state.membersVersion++;
         state.lastRead[id] = state.lastRead[id] || 0;
         clearReply();
         closeEmoji();
@@ -307,6 +363,7 @@
         state.active = 0;
         state.conversation = null;
         state.members = [];
+        state.membersLoadedFor = 0;
         clearReply();
         layout.classList.remove('has-open-thread');
         closeEmoji();
@@ -507,18 +564,29 @@
     async function loadThread(forceBottom) {
         if (!state.active || state.threadLoading) { return; }
         const conversationId = state.active;
+        const membersVersion = state.membersVersion;
         state.threadLoading = true;
         try {
             const data = await request('api/messages?conversation_id=' + conversationId);
             if (conversationId !== state.active) { return; }
             state.messages = Array.isArray(data.messages) ? data.messages : [];
-            state.members = Array.isArray(data.members) ? data.members : [];
             state.conversation = data.conversation || null;
+            const conversation = chatFor(conversationId);
+            // A list refresh may already reflect an add/remove completed after
+            // this request started. Keep that count until fresh members arrive.
+            if (membersVersion === state.membersVersion) {
+                state.members = Array.isArray(data.members) ? data.members : [];
+                state.membersLoadedFor = state.members.length > 0 ? conversationId : 0;
+                if (conversation && conversation.kind === 'group' && state.membersLoadedFor) {
+                    conversation.member_count = state.members.length;
+                }
+            }
             const signature = JSON.stringify(state.messages);
             if (signature !== state.signature) {
                 state.signature = signature;
                 renderThread(Boolean(forceBottom));
             }
+            renderList();
             updateConversationHeader();
             const last = state.messages.length ? Number(state.messages[state.messages.length - 1].id) : 0;
             if (last > (state.lastRead[conversationId] || 0) && !document.hidden) {
@@ -527,6 +595,9 @@
             }
         } finally {
             state.threadLoading = false;
+            if (membersVersion !== state.membersVersion && state.active) {
+                await loadThread(false);
+            }
         }
     }
 
@@ -925,6 +996,7 @@
         if (!document.hidden) { refresh(); }
     });
 
+    updateConversationHeader();
     refresh().then(function () {
         if (state.active && chatFor(state.active)) { openConversation(state.active, false); }
     });

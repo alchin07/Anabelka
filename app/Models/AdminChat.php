@@ -28,6 +28,10 @@ final class AdminChat
     {
         $stmt = self::db()->prepare("
             SELECT c.id, c.kind, c.title, c.created_by, c.updated_at,
+                CASE WHEN c.kind = 'group' THEN
+                    (SELECT COUNT(*) FROM admin_chat_members counted_member
+                     WHERE counted_member.conversation_id = c.id)
+                ELSE NULL END AS member_count,
                 CASE WHEN c.kind = 'group' THEN c.title ELSE
                     (SELECT a.name
                      FROM admin_chat_members other

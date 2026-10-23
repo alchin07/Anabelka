@@ -61,6 +61,6 @@ test('message bubbles are borderless; standalone emoji have transparent backgrou
     assert.match(css, /\.chat-message-row\.is-emoji-only[^}]*\.chat-bubble \{[^}]*background:transparent/);
     assert.match(css, /\.chat-message-row\.is-emoji-only \.chat-message-emoji \{[^}]*width:112px/);
     assert.match(css, /@media \(max-width:730px\)[\s\S]*width:104px/);
-    assert.ok(view.includes('admin-chat.css?v=4'));
-    assert.ok(view.includes('admin-chat.js?v=4'));
+    assert.ok(view.includes('admin-chat.css?v=5'));
+    assert.ok(view.includes('admin-chat.js?v=5'));
 });
