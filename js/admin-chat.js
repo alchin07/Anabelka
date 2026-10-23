@@ -914,6 +914,9 @@
         });
     });
     window.addEventListener('popstate', function () {
+        // A photo overlay owns the browser Back event before thread navigation.
+        if (window.AnabelkaChatPhotoViewer &&
+            window.AnabelkaChatPhotoViewer.consumePopState()) { return; }
         const id = Number(new URLSearchParams(location.search).get('c')) || 0;
         if (!id) { toList(); }
         else if (chatFor(id)) { openConversation(id, false); }

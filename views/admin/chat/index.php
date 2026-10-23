@@ -12,7 +12,7 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Чат адміністраторів — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-chat.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/admin-chat.css?v=4">
 </head>
 <body>
 <?php require __DIR__ . '/../partials/header.php'; ?>
@@ -180,9 +180,39 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
         </div>
     </div>
 </dialog>
+
+<!-- Приватна галерея: посилання використовують існуючий серверний маршрут перевірки доступу. -->
+<div id="chat-photo-viewer" class="chat-photo-viewer" role="dialog" aria-modal="true"
+     aria-labelledby="chat-photo-title" aria-label="Перегляд фотографії" tabindex="-1" hidden>
+    <header class="chat-photo-toolbar">
+        <span id="chat-photo-counter" class="chat-photo-counter" aria-live="polite">1 / 1</span>
+        <div class="chat-photo-controls">
+            <button type="button" id="chat-photo-zoom-out" aria-label="Зменшити масштаб" title="Зменшити">−</button>
+            <span id="chat-photo-zoom-label" class="chat-photo-zoom-label">100%</span>
+            <button type="button" id="chat-photo-zoom-in" aria-label="Збільшити масштаб" title="Збільшити">+</button>
+            <a id="chat-photo-save" class="chat-photo-save" href="#" download title="Зберегти фотографію">⬇ Зберегти</a>
+            <button type="button" id="chat-photo-close" aria-label="Закрити фотографію" title="Закрити">×</button>
+        </div>
+    </header>
+    <div class="chat-photo-canvas">
+        <button type="button" id="chat-photo-prev" class="chat-photo-arrow is-prev"
+                aria-label="Попереднє фото" title="Попереднє фото">‹</button>
+        <div id="chat-photo-stage" class="chat-photo-stage" aria-label="Фото: два пальці для масштабу">
+            <img id="chat-photo-image" alt="" draggable="false">
+            <span id="chat-photo-status" class="chat-photo-status" role="status" hidden></span>
+        </div>
+        <button type="button" id="chat-photo-next" class="chat-photo-arrow is-next"
+                aria-label="Наступне фото" title="Наступне фото">›</button>
+    </div>
+    <footer class="chat-photo-footer">
+        <span id="chat-photo-title" class="chat-photo-name">Фото</span>
+        <span class="chat-photo-hint">Гортайте свайпом · Два пальці для масштабу</span>
+    </footer>
+</div>
 <p class="chat-toast" id="chat-toast" role="status" aria-live="polite" hidden></p>
 
 <script defer src="/Anabelka/js/admin-chat-emoji.js?v=2"></script>
-<script defer src="/Anabelka/js/admin-chat.js?v=3"></script>
+<script defer src="/Anabelka/js/admin-chat.js?v=4"></script>
+<script defer src="/Anabelka/js/admin-chat-photo-viewer.js?v=1"></script>
 </body>
 </html>

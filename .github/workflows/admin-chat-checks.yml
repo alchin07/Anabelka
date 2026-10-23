@@ -63,10 +63,11 @@ jobs:
         shell: bash
         run: |
           node --check js/admin-chat.js
+          node --check js/admin-chat-photo-viewer.js
           node --check js/admin-chat-emoji.js
           node --check tests/admin_chat_contract.test.mjs
       - name: Chat contract tests
-        run: node --test tests/admin_chat_contract.test.mjs tests/admin_chat_picture_emoji_contract.test.mjs tests/admin_chat_emoji_display_contract.test.mjs
+        run: node --test tests/admin_chat_contract.test.mjs tests/admin_chat_picture_emoji_contract.test.mjs tests/admin_chat_emoji_display_contract.test.mjs tests/admin_chat_photo_viewer_contract.test.mjs
 
   temporary-mariadb:
     runs-on: ubuntu-latest

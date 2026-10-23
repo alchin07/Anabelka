@@ -219,3 +219,93 @@
     .chat-message-row.is-emoji-count-3 .chat-message-emoji { width:60px; height:60px; }
     .chat-message-row.is-emoji-count-3 .chat-message-native-emoji { font-size:56px; }
 }
+
+
+/* Private, full-screen photo viewer; the thread and file authorization remain intact. */
+.chat-photo-no-scroll { overflow:hidden !important; }
+.chat-photo-viewer[hidden] { display:none !important; }
+.chat-photo-viewer {
+    position:fixed; inset:0; z-index:6000;
+    display:flex; flex-direction:column;
+    box-sizing:border-box;
+    padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px)
+            env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+    color:#fff; background:#110e17f7;
+}
+.chat-photo-toolbar {
+    display:flex; flex:0 0 auto; justify-content:space-between; align-items:center;
+    gap:10px; padding:9px 14px; min-height:48px;
+    background:#1c1428d9;
+}
+.chat-photo-controls { display:flex; align-items:center; gap:7px; }
+.chat-photo-viewer button,
+.chat-photo-viewer .chat-photo-save {
+    display:inline-flex; justify-content:center; align-items:center;
+    box-sizing:border-box; min-width:42px; min-height:42px;
+    padding:7px 10px; border:0; border-radius:10px;
+    font:inherit; font-size:21px; color:#fff; background:#ffffff1a;
+    cursor:pointer; text-decoration:none;
+}
+.chat-photo-viewer button:disabled { opacity:.28; cursor:default; }
+.chat-photo-viewer button:focus-visible,
+.chat-photo-viewer .chat-photo-save:focus-visible {
+    outline:2px solid #d9bbff; outline-offset:2px;
+}
+.chat-photo-viewer .chat-photo-save { font-size:13px; font-weight:600; }
+.chat-photo-counter { font-weight:600; font-size:14px; white-space:nowrap; }
+.chat-photo-canvas {
+    display:flex; align-items:stretch; position:relative;
+    flex:1 1 auto; min-height:0; width:100%;
+}
+.chat-photo-arrow {
+    align-self:center; flex:0 0 50px; z-index:1;
+    margin:0 4px;
+}
+.chat-photo-viewer .chat-photo-arrow { font-size:33px; padding:0; }
+.chat-photo-stage {
+    flex:1 1 auto; min-width:0; min-height:0;
+    display:flex; position:relative; align-items:center; justify-content:center;
+    overflow:hidden; touch-action:none; overscroll-behavior:contain; user-select:none;
+}
+.chat-photo-stage.is-zoomed { cursor:grab; }
+.chat-photo-stage img {
+    display:block; max-width:100%; max-height:100%; width:auto; height:auto;
+    object-fit:contain; user-select:none; pointer-events:none;
+    will-change:transform; transform-origin:center center;
+}
+.chat-photo-stage img[hidden] { display:none; }
+.chat-photo-status {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    color:#f2e6fb; font-size:13px; text-align:center; pointer-events:none;
+    max-width:85%;
+}
+.chat-photo-status[hidden] { display:none; }
+.chat-photo-footer {
+    display:flex; flex:0 0 auto; justify-content:space-between; align-items:center;
+    gap:12px; padding:9px 15px 11px;
+    min-height:42px; background:#1c1428d9; font-size:13px;
+}
+.chat-photo-name {
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    min-width:0; font-weight:500;
+}
+.chat-photo-hint { opacity:.72; font-size:12px; white-space:nowrap; }
+.chat-photo-zoom-label { min-width:48px; text-align:center; font-size:12px; }
+@media (max-width:730px) {
+    .chat-photo-toolbar { padding:6px 8px; }
+    .chat-photo-controls { gap:4px; }
+    .chat-photo-viewer button,
+    .chat-photo-viewer .chat-photo-save { min-width:40px; min-height:40px; }
+    .chat-photo-arrow { position:absolute; top:50%; transform:translateY(-50%); margin:0; }
+    .chat-photo-arrow.is-prev { left:5px; }
+    .chat-photo-arrow.is-next { right:5px; }
+    .chat-photo-stage { width:100%; }
+    .chat-photo-footer { padding:9px 10px; }
+    .chat-photo-hint { display:none; }
+}
+@media (max-width:380px) {
+    .chat-photo-toolbar { gap:4px; }
+    .chat-photo-controls { gap:2px; }
+    .chat-photo-viewer .chat-photo-save { font-size:0; }
+    .chat-photo-viewer .chat-photo-save::before { content:'⬇'; font-size:20px; }
+}
