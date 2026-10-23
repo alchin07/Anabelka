@@ -228,6 +228,9 @@ final class AdminChat
                 DELETE FROM admin_chat_members WHERE conversation_id = ? AND admin_id = ?
             ");
             $stmt->execute([$id, $memberId]);
+            if ($stmt->rowCount() !== 1) {
+                throw new DomainException('Учасника вже немає в цій групі. Оновіть список.');
+            }
             return;
         }
         throw new InvalidArgumentException('Невідома дія.');

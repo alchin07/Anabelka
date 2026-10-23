@@ -128,6 +128,8 @@ deny(static fn() => AdminChat::manageGroup($group, $owner, 'remove', $owner),
 AdminChat::manageGroup($group, $owner, 'remove', $bohdan);
 check(count(AdminChat::members($group, $owner)) === 2,
     'Removal actually deletes member record');
+deny(static fn() => AdminChat::manageGroup($group, $owner, 'remove', $bohdan),
+    'Removing an absent member cannot silently report success');
 deny(static fn() => AdminChat::messages($group, $bohdan),
     'Removed member immediately loses history access');
 deny(static fn() => AdminChat::file($groupFileId, $bohdan),
