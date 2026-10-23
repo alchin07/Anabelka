@@ -211,7 +211,7 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
 </div>
 <p class="chat-toast" id="chat-toast" role="status" aria-live="polite" hidden></p>
 
-<script defer src="/Anabelka/js/admin-chat-emoji.js?v=2"></script>
+<script defer src="/Anabelka/js/admin-chat-emoji.js?v=3"></script>
 <script defer src="/Anabelka/js/admin-chat.js?v=6"></script>
 <script defer src="/Anabelka/js/admin-chat-photo-viewer.js?v=1"></script>
 </body>
