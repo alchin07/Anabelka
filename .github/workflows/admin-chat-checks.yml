@@ -1,0 +1,144 @@
+name: Admin chat checks (isolated)
+
+on:
+  push:
+    branches:
+      - feature/admin-chat
+    paths:
+      - '.github/workflows/admin-chat-checks.yml'
+      - 'app/Models/AdminChat.php'
+      - 'app/Controllers/AdminChatController.php'
+      - 'app/Models/AdminAccess.php'
+      - 'app/Models/AdminDashboardServiceRegistry.php'
+      - 'app/Core/**'
+      - 'routes/AdminChat.php'
+      - 'views/admin/**'
+      - 'js/admin-chat*.js'
+      - 'css/admin-chat.css'
+      - 'database/migrations/2026-10-21_admin_chat.sql'
+      - 'tests/admin_chat_*.mjs'
+      - 'tests/admin_chat_*.php'
+  pull_request:
+    branches:
+      - feature/category-manager
+    paths:
+      - 'app/Models/AdminChat.php'
+      - 'app/Controllers/AdminChatController.php'
+      - 'database/migrations/2026-10-21_admin_chat.sql'
+      - 'js/admin-chat*.js'
+      - 'tests/admin_chat_*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php-and-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_mysql, fileinfo
+          coverage: none
+      - name: PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -v
+          for src in \
+            app/Models/AdminChat.php \
+            app/Controllers/AdminChatController.php \
+            app/Models/AdminAccess.php \
+            app/Models/AdminDashboardServiceRegistry.php \
+            app/Core/App.php \
+            routes/AdminChat.php \
+            views/admin/chat/index.php \
+            views/admin/partials/header.php; do
+            php -l "$src"
+          done
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          node --check js/admin-chat.js
+          node --check js/admin-chat-photo-viewer.js
+          node --check js/admin-chat-emoji.js
+          node --check tests/admin_chat_contract.test.mjs
+      - name: Chat contract tests
+        run: node --test tests/admin_chat_*.test.mjs
+
+  avatar-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/chat-ui-deps" --no-save --no-package-lock playwright@1.62.1
+          node "$RUNNER_TEMP/chat-ui-deps/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Check mobile and desktop SVG avatars
+        env:
+          ANABELKA_UI_TEST_DEPS: ${{ runner.temp }}/chat-ui-deps/node_modules
+          ANABELKA_CHAT_UI_ARTIFACT_DIR: ${{ runner.temp }}/chat-ui-screenshots
+        run: node --test tests/admin_chat_avatar_browser.mjs
+      - name: Check read receipts and visual read position
+        env:
+          ANABELKA_UI_TEST_DEPS: ${{ runner.temp }}/chat-ui-deps/node_modules
+          ANABELKA_CHAT_UI_ARTIFACT_DIR: ${{ runner.temp }}/chat-ui-screenshots
+        run: node --test tests/admin_chat_read_browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chat-ui-screenshots
+          path: ${{ runner.temp }}/chat-ui-screenshots
+          if-no-files-found: ignore
+
+  temporary-mariadb:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.4
+        env:
+          MYSQL_ROOT_PASSWORD: chat_ci_root_password
+          MYSQL_DATABASE: anabelka
+          MYSQL_USER: chat_ci_user
+          MYSQL_PASSWORD: chat_ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP 8.2 and PDO MySQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_mysql, fileinfo
+          coverage: none
+      - name: Configure only the disposable CI database
+        shell: bash
+        run: |
+          cat > config/database.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'port' => '3306',
+              'database' => 'anabelka',
+              'username' => 'chat_ci_user',
+              'password' => 'chat_ci_password',
+              'charset' => 'utf8mb4',
+          ];
+          PHP
+      - name: Run isolated admin chat MariaDB integration tests
+        env:
+          ANABELKA_CHAT_CI_TEST: '1'
+          DB_HOST: '127.0.0.1'
+          DB_NAME: 'anabelka'
+        run: php tests/admin_chat_runtime.php

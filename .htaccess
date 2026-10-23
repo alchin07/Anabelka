@@ -9,6 +9,9 @@ RewriteRule ^storage/(?:deploy-backups|full-backups)(?:/|$) - [F,L,NC]
 # Originals, preview manifests and locks are served only through authorized controllers.
 RewriteRule ^storage/image-processor/ - [F,L]
 
+# Admin chat attachments must only be served through checked /admin/chat/file.
+RewriteRule ^storage/admin-chat(?:/|$) - [F,L,NC]
+
 # SQL migrations, diagnostics and schema files must not be served directly.
 # PHP/MariaDB still read these files from disk as usual.
 RewriteRule ^database(?:/|$) - [F,L,NC]

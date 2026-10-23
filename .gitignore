@@ -7,5 +7,9 @@ uploads/products/*
 storage/full-backups/
 storage/deploy-backups/
 storage/image-processor/
+storage/admin-chat/
 **/__pycache__/
 *.py[cod]
+
+# Optional user-provided licensed illustrated emoji pictures. Never publish packs.
+assets/chat-emoji/graphics/

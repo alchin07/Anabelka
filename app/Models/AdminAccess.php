@@ -373,6 +373,7 @@ class AdminAccess
 
         $isWrite = $method !== 'GET' && $method !== 'HEAD';
         $areas = [
+            '/admin/chat' => ['chat.use', 'chat.use'],
             '/admin/dashboard-builder' => ['dashboard.manage', 'dashboard.manage'],
             '/admin/orders' => ['orders.view', 'orders.manage'],
             '/admin/search' => ['search.view', 'search.manage'],
@@ -526,6 +527,7 @@ class AdminAccess
             ['admin.access', 'Доступ до службових розділів', 'system', 10],
             ['dashboard.view', 'Перегляд головної адмін-панелі', 'dashboard', 20],
             ['dashboard.manage', 'Керування конструктором головної адмін-панелі', 'dashboard', 21],
+            ['chat.use', 'Внутрішній чат адміністраторів', 'system', 22],
             ['orders.view', 'Перегляд замовлень', 'orders', 30],
             ['orders.manage', 'Зміна замовлень', 'orders', 31],
             ['search.view', 'Перегляд журналу пошуку', 'search', 40],
@@ -626,6 +628,7 @@ class AdminAccess
             'store_owner' => $administratorPermissions,
             'administrator' => $administratorPermissions,
             'order_manager' => [
+                'chat.use',
                 'dashboard.view',
                 'orders.view',
                 'orders.manage',
@@ -633,6 +636,7 @@ class AdminAccess
                 'users.view'
             ],
             'content_manager' => [
+                'chat.use',
                 'dashboard.view',
                 'products.view',
                 'products.manage',

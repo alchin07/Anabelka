@@ -12,6 +12,16 @@ class AdminDashboardServiceRegistry
     ];
 
     private const SERVICES = [
+        'chat' => [
+            'label' => 'Чат команди',
+            'description' => 'Особисті та групові повідомлення адміністраторів.',
+            'path' => '/admin/chat',
+            'permission' => 'chat.use',
+            'group' => 'system',
+            'icon_key' => 'chat',
+            'allow_multiple' => false,
+            'badge' => ['source' => 'admin_chat', 'tone' => 'notification']
+        ],
         'orders' => [
             'label' => 'Замовлення',
             'description' => 'Звичайні та швидкі замовлення магазину.',
@@ -441,6 +451,15 @@ class AdminDashboardServiceRegistry
             }
 
             return $count;
+        }
+
+        if ($source === 'admin_chat' && (int) $adminUserId > 0 && class_exists('AdminChat')) {
+            try {
+                return AdminChat::unreadTotal((int) $adminUserId);
+            } catch (Throwable $e) {
+                // Чат не повинен заважати решті сервісів до застосування міграції.
+                return 0;
+            }
         }
 
         if (

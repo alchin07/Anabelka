@@ -178,6 +178,7 @@ class App
         require __DIR__ . '/../../routes/AdminAuth.php';
         require __DIR__ . '/../../routes/AdminSocialAuth.php';
         require __DIR__ . '/../../routes/AdminSecurity.php';
+        require __DIR__ . '/../../routes/AdminChat.php';
         require __DIR__ . '/../../routes/CustomerAccount.php';
         require __DIR__ . '/../../routes/Legal.php';
         require __DIR__ . '/../../routes/PasswordReset.php';
