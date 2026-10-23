@@ -14,7 +14,8 @@
         conversations: [], admins: [], messages: [], members: [], membersLoadedFor: 0,
         membersVersion: 0, conversation: null,
         signature: '', syncing: false, threadLoading: false, replyId: 0,
-        lastRead: {}, deleteId: 0, sending: false, searching: false
+        lastRead: {}, deleteId: 0, sending: false, searching: false,
+        hasMore: false, pageLoading: false, readBusy: false, opened: 0, loadedThrough: 0
     };
 
     const layout = el('chat-layout');
@@ -24,6 +25,11 @@
     const fileInput = el('chat-files');
     const searchInput = el('chat-search');
     const emojiPanel = el('chat-emoji-panel');
+    const viewedMessages = new Set();
+    let readTimer = 0;
+    const readObserver = typeof IntersectionObserver === 'function'
+        ? new IntersectionObserver(function () { scheduleRead(); }, {root: thread, threshold: [0, .1, 1]})
+        : null;
     const emojiData = window.AnabelkaChatEmojiData || {categories: [], names: {}};
     const pictureData = window.AnabelkaChatClassicData || {files: {}, labels: {}, categories: []};
     // Only a server-local folder of authorized PNGs may activate graphic smilies.
@@ -334,11 +340,16 @@
         id = Number(id);
         if (!chatFor(id)) { return; }
         state.active = id;
+        state.opened++;
+        viewedMessages.clear();
+        state.hasMore = false;
+        state.loadedThrough = 0;
         state.signature = '';
         state.messages = [];
         state.members = [];
         state.membersLoadedFor = 0;
         state.membersVersion++;
+        clearChildren(thread);
         state.lastRead[id] = state.lastRead[id] || 0;
         clearReply();
         closeEmoji();
@@ -361,6 +372,9 @@
 
     function toList() {
         state.active = 0;
+        state.opened++;
+        viewedMessages.clear();
+        if (readObserver) { readObserver.disconnect(); }
         state.conversation = null;
         state.members = [];
         state.membersLoadedFor = 0;
@@ -419,6 +433,24 @@
         return result;
     }
 
+
+    function renderReadStatus(entry) {
+        if (Number(entry.sender_id) !== adminId || entry.deleted_at || !entry.read_status) { return null; }
+        const count = Math.max(0, Number(entry.read_status.read_count) || 0);
+        const total = Math.max(0, Number(entry.read_status.recipient_count) || 0);
+        const seen = total > 0 && count === total && entry.read_status.seen === true;
+        const partial = state.conversation && state.conversation.kind === 'group' && count > 0 && count < total;
+        const label = (seen ? 'Переглянуто' : 'Відправлено') +
+            (partial ? ' · Переглянули: ' + count + ' із ' + total : '');
+        const status = node('span', 'chat-read-status' + (seen ? ' is-seen' : ''));
+        status.setAttribute('title', label);
+        status.setAttribute('aria-label', label);
+        const checks = node('span', 'chat-read-checks', seen ? '✓✓' : '✓');
+        checks.setAttribute('aria-hidden', 'true');
+        status.appendChild(checks);
+        if (partial) { status.appendChild(node('span', 'chat-read-count', 'Переглянули: ' + count + ' із ' + total)); }
+        return status;
+    }
 
     function renderMessage(entry) {
         const own = Number(entry.sender_id) === adminId;
@@ -480,6 +512,8 @@
         }
         const meta = node('div', 'chat-message-meta', showTime(entry.created_at));
         if (entry.edited_at && !deleted) { meta.appendChild(node('span', '', '· змінено')); }
+        const status = renderReadStatus(entry);
+        if (status) { meta.appendChild(status); }
         bubble.appendChild(meta);
         row.appendChild(bubble);
         if (!deleted) {
@@ -559,17 +593,170 @@
             });
         }
         thread.scrollTop = atBottom ? thread.scrollHeight : previous;
+        observeMessages();
+    }
+
+    function observeMessages() {
+        if (readObserver) {
+            readObserver.disconnect();
+            thread.querySelectorAll('.chat-message-row').forEach(function (row) { readObserver.observe(row); });
+        }
+        scheduleRead();
+    }
+
+    function canViewThread() {
+        return Boolean(state.active && !document.hidden && document.hasFocus() &&
+            layout.classList.contains('has-open-thread') &&
+            !document.querySelector('dialog[open]') && el('chat-photo-viewer').hidden && emojiPanel.hidden);
+    }
+
+    function scheduleRead() {
+        window.clearTimeout(readTimer);
+        readTimer = window.setTimeout(function () { markVisibleRead(); }, 250);
+    }
+
+    async function markVisibleRead() {
+        if (!canViewThread()) { return; }
+        const box = thread.getBoundingClientRect();
+        const top = Math.max(0, box.top), bottom = Math.min(window.innerHeight, box.bottom);
+        const left = Math.max(0, box.left), right = Math.min(window.innerWidth, box.right);
+        if (bottom <= top || right <= left) { return; }
+        thread.querySelectorAll('.chat-message-row:not(.is-mine)').forEach(function (row) {
+            // Inspect content, not a footer/action that may peek into the viewport.
+            const visible = Array.from(row.querySelectorAll('.chat-message-body, .chat-file-card')).some(function (content) {
+                const rect = content.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0 &&
+                    Math.min(right, rect.right) > Math.max(left, rect.left) &&
+                    Math.min(bottom, rect.bottom) - Math.max(top, rect.top) >= Math.min(24, rect.height);
+            });
+            if (visible) { viewedMessages.add(Number(row.dataset.messageId)); }
+        });
+        if (state.readBusy) { return; }
+        const id = state.active, opened = state.opened;
+        let mark = state.lastRead[id] || 0;
+        for (const message of state.messages) {
+            const messageId = Number(message.id);
+            if (messageId <= mark) { continue; }
+            // A newly sent preview can sit beyond an unloaded unread page.
+            if (messageId > state.loadedThrough) { break; }
+            if (Number(message.sender_id) !== adminId && !message.deleted_at && !viewedMessages.has(messageId)) { break; }
+            mark = messageId;
+        }
+        if (mark <= (state.lastRead[id] || 0) || !canViewThread()) { return; }
+        state.readBusy = true;
+        let retry = false;
+        try {
+            const result = await request('api/read', {conversation_id: id, message_id: mark});
+            state.lastRead[id] = Math.max(state.lastRead[id] || 0, mark, Number(result.viewer_read_message_id) || 0);
+            if (id === state.active && opened === state.opened) { await loadList(); }
+        } catch (error) {
+            retry = true; // Keep observed ids; advance the local watermark only on success.
+        } finally {
+            state.readBusy = false;
+            if (id === state.active && opened === state.opened) {
+                window.clearTimeout(readTimer);
+                readTimer = window.setTimeout(function () { markVisibleRead(); }, retry ? 1500 : 250);
+            }
+        }
+    }
+
+    function mergeThread(data, forceBottom) {
+        const oldContent = JSON.stringify(state.messages.map(function (message) {
+            const copy = Object.assign({}, message); delete copy.read_status; return copy;
+        }));
+        const messages = new Map(state.messages.map(function (message) { return [Number(message.id), message]; }));
+        (data.messages || []).forEach(function (message) { messages.set(Number(message.id), message); });
+        (data.message_updates || []).forEach(function (update) {
+            const message = messages.get(Number(update.id));
+            if (message) {
+                message.body = update.deleted_at ? '' : String(update.body || '');
+                message.edited_at = update.edited_at;
+                message.deleted_at = update.deleted_at;
+                if (update.deleted_at) {
+                    message.attachments = [];
+                    message.reply_body = '';
+                    delete message.read_status;
+                }
+            }
+            messages.forEach(function (quoted) {
+                if (Number(quoted.reply_to_id) === Number(update.id)) {
+                    quoted.reply_body = update.deleted_at ? '' : String(update.body || '');
+                }
+            });
+        });
+        (data.read_statuses || []).forEach(function (receipt) {
+            const message = messages.get(Number(receipt.id));
+            if (message && !message.deleted_at && Number(message.sender_id) === adminId) { message.read_status = receipt.read_status; }
+        });
+        state.messages = Array.from(messages.values()).sort(function (a, b) { return Number(a.id) - Number(b.id); });
+        const content = JSON.stringify(state.messages.map(function (message) {
+            const copy = Object.assign({}, message); delete copy.read_status; return copy;
+        }));
+        if (oldContent !== content || !state.signature) {
+            renderThread(Boolean(forceBottom));
+        } else {
+            // Receipt polling must preserve edits, loaded images, photo viewer and scroll.
+            state.messages.forEach(function (message) {
+                const row = thread.querySelector('[data-message-id="' + Number(message.id) + '"]');
+                const meta = row && row.querySelector('.chat-message-meta');
+                if (!meta) { return; }
+                const previous = meta.querySelector('.chat-read-status');
+                if (previous) { previous.remove(); }
+                const status = renderReadStatus(message);
+                if (status) { meta.appendChild(status); }
+            });
+        }
+        state.signature = JSON.stringify(state.messages);
+    }
+
+    async function loadMoreMessages() {
+        if (!state.hasMore || state.pageLoading || state.threadLoading || !canViewThread() || !state.messages.length) { return; }
+        // A sent preview beyond a gap is not the end of the contiguous page.
+        // Load only when the reader reaches that page's actual boundary.
+        const boundary = thread.querySelector('[data-message-id="' + state.loadedThrough + '"]');
+        if (!boundary) { return; }
+        const box = thread.getBoundingClientRect(), edge = boundary.getBoundingClientRect();
+        if (edge.bottom > box.bottom + 90 || edge.bottom < box.top) { return; }
+        const id = state.active, opened = state.opened;
+        const after = state.loadedThrough;
+        state.pageLoading = true;
+        try {
+            const data = await request('api/messages?conversation_id=' + id + '&after=' + after);
+            if (id !== state.active || opened !== state.opened) { return; }
+            state.hasMore = Boolean(data.has_more);
+            const rows = Array.isArray(data.messages) ? data.messages : [];
+            if (rows.length) { state.loadedThrough = Math.max(state.loadedThrough, Number(rows[rows.length - 1].id)); }
+            const previous = thread.scrollTop;
+            const viewport = thread.getBoundingClientRect();
+            const anchor = Array.from(thread.querySelectorAll('.chat-message-row')).filter(function (row) {
+                const rect = row.getBoundingClientRect();
+                return rect.top < viewport.bottom && rect.bottom > viewport.top;
+            }).pop();
+            const anchorTop = anchor ? anchor.getBoundingClientRect().top - viewport.top : 0;
+            const anchorId = anchor && anchor.dataset.messageId;
+            mergeThread(data, false);
+            thread.scrollTop = previous;
+            const retained = anchorId && thread.querySelector('[data-message-id="' + Number(anchorId) + '"]');
+            if (retained) {
+                thread.scrollTop += retained.getBoundingClientRect().top - thread.getBoundingClientRect().top - anchorTop;
+            }
+            scheduleRead();
+        } catch (error) { /* The next scroll/poll retries a page without acknowledging it. */ }
+        finally { state.pageLoading = false; }
     }
 
     async function loadThread(forceBottom) {
         if (!state.active || state.threadLoading) { return; }
         const conversationId = state.active;
+        const opened = state.opened;
         const membersVersion = state.membersVersion;
         state.threadLoading = true;
         try {
-            const data = await request('api/messages?conversation_id=' + conversationId);
-            if (conversationId !== state.active) { return; }
-            state.messages = Array.isArray(data.messages) ? data.messages : [];
+            const firstId = state.messages.length ? Number(state.messages[0].id) : 0;
+            const data = await request('api/messages?conversation_id=' + conversationId + '&receipt_from=' + firstId);
+            if (conversationId !== state.active || opened !== state.opened) { return; }
+            const initial = !state.signature;
+            state.lastRead[conversationId] = Math.max(state.lastRead[conversationId] || 0, Number(data.viewer_read_message_id) || 0);
             state.conversation = data.conversation || null;
             const conversation = chatFor(conversationId);
             // A list refresh may already reflect an add/remove completed after
@@ -581,23 +768,28 @@
                     conversation.member_count = state.members.length;
                 }
             }
-            const signature = JSON.stringify(state.messages);
-            if (signature !== state.signature) {
-                state.signature = signature;
-                renderThread(Boolean(forceBottom));
+            const incoming = Array.isArray(data.messages) ? data.messages : [];
+            if (incoming.length) {
+                state.loadedThrough = Math.max(state.loadedThrough, Number(incoming[incoming.length - 1].id));
+            }
+            state.hasMore = Boolean(data.has_more);
+            const firstUnread = incoming.find(function (message) {
+                return Number(message.id) > state.lastRead[conversationId] && Number(message.sender_id) !== adminId && !message.deleted_at;
+            });
+            mergeThread(data, forceBottom && !(initial && firstUnread));
+            if (initial && firstUnread) {
+                const row = thread.querySelector('[data-message-id="' + Number(firstUnread.id) + '"]');
+                if (row) { thread.scrollTop += row.getBoundingClientRect().top - thread.getBoundingClientRect().top; }
             }
             renderList();
             updateConversationHeader();
-            const last = state.messages.length ? Number(state.messages[state.messages.length - 1].id) : 0;
-            if (last > (state.lastRead[conversationId] || 0) && !document.hidden) {
-                state.lastRead[conversationId] = last;
-                await request('api/read', {conversation_id: conversationId, message_id: last});
-            }
+            scheduleRead();
         } finally {
             state.threadLoading = false;
             if (membersVersion !== state.membersVersion && state.active) {
                 await loadThread(false);
             }
+            loadMoreMessages();
         }
     }
 
@@ -656,22 +848,31 @@
             return;
         }
         const data = new FormData();
-        data.append('conversation_id', String(state.active));
+        const conversationId = state.active, opened = state.opened;
+        data.append('conversation_id', String(conversationId));
         data.append('body', text);
         data.append('reply_to_id', String(state.replyId));
         files.forEach(function (file) { data.append('files[]', file); });
         state.sending = true;
         el('chat-send').disabled = true;
         try {
-            await request('api/send', data);
+            const sent = await request('api/send', data);
+            if (conversationId !== state.active || opened !== state.opened) { await loadList(); return; }
             bodyInput.value = '';
             fileInput.value = '';
             renderFiles();
             clearReply();
             closeEmoji();
-            state.signature = '';
             await loadList();
             await loadThread(true);
+            if (conversationId === state.active && opened === state.opened && Number(sent.message_id) > 0 &&
+                !state.messages.some(function (message) { return Number(message.id) === Number(sent.message_id); })) {
+                // Show a successful send immediately without claiming that the
+                // missing pages between it and loadedThrough were viewed.
+                const latest = await request('api/messages?conversation_id=' + conversationId +
+                    '&after=' + (Number(sent.message_id) - 1));
+                if (conversationId === state.active && opened === state.opened) { mergeThread(latest, true); }
+            }
         } catch (error) {
             inform(error.message, true);
         } finally {
@@ -993,8 +1194,17 @@
         else if (chatFor(id)) { openConversation(id, false); }
     });
     document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) { refresh(); }
+        if (!document.hidden) { refresh(); scheduleRead(); }
     });
+    window.addEventListener('focus', scheduleRead);
+    window.addEventListener('resize', scheduleRead);
+    window.addEventListener('scroll', scheduleRead, {passive: true});
+    thread.addEventListener('scroll', function () { scheduleRead(); loadMoreMessages(); }, {passive: true});
+    thread.addEventListener('load', scheduleRead, true);
+    if (typeof ResizeObserver === 'function') { new ResizeObserver(scheduleRead).observe(thread); }
+    if (typeof MutationObserver === 'function') {
+        new MutationObserver(scheduleRead).observe(root.parentNode, {subtree: true, attributes: true, attributeFilter: ['hidden', 'open']});
+    }
 
     updateConversationHeader();
     refresh().then(function () {

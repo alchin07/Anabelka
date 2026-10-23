@@ -85,10 +85,15 @@ jobs:
           ANABELKA_UI_TEST_DEPS: ${{ runner.temp }}/chat-ui-deps/node_modules
           ANABELKA_CHAT_UI_ARTIFACT_DIR: ${{ runner.temp }}/chat-ui-screenshots
         run: node --test tests/admin_chat_avatar_browser.mjs
+      - name: Check read receipts and visual read position
+        env:
+          ANABELKA_UI_TEST_DEPS: ${{ runner.temp }}/chat-ui-deps/node_modules
+          ANABELKA_CHAT_UI_ARTIFACT_DIR: ${{ runner.temp }}/chat-ui-screenshots
+        run: node --test tests/admin_chat_read_browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: chat-ui-04-screenshots
+          name: chat-ui-screenshots
           path: ${{ runner.temp }}/chat-ui-screenshots
           if-no-files-found: ignore
 

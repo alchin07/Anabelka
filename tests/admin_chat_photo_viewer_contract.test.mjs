@@ -56,8 +56,8 @@ test('markup and cache busting activate modal over chat without external resourc
     }
     assert.match(view, /id="chat-photo-viewer"[^>]*role="dialog"[^>]*aria-modal="true"/);
     assert.match(view, /admin-chat-photo-viewer\.js\?v=1/);
-    assert.match(view, /admin-chat\.js\?v=5/);
-    assert.match(view, /admin-chat\.css\?v=5/);
+    assert.match(view, /admin-chat\.js\?v=6/);
+    assert.match(view, /admin-chat\.css\?v=6/);
     assert.match(css, /\.chat-photo-viewer\[hidden\]\s*\{\s*display:none/);
     assert.match(css, /\.chat-photo-stage\s*\{[^}]*touch-action:none/);
 });

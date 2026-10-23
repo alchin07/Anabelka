@@ -12,7 +12,7 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Чат адміністраторів — Анабелька</title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-chat.css?v=5">
+    <link rel="stylesheet" href="/Anabelka/css/admin-chat.css?v=6">
 </head>
 <body>
 <?php require __DIR__ . '/../partials/header.php'; ?>
@@ -212,7 +212,7 @@ $escape = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UT
 <p class="chat-toast" id="chat-toast" role="status" aria-live="polite" hidden></p>
 
 <script defer src="/Anabelka/js/admin-chat-emoji.js?v=2"></script>
-<script defer src="/Anabelka/js/admin-chat.js?v=5"></script>
+<script defer src="/Anabelka/js/admin-chat.js?v=6"></script>
 <script defer src="/Anabelka/js/admin-chat-photo-viewer.js?v=1"></script>
 </body>
 </html>

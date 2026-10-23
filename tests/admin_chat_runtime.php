@@ -236,4 +236,239 @@ check(count($matching) === 1 &&
     $matching[0]['sender_name'] === 'Колишній адміністратор',
     'Deleted sender remains anonymous in archived messages');
 
+// CH-UI-05: receipts summarize current recipients, never disclose member cursors.
+$receiptAdmins = [];
+foreach (['Receipt Sender', 'Receipt Reader', 'Receipt Other'] as $index => $name) {
+    $createAdmin->execute([
+        $roleId, $name, "receipt-$index@example.invalid",
+        password_hash('Test-password-123!', PASSWORD_DEFAULT)
+    ]);
+    $receiptAdmins[] = (int) $db->lastInsertId();
+}
+[$sender, $reader, $other] = $receiptAdmins;
+$receiptDirect = AdminChat::direct($sender, $reader);
+$emptyHistory = AdminChat::history($receiptDirect, $sender);
+check($emptyHistory['messages'] === [] &&
+    $emptyHistory['viewer_read_message_id'] === 0 &&
+    $emptyHistory['has_more'] === false,
+    'Empty history returns an integer own cursor and no continuation');
+foreach ($emptyHistory['members'] as $member) {
+    check(!array_key_exists('last_read_message_id', $member),
+        'History member metadata does not expose another member read cursor');
+}
+$first = AdminChat::send($receiptDirect, $sender, 'First receipt', 0);
+$second = AdminChat::send($receiptDirect, $sender, 'Second receipt', 0);
+$outgoing = AdminChat::messages($receiptDirect, $sender);
+check($outgoing[0]['read_status'] === [
+    'read_count' => 0, 'recipient_count' => 1, 'seen' => false
+], 'Direct outgoing message starts sent with one unread recipient');
+foreach (AdminChat::messages($receiptDirect, $reader) as $incoming) {
+    check(!array_key_exists('read_status', $incoming),
+        'Incoming direct messages omit read status entirely');
+}
+AdminChat::read($receiptDirect, $sender, $second);
+check(AdminChat::messages($receiptDirect, $sender)[0]['read_status']['read_count'] === 0,
+    'Sender own watermark never contributes to a receipt');
+AdminChat::read($receiptDirect, $reader, $first);
+$outgoing = AdminChat::messages($receiptDirect, $sender);
+check($outgoing[0]['read_status'] === [
+    'read_count' => 1, 'recipient_count' => 1, 'seen' => true
+] && $outgoing[1]['read_status']['seen'] === false,
+    'Recipient watermark marks only outgoing messages at or below its position');
+AdminChat::read($receiptDirect, $reader, $second);
+$acknowledgedRead = AdminChat::read($receiptDirect, $reader, $first);
+check($acknowledgedRead === $second &&
+    AdminChat::history($receiptDirect, $reader)['viewer_read_message_id'] === $second,
+    'An older read request preserves and acknowledges the actual stored watermark');
+$refreshed = AdminChat::history($receiptDirect, $sender, $second, $first);
+check($refreshed['messages'] === [] && $refreshed['read_statuses'] === [
+    ['id' => $first, 'read_status' => [
+        'read_count' => 1, 'recipient_count' => 1, 'seen' => true
+    ]],
+    ['id' => $second, 'read_status' => [
+        'read_count' => 1, 'recipient_count' => 1, 'seen' => true
+    ]]
+], 'Receipt refresh updates displayed outgoing messages even without newer history rows');
+check(AdminChat::history($receiptDirect, $reader, 0, $first)['read_statuses'] === [],
+    'Receipt refresh cannot disclose receipt details for incoming messages');
+
+$foreignConversation = AdminChat::direct($sender, $other);
+$foreignMessage = AdminChat::send($foreignConversation, $sender, 'Foreign message', 0);
+deny(static fn() => AdminChat::read($receiptDirect, $reader, $foreignMessage),
+    'A message from another conversation cannot advance the read watermark');
+deny(static fn() => AdminChat::read($receiptDirect, $reader, $foreignMessage + 100000),
+    'A future nonexistent message cannot be clamped into a false read watermark');
+deny(static fn() => AdminChat::read($receiptDirect, $reader, 0),
+    'A read request must name an existing message in this conversation');
+deny(static fn() => AdminChat::history($receiptDirect, $other),
+    'A non-member cannot obtain history or aggregated receipts');
+check(AdminChat::history($receiptDirect, $reader)['viewer_read_message_id'] === $second,
+    'Rejected read requests preserve the real viewer watermark');
+
+$receiptGroup = AdminChat::createGroup($sender, 'Receipt group', [$reader, $other]);
+$groupReceipt = AdminChat::send($receiptGroup, $sender, 'Group receipt', 0);
+AdminChat::read($receiptGroup, $sender, $groupReceipt);
+AdminChat::read($receiptGroup, $reader, $groupReceipt);
+check(AdminChat::messages($receiptGroup, $sender)[0]['read_status'] === [
+    'read_count' => 1, 'recipient_count' => 2, 'seen' => false
+], 'Partial group receipt counts readers and requires all current recipients for seen');
+check(!array_key_exists('read_status', AdminChat::messages($receiptGroup, $other)[0]),
+    'Incoming group messages omit read status entirely');
+deny(static fn() => AdminChat::read($receiptGroup, $bohdan, $groupReceipt),
+    'Knowing a message ID does not let a non-member advance a group read marker');
+AdminChat::read($receiptGroup, $other, $groupReceipt);
+check(AdminChat::messages($receiptGroup, $sender)[0]['read_status']['seen'] === true,
+    'A group receipt is seen when every current recipient has read it');
+$_SESSION['admin_user_id'] = $owner;
+AdminChat::manageGroup($receiptGroup, $sender, 'remove', $other);
+check(AdminChat::messages($receiptGroup, $sender)[0]['read_status'] === [
+    'read_count' => 1, 'recipient_count' => 1, 'seen' => true
+], 'Removing a recipient changes receipt counts to current membership');
+AdminChat::manageGroup($receiptGroup, $sender, 'add', $other);
+check(AdminChat::messages($receiptGroup, $sender)[0]['read_status'] === [
+    'read_count' => 1, 'recipient_count' => 2, 'seen' => false
+], 'Re-added recipient starts unread and current group receipt becomes partial');
+AdminChat::manageGroup($receiptGroup, $sender, 'remove', $other);
+AdminChat::manageGroup($receiptGroup, $sender, 'remove', $reader);
+check(AdminChat::messages($receiptGroup, $sender)[0]['read_status'] === [
+    'read_count' => 0, 'recipient_count' => 0, 'seen' => false
+], 'A creator-only group has no recipient and never reports seen');
+$db->prepare('DELETE FROM admin_users WHERE id = ?')->execute([$other]);
+check(AdminChat::messages($foreignConversation, $sender)[0]['read_status'] === [
+    'read_count' => 0, 'recipient_count' => 0, 'seen' => false
+], 'A direct conversation with a deleted sole recipient never reports seen');
+
+// A scalar watermark is safe only if initial history starts at the oldest unread
+// message when latest-70 would skip unread content. Follow-up pages stay ordered.
+$backlog = AdminChat::createGroup($sender, 'Unread backlog', [$reader]);
+$backlogIds = [];
+for ($index = 0; $index < 175; $index++) {
+    $backlogIds[] = AdminChat::send($backlog, $sender, 'Backlog ' . $index, 0);
+}
+$page = AdminChat::history($backlog, $reader);
+check(count($page['messages']) === 70 && $page['has_more'] === true &&
+    $page['starts_at_unread'] === true &&
+    (int) $page['messages'][0]['id'] === $backlogIds[0] &&
+    (int) $page['messages'][69]['id'] === $backlogIds[69],
+    'Large unread backlog opens at first unread rather than skipping to latest seventy');
+check($page['viewer_read_message_id'] === 0,
+    'Fetching history does not itself advance a read watermark');
+AdminChat::read($backlog, $reader, $backlogIds[69]);
+check(AdminChat::unreadTotal($reader) === 105,
+    'Reading a visible backlog page leaves all unseen later messages unread');
+$page = AdminChat::history($backlog, $reader, $backlogIds[69]);
+check(count($page['messages']) === 100 && $page['has_more'] === true &&
+    (int) $page['messages'][0]['id'] === $backlogIds[70] &&
+    (int) $page['messages'][99]['id'] === $backlogIds[169],
+    'Incremental history returns the next hundred in order and signals overflow');
+$lastPage = AdminChat::history($backlog, $reader, $backlogIds[169]);
+check(count($lastPage['messages']) === 5 && $lastPage['has_more'] === false &&
+    (int) $lastPage['messages'][4]['id'] === $backlogIds[174],
+    'Incremental history ends without skipping messages after a hundred-message page');
+AdminChat::read($backlog, $reader, $backlogIds[174]);
+$latest = AdminChat::history($backlog, $reader);
+check(count($latest['messages']) === 70 && $latest['has_more'] === false &&
+    $latest['starts_at_unread'] === false &&
+    (int) $latest['messages'][0]['id'] === $backlogIds[105],
+    'A fully read conversation retains the latest-seventy history window');
+
+// Count visible positions rather than unread rows: one old unread message may be
+// separated from the latest window by the viewer's own outgoing messages.
+$sparseBacklog = AdminChat::createGroup($sender, 'Sparse unread backlog', [$reader]);
+$sparseFirst = AdminChat::send($sparseBacklog, $sender, 'Old unread', 0);
+for ($index = 0; $index < 75; $index++) {
+    $sparseLast = AdminChat::send($sparseBacklog, $reader, 'Own context ' . $index, 0);
+}
+$sparsePage = AdminChat::history($sparseBacklog, $reader);
+check((int) $sparsePage['messages'][0]['id'] === $sparseFirst &&
+    $sparsePage['has_more'] === true,
+    'Even one old unread message cannot be skipped behind outgoing context');
+
+$createAdmin->execute([
+    $roleId, 'Archived Receipt Author', 'archived-receipt-author@example.invalid',
+    password_hash('Test-password-123!', PASSWORD_DEFAULT)
+]);
+$archivedAuthor = (int) $db->lastInsertId();
+$archivedBacklog = AdminChat::createGroup($sender, 'Archived author backlog', [$reader, $archivedAuthor]);
+$archivedFirst = AdminChat::send($archivedBacklog, $archivedAuthor, 'Unread archived author', 0);
+for ($index = 0; $index < 75; $index++) {
+    AdminChat::send($archivedBacklog, $reader, 'Own archived context ' . $index, 0);
+}
+$unreadBeforeDeletion = AdminChat::unreadTotal($reader);
+$db->prepare('DELETE FROM admin_users WHERE id = ?')->execute([$archivedAuthor]);
+$archivedPage = AdminChat::history($archivedBacklog, $reader);
+$archivedList = listedConversations($reader);
+check($archivedPage['starts_at_unread'] === true &&
+    (int) $archivedPage['messages'][0]['id'] === $archivedFirst &&
+    $archivedPage['messages'][0]['sender_id'] === null &&
+    !array_key_exists('read_status', $archivedPage['messages'][0]),
+    'Deleted sender content stays incoming and anchors unread history before later own messages');
+check(AdminChat::unreadTotal($reader) === $unreadBeforeDeletion &&
+    (int) $archivedList[$archivedBacklog]['unread'] === 1,
+    'Deleting an author does not silently clear their unread message from totals or conversation badges');
+
+// The client retains loaded history while the server polls a smaller latest
+// window. Refresh edits/deletions from that cache floor with the receipt batch.
+AdminChat::edit($backlogIds[0], $sender, 'Edited outside latest window');
+AdminChat::delete($backlogIds[1], $sender);
+$cacheRefresh = AdminChat::history($backlog, $sender, 0, $backlogIds[0]);
+$updates = [];
+foreach (($cacheRefresh['message_updates'] ?? []) as $update) {
+    $updates[$update['id']] = $update;
+}
+check((int) $cacheRefresh['messages'][0]['id'] > $backlogIds[1] &&
+    ($updates[$backlogIds[0]]['body'] ?? null) === 'Edited outside latest window' &&
+    !empty($updates[$backlogIds[0]]['edited_at']) &&
+    $updates[$backlogIds[0]]['deleted_at'] === null,
+    'Retained outgoing messages receive edits even after falling outside latest seventy');
+check($updates[$backlogIds[1]]['body'] === '' &&
+    !empty($updates[$backlogIds[1]]['deleted_at']),
+    'Retained deleted messages receive an empty tombstone outside latest seventy');
+$setReply = $db->prepare('UPDATE admin_chat_messages SET reply_to_id = ? WHERE id = ?');
+$setReply->execute([$backlogIds[0], $backlogIds[71]]);
+$setReply->execute([$backlogIds[1], $backlogIds[72]]);
+$quoteRefresh = AdminChat::history($backlog, $sender, 0, $backlogIds[70]);
+$quoteUpdates = [];
+foreach (($quoteRefresh['message_updates'] ?? []) as $update) {
+    $quoteUpdates[$update['id']] = $update;
+}
+check(($quoteUpdates[$backlogIds[0]]['body'] ?? null) === 'Edited outside latest window' &&
+    ($quoteUpdates[$backlogIds[1]]['body'] ?? null) === '' &&
+    !empty($quoteUpdates[$backlogIds[1]]['deleted_at']) &&
+    !in_array($backlogIds[0], array_column($quoteRefresh['read_statuses'], 'id'), true),
+    'Cached replies receive changed quote originals below the cache floor without extra receipts');
+AdminChat::read($sparseBacklog, $reader, $sparseLast);
+AdminChat::edit($sparseFirst, $sender, 'Edited incoming cached message');
+$incomingRefresh = AdminChat::history($sparseBacklog, $reader, 0, $sparseFirst);
+check((int) $incomingRefresh['messages'][0]['id'] > $sparseFirst &&
+    $incomingRefresh['message_updates'][0]['id'] === $sparseFirst &&
+    $incomingRefresh['message_updates'][0]['body'] === 'Edited incoming cached message' &&
+    !in_array($sparseFirst, array_column($incomingRefresh['read_statuses'], 'id'), true),
+    'Retained incoming edits are refreshed without exposing incoming read receipts');
+check(array_key_exists('message_updates', $emptyHistory) && $emptyHistory['message_updates'] === [],
+    'History without a cache floor returns an empty message updates array');
+
+// MariaDB counts executed statements for this connection. Both pages use one
+// membership/watermark query regardless of message and receipt result count.
+$countHistoryQueries = static function (callable $request) use ($db): int {
+    $before = $db->query("SHOW SESSION STATUS LIKE 'Questions'")->fetch(PDO::FETCH_NUM);
+    $request();
+    $after = $db->query("SHOW SESSION STATUS LIKE 'Questions'")->fetch(PDO::FETCH_NUM);
+    return (int) $after[1] - (int) $before[1] - 1;
+};
+$smallQueryCount = $countHistoryQueries(
+    static fn() => AdminChat::history($receiptDirect, $sender, $first, $first)
+);
+$largeQueryCount = $countHistoryQueries(
+    static fn() => AdminChat::history($backlog, $sender, $backlogIds[69], $backlogIds[0])
+);
+check($smallQueryCount > 0 && $smallQueryCount === $largeQueryCount,
+    'One-message and hundred-message receipt requests execute the same number of queries');
+AdminChat::delete($first, $sender);
+$deletedReceiptHistory = AdminChat::history($receiptDirect, $sender, 0, $first);
+check(!array_key_exists('read_status', $deletedReceiptHistory['messages'][0]) &&
+    count($deletedReceiptHistory['read_statuses']) === 1 &&
+    $deletedReceiptHistory['read_statuses'][0]['id'] === $second,
+    'Deleted messages have no visible receipt and do not reappear in receipt refresh');
+
 fwrite(STDOUT, "All isolated admin chat database integration checks passed.\n");

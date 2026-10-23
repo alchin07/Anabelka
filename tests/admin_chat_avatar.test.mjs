@@ -44,12 +44,14 @@ function fixture() {
         return elements.get(id);
     };
     const state = {active: 0, conversations: [], admins: [], members: [], membersLoadedFor: 0, membersVersion: 0,
-        messages: [], conversation: null, signature: '', threadLoading: false, lastRead: {}};
+        messages: [], opened: 0, conversation: null, signature: '', threadLoading: false, lastRead: {}};
     const context = vm.createContext({
         state, el, document: {hidden: false, createElement: tag => new Element(tag),
             createElementNS: (ns, tag) => new Element(tag, ns), querySelectorAll: () => []},
-        list: el('chat-conversations'), searchInput: el('chat-search'),
+        list: el('chat-conversations'), thread: el('chat-messages'), searchInput: el('chat-search'),
         layout: el('chat-layout'), closeEmoji() {}, clearReply() {}, renderThread() {},
+        viewedMessages: new Set(), readObserver: null, scheduleRead() {}, loadMoreMessages() {},
+        mergeThread(data) { state.messages = data.messages || []; state.signature = JSON.stringify(state.messages); },
         renderGroupDialog() {}, inform() {}, request: async () => ({}),
         URL, URLSearchParams, location: {href: 'https://example.invalid/Anabelka/admin/chat',
             search: ''}, history: {replaceState() {}},

@@ -39,12 +39,9 @@ final class AdminChatController extends Controller
         $this->api(function (): array {
             $id = max(0, (int) ($_GET['conversation_id'] ?? 0));
             $after = max(0, (int) ($_GET['after'] ?? 0));
+            $receiptFrom = max(0, (int) ($_GET['receipt_from'] ?? 0));
             $actorId = AdminAccess::currentId();
-            return [
-                'messages' => AdminChat::messages($id, $actorId, $after),
-                'members' => AdminChat::members($id, $actorId),
-                'conversation' => AdminChat::conversation($id, $actorId)
-            ];
+            return AdminChat::history($id, $actorId, $after, $receiptFrom);
         });
     }
 
@@ -168,12 +165,12 @@ final class AdminChatController extends Controller
     public function read(): void
     {
         $this->api(function (): array {
-            AdminChat::read(
+            $watermark = AdminChat::read(
                 (int) ($_POST['conversation_id'] ?? 0),
                 AdminAccess::currentId(),
                 (int) ($_POST['message_id'] ?? 0)
             );
-            return [];
+            return ['viewer_read_message_id' => $watermark];
         });
     }
 

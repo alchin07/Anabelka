@@ -45,7 +45,7 @@ final class AdminChat
                 (SELECT COUNT(*) FROM admin_chat_messages m
                  WHERE m.conversation_id = c.id
                    AND m.id > self_member.last_read_message_id
-                   AND m.sender_id <> ?
+                   AND (m.sender_id IS NULL OR m.sender_id <> ?)
                    AND m.deleted_at IS NULL) AS unread,
                 (SELECT MAX(m.id) FROM admin_chat_messages m
                  WHERE m.conversation_id = c.id) AS last_message_id
@@ -69,7 +69,7 @@ final class AdminChat
                 ON cm.conversation_id = m.conversation_id
             WHERE cm.admin_id = ?
                 AND m.id > cm.last_read_message_id
-                AND m.sender_id <> ?
+                AND (m.sender_id IS NULL OR m.sender_id <> ?)
                 AND m.deleted_at IS NULL
         ");
         $stmt->execute([$viewerId, $viewerId]);
@@ -242,36 +242,86 @@ final class AdminChat
 
     public static function messages(int $id, int $viewerId, int $after = 0): array
     {
-        self::conversation($id, $viewerId);
+        return self::history($id, $viewerId, $after)['messages'];
+    }
+
+    public static function history(
+        int $id, int $viewerId, int $after = 0, int $receiptFrom = 0
+    ): array {
+        $conversation = self::conversation($id, $viewerId);
         $db = self::db();
+        // Load current membership and every watermark once. Only the viewer's
+        // own watermark leaves this method; other cursors become counts.
+        $stmt = $db->prepare("
+            SELECT au.id, au.name, ar.name AS role_name, cm.joined_at,
+                cm.last_read_message_id
+            FROM admin_chat_members cm
+            JOIN admin_users au ON au.id = cm.admin_id
+            JOIN admin_roles ar ON ar.id = au.role_id
+            WHERE cm.conversation_id = ?
+            ORDER BY au.name, au.id
+        ");
+        $stmt->execute([$id]);
+        $members = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $viewerRead = null;
+        $recipientReads = [];
+        foreach ($members as &$member) {
+            if ((int) $member['id'] === $viewerId) {
+                $viewerRead = (int) $member['last_read_message_id'];
+            } else {
+                $recipientReads[] = (int) $member['last_read_message_id'];
+            }
+            unset($member['last_read_message_id']);
+        }
+        unset($member);
+        if ($viewerRead === null) {
+            throw new DomainException('Розмову не знайдено.');
+        }
+
+        $select = "
+            SELECT m.id, m.conversation_id, m.sender_id,
+                COALESCE(au.name, 'Колишній адміністратор') AS sender_name,
+                m.body, m.reply_to_id, m.created_at, m.edited_at, m.deleted_at,
+                quoted.body AS reply_body, reply_sender.name AS reply_sender
+            FROM admin_chat_messages m
+            LEFT JOIN admin_users au ON au.id = m.sender_id
+            LEFT JOIN admin_chat_messages quoted ON quoted.id = m.reply_to_id
+            LEFT JOIN admin_users reply_sender ON reply_sender.id = quoted.sender_id
+            WHERE m.conversation_id = ?
+        ";
+        $hasMore = false;
+        $startsAtUnread = false;
         if ($after > 0) {
-            $stmt = $db->prepare("
-                SELECT m.id, m.conversation_id, m.sender_id, COALESCE(au.name, 'Колишній адміністратор') AS sender_name,
-                    m.body, m.reply_to_id, m.created_at, m.edited_at, m.deleted_at,
-                    quoted.body AS reply_body, reply_sender.name AS reply_sender
-                FROM admin_chat_messages m
-                LEFT JOIN admin_users au ON au.id = m.sender_id
-                LEFT JOIN admin_chat_messages quoted ON quoted.id = m.reply_to_id
-                LEFT JOIN admin_users reply_sender ON reply_sender.id = quoted.sender_id
-                WHERE m.conversation_id = ? AND m.id > ?
-                ORDER BY m.id ASC LIMIT 100
-            ");
+            $stmt = $db->prepare($select . ' AND m.id > ? ORDER BY m.id ASC LIMIT 101');
             $stmt->execute([$id, $after]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $hasMore = count($rows) > 100;
+            if ($hasMore) {
+                array_pop($rows);
+            }
         } else {
-            $stmt = $db->prepare("
-                SELECT m.id, m.conversation_id, m.sender_id, COALESCE(au.name, 'Колишній адміністратор') AS sender_name,
-                    m.body, m.reply_to_id, m.created_at, m.edited_at, m.deleted_at,
-                    quoted.body AS reply_body, reply_sender.name AS reply_sender
-                FROM admin_chat_messages m
-                LEFT JOIN admin_users au ON au.id = m.sender_id
-                LEFT JOIN admin_chat_messages quoted ON quoted.id = m.reply_to_id
-                LEFT JOIN admin_users reply_sender ON reply_sender.id = quoted.sender_id
-                WHERE m.conversation_id = ?
-                ORDER BY m.id DESC LIMIT 70
-            ");
+            $stmt = $db->prepare($select . ' ORDER BY m.id DESC LIMIT 70');
             $stmt->execute([$id]);
             $rows = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+            $stmt = $db->prepare("
+                SELECT MIN(id) FROM admin_chat_messages
+                WHERE conversation_id = ? AND id > ?
+                    AND (sender_id IS NULL OR sender_id <> ?) AND deleted_at IS NULL
+            ");
+            $stmt->execute([$id, $viewerRead, $viewerId]);
+            $firstUnread = (int) $stmt->fetchColumn();
+            // Never let a latest-70 window jump over unread messages. There
+            // may be only one old unread row followed by many outgoing rows.
+            if ($firstUnread > 0 && $rows && $firstUnread < (int) $rows[0]['id']) {
+                $stmt = $db->prepare($select . ' AND m.id >= ? ORDER BY m.id ASC LIMIT 71');
+                $stmt->execute([$id, $firstUnread]);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $startsAtUnread = true;
+                $hasMore = count($rows) > 70;
+                if ($hasMore) {
+                    array_pop($rows);
+                }
+            }
         }
         $ids = array_map(static fn($row) => (int) $row['id'], $rows);
         $attachments = [];
@@ -293,10 +343,74 @@ final class AdminChat
             $row['attachments'] = $deleted ? [] : ($attachments[(int) $row['id']] ?? []);
             if ($deleted) {
                 $row['reply_body'] = '';
+            } elseif ((int) $row['sender_id'] === $viewerId) {
+                $row['read_status'] = self::readStatus((int) $row['id'], $recipientReads);
             }
         }
         unset($row);
-        return $rows;
+
+        // Retained rows and their quoted originals may be older than the next
+        // history window. Refresh receipts and content in one batched query.
+        $readStatuses = [];
+        $messageUpdates = [];
+        if ($receiptFrom > 0) {
+            $stmt = $db->prepare("
+                SELECT id, sender_id, body, edited_at, deleted_at
+                FROM admin_chat_messages
+                WHERE conversation_id = ?
+                    AND (id >= ? OR id IN (
+                        SELECT reply_to_id FROM admin_chat_messages
+                        WHERE conversation_id = ? AND id >= ? AND reply_to_id IS NOT NULL
+                    ))
+                    AND (sender_id = ? OR edited_at IS NOT NULL OR deleted_at IS NOT NULL)
+                ORDER BY id ASC
+            ");
+            $stmt->execute([$id, $receiptFrom, $id, $receiptFrom, $viewerId]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $changed) {
+                $messageId = (int) $changed['id'];
+                $deleted = !empty($changed['deleted_at']);
+                if ($messageId >= $receiptFrom && (int) $changed['sender_id'] === $viewerId && !$deleted) {
+                    $readStatuses[] = [
+                        'id' => $messageId,
+                        'read_status' => self::readStatus($messageId, $recipientReads)
+                    ];
+                }
+                if (!empty($changed['edited_at']) || $deleted) {
+                    $messageUpdates[] = [
+                        'id' => $messageId,
+                        'body' => $deleted ? '' : (string) ($changed['body'] ?? ''),
+                        'edited_at' => $changed['edited_at'],
+                        'deleted_at' => $changed['deleted_at']
+                    ];
+                }
+            }
+        }
+        return [
+            'messages' => $rows,
+            'members' => $members,
+            'conversation' => $conversation,
+            'viewer_read_message_id' => $viewerRead,
+            'has_more' => $hasMore,
+            'starts_at_unread' => $startsAtUnread,
+            'read_statuses' => $readStatuses,
+            'message_updates' => $messageUpdates
+        ];
+    }
+
+    private static function readStatus(int $messageId, array $recipientReads): array
+    {
+        $readCount = 0;
+        foreach ($recipientReads as $watermark) {
+            if ($watermark >= $messageId) {
+                $readCount++;
+            }
+        }
+        $recipientCount = count($recipientReads);
+        return [
+            'read_count' => $readCount,
+            'recipient_count' => $recipientCount,
+            'seen' => $recipientCount > 0 && $readCount === $recipientCount
+        ];
     }
 
     public static function send(int $id, int $actorId, string $body, int $replyId): int
@@ -370,21 +484,32 @@ final class AdminChat
         }
     }
 
-    public static function read(int $id, int $actorId, int $messageId): void
+    public static function read(int $id, int $actorId, int $messageId): int
     {
         self::conversation($id, $actorId);
         $stmt = self::db()->prepare("
-            SELECT COALESCE(MAX(id), 0) FROM admin_chat_messages
-            WHERE conversation_id = ?
+            SELECT 1 FROM admin_chat_messages
+            WHERE conversation_id = ? AND id = ?
         ");
-        $stmt->execute([$id]);
-        $latest = (int) $stmt->fetchColumn();
-        $mark = max(0, min($messageId, $latest));
+        $stmt->execute([$id, $messageId]);
+        if (!$stmt->fetchColumn()) {
+            throw new DomainException('Повідомлення не знайдено.');
+        }
         self::db()->prepare("
             UPDATE admin_chat_members
             SET last_read_message_id = GREATEST(last_read_message_id, ?)
             WHERE conversation_id = ? AND admin_id = ?
-        ")->execute([$mark, $id, $actorId]);
+        ")->execute([$messageId, $id, $actorId]);
+        $stmt = self::db()->prepare("
+            SELECT last_read_message_id FROM admin_chat_members
+            WHERE conversation_id = ? AND admin_id = ?
+        ");
+        $stmt->execute([$id, $actorId]);
+        $watermark = $stmt->fetchColumn();
+        if ($watermark === false) {
+            throw new DomainException('Розмову не знайдено.');
+        }
+        return (int) $watermark;
     }
 
     public static function file(int $id, int $actorId): array
