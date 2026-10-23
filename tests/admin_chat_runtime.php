@@ -116,9 +116,24 @@ $_SESSION['admin_user_id'] = $owner;
 AdminChat::manageGroup($group, $owner, 'rename', 0, 'Чат відділу');
 check(AdminChat::conversation($group, $anna)['title'] === 'Чат відділу',
     'Owner may rename group');
+// A removed administrator must not be able to fetch a previously known file URL.
+$groupMessage = AdminChat::send($group, $owner, 'Private group attachment', 0);
+AdminChat::addAttachment($groupMessage, str_repeat('c', 40),
+    'group-private.pdf', 'application/pdf', 100);
+$groupFileId = (int) $db->lastInsertId();
+check((int) AdminChat::file($groupFileId, $bohdan)['id'] === $groupFileId,
+    'Joined member may fetch private group attachment');
+deny(static fn() => AdminChat::manageGroup($group, $owner, 'remove', $owner),
+    'Group creator cannot be removed without ownership transfer');
 AdminChat::manageGroup($group, $owner, 'remove', $bohdan);
+check(count(AdminChat::members($group, $owner)) === 2,
+    'Removal actually deletes member record');
 deny(static fn() => AdminChat::messages($group, $bohdan),
     'Removed member immediately loses history access');
+deny(static fn() => AdminChat::file($groupFileId, $bohdan),
+    'Removed member cannot download previously accessible PDF by old file ID');
+check((int) AdminChat::file($groupFileId, $owner)['id'] === $groupFileId,
+    'Remaining member retains PDF access');
 AdminChat::manageGroup($group, $owner, 'add', $bohdan);
 check(count(AdminChat::members($group, $owner)) === 3,
     'Group creator may re-add a member');
