@@ -112,6 +112,7 @@ class App
         require_once __DIR__ . '/../Services/TranslationDashboardService.php';
         require_once __DIR__ . '/../Services/MobileNavigationTranslationDashboardService.php';
         require_once __DIR__ . '/../Services/CategoryManager.php';
+        require_once __DIR__ . '/../Services/VisitorPageViewCounter.php';
         require_once __DIR__ . '/../Services/EmailVerificationMailer.php';
         require_once __DIR__ . '/../Services/EmailVerificationService.php';
         require_once __DIR__ . '/../Services/PasswordResetService.php';

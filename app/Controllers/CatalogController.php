@@ -13,6 +13,7 @@ class CatalogController extends Controller
         $this->view('catalog/index', [
             'categories' => $categories
         ]);
+        $this->recordPageView('catalog');
     }
 
 
@@ -103,6 +104,7 @@ class CatalogController extends Controller
             'products' => $products,
             'productPagination' => $productPage
         ]);
+        $this->recordPageView('category', (int) $category['id'], !empty($category['effective_adult']));
     }
 
 

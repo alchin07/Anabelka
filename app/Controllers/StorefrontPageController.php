@@ -49,6 +49,7 @@ class StorefrontPageController extends Controller
             ),
             'collectionPath' => '/Anabelka/discounts'
         ]);
+        $this->recordPageView('discounts');
     }
 
 
@@ -99,6 +100,7 @@ class StorefrontPageController extends Controller
             ),
             'collectionPath' => '/Anabelka/new'
         ]);
+        $this->recordPageView('new');
     }
 
 

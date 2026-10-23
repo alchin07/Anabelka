@@ -137,6 +137,7 @@ $canDashboard = $adminCan('dashboard.view');
 $canDashboardBuilder = $adminCan('dashboard.manage');
 $canOrders = $adminCan('orders.view');
 $canSearch = $adminCan('search.view');
+$canVisitorStats = $adminCan('visitor_stats.view');
 $canUsers = $adminCan('users.view');
 $canRanks = $adminCan('ranks.view');
 $canProducts = $adminCan('products.view');
@@ -470,6 +471,15 @@ $canVipPriceViews = $adminCan('vip_prices.view');
                     >
                         <?= $auditBadge ?>
                     </span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($canVisitorStats): ?>
+                <a
+                    href="/Anabelka/admin/visitor-stats"
+                    data-admin-route="/Anabelka/admin/visitor-stats"
+                >
+                    <span>Статистика відвідувань</span>
                 </a>
             <?php endif; ?>
 

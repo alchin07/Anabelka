@@ -212,6 +212,7 @@ class ProductController extends Controller
             'reviewCsrfToken' => $reviewCsrfToken,
             'reviewFlash' => $reviewFlash
         ]);
+        $this->recordPageView('product', (int) $product['id'], !empty($productCategory['effective_adult']));
     }
 
 

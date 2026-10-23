@@ -2,6 +2,13 @@
 
 class Controller
 {
+    protected function recordPageView(string $type, int $entityId = 0, bool $adult = false): void
+    {
+        if (class_exists('VisitorPageViewCounter')) {
+            VisitorPageViewCounter::recordRendered($type, $entityId, $adult);
+        }
+    }
+
     protected function view($view, $data = [])
     {
         extract($data);

@@ -389,7 +389,8 @@ class AdminAccess
             '/admin/mobile-navigation' => ['mobile_navigation.view', 'mobile_navigation.manage'],
             '/admin/home-page' => ['home_page.view', 'home_page.manage'],
             '/admin/social-auth' => ['social_auth.view', 'social_auth.manage'],
-            '/admin/vip-price-views' => ['vip_prices.view', 'vip_prices.view']
+            '/admin/vip-price-views' => ['vip_prices.view', 'vip_prices.view'],
+            '/admin/visitor-stats' => ['visitor_stats.view', 'visitor_stats.view']
         ];
 
         foreach ($areas as $prefix => $permissions) {
@@ -559,7 +560,8 @@ class AdminAccess
             ['social_auth.view', 'Перегляд налаштувань соціальної авторизації', 'security', 132],
             ['social_auth.manage', 'Керування соціальною авторизацією', 'security', 133],
             ['audit.view', 'Перегляд журналу дій', 'security', 140],
-            ['vip_prices.view', 'Перегляд журналу VIP-цін', 'security', 141]
+            ['vip_prices.view', 'Перегляд журналу VIP-цін', 'security', 141],
+            ['visitor_stats.view', 'Перегляд статистики відвідувань', 'statistics', 142]
         ];
 
         $stmt = $db->prepare("
@@ -615,7 +617,7 @@ class AdminAccess
             function ($key) {
                 return !in_array(
                     $key,
-                    ['administrators.manage', 'dashboard.manage'],
+                    ['administrators.manage', 'dashboard.manage', 'visitor_stats.view'],
                     true
                 );
             }
@@ -623,7 +625,7 @@ class AdminAccess
 
         $rolePermissions = [
             'owner' => $allPermissions,
-            'store_owner' => $administratorPermissions,
+            'store_owner' => array_merge($administratorPermissions, ['visitor_stats.view']),
             'administrator' => $administratorPermissions,
             'order_manager' => [
                 'dashboard.view',

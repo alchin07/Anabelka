@@ -12,6 +12,15 @@ class AdminDashboardServiceRegistry
     ];
 
     private const SERVICES = [
+        'visitor_stats' => [
+            'label' => 'Статистика відвідувань',
+            'description' => 'Добові перегляди публічних сторінок, популярні категорії та товари.',
+            'path' => '/admin/visitor-stats',
+            'permission' => 'visitor_stats.view',
+            'group' => 'system',
+            'icon_key' => 'visitor_stats',
+            'allow_multiple' => false
+        ],
         'orders' => [
             'label' => 'Замовлення',
             'description' => 'Звичайні та швидкі замовлення магазину.',

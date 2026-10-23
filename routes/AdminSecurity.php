@@ -12,6 +12,10 @@ require_once __DIR__ . '/../app/Controllers/AdminSystemErrorExternalNotification
 require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
 require_once __DIR__ . '/../app/Models/VipPriceViewLog.php';
 require_once __DIR__ . '/../app/Controllers/AdminVipPriceViewController.php';
+require_once __DIR__ . '/../app/Models/VisitorStats.php';
+require_once __DIR__ . '/../app/Controllers/AdminVisitorStatsController.php';
+
+$router->get('/admin/visitor-stats', 'AdminVisitorStatsController@index');
 
 $router->get(
     '/admin/profile',

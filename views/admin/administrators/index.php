@@ -20,7 +20,8 @@ $groupLabels = [
     'delivery' => 'Доставка',
     'content' => 'Контент',
     'translations' => 'Мови та переклади',
-    'security' => 'Безпека'
+    'security' => 'Безпека',
+    'statistics' => 'Статистика'
 ];
 
 $inviteChannelLabels = [

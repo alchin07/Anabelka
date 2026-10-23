@@ -85,6 +85,7 @@ class HomeController extends Controller
                 'builderPreview' => $builderPreview
             ]
         );
+        $this->recordPageView('home');
     }
 
 

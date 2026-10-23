@@ -20,6 +20,7 @@ class NewsController extends Controller
             'currentLanguage' => $currentLanguage,
             'newsItems' => $newsItems
         ]);
+        $this->recordPageView('news_index');
     }
 
 
@@ -60,5 +61,6 @@ class NewsController extends Controller
             'currentLanguage' => $currentLanguage,
             'news' => $news
         ]);
+        $this->recordPageView('news', (int) $news['id']);
     }
 }
