@@ -42,7 +42,7 @@ $labels = ['today' => 'Сьогодні', 'yesterday' => 'Вчора',
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle) ?></title>
     <link rel="stylesheet" href="/Anabelka/css/style.css?v=9">
-    <link rel="stylesheet" href="/Anabelka/css/admin-visitor-stats.css?v=1">
+    <link rel="stylesheet" href="/Anabelka/css/admin-visitor-stats.css?v=2">
 </head>
 <body>
 <?php require __DIR__ . '/../partials/header.php'; ?>
@@ -137,13 +137,13 @@ $labels = ['today' => 'Сьогодні', 'yesterday' => 'Вчора',
             </details>
         </section>
 
-        <section class="visitor-popularity" aria-labelledby="visitor-popularity-heading">
+        <section id="visitor-popularity" class="visitor-popularity" aria-labelledby="visitor-popularity-heading">
             <div class="visitor-popularity-heading">
                 <div>
                     <h3 id="visitor-popularity-heading">Що переглядають найчастіше</h3>
                     <p>До 10 позицій за вибраний період.</p>
                 </div>
-                <form method="get" action="/Anabelka/admin/visitor-stats" class="visitor-period-form">
+                <form method="get" action="/Anabelka/admin/visitor-stats#visitor-popularity" class="visitor-period-form">
                     <label for="visitor-period">Період популярності</label>
                     <div>
                         <select id="visitor-period" name="period">

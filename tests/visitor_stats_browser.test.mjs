@@ -262,7 +262,7 @@ for (const state of ['empty', 'unavailable']) {
     }
 }
 
-for (const width of [320, 1280]) {
+for (const width of [320, 390, 1280]) {
     test(`popularity period 7/30/90 can be selected and submitted at ${width}px`, async t => {
         const page = await open(t, width);
         for (const period of [7, 30, 90]) {
@@ -276,10 +276,19 @@ for (const width of [320, 1280]) {
                 await page.locator('#visitor-period').selectOption(String(period));
             }
             await Promise.all([
-                page.waitForURL(url => url.searchParams.get('period') === String(period)),
+                page.waitForURL(url => url.searchParams.get('period') === String(period) &&
+                    url.hash === '#visitor-popularity'),
                 page.getByRole('button', {name: 'Показати', exact: true}).click()
             ]);
             assert.equal(await page.locator('#visitor-period').inputValue(), String(period));
+            const landing = await page.locator('#visitor-popularity').evaluate(section => ({
+                top: section.getBoundingClientRect().top,
+                scroll: window.scrollY,
+                height: window.innerHeight
+            }));
+            assert.ok(landing.scroll > 0 && landing.top >= 60 &&
+                landing.top < landing.height - 50,
+                'Return to the popularity results rather than the page top: ' + JSON.stringify(landing));
             assert.equal(await page.locator('.visitor-chart rect').count(), 30, 'Period changes popularity; chart remains 30 days.');
             await assertFits(page, width);
         }
