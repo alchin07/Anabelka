@@ -101,3 +101,8 @@ body { margin: 0; background: #FAF8FD; color: var(--visitor-text); font-family: 
     .visitor-product { gap: 8px; }
     .visitor-product-image, .visitor-product-placeholder { flex-basis: 36px; width: 36px; height: 44px; }
 }
+
+/* Period refresh stays in place while rankings reload; errors never hide the old result. */
+.visitor-period-form[aria-busy="true"] button { opacity: .65; cursor: wait; }
+.visitor-period-error { margin: 9px 0 0; color: var(--visitor-dark); font-size: 12px; line-height: 1.4; }
+.visitor-period-error[hidden] { display: none; }

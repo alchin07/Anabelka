@@ -208,5 +208,6 @@ $labels = ['today' => 'Сьогодні', 'yesterday' => 'Вчора',
         </section>
     <?php endif; ?>
 </main>
+<script defer src="/Anabelka/js/admin-visitor-stats.js?v=1"></script>
 </body>
 </html>

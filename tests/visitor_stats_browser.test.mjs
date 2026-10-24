@@ -275,11 +275,19 @@ for (const width of [320, 390, 1280]) {
             } else {
                 await page.locator('#visitor-period').selectOption(String(period));
             }
+            const positionBefore = await page.evaluate(() => {
+                window.__vcPageStayedLoaded = (window.__vcPageStayedLoaded || 0) + 1;
+                return window.scrollY;
+            });
             await Promise.all([
                 page.waitForURL(url => url.searchParams.get('period') === String(period) &&
                     url.hash === '#visitor-popularity'),
                 page.getByRole('button', {name: 'Показати', exact: true}).click()
             ]);
+            assert.equal(await page.evaluate(() => window.__vcPageStayedLoaded), period === 7 ? 1 : period === 30 ? 2 : 3,
+                'The window must not reload when the popularity period changes.');
+            assert.ok(Math.abs(await page.evaluate(() => window.scrollY) - positionBefore) < 60,
+                'Switching the rankings must not jump to the top of the page.');
             assert.equal(await page.locator('#visitor-period').inputValue(), String(period));
             const landing = await page.locator('#visitor-popularity').evaluate(section => ({
                 top: section.getBoundingClientRect().top,
