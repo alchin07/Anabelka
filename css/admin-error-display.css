@@ -1,0 +1,26 @@
+body { margin:0; background:#faf7ff; color:#20202A; font-family:Arial,sans-serif; }
+.error-mode-page { box-sizing:border-box; width:min(1000px,100%); margin:28px auto; padding:0 18px 36px; overflow-wrap:anywhere; }
+.error-mode-head h1 { font-size:clamp(23px,4vw,30px); line-height:1.2; margin:0 0 12px; }
+.error-mode-page p { line-height:1.55; }
+.error-mode-note { padding:16px; border:1px solid #EADCF7; border-radius:14px; background:#F4EAFF; color:#6519B9; line-height:1.55; }
+.error-mode-form { margin:22px 0; padding:22px; border:1px solid #EADCF7; border-radius:18px; background:white; }
+.error-mode-form fieldset { margin:0 0 20px; padding:0; border:0; min-width:0; }
+.error-mode-form legend { font-weight:700; margin-bottom:14px; }
+.error-mode-choice { display:flex; gap:12px; align-items:center; min-height:64px; padding:14px; margin:10px 0; border:1px solid #EADCF7; border-radius:12px; cursor:pointer; }
+.error-mode-choice:has(input:checked) { border-color:#8A2BE2; background:#F4EAFF; }
+.error-mode-choice input { flex-shrink:0; width:22px; height:22px; margin:0; accent-color:#8A2BE2; }
+.error-mode-choice span { min-width:0; display:grid; gap:6px; }
+.error-mode-choice small { line-height:1.4; color:#6519B9; font-size:14px; }
+.error-mode-form button { min-height:46px; padding:12px 20px; border:0; border-radius:12px; background:#8A2BE2; color:white; font:inherit; font-weight:700; cursor:pointer; }
+.error-mode-form button:hover { background:#6519B9; }
+.error-mode-links { display:flex; flex-wrap:wrap; gap:8px 18px; margin:22px 0; }
+.error-mode-links a { display:inline-flex; align-items:center; min-height:44px; color:#6519B9; font-weight:700; }
+.error-mode-examples { margin-top:26px; }
+.error-mode-example-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.error-mode-example { min-width:0; padding:18px; border:1px solid #EADCF7; border-radius:16px; background:white; }
+.error-mode-example h3 { margin:0 0 20px; color:#6519B9; font-size:16px; }
+.error-mode-example h4 { margin:0 0 12px; font-size:15px; }
+.error-mode-example-button { display:inline-flex; padding:11px 18px; margin-top:12px; background:#8A2BE2; color:white; border-radius:12px; font-weight:700; }
+.error-mode-page :focus-visible { outline:3px solid #8A2BE2; outline-offset:3px; }
+@media(max-width:650px) { .error-mode-example-grid { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:430px) { .error-mode-page { margin:20px auto; padding:0 12px 28px; } .error-mode-form { padding:16px; } .error-mode-form button { width:100%; } .error-mode-choice { padding:12px; } .error-mode-links { display:grid; } }

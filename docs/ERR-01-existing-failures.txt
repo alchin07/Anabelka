@@ -1,0 +1,277 @@
+ERR-01: сбои, воспроизведённые на контрольном HEAD и новой ветке
+Контрольный HEAD: 69fe3bcacd64b2d74e7728d6c869d61ee48f0d37
+Существующие тесты сравнивались в одинаковых каталогах Anabelka и окружении.
+Новых имён падающих тестов: 0.
+
+Ограничение запуска Chromium (UNIX socket: Operation not permitted):
+- admin_categories_notify_browser.test.mjs: creating a root category reloads immediately and delivers success once
+- admin_categories_notify_browser.test.mjs: creating a child retains parent id and inherited department form behavior
+- admin_categories_notify_browser.test.mjs: editing category and manual translations submits existing fields then reloads
+- admin_categories_notify_browser.test.mjs: deleting an empty category uses confirmation form and reload notification
+- admin_categories_notify_browser.test.mjs: visibility toggle uses the unchanged API payload and displays reload success
+- admin_categories_notify_browser.test.mjs: 18+ toggle uses the unchanged API payload and displays reload success
+- admin_categories_notify_browser.test.mjs: moving a branch keeps its descendants excluded and sends the selected parent
+- admin_categories_notify_browser.test.mjs: sorting up sends direction and immediately reloads with success
+- admin_categories_notify_browser.test.mjs: sorting down sends direction and immediately reloads with success
+- admin_categories_notify_browser.test.mjs: branded required-field validation keeps the modal open and prevents HTTP requests
+- admin_categories_notify_browser.test.mjs: a successful retry carries its unread error through reload before success
+- admin_categories_notify_browser.test.mjs: JSON validation shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: HTTP 200 refusal shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: HTTP 200 refusal without message shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: malformed JSON shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: JSON null shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: JSON array shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: missing success flag shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: string success flag shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: HTML 401 shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: HTML 403 shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: HTML 429 shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: HTML 500 shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: inconsistent HTTP 503 shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: network failure shows shared error, preserves entered form data and restores submit
+- admin_categories_notify_browser.test.mjs: create failure retains unsaved values, open modal and retry control
+- admin_categories_notify_browser.test.mjs: delete refusal keeps confirmation open without a spurious success reload
+- admin_categories_notify_browser.test.mjs: a rejected toggle reenables its trigger, keeps the page and renders server text literally
+- admin_categories_notify_browser.test.mjs: translation target save replaces editor history and consumes success on real missing-translations view
+- admin_categories_notify_browser.test.mjs: category AI success uses shared success queue and keeps translation source/status semantics
+- admin_categories_notify_browser.test.mjs: category AI rejection uses shared error and restores its button without alert
+- admin_categories_notify_browser.test.mjs: category AI unavailable warning uses shared queue and leaves field values intact
+- admin_categories_notify_browser.test.mjs: real category page error toast fits 320px and keeps controls usable
+- admin_categories_notify_browser.test.mjs: real category page error toast fits 360px and keeps controls usable
+- admin_categories_notify_browser.test.mjs: real category page error toast fits 375px and keeps controls usable
+- admin_categories_notify_browser.test.mjs: real category page error toast fits 390px and keeps controls usable
+- admin_categories_notify_browser.test.mjs: real category page error toast fits 412px and keeps controls usable
+- admin_categories_notify_browser.test.mjs: real category page error toast fits 430px and keeps controls usable
+- admin_categories_validation_browser.test.mjs: field validation matches branded success toast styling and sits directly below its field
+- admin_categories_validation_browser.test.mjs: empty category name uses branded inline validation and never invokes native reporting
+- admin_categories_validation_browser.test.mjs: create rejects whitespace-only names without sending an HTTP request
+- admin_categories_validation_browser.test.mjs: edit rejects whitespace-only names without sending an HTTP request
+- admin_categories_validation_browser.test.mjs: Enter in the empty name runs the same branded validation
+- admin_categories_validation_browser.test.mjs: programmatically supplied overlength source and translation names are rejected despite native tooLong being false
+- admin_categories_validation_browser.test.mjs: create also rejects programmatically supplied names beyond 150 characters
+- admin_categories_validation_browser.test.mjs: AI correction clears an existing overlength translation error and preserves AI workflow metadata
+- admin_categories_validation_browser.test.mjs: ValidityState type mismatch and literal customValidity messages both block submission
+- admin_categories_validation_browser.test.mjs: disabled, hidden and readonly controls with willValidate false cannot block a valid request
+- admin_categories_validation_browser.test.mjs: each inline error has its own id and preserves pre-existing describedby references through correction
+- admin_categories_validation_browser.test.mjs: an unchanged repeated invalid submission creates no repeated error mutations or announcements
+- admin_categories_validation_browser.test.mjs: form reset and opening another category clear field validation state
+- admin_categories_validation_browser.test.mjs: real Android Back history handler closes an invalid modal and restores its trigger focus
+- admin_categories_validation_browser.test.mjs: short edit viewport scrolls \#category-edit-name and its inline guidance into view
+- admin_categories_validation_browser.test.mjs: short edit viewport scrolls .category-translation-name and its inline guidance into view
+- admin_categories_validation_browser.test.mjs: maximum valid names preserve the complete FormData payload and Enter still submits successfully
+- admin_categories_validation_browser.test.mjs: move preserves generic customValidity constraints with inline field guidance
+- admin_categories_validation_browser.test.mjs: delete preserves generic customValidity constraints with inline field guidance
+- admin_categories_validation_browser.test.mjs: create rejects synthetic resubmission while its request is pending
+- admin_categories_validation_browser.test.mjs: edit rejects synthetic resubmission while its request is pending
+- admin_categories_validation_browser.test.mjs: move rejects synthetic resubmission while its request is pending
+- admin_categories_validation_browser.test.mjs: delete rejects synthetic resubmission while its request is pending
+- admin_categories_validation_browser.test.mjs: server validation retains server text and entered values without adding client errors or retrying
+- admin_categories_validation_browser.test.mjs: CSRF rejection retains server text and entered values without adding client errors or retrying
+- admin_categories_validation_browser.test.mjs: novalidate is enabled only by initialized category handlers and remains absent from rendered HTML
+- admin_categories_validation_browser.test.mjs: JavaScript disabled leaves required native form semantics available
+- admin_categories_validation_browser.test.mjs: JavaScript blocked leaves required native form semantics available
+- admin_categories_validation_browser.test.mjs: inline category errors fit 320px and leave the submit action usable
+- admin_categories_validation_browser.test.mjs: inline category errors fit 360px and leave the submit action usable
+- admin_categories_validation_browser.test.mjs: inline category errors fit 375px and leave the submit action usable
+- admin_categories_validation_browser.test.mjs: inline category errors fit 390px and leave the submit action usable
+- admin_categories_validation_browser.test.mjs: inline category errors fit 412px and leave the submit action usable
+- admin_categories_validation_browser.test.mjs: inline category errors fit 430px and leave the submit action usable
+- admin_categories_validation_browser.test.mjs: light inline validation text has at least WCAG AA contrast
+- admin_categories_validation_browser.test.mjs: dark inline validation text has at least WCAG AA contrast
+- admin_mask_editor_browser.test.mjs: smart mask editor creates a dedicated accessible dialog
+- admin_mask_editor_browser.test.mjs: initial review reasons retain a visible choose-mode then tap instruction on a small screen
+- admin_mask_editor_browser.test.mjs: choosing point modes explains how to tap without creating an annotation
+- admin_mask_editor_browser.test.mjs: tap coordinates use full resolution and region navigation does not paint bounding rectangles
+- admin_mask_editor_browser.test.mjs: dirty cancel uses accessible helper; first Back dismisses helper and next clean Back closes mask
+- admin_mask_editor_browser.test.mjs: pinch or pan cancels provisional drawing and zoom remains capped at twelve
+- admin_mask_editor_browser.test.mjs: needs review keeps refusal visible and only validated ready output reaches compare
+- admin_mask_editor_browser.test.mjs: unvalidated output cannot escape editor even if it contains a candidate URL
+- admin_mask_editor_browser.test.mjs: soft brush exports source pixels, shows an offset magnifier, and permits reset without closing
+- admin_mask_editor_browser.test.mjs: region navigation centers actual source bbox without painting its rectangle
+- admin_mask_editor_browser.test.mjs: repeated pinch movement keeps the same source pixel under gesture center
+- admin_mask_editor_browser.test.mjs: local history is bounded and actions do not add browser history entries
+- admin_mask_editor_browser.test.mjs: closing aborts pending validation and ignores its later ready response
+- admin_mask_editor_browser.test.mjs: rapid replacement and close clean up image requests and keep newest editor usable
+- admin_mask_editor_browser.test.mjs: mask refusals explain protected material and branded notifications appear above overlay
+- admin_mask_editor_browser.test.mjs: helper reports all four independent validation gates without controls to disable them
+- admin_mask_editor_browser.test.mjs: undo all after review can submit empty cumulative log to restore immutable mask
+- admin_mask_editor_browser.test.mjs: review reload uses the new authenticated revision and retains immutable source without refetching stale URLs
+- admin_mask_editor_browser.test.mjs: an unchanged refused action log cannot be submitted again after revision advances
+- admin_mask_editor_browser.test.mjs: delete one rejected action preserves valid actions and undo redo restores conflict feedback
+- admin_mask_editor_browser.test.mjs: replace rejected action updates its type and location without appending or changing valid actions
+- admin_mask_editor_browser.test.mjs: accepted mask rendering retry allows unchanged log but marks result retry explicitly
+- admin_mask_editor_browser.test.mjs: resync keeps divergent local edits visible and imports canonical conflict results without silent loss
+- admin_mask_editor_browser.test.mjs: server alpha does not receive a second colored paint pass for applied accepted actions
+- admin_mask_editor_browser.test.mjs: unresolved unsure actions have targeted correction controls while surrounding valid actions survive
+- admin_mask_editor_browser.test.mjs: reopening a canonical journal permits undo and redo using immutable raw alpha
+- admin_mask_editor_browser.test.mjs: mixed review identifies accepted and rejected action numbers without losing either annotation
+- admin_mask_editor_browser.test.mjs: accepted-only needs review keeps action results reachable while independent defects block comparison
+- admin_mask_editor_browser.test.mjs: local changes distinguish prior acceptance from new unchecked actions in the results panel
+- admin_mask_editor_browser.test.mjs: remaining region navigation stops at boundaries without cycling or adding actions
+- admin_mask_editor_browser.test.mjs: original remaining and rejected counters stay separate after new validation
+- admin_mask_editor_browser.test.mjs: conflict panel owns one auxiliary Back entry while keeping valid actions and viewport intact
+- admin_mask_editor_browser.test.mjs: viewport or tool control [data-mask-next] cancels an active brush instead of bridging source pixels
+- admin_mask_editor_browser.test.mjs: viewport or tool control [data-mask-zoom-in] cancels an active brush instead of bridging source pixels
+- admin_mask_editor_browser.test.mjs: viewport or tool control [data-mask-tool="pan"] cancels an active brush instead of bridging source pixels
+- admin_mask_editor_browser.test.mjs: cancelled pinch cannot turn its surviving touch into a stroke and a fresh touch still works
+- admin_mask_editor_browser.test.mjs: remaining counters report actual defects even when only some contours are displayed
+- admin_mask_editor_browser.test.mjs: deleting a conflict keeps keyboard focus inside the correction dialog
+- admin_mask_editor_browser.test.mjs: mutating an accepted cached log announces pending validation until undo restores that log
+- admin_mask_editor_browser.test.mjs: removing the final submitted annotation remains dirty for Back and cancellation
+- admin_mask_editor_browser.test.mjs: conflict correction controls remain reachable with 44px touch targets at 320x640
+- admin_mask_editor_browser.test.mjs: conflict correction controls remain reachable with 44px touch targets at 390x720
+- admin_mask_editor_browser.test.mjs: conflict correction controls remain reachable with 44px touch targets at 640x320
+- admin_mask_editor_browser.test.mjs: conflict correction controls remain reachable with 44px touch targets at 320x280
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 320×640
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 360×740
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 390×720
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 412×740
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 768×900
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 640×320
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 320×280
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 360×320
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 390×320
+- admin_mask_editor_browser.test.mjs: mask overlay and controls fit 412×320
+- anabelka_notify_browser.test.mjs: FIFO keeps a visible error, suppresses active/pending duplicates and advances in order
+- anabelka_notify_browser.test.mjs: success stays visible for exactly 2800 ms
+- anabelka_notify_browser.test.mjs: error stays visible for exactly 4800 ms
+- anabelka_notify_browser.test.mjs: warning stays visible for exactly 4200 ms
+- anabelka_notify_browser.test.mjs: info stays visible for exactly 3500 ms
+- anabelka_notify_browser.test.mjs: safe literal text, severity live region semantics and custom duration work in the real DOM
+- anabelka_notify_browser.test.mjs: stored queue and PHP JSON overlap appears once, in order, immediately on reload
+- anabelka_notify_browser.test.mjs: legacy stored object is consumed once without a post-load delay
+- anabelka_notify_browser.test.mjs: head loading before body defers queued messages until DOM-ready without losing them
+- anabelka_notify_browser.test.mjs: early body call waits for an authored host later in the same document
+- anabelka_notify_browser.test.mjs: missing host is created once and repeated module loads retain one host and queue
+- anabelka_notify_browser.test.mjs: disabled storage does not break PHP flash consumption or direct notifications
+- anabelka_notify_browser.test.mjs: actual PHP bridge injects one module/host, escapes markup, and consumes flash only once
+- anabelka_notify_browser.test.mjs: toast is keyboard reachable without stealing focus, pauses while focused and Escape advances queue
+- anabelka_notify_browser.test.mjs: dismissing the last focused toast releases hidden focus and later messages expire
+- anabelka_notify_browser.test.mjs: bootstrap delivers a visible one-shot flash despite nomodule
+- anabelka_notify_browser.test.mjs: bootstrap delivers a visible one-shot flash despite disabled stylesheet
+- anabelka_notify_browser.test.mjs: bootstrap delivers a visible one-shot flash despite iframe fallback
+- anabelka_notify_browser.test.mjs: light success text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: light error text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: light warning text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: light info text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: dark success text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: dark error text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: dark warning text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: dark info text has WCAG AA contrast of at least 4.5
+- anabelka_notify_browser.test.mjs: long-string fits 320px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: multiline fits 320px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: long-string fits 360px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: multiline fits 360px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: long-string fits 375px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: multiline fits 375px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: long-string fits 390px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: multiline fits 390px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: long-string fits 412px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: multiline fits 412px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: long-string fits 430px without page/toast horizontal scrolling
+- anabelka_notify_browser.test.mjs: multiline fits 430px without page/toast horizontal scrolling
+- checkout_validation_native_browser.test.mjs: quick order cancels the native Android-style popup but keeps HTML5 validation
+- checkout_validation_native_browser.test.mjs: checkout cancels the native Android-style popup but keeps HTML5 validation
+- checkout_validation_native_browser.test.mjs: dark-theme quick-order warning remains solid purple, separate from the inline hint
+- product_image_processing_mobile_browser.test.mjs: mobile photo actions at 320px are 44px icon buttons without overflow
+- product_image_processing_mobile_browser.test.mjs: preview at 320×740 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: preview at 320×360 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: mobile photo actions at 360px are 44px icon buttons without overflow
+- product_image_processing_mobile_browser.test.mjs: preview at 360×740 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: preview at 360×360 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: mobile photo actions at 390px are 44px icon buttons without overflow
+- product_image_processing_mobile_browser.test.mjs: preview at 390×740 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: preview at 390×360 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: mobile photo actions at 412px are 44px icon buttons without overflow
+- product_image_processing_mobile_browser.test.mjs: preview at 412×740 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: preview at 412×360 fits header, image and apply/cancel without a lower range
+- product_image_processing_mobile_browser.test.mjs: desktop photo actions retain both SVG icons and visible labels
+- product_image_processing_mobile_browser.test.mjs: divider uses a centered SVG marker with real pointer drag and keyboard control
+- product_image_processing_mobile_browser.test.mjs: touch drag stays captured through both divider endpoints without scrolling the mobile preview
+- product_image_processing_mobile_browser.test.mjs: header processing details stay accessible before confirmation and after reopening applied comparison
+- product_image_processing_mobile_browser.test.mjs: real browser Back closes processing details, then preview, then the product editor
+- product_image_processing_mobile_browser.test.mjs: cancel dismisses a real browser preview without confirming
+- product_image_processing_mobile_browser.test.mjs: close dismisses a real browser preview without confirming
+- product_image_processing_mobile_browser.test.mjs: escape dismisses a real browser preview without confirming
+- product_image_processing_mobile_browser.test.mjs: back dismisses a real browser preview without confirming
+
+Остальные сбои, уже воспроизведённые на контрольном HEAD:
+- admin_android_back_contract.test.mjs: admin_android_back_contract.test.mjs | 'test failed'
+- admin_audit_compact_groups_contract.test.mjs: admin_audit_compact_groups_contract.test.mjs | 'test failed'
+- admin_audit_notification_badges_contract.test.mjs: admin_audit_notification_badges_contract.test.mjs | 'test failed'
+- admin_dashboard_builder_contract.test.mjs: admin_dashboard_builder_contract.test.mjs | 'test failed'
+- admin_dashboard_service_registry_contract.test.mjs: admin_dashboard_service_registry_contract.test.mjs | 'test failed'
+- admin_product_notifications_migration_contract.test.mjs: product list shows persistent failures in branded colors, not old red/green | |-
+- admin_product_shared_notice_contract.test.mjs: product saving, AI drafts, validation, CSRF and persistent errors remain separate | |-
+- admin_view_manage_ui_contract.test.mjs: admin_view_manage_ui_contract.test.mjs | 'test failed'
+- admin_work_time_contract.test.mjs: admin_work_time_contract.test.mjs | 'test failed'
+- admin_work_time_regression_contract.test.mjs: legacy activity migration qualifies duplicate-key target columns | |-
+- anabelka_notify_contract.test.mjs: category reload and translation-return pages load the shared module once before the wrapper | |-
+- anabelka_notify_contract.test.mjs: header system badge uses AnabelkaNotify.formatCount when available | |-
+- anabelka_notify_contract.test.mjs: header system badge keeps a safe 99+ fallback without the shared module | |-
+- catalog_pagination_contract.test.mjs: catalog_pagination_contract.test.mjs | 'test failed'
+- category_manager_contract.test.mjs: category_manager_contract.test.mjs | 'test failed'
+- category_thumbnail_select_contract.test.mjs: category_thumbnail_select_contract.test.mjs | 'test failed'
+- category_translation_status_select_contract.test.mjs: category_translation_status_select_contract.test.mjs | 'test failed'
+- final_review_category_depth_palette_contract.test.mjs: final_review_category_depth_palette_contract.test.mjs | 'test failed'
+- final_review_home_mobile_polish_contract.test.mjs: final_review_home_mobile_polish_contract.test.mjs | 'test failed'
+- home_page_builder_contract.test.mjs: home_page_builder_contract.test.mjs | 'test failed'
+- home_right_rail_contract.test.mjs: home_right_rail_contract.test.mjs | 'test failed'
+- image_processor_mask_runtime.test.mjs: image_processor_mask_runtime.test.mjs | 'test failed'
+- mobile_navigation_runtime.test.mjs: mobile_navigation_runtime.test.mjs | 'test failed'
+- product_cart_available_stock_contract.test.mjs: variant cart handler also applies legacy availability response | |-
+- product_editor_sections_browser.test.mjs: every editor opening keeps main fields visible and starts the seven optional sections closed | |-
+- product_editor_sections_browser.test.mjs: size, color, photo and translation updates keep the current expanded sections | |-
+- product_editor_sections_browser.test.mjs: saved product colors attach to existing and new photos without duplicates | |-
+- product_editor_sections_browser.test.mjs: product inline validation clears immediately after correction | |-
+- product_editor_sections_browser.test.mjs: native validation reveals and focuses an invalid field in a collapsed section | |-
+- product_editor_sections_browser.test.mjs: validation opens every collapsed ancestor and reaches its invalid input | |-
+- product_editor_sections_browser.test.mjs: missing and duplicate sizes reveal the stock section without submitting | |-
+- product_editor_sections_browser.test.mjs: translation target URL expands and highlights without focusing an input | |-
+- product_editor_sections_browser.test.mjs: product save success is queued once across reload without premature toast | |-
+- product_editor_sections_browser.test.mjs: closed section values retain their names and reach the existing save flow | |-
+- product_editor_sections_browser.test.mjs: long product title and close button remain visible at 320x640 | |-
+- product_editor_sections_browser.test.mjs: long product title and close button remain visible at 360x800 | |-
+- product_editor_sections_browser.test.mjs: long product title and close button remain visible at 390x844 | |-
+- product_editor_sections_browser.test.mjs: long product title and close button remain visible at 412x915 | |-
+- product_editor_sections_browser.test.mjs: long product title and close button remain visible at 430x932 | |-
+- product_editor_sections_browser.test.mjs: long product title and close button remain visible at 640x320 | |-
+- product_editor_sections_browser.test.mjs: long product title and close button remain visible at 1024x768 | |-
+- product_editor_sections_browser.test.mjs: section cards fit 320x640, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 360x800, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 390x844, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 412x915, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 768x1024, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 640x320, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 800x360, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 844x390, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 915x412, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: section cards fit 1024x768, support keyboard toggling and expose 44px targets | |-
+- product_editor_sections_browser.test.mjs: independent product color can sample a product photo without linking it | |-
+- product_editor_sections_browser.test.mjs: no-photo manual color shows a useful warning instead of a disabled button | |-
+- product_image_mask_integration_browser.test.mjs: quality refusal enters actual mask review and cancellation preserves the live photo | |-
+- product_image_mask_integration_browser.test.mjs: dirty helper Back preserves mask history before preview and product editor | |-
+- product_image_mask_integration_browser.test.mjs: validated mask returns to comparison and only explicit confirmation changes processing | |-
+- product_image_mask_integration_browser.test.mjs: refused local edits stay in review and never request a result or confirmation | |-
+- product_image_mask_integration_browser.test.mjs: a result failure keeps the current mask revision available for retry | |-
+- product_image_mask_integration_browser.test.mjs: Escape handles a dirty mask helper without closing the underlying comparison | |-
+- product_image_mask_integration_browser.test.mjs: reset sends an empty cumulative action log using the current review revision | |-
+- product_image_mask_integration_browser.test.mjs: a late edit completion after forced editor closure cannot reopen a layer | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 320x640 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 360x800 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 390x844 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 412x915 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 768x1024 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 640x320 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 800x360 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 844x390 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 915x412 with accessible controls | |-
+- product_image_mask_integration_browser.test.mjs: integrated mask fits 1024x768 with accessible controls | |-
+- product_image_mask_integration_ui.test.mjs: product_image_mask_integration_ui.test.mjs | 'test failed'
+- product_image_processing_preview_ui.test.mjs: product_image_processing_preview_ui.test.mjs | 'test failed'
+- product_page_notifications_contract.test.mjs: public product page has one shared accessible notification host and relies on bootstrap | |-
+- product_stock_total_consistency_contract.test.mjs: duplicate product sizes are rejected instead of silently merged | |-
+- product_stock_total_consistency_contract.test.mjs: stock consistency scripts are cache-busted | |-
+- product_variant_color_contract.test.mjs: removed product colors do not return from photos or matrix | |-
+- public_admin_badge_permissions_contract.test.mjs: public_admin_badge_permissions_contract.test.mjs | 'test failed'
+- public_catalog_sidebar_contract.test.mjs: public_catalog_sidebar_contract.test.mjs | 'test failed'

@@ -91,11 +91,11 @@ test('shared error renderer keeps JSON 404s intact and hides technical codes', (
     const renderer = read('app/Core/PublicErrorPage.php');
     const view = read('views/errors/public.php');
 
-    assert.match(renderer, /http_response_code\(\) !== 404/);
+    assert.match(renderer, /\$statusCode !== 404/);
     assert.match(renderer, /application\/json/);
     assert.match(renderer, /public static function renderGeneric/);
     assert.match(view, /\/Anabelka\//);
-    assert.match(view, /public-error\.css\?v=3/);
+    assert.match(view, /public-error\.css\?v=4/);
     assert.doesNotMatch(view, /public-error-code/);
     assert.doesNotMatch(view, /\$errorCode/);
     assert.doesNotMatch(view, /\/Anabelka\/catalog/);

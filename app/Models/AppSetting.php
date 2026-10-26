@@ -3,11 +3,12 @@
 class AppSetting
 {
     private static $schemaReady = false;
+    private static $schemaInitializationSuspended = 0;
 
 
     private static function ensureTable()
     {
-        if (self::$schemaReady) {
+        if (self::$schemaReady || self::$schemaInitializationSuspended > 0) {
             return;
         }
 
@@ -31,10 +32,28 @@ class AppSetting
     }
 
 
+    public static function withoutSchemaInitialization(callable $operation)
+    {
+        self::$schemaInitializationSuspended++;
+        try {
+            return $operation();
+        } finally {
+            self::$schemaInitializationSuspended--;
+        }
+    }
+
+
     public static function get($key, $default = null)
     {
         self::ensureTable();
 
+        return self::getExisting($key, $default);
+    }
+
+
+    // Emergency readers must never initialize or repair the database schema.
+    public static function getExisting($key, $default = null)
+    {
         $key = trim((string) $key);
 
         if ($key === '') {
@@ -64,6 +83,12 @@ class AppSetting
     {
         self::ensureTable();
 
+        return self::setExisting($key, $value);
+    }
+
+
+    public static function setExisting($key, $value)
+    {
         $key = trim((string) $key);
         $value = trim((string) $value);
 

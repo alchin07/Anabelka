@@ -55,16 +55,16 @@ const respondBlock = errorHandler.slice(respondStart, respondEnd);
 
 assert.match(
     respondBlock,
-    /PublicErrorPage::renderGeneric\(500\)/
+    /PublicErrorPage::renderGeneric\(500,/
 );
 assert.doesNotMatch(
     respondBlock,
-    /Код помилки|ERR-|['"]reference['"]\s*=>/
+    /getMessage\(|getTraceAsString\(|\$_REQUEST/
 );
 
 assert.match(
     renderer,
-    /public static function renderGeneric\(\$statusCode = 500\)/
+    /public static function renderGeneric\(\$statusCode = 500, array \$context = \[\]\)/
 );
 assert.match(
     renderer,
@@ -93,7 +93,7 @@ assert.match(
 
 assert.match(
     router,
-    /private function forbidAdminAccess\(\)[\s\S]*?PublicErrorPage::renderGeneric\(403\)/
+    /private function forbidAdminAccess\(array \$context = \[\]\)[\s\S]*?PublicErrorPage::renderGeneric\(403, \$context\)/
 );
 
 process.stdout.write(

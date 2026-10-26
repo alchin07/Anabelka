@@ -204,6 +204,16 @@ class AdminDashboardServiceRegistry
                 'tone' => 'error'
             ]
         ],
+        'error_display' => [
+            'label' => 'Режими відображення помилок',
+            'description' => 'Робочий сайт і захищена діагностика для Розробника.',
+            'path' => '/admin/system/error-display',
+            'permission' => 'admin.access',
+            'group' => 'system',
+            'icon_key' => 'system_errors',
+            'allow_multiple' => false,
+            'roles' => ['owner']
+        ],
         'system_error_notifications' => [
             'label' => 'Сповіщення про помилки',
             'description' => 'Зовнішні сповіщення про системні помилки.',

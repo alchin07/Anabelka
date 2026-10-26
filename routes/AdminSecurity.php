@@ -10,6 +10,8 @@ require_once __DIR__ . '/../app/Controllers/AdminSystemErrorController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminSystemErrorExternalNotificationController.php';
 require_once __DIR__ . '/../app/Controllers/AdminErrorTestController.php';
+require_once __DIR__ . '/../app/Services/ErrorDisplayMode.php';
+require_once __DIR__ . '/../app/Controllers/AdminErrorDisplayController.php';
 require_once __DIR__ . '/../app/Models/VipPriceViewLog.php';
 require_once __DIR__ . '/../app/Controllers/AdminVipPriceViewController.php';
 
@@ -186,6 +188,16 @@ $router->get(
 $router->get(
     '/admin/system/error-test',
     'AdminErrorTestController@index'
+);
+
+$router->get(
+    '/admin/system/error-display',
+    'AdminErrorDisplayController@index'
+);
+
+$router->post(
+    '/admin/system/error-display',
+    'AdminErrorDisplayController@save'
 );
 
 $router->post(

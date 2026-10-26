@@ -70,6 +70,27 @@
     outline-offset: 2px;
 }
 
+.error-diagnostic {
+    margin-top: 24px;
+    padding: 18px;
+    border: 1px solid #EADCF7;
+    border-radius: 14px;
+    background: #F4EAFF;
+    color: #20202A;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+.error-diagnostic h2 { margin: 0 0 14px; color: #6519B9; font-size: 18px; }
+.error-diagnostic dl { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr); gap: 8px 14px; margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
+.error-diagnostic dt { font-weight: 700; }
+.error-diagnostic dd { min-width: 0; margin: 0; }
+.error-diagnostic a { color: #6519B9; font-weight: 700; }
+@media(max-width:430px) {
+    .error-diagnostic { padding: 14px; }
+    .error-diagnostic dl { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+    .error-diagnostic dd { margin-bottom: 8px; }
+}
+
 @media (max-width: 430px) {
     .public-error-page {
         min-height: calc(100vh - 96px);

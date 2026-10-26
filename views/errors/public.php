@@ -12,8 +12,9 @@ $escape = static function ($value) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow,noarchive">
     <title><?= $escape($errorTitle) ?> — Анабелька</title>
-    <link rel="stylesheet" href="/Anabelka/css/public-error.css?v=3">
+    <link rel="stylesheet" href="/Anabelka/css/public-error.css?v=4">
 </head>
 <body>
 <main class="public-error-page">
@@ -25,6 +26,9 @@ $escape = static function ($value) {
                 На головну
             </a>
         </div>
+        <?php if (!empty($diagnostics)): ?>
+            <?php require __DIR__ . '/diagnostic.php'; ?>
+        <?php endif; ?>
     </section>
 </main>
 </body>

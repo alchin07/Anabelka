@@ -7,6 +7,9 @@ $csrfToken = (string) ($csrfToken ?? '');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Тест обробника помилок — Анабелька</title>
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <link rel="stylesheet" href="/Anabelka/css/public-error.css?v=4">
+    <link rel="stylesheet" href="/Anabelka/css/admin-error-display.css?v=1">
     <style>
         body{margin:0;background:#faf7ff;color:#302735;font-family:Arial,sans-serif}
         .wrap{width:min(620px,calc(100% - 28px));margin:36px auto;padding:22px;box-sizing:border-box;background:#fff;border:1px solid #eadcf7;border-radius:18px}
@@ -24,6 +27,8 @@ $csrfToken = (string) ($csrfToken ?? '');
 <body>
 <main class="wrap">
     <h1>Тест обробника помилок</h1>
+    <?php require __DIR__ . '/error-examples.php'; ?>
+    <p><a href="/Anabelka/admin/system/error-display">Режими відображення помилок</a></p>
     <p>
         Кнопка нижче навмисно створює одну тестову помилку. Системний обробник має
         записати її у журнал і показати безпечну сторінку без технічних деталей.

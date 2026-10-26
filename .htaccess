@@ -2,6 +2,9 @@
 # если mod_rewrite доступен.
 RewriteEngine On
 
+# System log entries are available only through the protected admin controller.
+RewriteRule ^storage/logs(?:/|$) - [F,L,NC]
+
 # Block public access to update and full backup archives, including nested paths.
 # Backup creation and authenticated downloads via PHP remain unaffected.
 RewriteRule ^storage/(?:deploy-backups|full-backups)(?:/|$) - [F,L,NC]

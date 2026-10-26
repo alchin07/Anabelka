@@ -321,6 +321,37 @@ class AdminAccess
     }
 
 
+    // Read-only, fresh verification for emergency pages. Do not call current():
+    // it also runs schema setup. Never trust the role cached in the session.
+    public static function currentForDiagnostics()
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE || session_id() === '') {
+            return null;
+        }
+
+        $id = $_SESSION[self::SESSION_ID] ?? null;
+        if ((!is_int($id) && !is_string($id)) || !ctype_digit((string) $id) || (int) $id <= 0) {
+            return null;
+        }
+
+        try {
+            $stmt = Database::connect()->prepare("
+                SELECT au.id, au.is_active, ar.slug AS role_slug
+                FROM admin_users au
+                INNER JOIN admin_roles ar ON ar.id = au.role_id
+                WHERE au.id = :id
+                LIMIT 1
+            ");
+            $stmt->execute(['id' => (int) $id]);
+            $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return is_array($admin) && !empty($admin['is_active']) ? $admin : null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+
     public static function currentId()
     {
         return (int) ($_SESSION[self::SESSION_ID] ?? 0);
@@ -427,7 +458,7 @@ class AdminAccess
     }
 
 
-    public static function audit($action, array $details = [], $adminUserId = null)
+    public static function audit($action, array $details = [], $adminUserId = null, $strict = false)
     {
         try {
             self::ensureSchema();
@@ -469,6 +500,9 @@ class AdminAccess
                 'details' => $encoded !== false ? $encoded : null
             ]);
         } catch (Throwable $e) {
+            if ($strict) {
+                throw $e;
+            }
             error_log('Admin audit error: ' . $e->getMessage());
         }
     }

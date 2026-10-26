@@ -94,6 +94,11 @@ class Router
 
         http_response_code(404);
 
+        if (class_exists('PublicErrorPage')) {
+            PublicErrorPage::renderNotFound();
+            return;
+        }
+
         PublicInterfaceTranslator::seed();
 
         echo htmlspecialchars(
@@ -254,7 +259,7 @@ class Router
                 return;
             }
 
-            $this->forbidAdminAccess();
+            $this->forbidAdminAccess(['permission' => 'system.owner']);
         }
 
         if (
@@ -287,11 +292,11 @@ class Router
             return;
         }
 
-        $this->forbidAdminAccess();
+        $this->forbidAdminAccess(['permission' => $permission]);
     }
 
 
-    private function forbidAdminAccess()
+    private function forbidAdminAccess(array $context = [])
     {
         http_response_code(403);
 
@@ -299,7 +304,7 @@ class Router
             class_exists('PublicErrorPage')
             && method_exists('PublicErrorPage', 'renderGeneric')
         ) {
-            PublicErrorPage::renderGeneric(403);
+            PublicErrorPage::renderGeneric(403, $context);
             exit;
         }
 

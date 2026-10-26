@@ -5,6 +5,7 @@ class ErrorHandler
     private static $projectRoot = '';
     private static $handling = false;
     private static $notifying = false;
+    private static $writing = false;
 
 
     public static function register($projectRoot)
@@ -27,13 +28,21 @@ class ErrorHandler
             return false;
         }
 
+        if (self::$handling || self::$writing || self::$notifying) {
+            return false;
+        }
+
         $level = self::levelForSeverity((int) $severity);
-        self::writeLog($level, 'php_error', [
-            'severity' => (int) $severity,
-            'message' => (string) $message,
-            'file' => self::relativePath((string) $file),
-            'line' => (int) $line
-        ]);
+        try {
+            self::writeLog($level, 'php_error', [
+                'severity' => (int) $severity,
+                'message' => (string) $message,
+                'file' => self::relativePath((string) $file),
+                'line' => (int) $line
+            ]);
+        } catch (Throwable $loggingError) {
+            self::fallbackLog('warning', 'php_error_log_failure', []);
+        }
 
         // Не змінюємо поведінку звичайних warning/notice під час першого етапу
         // впровадження. display_errors вимкнено, але PHP може записати їх у свій лог.
@@ -56,7 +65,7 @@ class ErrorHandler
 
         try {
             $reference = self::writeThrowable('error', 'uncaught_exception', $throwable);
-            self::respondSafely($reference);
+            self::respondSafely($reference, $throwable);
         } catch (Throwable $loggingError) {
             self::fallbackLog('critical', 'error_handler_failure', [
                 'message' => $loggingError->getMessage()
@@ -90,11 +99,15 @@ class ErrorHandler
                 'line' => (int) ($error['line'] ?? 0)
             ]);
 
-            self::respondSafely($reference);
+            self::respondSafely($reference, null, [
+                'file' => (string) ($error['file'] ?? ''),
+                'line' => (int) ($error['line'] ?? 0)
+            ]);
         } catch (Throwable $loggingError) {
             self::fallbackLog('critical', 'shutdown_handler_failure', [
                 'message' => $loggingError->getMessage()
             ]);
+            self::respondSafely('ERR-UNAVAILABLE');
         }
 
         self::$handling = false;
@@ -147,36 +160,44 @@ class ErrorHandler
 
     private static function writeLog($level, $kind, array $context)
     {
-        $reference = self::reference();
-        $record = [
-            'time' => date('c'),
-            'reference' => $reference,
-            'level' => self::normalizeLevel($level),
-            'kind' => (string) $kind,
-            'request' => self::requestContext(),
-            'context' => self::sanitizeContext($context)
-        ];
-
-        $directory = self::logDirectory();
-
-        if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
-            throw new RuntimeException('Не вдалося створити каталог системних логів.');
+        if (self::$writing) {
+            return 'ERR-UNAVAILABLE';
         }
+        self::$writing = true;
+        try {
+            $reference = self::reference();
+            $record = [
+                'time' => date('c'),
+                'reference' => $reference,
+                'level' => self::normalizeLevel($level),
+                'kind' => (string) $kind,
+                'request' => self::requestContext(),
+                'context' => self::sanitizeContext($context)
+            ];
 
-        $line = json_encode(
-            $record,
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
-        );
+            $directory = self::logDirectory();
 
-        if (!is_string($line)) {
-            throw new RuntimeException('Не вдалося сформувати запис системного логу.');
+            if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
+                throw new RuntimeException('Не вдалося створити каталог системних логів.');
+            }
+
+            $line = json_encode(
+                $record,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
+            );
+
+            if (!is_string($line)) {
+                throw new RuntimeException('Не вдалося сформувати запис системного логу.');
+            }
+
+            $path = $directory . '/app-' . date('Y-m-d') . '.log';
+            self::appendLogLine($path, $line . PHP_EOL);
+            self::notifyExternal($reference);
+
+            return $reference;
+        } finally {
+            self::$writing = false;
         }
-
-        $path = $directory . '/app-' . date('Y-m-d') . '.log';
-        self::appendLogLine($path, $line . PHP_EOL);
-        self::notifyExternal($reference);
-
-        return $reference;
     }
 
 
@@ -238,7 +259,9 @@ class ErrorHandler
                 return;
             }
 
-            SystemErrorExternalNotifier::sendAutomatic($group);
+            AppSetting::withoutSchemaInitialization(static function () use ($group) {
+                SystemErrorExternalNotifier::sendAutomatic($group);
+            });
         } catch (Throwable $notificationError) {
             self::fallbackLog('warning', 'external_notification_failure', [
                 'reference' => (string) $reference,
@@ -340,15 +363,20 @@ class ErrorHandler
     }
 
 
-    private static function respondSafely($reference)
+    private static function respondSafely($reference, $throwable = null, array $context = [])
     {
         if (PHP_SAPI === 'cli') {
             return;
         }
 
+        if (class_exists('PublicErrorPage')) {
+            PublicErrorPage::discardOutput();
+        }
+
         if (!headers_sent()) {
             http_response_code(500);
             header('Cache-Control: no-store, no-cache, must-revalidate');
+            header('X-Robots-Tag: noindex, nofollow, noarchive');
         }
 
         $message = 'Спробуйте ще раз.';
@@ -372,8 +400,17 @@ class ErrorHandler
             class_exists('PublicErrorPage')
             && method_exists('PublicErrorPage', 'renderGeneric')
         ) {
-            PublicErrorPage::renderGeneric(500);
-            return;
+            try {
+                PublicErrorPage::renderGeneric(500, [
+                    'reference' => $reference,
+                    'exception' => $throwable,
+                    'diagnostics_disabled' => $reference === 'ERR-UNAVAILABLE'
+                ] + $context);
+                return;
+            } catch (Throwable $renderingError) {
+                // The final fallback below must not depend on DB, session or views.
+                self::fallbackLog('critical', 'error_page_failure', []);
+            }
         }
 
         if (!headers_sent()) {
@@ -397,12 +434,18 @@ class ErrorHandler
 
     private static function expectsJson()
     {
+        foreach (headers_list() as $header) {
+            if (stripos($header, 'content-type:') === 0 && preg_match('#(?:application/[^; ]*json)#i', $header)) {
+                return true;
+            }
+        }
         $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
         $requestedWith = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
 
         return strpos($accept, 'application/json') !== false
             || $requestedWith === 'xmlhttprequest'
+            || trim((string) ($_SERVER['HTTP_X_ANABELKA_REQUEST'] ?? '')) !== ''
             || strpos($uri, '/api/') !== false;
     }
 
@@ -447,7 +490,7 @@ class ErrorHandler
             . (string) $kind . ' '
             . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        error_log($message);
+        @error_log($message);
     }
 
 

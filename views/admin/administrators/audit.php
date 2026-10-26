@@ -126,6 +126,7 @@ $actionLabels = [
     'system.error_external_notifications.update' => 'Оновлено зовнішні сповіщення про помилки',
     'system.error_external_notifications.test' => 'Виконано тест зовнішніх сповіщень',
     'system.error_test' => 'Виконано тест обробника помилок',
+    'system.error_display_mode.update' => 'Змінено режим відображення помилок',
     'system.backup_created' => 'Створено резервну копію',
     'system.backup_downloaded' => 'Завантажено резервну копію',
 
@@ -148,6 +149,8 @@ $detailLabels = [
     'old_name' => 'Попередня назва',
     'old_role' => 'Попередня роль',
     'new_role' => 'Нова роль',
+    'old_mode' => 'Попередній режим помилок',
+    'new_mode' => 'Новий режим помилок',
     'email' => 'Email',
     'old_email' => 'Попередній email',
     'new_email' => 'Новий email',
